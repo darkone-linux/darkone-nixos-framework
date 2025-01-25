@@ -37,7 +37,7 @@ install:
 
 # format (nixfmt) + generate + check (deadnix)
 [group('_main')]
-clean: fix format generate check
+clean: fix check format generate
 
 # Recursive deadnix on nix files
 [group('check')]
@@ -116,4 +116,14 @@ ssh-copy-id host:
 	#!/usr/bin/env bash
 	ssh-copy-id -i "{{nixKeyFile}}.pub" -t /home/nix/.ssh/authorized_keys {{host}}
 	ssh {{host}} 'chown -R nix:users /home/nix/.ssh'
+
+# Apply configuration using colmena
+[group('apply')]
+apply on what='switch':
+	colmena apply --sudo --on "{{on}}" {{what}}
+
+# Apply the local host configuration
+[group('apply')]
+apply-local what='switch':
+	colmena apply-local --sudo {{what}}
 

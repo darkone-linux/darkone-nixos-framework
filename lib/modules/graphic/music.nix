@@ -4,7 +4,6 @@
   lib,
   config,
   pkgs,
-  pkgs-stable,
   ...
 }:
 let
@@ -27,28 +26,29 @@ in
 
     # Packages
     environment.systemPackages =
+      with pkgs;
       [
-        pkgs.audacity
-        pkgs.hydrogen
-        pkgs.lame
-        pkgs-stable.lmms
-        pkgs.mixxx
-        pkgs.mpg123
-        pkgs.mpv
-        pkgs.muse-sounds-manager
-        pkgs.musescore
-        pkgs.ncmpcpp
-        pkgs.soundfont-fluid
-        pkgs.timidity
-        pkgs.vlc
+        audacity
+        hydrogen
+        lame
+        lmms
+        mixxx
+        mpg123
+        mpv
+        muse-sounds-manager
+        musescore
+        ncmpcpp
+        soundfont-fluid
+        timidity
+        vlc
       ]
       ++ (
         if cfg.enablePro then
           [
-            pkgs.ardour
-            pkgs.reaper
-            pkgs.renoise
-            pkgs.rosegarden
+            ardour
+            reaper
+            renoise
+            rosegarden
           ]
         else
           [ ]
