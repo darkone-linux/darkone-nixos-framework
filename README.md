@@ -2,6 +2,9 @@
 
 Une configuration NixOS multi-utilisateur, multi-host, multi-réseaux.
 
+> [!NOTE]
+> A [documentation](https://darkone-linux.github.io) is available.
+
 > [!WARNING]  
 > Projet en cours de développement.
 

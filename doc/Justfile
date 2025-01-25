@@ -37,6 +37,14 @@ amend:
 	    git commit --amend --no-edit && \
 	    git push --force -u origin main
 
+status:
+	#!/usr/bin/env bash
+	cd darkone-linux.github.io && git status
+
+diff:
+	#!/usr/bin/env bash
+	cd darkone-linux.github.io && git diff
+
 upgrade:
 	@echo Full upgrade of doc dependencies...
 	npx @astrojs/upgrade
