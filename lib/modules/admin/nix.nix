@@ -49,6 +49,13 @@ in
       "@wheel"
     ];
 
+    # NOTE: already in home admin entries but not working
+    #programs.gnupg.agent = {
+    #  enable = true;
+    #  enableSSHSupport = true;
+    #  pinentryPackage = pkgs.pinentry-curses;
+    #};
+
     # Nix helper tool
     programs.nh = lib.mkIf cfg.enable {
       enable = true;
