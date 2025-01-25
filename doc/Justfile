@@ -30,9 +30,15 @@ deploy:
 	    git commit -m "$LAST_MESG" && \
 	    git push -u origin main
 
+amend:
+	#!/usr/bin/env bash
+	cd darkone-linux.github.io && \
+	    git add . && \
+	    git commit --amend --no-edit && \
+	    git push --force -u origin main
+
 upgrade:
 	@echo Full upgrade of doc dependencies...
 	npx @astrojs/upgrade
 	npm update
 	npm upgrade
-

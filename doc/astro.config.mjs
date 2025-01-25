@@ -6,7 +6,7 @@ import { targetBlank } from './src/plugins/targetBlank';
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://darkone-linux.github.io',
-	trailingSlash: "never",
+	trailingSlash: "always",
 	build: {
 		assets: 'astro',
 	},

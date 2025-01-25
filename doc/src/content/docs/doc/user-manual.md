@@ -14,7 +14,7 @@ Clone or fork the DNF repository and create your configuration in `usr` director
 
 ## Just commands
 
-In the root folder, type `just` ([example with `just clean`](specifications#the-generator))
+In the root folder, type `just` ([example with `just clean`](/doc/specifications/#the-generator))
 
 ```shell
 ❯ just
