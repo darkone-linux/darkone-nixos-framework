@@ -7,6 +7,9 @@ import { targetBlank } from './src/plugins/targetBlank';
 export default defineConfig({
 	site: 'https://darkone-linux.github.io',
 	trailingSlash: "never",
+	build: {
+		assets: 'astro',
+	},
 	markdown: {
 		rehypePlugins: [
 			[targetBlank, { domain: 'darkone-linux.github.io' }],
@@ -32,7 +35,7 @@ export default defineConfig({
 				},
 			},
 			social: {
-				github: 'https://github.com/gponcon/nixos-configuration',
+				github: 'https://github.com/darkone-linux/darkone-nixos-framework',
 			},
 			logo: {
 				src: './src/assets/nix-logo.svg',
