@@ -11,7 +11,7 @@ sidebar:
 import { FileTree } from '@astrojs/starlight/components';
 
 :::tip[This project is under development]
-If you'd like to be informed about upcoming stable versions, please let me know with a little [GitHub star](https://github.com/darkone-linux/darkone-nixos-framework) or by subscribing to my [YouTube channel](https://www.youtube.com/@DarkoneLinux) (FR). Thank you!
+If you'd like to be informed about upcoming stable versions, please let me know on [GitHub](https://github.com/darkone-linux/darkone-nixos-framework) or by subscribing to my [YouTube channel](https://www.youtube.com/@DarkoneLinux) (FR). Thank you!
 :::
 
 :::note[Multi-user, multi-host, multi-network NixOS configuration with:]
@@ -52,72 +52,72 @@ The lower layers serve the upper layers.
 
 The configurations are also organized by category:
 
-- **Standard modules**: Ready-to-use simple modules (just write `.enable = true`).
-- **Macro-modules**: Ready-to-use collections of modules with additional configurations.
-- **User declarations**: Used to instanciate real users from user profiles.
-- **Home profiles**: Contain core Home Manager configurations for each user profile.
-- **Tools & configurations**: Manage the generation and quality of Nix declarations.
+- **[Standard modules](/ref/modules/#standard-modules)**: Ready-to-use simple modules (just write `.enable = true`).
+- **[Macro-modules](/ref/modules/#macro-modules)**: Ready-to-use collections of modules with additional configurations.
+- **[Users' declaration](/doc/specifications/#users-declaration-example)**: Used to instantiate real users from [user profiles](/ref/user-profiles/).
+- **[Home profiles](/doc/specifications/#create-a-user-profile-example)**: Contain core [Home Manager](https://github.com/nix-community/home-manager) configurations for each user profile.
+- **[Tools & configurations](/doc/user-manual/#just-commands)**: Manage the generation and quality of Nix declarations.
 
 ### Structure
 
 <FileTree>
 - flake.nix Main flake
-- Justfile Project management
+- Justfile Project management with [just](/doc/user-manual/#just-commands)
 - lib/ Projet library (framework)
-- modules/ Framework modules
-  - default.nix Auto-generated default (by Justfile)
-  - system/ System / Hardware configurations
-    - core.nix
-    - i18n.nix
-    - doc.nix
+  - modules/ [Framework modules](/ref/modules/)
+    - default.nix Auto-generated default
+    - system/ System / Hardware configurations
+      - core.nix
+      - i18n.nix
+      - doc.nix
+      - …
+    - console/ CLI applications
+    - graphic/ X applications
+    - service/ Daemons
+    - admin/ Nix administration settings
+      - nix.nix Nix tools
+      - …
+    - user/ User management (not home)
+      - nix.nix Nix special user (for deployments)
+      - build.nix Users builder
+      - …
+    - host/ [Host profiles](/ref/host-profiles/) (macro-modules)
+      - desktop.nix
+      - laptop.nix
+      - server.nix
+      - vm.nix
+      - minimal.nix
+      - …
+    - theme/ [Thematic features](/ref/themes/) (macro-modules)
+      - office.nix
+      - advanced.nix
+      - student.nix
+      - …
+  - homes/ [User profiles (.nix) + home profiles (dirs)](/ref/user-profiles/)
+    - admin.nix Admin user profile config (extragroups, etc.)
+    - admin/ Admin user profile home
+    - advanced/ Advanced user with development tools
+    - minimal/ Easy environment
+    - normal/ Non-technical user
+    - gamer/ Optimized environment for gamers
+    - child/ Kids softwares and settings
     - …
-  - console/ CLI applications
-  - graphic/ X applications
-  - service/ Daemons
-  - admin/ Nix administration settings
-    - nix.nix Nix tools
-    - …
-  - user/ User management (not home)
-    - nix.nix Nix special user (for deployments)
-    - build.nix Users builder
-    - …
-  - host/ Host profiles (macro-modules)
-    - desktop.nix
-    - laptop.nix
-    - server.nix
-    - vm.nix
-    - minimal.nix
-    - …
-  - theme/ Thematic features (macro-modules)
-    - office.nix
-    - advanced.nix
-    - student.nix
-    - …
-- homes/ User profiles (.nix) + home profiles (dirs)
-  - admin.nix Admin user profile config (extragroups, etc.)
-  - admin/ Admin user profile home
-  - advanced/ Advanced user with development tools
-  - minimal/ Easy environment
-  - normal/ Non-technical user
-  - gamer/ Optimized environment for gamers
-  - child/ Kids softwares and settings
-  - …
 - **usr/** Writable zone for local network project
-  - config.yaml Local configuration used by the generator
+  - config.yaml [Local configuration](/doc/specifications/#the-configuration-file) used by [the generator](/doc/specifications/#the-generator)
   - modules/ Local modules
+    - host/ [Local host profiles](/doc/specifications/#create-a-host-profile-example)
   - secrets/ Local secrets file
-  - homes/ Home profiles
+  - homes/ [Local home profiles](/doc/specifications/#create-a-user-profile-example)
   - machines/ Machine specific configuration by hostname
-  - hosts/ Host profiles
 - var/
   - log/
-  - generated/ Generated files
+  - generated/ [Generated files](/doc/specifications/#the-generator)
     - hosts.nix Hosts to deploy
     - hosts.nix Users to deploy
     - networks.nix Networks configuration
 - src/ Generator sources
 </FileTree>
 
-:::note
-For now, the framework is intended to be cloned, with the user's project located in `usr`, which can host an independent git project. A separation between the local project and the framework (which would be a simple input of the local flake) is currently under consideration.
+:::caution
+For now, [the framework](https://github.com/darkone-linux/darkone-nixos-framework) is intended to be forked, with the user's project located in `usr`, which should be able to be hosted as an independent Git project in the future. A separation between the local project and the framework (which would be a simple input of the local flake) is currently under consideration.
 :::
