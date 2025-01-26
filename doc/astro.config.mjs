@@ -16,7 +16,7 @@ export default defineConfig({
 			[
 				rehypeExternalLinks,
 				{
-				  content: { type: 'text', value: ' ↗' }
+				  content: { type: 'text', value: '\u{00A0}\u{1F855}' }
 				}
 			],
 		],

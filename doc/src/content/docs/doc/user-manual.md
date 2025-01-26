@@ -1,7 +1,7 @@
 ---
 title: User Manual
 sidebar:
-  order: 2
+  order: 3
 ---
 
 ## Getting started
