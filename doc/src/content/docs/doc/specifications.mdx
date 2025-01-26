@@ -31,7 +31,7 @@ This section includes everything that is currently implemented and functional.
 
 ### The generator
 
-Its role is to generate a pure static configuration from a definition of machines (hosts), users, and groups from various sources (static declarations, LDAP, etc. configured in `usr/config.yaml`). The generated Nix configuration is integrated into the repository to be fixed and used by the flake.
+Its role is to generate a pure static configuration from a definition of machines (hosts), users, and groups from various sources (static declarations, LDAP, etc. configured in [`usr/config.yaml`](#the-configuration-file). The generated Nix configuration is integrated into the repository to be fixed and used by the flake.
 
 ![Darkone NixOS Framework Generator](../../..//assets/arch.webp)
 
@@ -49,6 +49,7 @@ A `just clean` result:
 
 ```shell
 -> Fixing source code with statix...
+-> Checking nix files with deadnix...
 -> Formatting nix files with nixfmt...
 -> generating lib/modules default.nix...
 -> generating usr/modules default.nix...
@@ -56,31 +57,163 @@ A `just clean` result:
 -> generating users in var/generated/users.nix...
 -> generating hosts in var/generated/hosts.nix...
 -> generating networks in var/generated/networks.nix...
--> Checking nix files with deadnix...
 ```
 
-## Work in progress features
-
-:::caution
-These examples are not yet fully functional and may differ in the future stable version of the project.
+:::note[The generated files]
+- `var/generated/hosts.nix` The full host collection
+- `var/generated/users.nix` The explicitly created user collection
+- `var/generated/networks.nix` The network collection
 :::
 
-### Example: creating a host profile
+### The configuration file
+
+The `usr/config.yaml` file contains declarations of users, hosts, networks and providers. [The generator](#the-generator) reads this file to create a static pure nix configuration.
+
+:::note[Users - groups - hosts]
+You can link users and hosts either directly or through a group list, which is declared in the users and/or groups items.
+:::
+
+#### User declarations example
+
+```yaml
+# usr/config.yaml
+# Static users
+# -> profile is the HomeManager profile
+# -> groups is used to select related hosts
+users:
+
+  # A nix administrator
+  nixos:
+    uid: 10000
+    name: "NixOS User"
+    profile: "nix-admin"
+    groups: [ "admin" ]
+
+  # A real user (admin)
+  darkone:
+    uid: 1000
+    name: "Darkone Linux"
+    email: "darkone@darkone.yt"
+    profile: "darkone"
+    groups: [ "admin", "media", "common" ]
+
+  # A student with specific profile "student"
+  ethan:
+    uid: 1101
+    name: "Ethan"
+    profile: "student"
+    groups: [ "sn", "tsn" ]
+
+  # A child of my home network
+  esteban:
+    uid: 1001
+    name: "Esteban"
+    profile: "teenager"
+    groups: [ "kids", "common" ]
+```
+
+#### Host declarations example
+
+```yaml
+# usr/config.yaml
+# Hosts declaration
+# -> name: human readable name or description
+# -> profile: the host profile related to this host
+# -> users: a list of existing user logins
+# -> groups: used to select related users
+# -> networks: the first one is the default (to auto-generate email for example)
+# -> tags: added to colmena tags for deployment filtering.
+# -> local: true is only for the local (master) machine.
+hosts:
+
+  # Static hosts
+  static:
+
+    # A host for the nix administrator
+    - hostname: "nix-adm"
+      name: "Nix Administration"
+      profile: "nix-admin"
+      users: [ "darkone" ]
+      groups: [ "admin" ]
+      networks: [ "default", "sn" ]
+      tags: [ "local", "admin" ]
+      local: true
+
+    # A gateway server
+    - hostname: "sn-network"
+      name: "SN Network Gateway"
+      profile: "sn-network"
+      networks: [ "sn" ]
+      groups: [ "sn-admin" ]
+
+  # Host groups by range (generated from min to max)
+  range:
+
+    # 12 workstations based on the profile "sn-workstation"
+    - hostname: "pc%'02s"
+      name: "Workstation %d"
+      profile: "sn-workstation"
+      range: [ 1, 12 ]
+      networks: [ "sn" ]
+      groups: [ "tsn", "sn" ]
+
+  # List of similar hosts (each item is a host)
+  list:
+
+    # 3 similar hosts (for the default network)
+    - hostname: "laptop-%s" # optional
+      name: "Laptop %s" # optional
+      profile: "home-laptop"
+      hosts:
+          kids1: "Kids Laptop 1"
+          kids2: "Kids Laptop 2"
+          family: "Family Laptop"
+      groups: [ "common" ]
+```
+
+### Network declarations example
+
+:::caution
+This example is incomplete, and this part is subject to future changes.
+:::
+
+```yaml
+# usr/config.yaml
+# Global network configuration is converted in lists / attSets to be used in
+# your nix configuration through "networks.<network>" or "network" special arg.
+networks:
+
+  # The default network
+  default:
+    domain: "darkone.lan"
+    gateway:
+      hostname: "gateway"
+      ip: "192.168.0.1"
+
+  # Another network (optional)
+  sn:
+    domain: "sn.lan"
+    gateway:
+      hostname: "sn-network"
+      ip: "192.168.11.1"
+```
+
+### Create a host profile (example)
 
 <Steps>
 
-1. Configuring a module for a complete workstation template
+1. Configuring a module for a ready-to-use workstation template
 
     ```nix
-    # usr/modules/host/workstation.nix
+    # usr/modules/host/sn-workstation.nix
     { lib, config, ... }:
     let
-      cfg = config.darkone.host.workstation;
+      cfg = config.darkone.host.sn-workstation;
     in
     {
       # A simple .enable declaration for my module
       options = {
-        darkone.host.workstation.enable = lib.mkEnableOption "My workstation host profile";
+        darkone.host.sn-workstation.enable = lib.mkEnableOption "SN workstation host profile";
       };
 
       # If this module is enabled
@@ -99,10 +232,9 @@ These examples are not yet fully functional and may differ in the future stable 
     ```
 
     :::note
-    - The `workstation` profile refers to `usr/modules/host/workstation.nix`.
     - There are also pre-configured host profiles in `lib/modules/host`.
     - Users linked to the host are declared via `users` and/or `groups`.
-    - Users and groups can be declared in the configuration or in LDAP.
+    - Users and groups can be declared in [the configuration](#the-configuration-file) or in LDAP.
     :::
 
 2. Now, let's create a workstation host
@@ -147,7 +279,67 @@ just apply @user-darkone
 ```
 :::
 
-### Example: a full-featured gateway
+### Create a user profile (example)
+
+<Steps>
+
+1. User creation in the nix general configuration
+
+    ```nix
+    # usr/homes/sn-user.nix
+    # A student for the network "sn"
+    { pkgs, lib, config, ... }:
+    { initialPassword = "sn2025"; }
+    // import ./../../lib/homes/student.nix { inherit pkgs lib config; }
+    ```
+
+2. Home manager profile
+
+    ```nix
+    # usr/homes/sn-user/default.nix
+    { pkgs, ... }:
+    {
+      imports = [ ./../../../lib/homes/student ];
+      home.packages = with pkgs; [
+        hunspell
+        hunspellDicts.fr-moderne
+        libreoffice-fresh
+        obsidian
+      ];
+      home.stateVersion = "25.05";
+    }
+    ```
+
+</Steps>
+
+## Work in progress features
+
+:::caution
+These examples are not yet fully functional and may differ in the future stable version of the project.
+:::
+
+### LLDAP Users provider
+
+:::note
+[Light LDAP (lldap)](https://github.com/lldap/lldap) is a lightweight authentication server that provides an opinionated, simplified LDAP interface for authentication. It integrates with many backends, from KeyCloak to Authelia to Nextcloud and [more](https://github.com/lldap/lldap#compatible-services).
+:::
+
+```yaml
+# usr/config.yaml
+hostProvider:
+  lldap:
+
+    # Use nsswitch to login users, otherwise user configurations are
+    # generated in the nix configuration
+    nss: true
+    url: "ldap://localhost:3890"
+    bind:
+      user: "admin"
+      passwordFile: "lldap" # located in usr/secrets
+
+```
+
+### A full-featured gateway (example)
 
 Minimal [host profile](../ref/host-profiles/) declaration:
 
