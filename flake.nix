@@ -18,9 +18,6 @@
 
     colmena.url = "github:zhaofengli/colmena/main";
     colmena.inputs.nixpkgs.follows = "nixpkgs";
-
-    nixos-generators.url = "github:nix-community/nixos-generators";
-    nixos-generators.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
@@ -29,7 +26,6 @@
       nixpkgs-stable,
       home-manager,
       colmena,
-      nixos-generators,
       ...
     }:
 
@@ -180,41 +176,5 @@
           replaceUnknownProfiles = false;
         };
       } // builtins.listToAttrs (map mkHost hosts);
-
-      # Start images generators
-      # TODO: factorize
-      packages.x86_64-linux = {
-        start-img-iso = nixos-generators.nixosGenerate (
-          startImgParams
-          // {
-            format = "iso";
-            specialArgs = {
-              imgFormat = "iso";
-              host = {
-                hostname = "ndf-start-iso";
-                name = "Darkone Network Start ISO";
-                profile = "start-img";
-                users = [ ];
-              };
-            };
-          }
-        );
-        start-img-vbox = nixos-generators.nixosGenerate (
-          startImgParams
-          // {
-            format = "virtualbox";
-            specialArgs = {
-              imgFormat = "vbox";
-              host = {
-                hostname = "ndf-start-vbox";
-                name = "Darkone Network Start Virtualbox IMG";
-                profile = "start-img";
-                users = [ ];
-              };
-            };
-          }
-        );
-      };
-
     }; # outputs
 }
