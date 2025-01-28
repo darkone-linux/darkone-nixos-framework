@@ -40,12 +40,12 @@ users:
     name: "Darkone Linux"
     email: "darkone@darkone.yt"
     profile: "darkone"
-    groups: [ "admin", "media", "common" ]
+    groups: [ "admin" ]
   gponcon:
     uid: 1001
     name: "G. Ponçon"
     profile: "admin"
-    groups: [ "admin", "sn" ]
+    groups: [ "admin", "sn", "common" ]
 
   # Arthur
   anso:
@@ -199,7 +199,7 @@ hosts:
       name: "Virtual %'02s"
       profile: "vbox"
       range: [ 1, 3 ]
-      users: [ "gponcon" ]
+      groups: [ "common" ]
 
     # SN NixOS work computers
     - hostname: "SN-20-%'02s"

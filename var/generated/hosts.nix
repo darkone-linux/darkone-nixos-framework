@@ -55,13 +55,24 @@
     hostname = "vbox-01";
     name = "Virtual 01";
     profile = "vbox";
-    groups = [ ];
+    groups = [ "common" ];
     networks = [ "default" ];
-    users = [ "gponcon" ];
+    users = [
+      "gponcon"
+      "anso"
+      "charlie"
+      "axelle"
+      "tristan"
+    ];
     colmena = {
       deployment = {
         tags = [
+          "group-common"
           "user-gponcon"
+          "user-anso"
+          "user-charlie"
+          "user-axelle"
+          "user-tristan"
           "network-default"
         ];
       };
@@ -71,13 +82,24 @@
     hostname = "vbox-02";
     name = "Virtual 02";
     profile = "vbox";
-    groups = [ ];
+    groups = [ "common" ];
     networks = [ "default" ];
-    users = [ "gponcon" ];
+    users = [
+      "gponcon"
+      "anso"
+      "charlie"
+      "axelle"
+      "tristan"
+    ];
     colmena = {
       deployment = {
         tags = [
+          "group-common"
           "user-gponcon"
+          "user-anso"
+          "user-charlie"
+          "user-axelle"
+          "user-tristan"
           "network-default"
         ];
       };
@@ -87,13 +109,24 @@
     hostname = "vbox-03";
     name = "Virtual 03";
     profile = "vbox";
-    groups = [ ];
+    groups = [ "common" ];
     networks = [ "default" ];
-    users = [ "gponcon" ];
+    users = [
+      "gponcon"
+      "anso"
+      "charlie"
+      "axelle"
+      "tristan"
+    ];
     colmena = {
       deployment = {
         tags = [
+          "group-common"
           "user-gponcon"
+          "user-anso"
+          "user-charlie"
+          "user-axelle"
+          "user-tristan"
           "network-default"
         ];
       };

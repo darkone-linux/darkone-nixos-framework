@@ -152,7 +152,8 @@ install-new-node host:
 	@just copy-id {{host}}
 	@echo "-> Extracting hardware information..."
 	@just copy-hw {{host}}
-	@echo "-> Commiting before apply..."
+	@echo "-> Clean and commiting before apply..."
+	@just clean
 	git add . && git commit -m "Installing new host {{host}}"
 	@echo "-> First apply {{host}}..."
 	@just first-apply {{host}}
@@ -160,7 +161,7 @@ install-new-node host:
 # First apply on new host (TODO: integrate with "apply")
 [group('apply')]
 first-apply on what='switch':
-	colmena apply --on "{{on}}" {{what}} --build-on-target --force-replace-unknown-profiles
+	colmena apply --on "{{on}}" {{what}} --build-on-target
 
 # NOTE: without --build-on-target we have this error:
 # [ERROR] stderr) error: cannot add path '/nix/store/y7fbdam5cjyhx9d9d93fzyd0w6i82b11-glibc-locales-2.40-36' because it lacks a signature by a trusted key

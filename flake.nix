@@ -151,6 +151,7 @@
         defaults.deployment = {
           buildOnTarget = nixpkgs.lib.mkDefault false;
           allowLocalDeployment = nixpkgs.lib.mkDefault true;
+          replaceUnknownProfiles = true;
           targetUser = "nix";
 
           # DO NOT WORKS
@@ -158,10 +159,6 @@
           #  "-i"
           #  "/etc/nixos/var/security/ssh/id_ed25519_nix"
           #];
-
-          # Override the default for this target host
-          # Darkone framework : declare the new host before apply
-          replaceUnknownProfiles = false;
         };
       } // builtins.listToAttrs (map mkHost hosts);
     }; # outputs

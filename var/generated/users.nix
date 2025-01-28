@@ -14,11 +14,7 @@
     email = "darkone@darkone.yt";
     name = "Darkone Linux";
     profile = "usr/homes/darkone";
-    groups = [
-      "admin"
-      "media"
-      "common"
-    ];
+    groups = [ "admin" ];
   };
   gponcon = {
     uid = 1001;
@@ -27,6 +23,7 @@
     groups = [
       "admin"
       "sn"
+      "common"
     ];
   };
   anso = {
