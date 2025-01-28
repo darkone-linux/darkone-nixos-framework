@@ -57,11 +57,11 @@
     profile = "vbox";
     groups = [ ];
     networks = [ "default" ];
-    users = [ "darkone" ];
+    users = [ "gponcon" ];
     colmena = {
       deployment = {
         tags = [
-          "user-darkone"
+          "user-gponcon"
           "network-default"
         ];
       };
@@ -73,11 +73,11 @@
     profile = "vbox";
     groups = [ ];
     networks = [ "default" ];
-    users = [ "darkone" ];
+    users = [ "gponcon" ];
     colmena = {
       deployment = {
         tags = [
-          "user-darkone"
+          "user-gponcon"
           "network-default"
         ];
       };
@@ -89,11 +89,11 @@
     profile = "vbox";
     groups = [ ];
     networks = [ "default" ];
-    users = [ "darkone" ];
+    users = [ "gponcon" ];
     colmena = {
       deployment = {
         tags = [
-          "user-darkone"
+          "user-gponcon"
           "network-default"
         ];
       };

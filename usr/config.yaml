@@ -44,7 +44,7 @@ users:
   gponcon:
     uid: 1001
     name: "G. Ponçon"
-    profile: "normal"
+    profile: "admin"
     groups: [ "admin", "sn" ]
 
   # Arthur
@@ -199,7 +199,7 @@ hosts:
       name: "Virtual %'02s"
       profile: "vbox"
       range: [ 1, 3 ]
-      users: [ "darkone" ]
+      users: [ "gponcon" ]
 
     # SN NixOS work computers
     - hostname: "SN-20-%'02s"

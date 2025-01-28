@@ -5,6 +5,8 @@
 #alias f := fix
 #alias g := generate
 
+# NOT WORKING FOR THE MOMENT
+# TODO: use this key with colmena
 nixKeyDir := './var/security/ssh'
 nixKeyFile := nixKeyDir + '/id_ed25519_nix'
 
@@ -16,13 +18,19 @@ _default:
 [group('_main')]
 install:
 	#!/usr/bin/env bash
-	if [ ! -d {{nixKeyDir}} ] ;then
-		echo "-> Creating {{nixKeyDir}} directory..."
-		mkdir -p {{nixKeyDir}}
-	fi
-	if [ ! -f {{nixKeyFile}} ] ;then
+	#if [ ! -d {{nixKeyDir}} ] ;then
+	#	echo "-> Creating {{nixKeyDir}} directory..."
+	#	mkdir -p {{nixKeyDir}}
+	#fi
+	#if [ ! -f {{nixKeyFile}} ] ;then
+	#  echo "-> Creating ssh keys..."
+	#	ssh-keygen -t ed25519 -f {{nixKeyFile}} -N ""
+	#else
+	#	echo "-> Maintenance ssh key already exists."
+	#fi
+	if [ ! -f ~/.ssh/id_ed25519 ] ;then
 	  echo "-> Creating ssh keys..."
-		ssh-keygen -t ed25519 -f {{nixKeyFile}} -N ""
+		ssh-keygen -t ed25519 -N ""
 	else
 		echo "-> Maintenance ssh key already exists."
 	fi
@@ -32,7 +40,7 @@ install:
 	else
 		echo "-> Generator is ok."
 	fi
-	ssh-add {{nixKeyFile}}
+	#ssh-add {{nixKeyFile}}
 	echo "-> Done"
 
 # format (nixfmt) + generate + check (deadnix)
@@ -110,17 +118,38 @@ _gen what targetFile:
 	php ./src/generate.php "{{what}}" >> "{{targetFile}}"
 	nixfmt -s "{{targetFile}}"
 
-# Copy local id on a new node (wip)
-[group('utils')]
-ssh-copy-id host:
+# Copy pub key to the node (nix user must exists)
+[group('ssh')]
+copy-id host:
 	#!/usr/bin/env bash
-	ssh-copy-id -i "{{nixKeyFile}}.pub" -t /home/nix/.ssh/authorized_keys {{host}}
-	ssh {{host}} 'chown -R nix:users /home/nix/.ssh'
+	ssh-copy-id nix@{{host}}
+	ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@{{host}} 'echo "OK, it works! You can apply to {{host}}"'
+	#ssh-copy-id -i "{{nixKeyFile}}.pub" -t /home/nix/.ssh/authorized_keys nix@{{host}}
+	#ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes -i {{nixKeyFile}} nix@{{host}} 'echo "OK, it works! You can apply to {{host}}"'
+
+# Interactive shell to the host
+[group('ssh')]
+enter host:
+	ssh nix@{{host}}
+	#ssh -i {{nixKeyFile}} nix@{{host}}
+
+# Extract hardware config from host
+[group('ssh')]
+copy-hw host:
+	#!/usr/bin/env bash
+	ssh nix@{{host}} 'test -f /etc/nixos/hardware-configuration.nix'
+	if [ $? -eq 0 ]; then
+		echo "-> Une configuration hardware existe, copie..."
+		mkdir -p usr/machines/{{host}}
+		scp nix@{{host}}:/etc/nixos/hardware-configuration.nix usr/machines/{{host}}/default.nix
+	else
+		echo "-> ERR: pas de configuration hardware sur {{host}}"
+	fi
 
 # Apply configuration using colmena
 [group('apply')]
 apply on what='switch':
-	colmena apply --sudo --on "{{on}}" {{what}}
+	colmena apply --on "{{on}}" {{what}}
 
 # Apply the local host configuration
 [group('apply')]

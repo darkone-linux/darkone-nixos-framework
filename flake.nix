@@ -35,20 +35,6 @@
       system = "x86_64-linux";
 
       # Start img common configuration
-      startImgParams = {
-        inherit system;
-        modules = [
-          {
-            # Pin nixpkgs to the flake input, so that the packages installed
-            # come from the flake inputs.nixpkgs.url.
-            nix.registry.nixpkgs.flake = nixpkgs;
-
-            # set disk size to to 20G
-            virtualisation.diskSize = 20 * 1024;
-          }
-          ./lib/modules
-        ];
-      };
 
       # Generated files (with just generate)
       hosts = import ./var/generated/hosts.nix;
@@ -166,6 +152,8 @@
           buildOnTarget = nixpkgs.lib.mkDefault false;
           allowLocalDeployment = nixpkgs.lib.mkDefault true;
           targetUser = "nix";
+
+          # DO NOT WORKS
           #sshOptions = [
           #  "-i"
           #  "/etc/nixos/var/security/ssh/id_ed25519_nix"

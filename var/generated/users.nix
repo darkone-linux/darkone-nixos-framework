@@ -23,7 +23,7 @@
   gponcon = {
     uid = 1001;
     name = "G. Ponçon";
-    profile = "lib/homes/normal";
+    profile = "lib/homes/admin";
     groups = [
       "admin"
       "sn"
