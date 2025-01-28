@@ -146,6 +146,22 @@ copy-hw host:
 		echo "-> ERR: pas de configuration hardware sur {{host}}"
 	fi
 
+[group('_main')]
+install-new-node host:
+	@echo "-> Copying ssh identity..."
+	@just copy-id {{host}}
+	@echo "-> Extracting hardware information..."
+	@just copy-hw {{host}}
+	@echo "-> Commiting before apply..."
+	git add . && git commit -m "Installing new host {{host}}"
+	@echo "-> First apply {{host}}..."
+	@just first-apply {{host}}
+
+# First apply on new host (TODO: integrate with "apply")
+[group('apply')]
+first-apply on what='switch':
+	colmena apply --on "{{on}}" {{what}} --build-on-target --force-replace-unknown-profiles
+
 # Apply configuration using colmena
 [group('apply')]
 apply on what='switch':
