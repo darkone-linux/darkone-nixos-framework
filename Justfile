@@ -162,6 +162,9 @@ install-new-node host:
 first-apply on what='switch':
 	colmena apply --on "{{on}}" {{what}} --build-on-target --force-replace-unknown-profiles
 
+# NOTE: without --build-on-target we have this error:
+# [ERROR] stderr) error: cannot add path '/nix/store/y7fbdam5cjyhx9d9d93fzyd0w6i82b11-glibc-locales-2.40-36' because it lacks a signature by a trusted key
+
 # Apply configuration using colmena
 [group('apply')]
 apply on what='switch':
