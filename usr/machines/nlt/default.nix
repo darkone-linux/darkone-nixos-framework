@@ -4,11 +4,17 @@
   config,
   lib,
   modulesPath,
+  pkgs,
   ...
 }:
 
 {
   imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
+
+  #networking.enableB43Firmware = true;
+  environment.systemPackages = [
+    pkgs.b43Firmware_6_30_163_46
+  ];
 
   boot.initrd.availableKernelModules = [
     "xhci_pci"

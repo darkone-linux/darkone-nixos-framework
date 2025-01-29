@@ -10,7 +10,7 @@ in
   config = lib.mkIf cfg.enable {
 
     # Load minimal configuration
-    darkone.host.minimal.enable = lib.mkForce true;
+    darkone.host.minimal.enable = lib.mkDefault true;
 
     # System additional features
     darkone.system = {

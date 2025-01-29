@@ -15,14 +15,16 @@ in
   config = lib.mkIf cfg.enable {
 
     # Based on desktop configuration
-    darkone.host.desktop.enable = lib.mkForce true;
+    darkone.host.desktop.enable = lib.mkDefault true;
 
     # Several printing drivers
     darkone.service.printing.loadAll = lib.mkDefault false;
 
     # Sensors management (WIP)
     boot.kernelModules = [ "coretemp" ];
-    environment.systemPackages = with pkgs; [ lm_sensors ];
+    environment.systemPackages = with pkgs; [
+      lm_sensors
+    ];
 
     # suspend, sleep, hibernates are deactivated by default, we force activation
     systemd.targets = {
