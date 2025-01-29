@@ -202,8 +202,8 @@ hosts:
       groups: [ "common" ]
 
     # SN NixOS work computers
-    - hostname: "SN-20-%'02s"
-      name: "pc%d"
+    - hostname: "pc%d"
+      name: "NixOS PC %d"
       profile: "sn-pc"
       range: [ 1, 8 ]
       networks: [ "sn" ]

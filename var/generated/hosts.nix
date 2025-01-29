@@ -133,8 +133,8 @@
     };
   }
   {
-    hostname = "SN-20-01";
-    name = "pc1";
+    hostname = "pc1";
+    name = "NixOS PC 1";
     profile = "sn-pc";
     groups = [
       "2mtne"
@@ -190,8 +190,8 @@
     };
   }
   {
-    hostname = "SN-20-02";
-    name = "pc2";
+    hostname = "pc2";
+    name = "NixOS PC 2";
     profile = "sn-pc";
     groups = [
       "2mtne"
@@ -247,8 +247,8 @@
     };
   }
   {
-    hostname = "SN-20-03";
-    name = "pc3";
+    hostname = "pc3";
+    name = "NixOS PC 3";
     profile = "sn-pc";
     groups = [
       "2mtne"
@@ -304,8 +304,8 @@
     };
   }
   {
-    hostname = "SN-20-04";
-    name = "pc4";
+    hostname = "pc4";
+    name = "NixOS PC 4";
     profile = "sn-pc";
     groups = [
       "2mtne"
@@ -361,8 +361,8 @@
     };
   }
   {
-    hostname = "SN-20-05";
-    name = "pc5";
+    hostname = "pc5";
+    name = "NixOS PC 5";
     profile = "sn-pc";
     groups = [
       "2mtne"
@@ -418,8 +418,8 @@
     };
   }
   {
-    hostname = "SN-20-06";
-    name = "pc6";
+    hostname = "pc6";
+    name = "NixOS PC 6";
     profile = "sn-pc";
     groups = [
       "2mtne"
@@ -475,8 +475,8 @@
     };
   }
   {
-    hostname = "SN-20-07";
-    name = "pc7";
+    hostname = "pc7";
+    name = "NixOS PC 7";
     profile = "sn-pc";
     groups = [
       "2mtne"
@@ -532,8 +532,8 @@
     };
   }
   {
-    hostname = "SN-20-08";
-    name = "pc8";
+    hostname = "pc8";
+    name = "NixOS PC 8";
     profile = "sn-pc";
     groups = [
       "2mtne"
