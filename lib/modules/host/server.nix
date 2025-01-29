@@ -35,12 +35,10 @@ in
 
     # Default apps
     environment.systemPackages = map lib.lowPrio [
-      #pkgs.dnsutils
       pkgs.curl
       pkgs.wget
       pkgs.htop
       pkgs.vim
-      pkgs.zellij
     ];
 
     # Restrict the number of boot entries to prevent full /boot partition.
@@ -49,7 +47,7 @@ in
     boot.loader.systemd-boot.configurationLimit = lib.mkDefault cfgLimit;
 
     # Firewall is enabled
-    darkone.system.core.enableFirewall = true;
+    darkone.system.core.enableFirewall = lib.mkDefault true;
 
     # Delegate the hostname setting to dhcp/cloud-init by default.
     #networking.hostName = lib.mkOverride 1337 ""; # lower prio than lib.mkDefault

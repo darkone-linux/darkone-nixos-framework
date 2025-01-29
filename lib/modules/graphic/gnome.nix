@@ -11,6 +11,7 @@ in
   options = {
     darkone.graphic.gnome.enable = lib.mkEnableOption "Pre-configured gnome WM";
     darkone.graphic.gnome.enableDashToDock = lib.mkEnableOption "Dash to dock plugin";
+    darkone.graphic.gnome.enableGDM = lib.mkEnableOption "Enable GDM instead of LightDM";
   };
 
   config = lib.mkIf cfg.enable {
@@ -26,7 +27,21 @@ in
     };
 
     # Enable the GNOME Desktop Environment.
-    services.xserver.displayManager.gdm.enable = true;
+    #services.xserver.displayManager.gdm.enable = true;
+    services.xserver.displayManager.lightdm = lib.mkIf (!cfg.enableGDM) {
+      enable = true;
+      greeters.gtk = {
+        enable = true;
+        indicators = [
+          "~host"
+          "~spacer"
+          "~clock"
+          "~spacer"
+          "~power"
+        ];
+      };
+    };
+    services.xserver.displayManager.gdm.enable = cfg.enableGDM;
     services.xserver.desktopManager.gnome.enable = true;
 
     # Disable the GNOME3/GDM auto-suspend feature that cannot be disabled in GUI!

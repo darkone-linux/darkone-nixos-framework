@@ -29,12 +29,11 @@ in
       sleep.enable = true;
       suspend.enable = true;
       hibernate.enable = true;
-      hybrid-sleep.enable = true;
+      hybrid-sleep.enable = false;
     };
 
     # WIP
     #hardware.fancontrol.enable = true;
-
     services.thermald.enable = true;
   };
 }

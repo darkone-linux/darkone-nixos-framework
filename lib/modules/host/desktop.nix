@@ -15,7 +15,7 @@ in
     # System additional features
     darkone.system = {
       core.enableFstrim = lib.mkDefault true;
-      core.enableBoost = lib.mkDefault true;
+      core.enableBoost = lib.mkDefault false;
     };
 
     # Daemons

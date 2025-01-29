@@ -11,7 +11,7 @@ in
 
     # Whether to enable the RealtimeKit system service, which hands out realtime scheduling
     # priority to user processes on demand. PipeWire use this to acquire realtime priority.
-    security.rtkit.enable = true;
+    #security.rtkit.enable = true;
 
     # Enable sound with pipewire.
     services.pulseaudio.enable = false;
