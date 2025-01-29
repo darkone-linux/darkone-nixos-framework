@@ -41,15 +41,15 @@
     klavaro
     ngspice # Simulateur elec
     qucs-s # Schéma elec + simulation
-#    qelectrotech
+    #    qelectrotech
 
     # Productivité, multimédia
     evince
     geeqie
     gimp
     inkscape
-#    krita
-#    super-productivity
+    #    krita
+    #    super-productivity
 
     # Tweak
     powerline
