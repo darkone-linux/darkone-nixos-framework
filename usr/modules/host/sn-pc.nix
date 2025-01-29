@@ -17,6 +17,8 @@ in
 
       # Advanced user (developper / admin)
       theme.advanced.enable = true;
+      theme.office.enable = true;
+      #theme.teenager.enable = true;
 
       # No email software
       graphic.packages.enableEmail = false;

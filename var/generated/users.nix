@@ -19,11 +19,10 @@
   gponcon = {
     uid = 1001;
     name = "G. Ponçon";
-    profile = "lib/homes/admin";
+    profile = "usr/homes/sn-admin";
     groups = [
       "admin"
       "sn"
-      "common"
     ];
   };
   anso = {
@@ -62,7 +61,7 @@
   tserveau = {
     uid = 1100;
     name = "T. Serveau";
-    profile = "usr/homes/sn-user";
+    profile = "usr/homes/sn-admin";
     groups = [
       "sn"
       "sn-admin"

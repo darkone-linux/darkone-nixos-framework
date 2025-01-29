@@ -41,11 +41,13 @@ users:
     email: "darkone@darkone.yt"
     profile: "darkone"
     groups: [ "admin" ]
+
+  # SN user
   gponcon:
     uid: 1001
     name: "G. Ponçon"
-    profile: "admin"
-    groups: [ "admin", "sn", "common" ]
+    profile: "sn-admin"
+    groups: [ "admin", "sn" ]
 
   # Arthur
   anso:
@@ -73,7 +75,7 @@ users:
   tserveau:
     uid: 1100
     name: "T. Serveau"
-    profile: "sn-user"
+    profile: "sn-admin"
     groups: [ "sn", "sn-admin" ]
   ethan:
     uid: 1101

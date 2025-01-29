@@ -12,6 +12,7 @@ in
     darkone.graphic.gnome.enable = lib.mkEnableOption "Pre-configured gnome WM";
     darkone.graphic.gnome.enableDashToDock = lib.mkEnableOption "Dash to dock plugin";
     darkone.graphic.gnome.enableGDM = lib.mkEnableOption "Enable GDM instead of LightDM";
+    darkone.graphic.gnome.enableAddExt = lib.mkEnableOption "Additional extensions";
   };
 
   config = lib.mkIf cfg.enable {
@@ -91,9 +92,9 @@ in
       bibata-cursors
       papirus-icon-theme
       gnomeExtensions.appindicator
-      gnomeExtensions.caffeine
+      (lib.mkIf cfg.enableAddExt gnomeExtensions.caffeine)
+      (lib.mkIf cfg.enableAddExt gnomeExtensions.gsconnect)
       (lib.mkIf cfg.enableDashToDock gnomeExtensions.dash-to-dock)
-      gnomeExtensions.gsconnect
     ];
 
     # Communication avec les devices

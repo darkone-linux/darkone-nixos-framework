@@ -41,18 +41,25 @@
     klavaro
     ngspice # Simulateur elec
     qucs-s # Schéma elec + simulation
-    #    qelectrotech
 
     # Productivité, multimédia
     evince
     geeqie
     gimp
     inkscape
-    #    krita
-    #    super-productivity
+    super-productivity
 
     # Tweak
     powerline
     powerline-fonts
+
+    # TODO
+    #viking
+    #opencpn
+    #whatsapp-for-linux
+    #telegram-desktop
+    #kdePackages.kdenlive
+    #programs.obs-studio.enable = true; # cf. plugins
+    #gpsd
   ];
 }

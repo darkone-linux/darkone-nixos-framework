@@ -1,7 +1,7 @@
 {
   imports = [
-    ./../../../lib/homes/student
-    ./programs.nix
+    ./../../../lib/homes/admin
+    ./../sn-user
   ];
   home.stateVersion = "25.05";
 }

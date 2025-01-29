@@ -58,7 +58,6 @@
     groups = [ "common" ];
     networks = [ "default" ];
     users = [
-      "gponcon"
       "anso"
       "charlie"
       "axelle"
@@ -68,7 +67,6 @@
       deployment = {
         tags = [
           "group-common"
-          "user-gponcon"
           "user-anso"
           "user-charlie"
           "user-axelle"
@@ -85,7 +83,6 @@
     groups = [ "common" ];
     networks = [ "default" ];
     users = [
-      "gponcon"
       "anso"
       "charlie"
       "axelle"
@@ -95,7 +92,6 @@
       deployment = {
         tags = [
           "group-common"
-          "user-gponcon"
           "user-anso"
           "user-charlie"
           "user-axelle"
@@ -112,7 +108,6 @@
     groups = [ "common" ];
     networks = [ "default" ];
     users = [
-      "gponcon"
       "anso"
       "charlie"
       "axelle"
@@ -122,7 +117,6 @@
       deployment = {
         tags = [
           "group-common"
-          "user-gponcon"
           "user-anso"
           "user-charlie"
           "user-axelle"

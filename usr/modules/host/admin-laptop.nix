@@ -33,6 +33,9 @@ in
       # Music creation
       graphic.music.enable = true;
 
+      # Caffeine, etc.
+      graphic.gnome.enableAddExt = true;
+
       # I'm the master, not a node
       host.isNode = false;
     };
