@@ -4,6 +4,8 @@
   lib,
   config,
   pkgs,
+  home-manager,
+  users,
   ...
 }:
 let
@@ -23,14 +25,28 @@ in
         "networkmanager"
         "wheel"
       ];
-      shell = pkgs.bash;
-      packages = with pkgs; [ vim ];
 
       # https://systemd.io/UIDS-GIDS/
       uid = 65000;
 
       # Push public key to the node to manage it
-      openssh.authorizedKeys.keyFiles = [ ./../../../var/security/ssh/id_ed25519_nix.pub ];
+      #openssh.authorizedKeys.keyFiles = [ ./../../../var/security/ssh/id_ed25519_nix.pub ];
+
+    } // import ./../../homes/nix-admin.nix { inherit pkgs lib config; };
+
+    # TODO: to change
+    users.nix = {
+      name = "Darkone Linux";
+      email = "darkone@darkone.yt";
+    };
+
+    home-manager.users.nix = {
+      imports = [ (import ./../../homes/nix-admin) ];
+
+      # Home profiles loading
+      home = {
+        username = "nix";
+      };
     };
   };
 }
