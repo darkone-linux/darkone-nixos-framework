@@ -52,12 +52,6 @@ in
     # Delegate the hostname setting to dhcp/cloud-init by default.
     #networking.hostName = lib.mkOverride 1337 ""; # lower prio than lib.mkDefault
 
-    # If the user is in @wheel they are trusted.
-    nix.settings.trusted-users = [
-      "root"
-      "@wheel"
-    ];
-
     # Given that our systems are headless, emergency mode is useless.
     # We prefer the system to attempt to continue booting so
     # that we can hopefully still access it remotely.

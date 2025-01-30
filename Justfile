@@ -157,24 +157,29 @@ install host:
 	@just clean	
 	git add . && git commit -m "Installing new host {{host}}"
 	@echo "-> First apply {{host}}..."
-	@just apply {{host}}
+	@just apply-force {{host}}
 
 # Apply configuration using colmena
 [group('dev')]
 apply on what='switch':
 	colmena apply --eval-node-limit 3 --evaluator streaming --on "{{on}}" {{what}}
 
-# Reboot (using colmena)
+# Apply with build-on-target + force repl. unk profiles
+[group('dev')]
+apply-force on what='switch':
+	colmena apply --eval-node-limit 3 --evaluator streaming --build-on-target --force-replace-unknown-profiles --on "{{on}}" {{what}}
+
+# Multi-reboot (using colmena)
 [group('manage')]
 reboot on:
 	colmena exec --on "{{on}}" "sudo systemctl reboot"
 
-# Halt (using colmena)
+# Multi-alt (using colmena)
 [group('manage')]
 halt on:
 	colmena exec --on "{{on}}" "sudo systemctl poweroff"
 
-# Garbage collector (using colmena)
+# Multi garbage collector (using colmena)
 [group('manage')]
 gc on:
 	colmena exec --on "{{on}}" "sudo nix-collect-garbage -d && sudo /run/current-system/bin/switch-to-configuration boot"
