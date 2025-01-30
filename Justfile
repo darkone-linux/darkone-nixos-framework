@@ -122,7 +122,7 @@ _gen what targetFile:
 [group('ssh')]
 copy-id host:
 	#!/usr/bin/env bash
-	ssh-copy-id nix@{{host}}
+	ssh-copy-id -f nix@{{host}}
 	ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@{{host}} 'echo "OK, it works! You can apply to {{host}}"'
 	#ssh-copy-id -i "{{nixKeyFile}}.pub" -t /home/nix/.ssh/authorized_keys nix@{{host}}
 	#ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes -i {{nixKeyFile}} nix@{{host}} 'echo "OK, it works! You can apply to {{host}}"'
@@ -152,16 +152,17 @@ install-new-node host:
 	@just copy-id {{host}}
 	@echo "-> Extracting hardware information..."
 	@just copy-hw {{host}}
-	@echo "-> Clean and commiting before apply..."
-	@just clean
-	git add . && git commit -m "Installing new host {{host}}"
-	@echo "-> First apply {{host}}..."
-	@just first-apply {{host}}
+
+#@echo "-> Clean and commiting before apply..."
+#@just clean	
+#git add . && git commit -m "Installing new host {{host}}"
+#@echo "-> First apply {{host}}..."
+#@just first-apply {{host}}
 
 # First apply on new host (TODO: integrate with "apply")
-[group('apply')]
-first-apply on what='switch':
-	colmena apply --on "{{on}}" {{what}} --build-on-target
+#[group('apply')]
+#first-apply on what='switch':
+#	colmena apply --on "{{on}}" {{what}} --build-on-target
 
 # NOTE: without --build-on-target we have this error:
 # [ERROR] stderr) error: cannot add path '/nix/store/y7fbdam5cjyhx9d9d93fzyd0w6i82b11-glibc-locales-2.40-36' because it lacks a signature by a trusted key
@@ -169,7 +170,24 @@ first-apply on what='switch':
 # Apply configuration using colmena
 [group('apply')]
 apply on what='switch':
-	colmena apply --on "{{on}}" {{what}} --build-on-target
+	colmena apply --eval-node-limit 3 --evaluator streaming --on "{{on}}" --build-on-target --force-replace-unknown-profiles {{what}}
+
+# Apply configuration using colmena
+[group('apply')]
+reboot on:
+	colmena exec --on "{{on}}" "sudo systemctl reboot"
+
+# Apply configuration using colmena
+[group('apply')]
+halt on:
+	colmena exec --on "{{on}}" "sudo systemctl poweroff"
+
+# Apply configuration using colmena
+[group('apply')]
+gc on:
+	colmena exec --on "{{on}}" "sudo nix-collect-garbage -d && sudo /run/current-system/bin/switch-to-configuration boot"
+
+#	colmena apply --on "{{on}}" {{what}} --build-on-target
 
 # Apply the local host configuration
 [group('apply')]

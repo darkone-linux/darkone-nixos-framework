@@ -100,6 +100,9 @@
                   # Install in /etc/profiles instead of ~/nix-profiles.
                   useUserPackages = true;
 
+                  # Avoid error on replacing a file (.zshrc for example)
+                  backupFileExtension = "bkp";
+
                   # Load users profiles
                   users = builtins.listToAttrs (map mkHome host.users);
 
