@@ -7,7 +7,10 @@
     hostname = "nlt";
     name = "Darkone Laptop";
     profile = "admin-laptop";
-    groups = [ "admin" ];
+    groups = [
+      "admin"
+      "common"
+    ];
     networks = [
       "default"
       "sn"
@@ -15,6 +18,11 @@
     users = [
       "darkone"
       "gponcon"
+      "nix"
+      "anso"
+      "charlie"
+      "axelle"
+      "tristan"
     ];
     colmena = {
       deployment = {
@@ -22,8 +30,14 @@
           "laptops"
           "admin"
           "group-admin"
+          "group-common"
           "user-darkone"
           "user-gponcon"
+          "user-nix"
+          "user-anso"
+          "user-charlie"
+          "user-axelle"
+          "user-tristan"
           "network-default"
           "network-sn"
         ];
@@ -36,15 +50,11 @@
     profile = "sn-network";
     groups = [ "sn-admin" ];
     networks = [ "sn" ];
-    users = [
-      "nixos"
-      "tserveau"
-    ];
+    users = [ "tserveau" ];
     colmena = {
       deployment = {
         tags = [
           "group-sn-admin"
-          "user-nixos"
           "user-tserveau"
           "network-sn"
         ];
@@ -58,6 +68,7 @@
     groups = [ "common" ];
     networks = [ "default" ];
     users = [
+      "nix"
       "anso"
       "charlie"
       "axelle"
@@ -67,6 +78,7 @@
       deployment = {
         tags = [
           "group-common"
+          "user-nix"
           "user-anso"
           "user-charlie"
           "user-axelle"
@@ -83,6 +95,7 @@
     groups = [ "common" ];
     networks = [ "default" ];
     users = [
+      "nix"
       "anso"
       "charlie"
       "axelle"
@@ -92,6 +105,7 @@
       deployment = {
         tags = [
           "group-common"
+          "user-nix"
           "user-anso"
           "user-charlie"
           "user-axelle"
@@ -108,6 +122,7 @@
     groups = [ "common" ];
     networks = [ "default" ];
     users = [
+      "nix"
       "anso"
       "charlie"
       "axelle"
@@ -117,6 +132,7 @@
       deployment = {
         tags = [
           "group-common"
+          "user-nix"
           "user-anso"
           "user-charlie"
           "user-axelle"
@@ -152,6 +168,7 @@
       "esteban"
       "ethan"
       "nathael"
+      "nix"
       "gponcon"
       "tserveau"
     ];
@@ -176,6 +193,7 @@
           "user-esteban"
           "user-ethan"
           "user-nathael"
+          "user-nix"
           "user-gponcon"
           "user-tserveau"
           "network-sn"
@@ -209,6 +227,7 @@
       "esteban"
       "ethan"
       "nathael"
+      "nix"
       "gponcon"
       "tserveau"
     ];
@@ -233,6 +252,7 @@
           "user-esteban"
           "user-ethan"
           "user-nathael"
+          "user-nix"
           "user-gponcon"
           "user-tserveau"
           "network-sn"
@@ -266,6 +286,7 @@
       "esteban"
       "ethan"
       "nathael"
+      "nix"
       "gponcon"
       "tserveau"
     ];
@@ -290,6 +311,7 @@
           "user-esteban"
           "user-ethan"
           "user-nathael"
+          "user-nix"
           "user-gponcon"
           "user-tserveau"
           "network-sn"
@@ -323,6 +345,7 @@
       "esteban"
       "ethan"
       "nathael"
+      "nix"
       "gponcon"
       "tserveau"
     ];
@@ -347,6 +370,7 @@
           "user-esteban"
           "user-ethan"
           "user-nathael"
+          "user-nix"
           "user-gponcon"
           "user-tserveau"
           "network-sn"
@@ -380,6 +404,7 @@
       "esteban"
       "ethan"
       "nathael"
+      "nix"
       "gponcon"
       "tserveau"
     ];
@@ -404,6 +429,7 @@
           "user-esteban"
           "user-ethan"
           "user-nathael"
+          "user-nix"
           "user-gponcon"
           "user-tserveau"
           "network-sn"
@@ -437,6 +463,7 @@
       "esteban"
       "ethan"
       "nathael"
+      "nix"
       "gponcon"
       "tserveau"
     ];
@@ -461,6 +488,7 @@
           "user-esteban"
           "user-ethan"
           "user-nathael"
+          "user-nix"
           "user-gponcon"
           "user-tserveau"
           "network-sn"
@@ -494,6 +522,7 @@
       "esteban"
       "ethan"
       "nathael"
+      "nix"
       "gponcon"
       "tserveau"
     ];
@@ -518,6 +547,7 @@
           "user-esteban"
           "user-ethan"
           "user-nathael"
+          "user-nix"
           "user-gponcon"
           "user-tserveau"
           "network-sn"
@@ -551,6 +581,7 @@
       "esteban"
       "ethan"
       "nathael"
+      "nix"
       "gponcon"
       "tserveau"
     ];
@@ -575,6 +606,7 @@
           "user-esteban"
           "user-ethan"
           "user-nathael"
+          "user-nix"
           "user-gponcon"
           "user-tserveau"
           "network-sn"

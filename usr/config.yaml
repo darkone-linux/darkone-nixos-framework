@@ -27,12 +27,19 @@ networks:
 # -> groups is used to select related hosts
 users:
 
-  # Generic
-  nixos:
-    uid: 10000
-    name: "NixOS User"
+  # Nix special user (do not touch)
+  nix:
+    uid: 65000
+    name: "Nix Maintenance User"
     profile: "nix-admin"
-    groups: [ "sn-admin" ]
+    groups: [ "common", "sn" ]
+
+  # Generic
+  #nixos:
+  #  uid: 10000
+  #  name: "NixOS User"
+  #  profile: "nix-admin"
+  #  groups: [ "sn-admin" ]
 
   # Darkone
   darkone:
@@ -166,7 +173,7 @@ hosts:
       name: "Darkone Laptop"
       profile: "admin-laptop"
       users: [ "darkone" ]
-      groups: [ "admin" ]
+      groups: [ "admin", "common" ]
       networks: [ "default", "sn" ]
       tags: [ "laptops", "admin" ]
       local: true

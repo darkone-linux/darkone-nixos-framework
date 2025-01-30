@@ -3,11 +3,14 @@
 # --> DO NOT EDIT <--
 
 {
-  nixos = {
-    uid = 10000;
-    name = "NixOS User";
+  nix = {
+    uid = 65000;
+    name = "Nix Maintenance User";
     profile = "lib/homes/nix-admin";
-    groups = [ "sn-admin" ];
+    groups = [
+      "common"
+      "sn"
+    ];
   };
   darkone = {
     uid = 1000;

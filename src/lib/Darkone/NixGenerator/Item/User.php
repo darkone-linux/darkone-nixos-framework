@@ -22,10 +22,11 @@ class User
 
     /**
      * @throws NixException
+		 * @todo manage the special nix user
      */
     public function setUidAndLogin(int $uid, string $login): User
     {
-        ($uid < 1000 || $uid >= 65000) && throw new NixException("UID '$uid' out of bound, must be between 1000 and 64999");
+        ($uid < 1000 || $uid >= 65001) && throw new NixException("UID '$uid' out of bound, must be between 1000 and 64999");
         isset(self::$uids[$uid]) && throw new NixException('Duplicated uid "' . $uid . '" for ' . $login . ' and ' . self::$uids[$uid]);
         in_array($login, self::$uids) && throw new NixException('Duplicated login "' . $login . '"');
         self::$uids[$uid] = $login;

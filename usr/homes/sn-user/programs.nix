@@ -32,6 +32,7 @@
     ngspice # Simulateur elec
     qucs-s # Schéma elec + simulation
     qelectrotech
+    godot_4
 
     # Productivité, multimédia
     evince
