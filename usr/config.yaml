@@ -207,8 +207,9 @@ hosts:
     - hostname: "vbox-%'02s"
       name: "Virtual %'02s"
       profile: "vbox"
-      range: [ 1, 3 ]
+      range: [ 1, 4 ]
       groups: [ "common" ]
+      tags: [ "vbox" ]
 
     # SN NixOS work computers
     - hostname: "pc%d"
@@ -217,6 +218,7 @@ hosts:
       range: [ 1, 8 ]
       networks: [ "sn" ]
       groups: [ "2mtne", "1ciel", "tsn", "sn" ]
+      tags: [ "snpc" ]
 
     # Host groups by list of hostnames
 #    list:

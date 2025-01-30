@@ -77,6 +77,7 @@
     colmena = {
       deployment = {
         tags = [
+          "vbox"
           "group-common"
           "user-nix"
           "user-anso"
@@ -104,6 +105,7 @@
     colmena = {
       deployment = {
         tags = [
+          "vbox"
           "group-common"
           "user-nix"
           "user-anso"
@@ -131,6 +133,35 @@
     colmena = {
       deployment = {
         tags = [
+          "vbox"
+          "group-common"
+          "user-nix"
+          "user-anso"
+          "user-charlie"
+          "user-axelle"
+          "user-tristan"
+          "network-default"
+        ];
+      };
+    };
+  }
+  {
+    hostname = "vbox-04";
+    name = "Virtual 04";
+    profile = "vbox";
+    groups = [ "common" ];
+    networks = [ "default" ];
+    users = [
+      "nix"
+      "anso"
+      "charlie"
+      "axelle"
+      "tristan"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "vbox"
           "group-common"
           "user-nix"
           "user-anso"
@@ -175,6 +206,7 @@
     colmena = {
       deployment = {
         tags = [
+          "snpc"
           "group-2mtne"
           "group-1ciel"
           "group-tsn"
@@ -234,6 +266,7 @@
     colmena = {
       deployment = {
         tags = [
+          "snpc"
           "group-2mtne"
           "group-1ciel"
           "group-tsn"
@@ -293,6 +326,7 @@
     colmena = {
       deployment = {
         tags = [
+          "snpc"
           "group-2mtne"
           "group-1ciel"
           "group-tsn"
@@ -352,6 +386,7 @@
     colmena = {
       deployment = {
         tags = [
+          "snpc"
           "group-2mtne"
           "group-1ciel"
           "group-tsn"
@@ -411,6 +446,7 @@
     colmena = {
       deployment = {
         tags = [
+          "snpc"
           "group-2mtne"
           "group-1ciel"
           "group-tsn"
@@ -470,6 +506,7 @@
     colmena = {
       deployment = {
         tags = [
+          "snpc"
           "group-2mtne"
           "group-1ciel"
           "group-tsn"
@@ -529,6 +566,7 @@
     colmena = {
       deployment = {
         tags = [
+          "snpc"
           "group-2mtne"
           "group-1ciel"
           "group-tsn"
@@ -588,6 +626,7 @@
     colmena = {
       deployment = {
         tags = [
+          "snpc"
           "group-2mtne"
           "group-1ciel"
           "group-tsn"

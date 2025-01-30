@@ -14,10 +14,14 @@ nixKeyFile := nixKeyDir + '/id_ed25519_nix'
 _default:
 	@just --list
 
-# Framework installation (wip)
-[group('_main')]
-install:
+# Framework installation on local machine (builder)
+[group('install')]
+install-local:
 	#!/usr/bin/env bash
+	if [ `whoami` != "nix" ]; then
+		echo "Only nix user can install and manage DNF configuration."
+		exit 1
+	fi
 	#if [ ! -d {{nixKeyDir}} ] ;then
 	#	echo "-> Creating {{nixKeyDir}} directory..."
 	#	mkdir -p {{nixKeyDir}}
@@ -43,15 +47,14 @@ install:
 	#ssh-add {{nixKeyFile}}
 	echo "-> Done"
 
-# format (nixfmt) + generate + check (deadnix)
-[group('_main')]
-clean: fix check format generate
+# format: fix + check + generate + format
+[group('dev')]
+clean: fix check generate format
 
 # Recursive deadnix on nix files
 [group('check')]
 check:
-	#!/usr/bin/env bash
-	echo "-> Checking nix files with deadnix..."
+	@echo "-> Checking nix files with deadnix..."
 	find . -name "*.nix" -exec deadnix -eq {} \;
 
 # Check the main flake
@@ -65,21 +68,19 @@ check-statix:
 	statix check .
 
 # Recursive nixfmt on all nix files
-[group('touch')]
+[group('dev')]
 format:
-	#!/usr/bin/env bash
-	echo "-> Formatting nix files with nixfmt..."
+	@echo "-> Formatting nix files with nixfmt..."
 	find . -name "*.nix" -exec nixfmt -s {} \;
 
 # Fix with statix
-[group('touch')]
+[group('dev')]
 fix:
-	#!/usr/bin/env bash
-	echo "-> Fixing source code with statix..."
+	@echo "-> Fixing source code with statix..."
 	statix fix .
 
 # Update the nix generated files
-[group('touch')]
+[group('dev')]
 generate: _gen-default-lib-modules _gen-default-usr-modules _gen-default-overlays \
 		(_gen "users" "var/generated/users.nix") \
 		(_gen "hosts" "var/generated/hosts.nix") \
@@ -106,7 +107,6 @@ _gen-default dir:
 	echo "];}" >> default.nix
 	nixfmt -s default.nix
 
-
 # Generate var/generated/*.nix files
 _gen what targetFile:
 	#!/usr/bin/env bash
@@ -119,7 +119,7 @@ _gen what targetFile:
 	nixfmt -s "{{targetFile}}"
 
 # Copy pub key to the node (nix user must exists)
-[group('ssh')]
+[group('install')]
 copy-id host:
 	#!/usr/bin/env bash
 	ssh-copy-id -f nix@{{host}}
@@ -128,13 +128,13 @@ copy-id host:
 	#ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes -i {{nixKeyFile}} nix@{{host}} 'echo "OK, it works! You can apply to {{host}}"'
 
 # Interactive shell to the host
-[group('ssh')]
+[group('manage')]
 enter host:
 	ssh nix@{{host}}
 	#ssh -i {{nixKeyFile}} nix@{{host}}
 
 # Extract hardware config from host
-[group('ssh')]
+[group('install')]
 copy-hw host:
 	#!/usr/bin/env bash
 	ssh nix@{{host}} 'test -f /etc/nixos/hardware-configuration.nix'
@@ -146,51 +146,41 @@ copy-hw host:
 		echo "-> ERR: pas de configuration hardware sur {{host}}"
 	fi
 
-[group('_main')]
-install-new-node host:
+# New host: ssh cp id, extr. hw, clean, commit, apply
+[group('install')]
+install host:
 	@echo "-> Copying ssh identity..."
 	@just copy-id {{host}}
 	@echo "-> Extracting hardware information..."
 	@just copy-hw {{host}}
-
-#@echo "-> Clean and commiting before apply..."
-#@just clean	
-#git add . && git commit -m "Installing new host {{host}}"
-#@echo "-> First apply {{host}}..."
-#@just first-apply {{host}}
-
-# First apply on new host (TODO: integrate with "apply")
-#[group('apply')]
-#first-apply on what='switch':
-#	colmena apply --on "{{on}}" {{what}} --build-on-target
-
-# NOTE: without --build-on-target we have this error:
-# [ERROR] stderr) error: cannot add path '/nix/store/y7fbdam5cjyhx9d9d93fzyd0w6i82b11-glibc-locales-2.40-36' because it lacks a signature by a trusted key
+	@echo "-> Clean and commiting before apply..."
+	@just clean	
+	git add . && git commit -m "Installing new host {{host}}"
+	@echo "-> First apply {{host}}..."
+	@just apply {{host}}
 
 # Apply configuration using colmena
-[group('apply')]
+[group('dev')]
 apply on what='switch':
-	colmena apply --eval-node-limit 3 --evaluator streaming --on "{{on}}" --build-on-target --force-replace-unknown-profiles {{what}}
+	colmena apply --eval-node-limit 3 --evaluator streaming --on "{{on}}" {{what}}
 
-# Apply configuration using colmena
-[group('apply')]
+# Reboot (using colmena)
+[group('manage')]
 reboot on:
 	colmena exec --on "{{on}}" "sudo systemctl reboot"
 
-# Apply configuration using colmena
-[group('apply')]
+# Halt (using colmena)
+[group('manage')]
 halt on:
 	colmena exec --on "{{on}}" "sudo systemctl poweroff"
 
-# Apply configuration using colmena
-[group('apply')]
+# Garbage collector (using colmena)
+[group('manage')]
 gc on:
 	colmena exec --on "{{on}}" "sudo nix-collect-garbage -d && sudo /run/current-system/bin/switch-to-configuration boot"
 
-#	colmena apply --on "{{on}}" {{what}} --build-on-target
-
 # Apply the local host configuration
-[group('apply')]
+[group('dev')]
 apply-local what='switch':
 	colmena apply-local --sudo {{what}}
 
