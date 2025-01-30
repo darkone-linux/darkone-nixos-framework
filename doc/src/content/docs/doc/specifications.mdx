@@ -33,30 +33,31 @@ This section includes everything that is currently implemented and functional.
 
 Its role is to generate a pure static configuration from a definition of machines (hosts), users, and groups from various sources (static declarations, LDAP, etc. configured in [`usr/config.yaml`](#the-configuration-file). The generated Nix configuration is integrated into the repository to be fixed and used by the flake.
 
-![Darkone NixOS Framework Generator](../../..//assets/arch.webp)
+![Darkone NixOS Framework Generator](../../../assets/arch.webp)
 
 Usage:
 
 ```shell
-# Unitary call
+# Only generate
 just generate
 
 # Generate + fix + format + check
 just clean
 ```
 
-A `just clean` result:
+A `just clean`:
 
 ```shell
+❯ just clean
 -> Fixing source code with statix...
 -> Checking nix files with deadnix...
--> Formatting nix files with nixfmt...
 -> generating lib/modules default.nix...
 -> generating usr/modules default.nix...
 -> generating lib/overlays default.nix...
 -> generating users in var/generated/users.nix...
 -> generating hosts in var/generated/hosts.nix...
 -> generating networks in var/generated/networks.nix...
+-> Formatting nix files with nixfmt...
 ```
 
 :::note[The generated files]

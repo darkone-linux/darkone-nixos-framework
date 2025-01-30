@@ -54,7 +54,8 @@ clean: fix check generate format
 # Recursive deadnix on nix files
 [group('check')]
 check:
-	@echo "-> Checking nix files with deadnix..."
+	#!/usr/bin/env bash
+	echo "-> Checking nix files with deadnix..."
 	find . -name "*.nix" -exec deadnix -eq {} \;
 
 # Check the main flake
@@ -65,18 +66,22 @@ check-flake:
 # Check with statix
 [group('check')]
 check-statix:
+	#!/usr/bin/env bash
+	echo "-> Checking with statix..."
 	statix check .
 
 # Recursive nixfmt on all nix files
 [group('dev')]
 format:
-	@echo "-> Formatting nix files with nixfmt..."
+	#!/usr/bin/env bash
+	echo "-> Formatting nix files with nixfmt..."
 	find . -name "*.nix" -exec nixfmt -s {} \;
 
 # Fix with statix
 [group('dev')]
 fix:
-	@echo "-> Fixing source code with statix..."
+	#!/usr/bin/env bash
+	echo "-> Fixing source code with statix..."
 	statix fix .
 
 # Update the nix generated files
