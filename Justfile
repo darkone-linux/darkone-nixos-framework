@@ -169,7 +169,7 @@ first-apply on what='switch':
 # Apply configuration using colmena
 [group('apply')]
 apply on what='switch':
-	colmena apply --on "{{on}}" {{what}}
+	colmena apply --on "{{on}}" {{what}} --build-on-target
 
 # Apply the local host configuration
 [group('apply')]
