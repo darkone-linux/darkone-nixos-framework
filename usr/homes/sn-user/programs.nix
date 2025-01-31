@@ -33,6 +33,7 @@
     qucs-s # Schéma elec + simulation
     qelectrotech
     godot_4
+    rpi-imager
 
     # Productivité, multimédia
     evince

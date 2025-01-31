@@ -189,6 +189,11 @@ halt on:
 gc on:
 	colmena exec --on "{{on}}" "sudo nix-collect-garbage -d && sudo /run/current-system/bin/switch-to-configuration boot"
 
+# Multi-reinstall bootloader (using colmena)
+[group('manage')]
+fix-boot on:
+	colmena exec --on "{{on}}" "sudo NIXOS_INSTALL_BOOTLOADER=1 /nix/var/nix/profiles/system/bin/switch-to-configuration boot"
+
 # Apply the local host configuration
 [group('dev')]
 apply-local what='switch':
