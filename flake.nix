@@ -27,14 +27,12 @@
       home-manager,
       colmena,
       ...
-    }:
+    }@inputs:
 
     let
 
       # Main system
       system = "x86_64-linux";
-
-      # Start img common configuration
 
       # Generated files (with just generate)
       hosts = import ./var/generated/hosts.nix;
@@ -62,6 +60,16 @@
         else
           "default";
 
+      commonNodeArgs = {
+        inherit users;
+        inherit networks;
+        imgFormat = nixpkgs.lib.mkDefault "iso";
+        pkgs-stable = import nixpkgs-stable {
+          inherit system;
+          config.allowUnfree = true;
+        };
+      };
+
       mkNodeSpecialArgs = host: {
         name = host.hostname;
         value =
@@ -70,18 +78,13 @@
           in
           {
             inherit host;
-            inherit users;
-            inherit networks;
             network = networks.${networkId} // {
               id = networkId;
             };
-            imgFormat = nixpkgs.lib.mkDefault "iso";
-            pkgs-stable = import nixpkgs-stable {
-              inherit system;
-              config.allowUnfree = true;
-            };
-          };
+          }
+          // commonNodeArgs;
       };
+      nodeSpecialArgs = builtins.listToAttrs (map mkNodeSpecialArgs hosts);
 
       mkHost = host: {
         name = host.hostname;
@@ -147,7 +150,7 @@
             allowUnfreePredicate = _: true;
             overlays = [ ];
           };
-          nodeSpecialArgs = builtins.listToAttrs (map mkNodeSpecialArgs hosts);
+          inherit nodeSpecialArgs;
         };
 
         # Default deployment settings
@@ -164,5 +167,22 @@
           #];
         };
       } // builtins.listToAttrs (map mkHost hosts);
+
+      # Iso image for first install DNF system
+      # nix build .#nixosConfigurations.iso.config.system.build.isoImage
+      nixosConfigurations = {
+        iso = nixpkgs.lib.nixosSystem {
+          specialArgs = {
+            host = {
+              hostname = "new-dnf";
+              name = "New Darkone NixOS Framework";
+              profile = "minimal";
+              users = [ "nix" ];
+              groups = [ ];
+            };
+          } // commonNodeArgs;
+          modules = [ ./lib/hosts/iso.nix ];
+        };
+      };
     }; # outputs
 }

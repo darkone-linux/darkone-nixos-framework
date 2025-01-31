@@ -7,11 +7,6 @@ use Darkone\NixGenerator\NixException;
 
 class Host
 {
-    private const PROFILE_PATHS = [
-        'usr/hosts/%s.nix',
-        'lib/hosts/%s.nix',
-    ];
-
     private string $hostname;
     private string $name;
     private string $profile;
@@ -66,7 +61,10 @@ class Host
 
     public function setUsers(array $users): Host
     {
-        array_map(fn ($key) => preg_match(Configuration::REGEX_LOGIN, $key) || throw new NixException("Bad login '$key'"), array_keys($users));
+        array_map(fn ($key) => preg_match(
+            Configuration::REGEX_LOGIN, $key) || throw new NixException("Bad login '$key'"),
+            $users
+        );
         $this->users = $users;
         return $this;
     }

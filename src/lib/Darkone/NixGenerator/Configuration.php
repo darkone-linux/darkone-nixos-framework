@@ -22,6 +22,16 @@ class Configuration extends NixAttrSet
     
     private const DEFAULT_PROFILE = 'minimal';
 
+    // Nix user login name
+    private const NIX_USER_NAME = 'nix';
+
+    // Nix special user is installed on each host
+    private const NIX_USER_PARAMS = [
+        'uid' => 65000,
+        'name' => 'Nix Maintenance User',
+        'profile' => 'nix-admin',
+    ];
+
     private string $formatter = 'nixfmt';
     private ?array $lldapConfig = null;
 
@@ -101,6 +111,7 @@ class Configuration extends NixAttrSet
     private function loadUsers(array $config): void
     {
         $this->assert(self::TYPE_ARRAY, $config['users'] ?? null, "Users not found in configuration");
+        $config['users'][self::NIX_USER_NAME] = self::NIX_USER_PARAMS;
         foreach ($config['users'] as $login => $user) {
             $this->assert(self::TYPE_STRING, $login, "A user name is required", self::REGEX_LOGIN);
             $this->assert(self::TYPE_INT, $user['uid'] ?? '', "A valid uid is required for " . $login);
@@ -156,19 +167,20 @@ class Configuration extends NixAttrSet
      */
     private function extractAllUsers(array $hostUsers, array $groups): array
     {
-        $users = [];
+        $users = [self::NIX_USER_NAME];
         foreach ($hostUsers as $login) {
-            $users[$login] = $login;
+            $users[] = $login;
         }
         foreach ($groups as $group) {
             foreach ($this->getUsers() as $user) {
-                if (!isset($users[$user->getLogin()]) && in_array($group, $user->getGroups())) {
-                    $users[$user->getLogin()] = $user->getLogin();
+                if (in_array($group, $user->getGroups())) {
+                    $users[] = $user->getLogin();
                 }
             }
         }
 
-        return $users;
+        sort($users, SORT_STRING);
+        return array_unique($users);
     }
 
     private function loadRangeHosts(array $rangeHosts): void

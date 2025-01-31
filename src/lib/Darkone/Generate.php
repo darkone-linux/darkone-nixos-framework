@@ -90,8 +90,8 @@ class Generate
         return array_merge(
             $host->getTags(),
             array_map(fn (string $group): string => 'group-' . $group, $host->getGroups()),
-            array_map(fn (string $group): string => 'user-' . $group, $host->getUsers()),
-            array_map(fn (string $group): string => 'network-' . $group, $host->getNetworks())
+            array_map(fn (string $user): string => 'user-' . $user, array_filter($host->getUsers(), fn (string $user): bool => $user !== 'nix')),
+            array_map(fn (string $network): string => 'network-' . $network, $host->getNetworks())
         );
     }
 

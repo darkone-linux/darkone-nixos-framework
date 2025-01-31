@@ -27,20 +27,6 @@ networks:
 # -> groups is used to select related hosts
 users:
 
-  # Nix special user (do not touch)
-  nix:
-    uid: 65000
-    name: "Nix Maintenance User"
-    profile: "nix-admin"
-    groups: [ "common", "sn" ]
-
-  # Generic
-  #nixos:
-  #  uid: 10000
-  #  name: "NixOS User"
-  #  profile: "nix-admin"
-  #  groups: [ "sn-admin" ]
-
   # Darkone
   darkone:
     uid: 1000

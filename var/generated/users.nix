@@ -3,15 +3,6 @@
 # --> DO NOT EDIT <--
 
 {
-  nix = {
-    uid = 65000;
-    name = "Nix Maintenance User";
-    profile = "lib/homes/nix-admin";
-    groups = [
-      "common"
-      "sn"
-    ];
-  };
   darkone = {
     uid = 1000;
     email = "darkone@darkone.yt";
@@ -195,5 +186,11 @@
       "sn"
       "2mtne"
     ];
+  };
+  nix = {
+    uid = 65000;
+    name = "Nix Maintenance User";
+    profile = "lib/homes/nix-admin";
+    groups = [ ];
   };
 }
