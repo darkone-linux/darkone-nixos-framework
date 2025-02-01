@@ -33,8 +33,9 @@ in
       # Music creation
       graphic.music.enable = true;
 
-      # Caffeine, etc.
-      graphic.gnome.enableAddExt = true;
+      # Gnome options
+      #graphic.gnome.enableGsConnect = true;
+      #graphic.gnome.enableCaffeine = true;
 
       # I'm the master, not a node
       host.isNode = false;

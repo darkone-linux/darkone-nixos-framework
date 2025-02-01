@@ -7,6 +7,7 @@
     hunspellDicts.fr-moderne
     libreoffice-fresh
     obsidian
+    dialect # Outil de traduction
 
     # Outils CLI
     asciidoc-full
@@ -41,6 +42,7 @@
     gimp
     inkscape
     krita
+    # yed # fail
 
     # Tweak
     powerline

@@ -12,7 +12,8 @@ in
     darkone.graphic.gnome.enable = lib.mkEnableOption "Pre-configured gnome WM";
     darkone.graphic.gnome.enableDashToDock = lib.mkEnableOption "Dash to dock plugin";
     darkone.graphic.gnome.enableGDM = lib.mkEnableOption "Enable GDM instead of LightDM";
-    darkone.graphic.gnome.enableAddExt = lib.mkEnableOption "Additional extensions";
+    darkone.graphic.gnome.enableCaffeine = lib.mkEnableOption "Disable auto-suspend";
+    darkone.graphic.gnome.enableGsConnect = lib.mkEnableOption "Communication with devices";
   };
 
   config = lib.mkIf cfg.enable {
@@ -92,13 +93,14 @@ in
       bibata-cursors
       papirus-icon-theme
       gnomeExtensions.appindicator
-      (lib.mkIf cfg.enableAddExt gnomeExtensions.caffeine)
-      (lib.mkIf cfg.enableAddExt gnomeExtensions.gsconnect)
+      rofi-wayland # TODO: module for rofi
+      (lib.mkIf cfg.enableCaffeine gnomeExtensions.caffeine)
+      (lib.mkIf cfg.enableGsConnect gnomeExtensions.gsconnect)
       (lib.mkIf cfg.enableDashToDock gnomeExtensions.dash-to-dock)
     ];
 
     # Communication avec les devices
-    programs.kdeconnect = {
+    programs.kdeconnect = lib.mkIf cfg.enableGsConnect {
       enable = true;
       package = pkgs.gnomeExtensions.gsconnect;
     };
@@ -144,14 +146,16 @@ in
             "org/gnome/desktop/peripherals/keyboard" = {
               numlock-state = true;
             };
+            "org/gnome/desktop/lockdown" = {
+              disable-user-switching = true;
+            };
             "org/gnome/shell" = {
               disable-user-extensions = false;
-              enabled-extensions = [
-                "caffeine@patapon.info"
-                "gsconnect@andyholmes.github.io"
-                "appindicatorsupport@rgcjonas.gmail.com"
-                #"dash-to-dock@micxgx.gmail.com"
-              ];
+              enabled-extensions =
+                [ "appindicatorsupport@rgcjonas.gmail.com" ]
+                ++ (if cfg.enableCaffeine then [ "caffeine@patapon.info" ] else [ ])
+                ++ (if cfg.enableGsConnect then [ "gsconnect@andyholmes.github.io" ] else [ ])
+                ++ (if cfg.enableDashToDock then [ "dash-to-dock@micxgx.gmail.com" ] else [ ]);
               favorite-apps = [
                 "org.gnome.Console.desktop"
                 "firefox.desktop"
