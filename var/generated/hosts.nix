@@ -44,6 +44,32 @@
     };
   }
   {
+    hostname = "test-key";
+    name = "Test key";
+    profile = "portable";
+    groups = [ "common" ];
+    networks = [ "default" ];
+    users = [
+      "anso"
+      "axelle"
+      "charlie"
+      "nix"
+      "tristan"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "group-common"
+          "user-anso"
+          "user-axelle"
+          "user-charlie"
+          "user-tristan"
+          "network-default"
+        ];
+      };
+    };
+  }
+  {
     hostname = "sn-network";
     name = "SN Network Gateway";
     profile = "sn-network";

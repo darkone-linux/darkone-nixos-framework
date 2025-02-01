@@ -179,6 +179,12 @@ hosts:
 #      profile: "child-key"
 #      users: [ "axelle" ]
 
+    # Test key
+    - hostname: "test-key"
+      name: "Test key"
+      profile: "portable"
+      groups: [ "common" ]
+
     # SN gateway
     - hostname: "sn-network"
       name: "SN Network Gateway"

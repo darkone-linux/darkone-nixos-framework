@@ -27,7 +27,7 @@
       home-manager,
       colmena,
       ...
-    }@inputs:
+    }:
 
     let
 

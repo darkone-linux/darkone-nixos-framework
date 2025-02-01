@@ -176,11 +176,13 @@ apply-force on what='switch':
 
 # Multi-reboot (using colmena)
 [group('manage')]
+[confirm]
 reboot on:
 	colmena exec --on "{{on}}" "sudo systemctl reboot"
 
 # Multi-alt (using colmena)
 [group('manage')]
+[confirm]
 halt on:
 	colmena exec --on "{{on}}" "sudo systemctl poweroff"
 
@@ -198,4 +200,93 @@ fix-boot on:
 [group('dev')]
 apply-local what='switch':
 	colmena apply-local --sudo {{what}}
+
+[group('install')]
+format-dnf-shell:
+	nix-shell -p parted btrfs-progs nixos-install
+
+# Format and install DNF on a key (danger)
+[confirm('This command is dangerous. Are you sure? (y/N)')]
+[group('install')]
+format-dnf-on host dev:
+	#!/usr/bin/env bash
+	echo "-> checking..."
+	if [ `whoami` != 'root' ] ;then
+	  echo "Only root can perform this operation."
+		exit 1
+	fi
+	if ! command -v parted 2>&1 >/dev/null ;then
+		echo "parted is required"
+		exit 1
+	fi
+	if ! command -v btrfs 2>&1 >/dev/null ;then
+		echo "btrfs is required"
+		exit 1
+	fi
+	if ! command -v mkfs.fat 2>&1 >/dev/null ;then
+		echo "mkfs.fat is required"
+		exit 1
+	fi
+	if ! command -v mkfs.btrfs 2>&1 >/dev/null ;then
+		echo "mkfs.btrfs is required"
+		exit 1
+	fi
+	if ! command -v nixos-install 2>&1 >/dev/null ;then
+		echo "nixos-install is required"
+		exit 1
+	fi
+	if ! command -v nixos-generate-config 2>&1 >/dev/null ;then
+		echo "nixos-generate-config is required"
+		exit 1
+	fi
+	echo "-> Preparing..."
+	umount -R /mnt
+	echo "-> Start installation of {{host}} in {{dev}}..."
+	DISK={{dev}}
+	OPTS=defaults,x-mount.mkdir,noatime,nodiratime,ssd,compress=zstd:3
+	parted $DISK -- mklabel gpt && \
+	parted $DISK -- mkpart ESP fat32 1MB 500MB && \ 
+	parted $DISK -- mkpart root btrfs 500MB 100% && \
+	parted $DISK -- set 1 esp on && \
+	mkfs.fat -F 32 -n BOOT ${DISK}'1' && \
+	mkfs.btrfs -f -L NIXOS ${DISK}'2' && \
+	mount ${DISK}'2' /mnt && \
+	btrfs subvolume create /mnt/@ && \
+	btrfs subvolume create /mnt/@home && \
+	umount /mnt && \
+	mount -o $OPTS,subvol=@ ${DISK}'2' /mnt && \
+	mount -o $OPTS,subvol=@home ${DISK}'2' /mnt/home && \
+	mount --mkdir -o umask=077 ${DISK}'1' /mnt/boot && \
+	nixos-generate-config --root /mnt && \
+	echo '''{ config, lib, pkgs, ... }:
+	{
+	  imports =
+	    [ # Include the results of the hardware scan.
+	      ./hardware-configuration.nix
+	    ];
+	  boot.loader.systemd-boot.enable = true;
+	  boot.loader.efi.canTouchEfiVariables = true;
+	  networking.hostName = "{{host}}";
+	  time.timeZone = "America/Miquelon";
+	  i18n.defaultLocale = "fr_FR.UTF-8";
+	  console = {
+	    font = "Lat2-Terminus16";
+	    keyMap = lib.mkForce "fr";
+	    useXkbConfig = true;
+	  };
+	  users.users.nix = {
+	    uid = 65000;
+	    initialPassword = "nixos";
+	    isNormalUser = true;
+	    extraGroups = [ "wheel" ];
+	  };
+	  security.sudo.wheelNeedsPassword = false;
+	  environment.systemPackages = with pkgs; [
+	    vim
+	  ];
+	  services.openssh.enable = true;
+	  system.stateVersion = "25.05";
+	}
+	''' > /mnt/etc/nixos/configuration.nix && \
+	nixos-install --root /mnt --no-root-passwd
 
