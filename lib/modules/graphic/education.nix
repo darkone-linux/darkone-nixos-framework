@@ -1,5 +1,4 @@
 # Graphical & education packages for kids
-# TODO: anki / WIP
 
 {
   lib,
@@ -49,20 +48,25 @@ in
             #tuxmath (not found)
             avogadro2 # molecules
             geogebra6 # math
-            googleearth-pro
-            idle # python
+            #googleearth-pro
             klavaro
-            lenmus
-            libreoffice-fresh
             maxima # math
             octaveFull # math
             sage # math
             scilab-bin # math
-            solfege
-            stellarium
+            #solfege
             verbiste
           ]
-          ++ (if cfg.enableGames then [ chessx ] else [ ])
+          ++ (
+            if cfg.enableGames then
+              [
+                chessx
+                stellarium
+                lenmus
+              ]
+            else
+              [ ]
+          )
 
         # 0-18+ yo
         else

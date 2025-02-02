@@ -9,7 +9,7 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # Darkone modules
+    # Darkone modules for SN PCs
     darkone = {
 
       # Based on laptop framework profile
@@ -18,17 +18,25 @@ in
       # Advanced user (developper / admin)
       theme.advanced.enable = true;
       theme.office.enable = true;
-      #theme.teenager.enable = true;
+      theme.teenager.enable = true;
+
+      # Games activation / deactivation
+      graphic.education.enableGames = false;
 
       # No email software
-      graphic.packages.enableEmail = false;
+      graphic.office.enableEmail = false;
 
       # Virtualbox
-      #graphic.virtualbox.enable = true;
+      graphic.virtualbox.enable = true;
 
-      # Music creation
+      # Multimedia
+      graphic.imagery.enable = true;
+      graphic.video.enable = true;
       #graphic.music.enable = true;
     };
+
+    # Hardware additional settings
+    hardware.bluetooth.enable = lib.mkForce false;
 
     # Hardware configuration is identical for all PCs
     #imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];

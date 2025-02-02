@@ -25,7 +25,7 @@ in
       service.printing.enableHpPrinters = true;
 
       # No email software
-      graphic.packages.enableEmail = false;
+      graphic.office.enableEmail = false;
 
       # Virtualbox
       graphic.virtualbox.enable = true;
@@ -34,6 +34,7 @@ in
       graphic.music.enable = true;
 
       # Gnome options
+      graphic.gnome.enableDashToDock = true;
       #graphic.gnome.enableGsConnect = true;
       #graphic.gnome.enableCaffeine = true;
 

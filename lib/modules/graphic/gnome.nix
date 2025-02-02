@@ -29,11 +29,15 @@ in
     };
 
     # Enable the GNOME Desktop Environment.
-    #services.xserver.displayManager.gdm.enable = true;
     services.xserver.displayManager.lightdm = lib.mkIf (!cfg.enableGDM) {
       enable = true;
+      background = "#394999";
       greeters.gtk = {
         enable = true;
+        theme.name = "Adwaita-Dark";
+        iconTheme.name = "Papirus-Dark";
+        cursorTheme.name = "Bibata-Modern-Classic";
+        cursorTheme.size = 24;
         indicators = [
           "~host"
           "~spacer"
@@ -90,13 +94,14 @@ in
 
     # Gnome packages
     environment.systemPackages = with pkgs; [
-      bibata-cursors
-      papirus-icon-theme
-      gnomeExtensions.appindicator
-      rofi-wayland # TODO: module for rofi
       (lib.mkIf cfg.enableCaffeine gnomeExtensions.caffeine)
-      (lib.mkIf cfg.enableGsConnect gnomeExtensions.gsconnect)
       (lib.mkIf cfg.enableDashToDock gnomeExtensions.dash-to-dock)
+      (lib.mkIf cfg.enableGsConnect gnomeExtensions.gsconnect)
+      bibata-cursors
+      gnome-secrets
+      gnomeExtensions.appindicator
+      papirus-icon-theme
+      rofi-wayland # TODO: module for rofi
     ];
 
     # Communication avec les devices
@@ -169,16 +174,20 @@ in
                 "org.gnome.Nautilus.desktop"
               ];
             };
+            "org/gnome/desktop/sound" = {
+              event-sounds = false;
+            };
             "org/gnome/shell/extensions/dash-to-dock" = {
-              click-action = "minimize-or-overview";
-              disable-overview-on-startup = true;
-              dock-position = "BOTTOM";
-              running-indicator-style = "DOTS";
-              isolate-monitor = false;
-              multi-monitor = true;
-              show-mounts-network = true;
               always-center-icons = true;
+              click-action = "minimize-or-overview";
               custom-theme-shrink = true;
+              disable-overview-on-startup = false;
+              dock-position = "BOTTOM";
+              isolate-monitor = false;
+              intellihide = true;
+              multi-monitor = true;
+              running-indicator-style = "DOTS";
+              show-mounts-network = true;
             };
             "org/gnome/settings-daemon/plugins/media-keys" = {
               custom-keybindings = [

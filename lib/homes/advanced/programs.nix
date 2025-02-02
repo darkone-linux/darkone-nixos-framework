@@ -14,6 +14,7 @@
     lsof
     psmisc # killall, pstree, pslog, fuser...
     pv
+    ranger
     rename
     rsync
     strace

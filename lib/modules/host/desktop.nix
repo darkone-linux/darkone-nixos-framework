@@ -28,10 +28,10 @@ in
     darkone.graphic = {
       gnome.enable = lib.mkDefault true;
       obsidian.enable = lib.mkDefault true;
-      packages.enable = lib.mkDefault true;
-      packages.enableEmail = lib.mkDefault true;
-      packages.enableOffice = lib.mkDefault true;
-      packages.enableInternet = lib.mkDefault true;
+      office.enable = lib.mkDefault true;
+      office.enableEmail = lib.mkDefault true;
+      office.enableLibreOffice = lib.mkDefault true;
+      office.enableInternet = lib.mkDefault true;
     };
   };
 }

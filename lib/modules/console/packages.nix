@@ -19,14 +19,18 @@ in
       [
         vim
         less
+        unzip
+        zip
       ]
       ++ (
         if cfg.enableAdditional then
           [
+            findutils # locate
             fzf
             git
             htop
             neofetch
+            ranger
             tree
             wget
           ]

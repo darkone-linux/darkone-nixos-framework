@@ -9,9 +9,11 @@
     ./console/zsh.nix
     ./graphic/education.nix
     ./graphic/gnome.nix
+    ./graphic/imagery.nix
     ./graphic/music.nix
     ./graphic/obsidian.nix
-    ./graphic/packages.nix
+    ./graphic/office.nix
+    ./graphic/video.nix
     ./graphic/virt-manager.nix
     ./graphic/virtualbox.nix
     ./host/desktop.nix
