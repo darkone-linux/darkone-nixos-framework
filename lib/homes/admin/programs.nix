@@ -16,13 +16,13 @@
     tcpdump
   ];
 
-  programs.gpg.enable = true;
-  services.gpg-agent = {
-    enable = true;
-    defaultCacheTtl = 34560000;
-    maxCacheTtl = 34560000;
-    enableSshSupport = true;
-    enableZshIntegration = true;
-    pinentryPackage = pkgs.pinentry-curses;
-  };
+#  programs.gpg.enable = true;
+#  services.gpg-agent = {
+#    enable = true;
+#    defaultCacheTtl = 34560000;
+#    maxCacheTtl = 34560000;
+#    enableSshSupport = true;
+#    enableZshIntegration = true;
+#    pinentryPackage = pkgs.pinentry-curses;
+#  };
 }
