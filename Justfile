@@ -186,6 +186,11 @@ reboot on:
 halt on:
 	colmena exec --on "{{on}}" "sudo systemctl poweroff"
 
+# Remove zshrc bkp to avoid error when replacing zshrc
+[group('manage')]
+fix-zsh on:
+	colmena exec --on "{{on}}" "rm -f .zshrc.bkp"
+
 # Multi garbage collector (using colmena)
 [group('manage')]
 gc on:

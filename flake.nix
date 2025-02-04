@@ -104,6 +104,7 @@
                   useUserPackages = true;
 
                   # Avoid error on replacing a file (.zshrc for example)
+                  # LIMITATION: if bkp file already exists -> fail
                   backupFileExtension = "bkp";
 
                   # Load users profiles

@@ -17,7 +17,7 @@ in
     # Console additional features
     darkone.console.git.enable = lib.mkDefault true;
     darkone.console.pandoc.enable = lib.mkDefault false;
-    #darkone.console.zsh.enable = lib.mkDefault true;
+    darkone.console.zsh.enable = lib.mkDefault true;
     darkone.console.packages.enable = lib.mkDefault true;
     darkone.console.packages.enableAdditional = lib.mkDefault true;
 
