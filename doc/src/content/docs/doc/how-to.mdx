@@ -1,0 +1,61 @@
+---
+title: How-to?
+sidebar:
+  order: 4
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+## Create a usb key
+
+To create a crypted and portable NixOS system on a usb key:
+
+<Steps>
+
+1. Create a minimal NixOS system
+
+```shell
+cd /etc/nixos
+
+# Nix-shell with required tools + root
+sudo just create-key-shell
+
+# Launch with the key name + peripheral
+# -> IMPORTANT: all data in the peripheral will be lose
+# -> This script will prompt the luks password
+just create-key-on my-key /dev/sdb
+
+# Quit the nix-shell
+exit
+```
+
+2. Declare the new host
+
+```yaml
+# usr/config.yaml
+hosts:
+  static:
+    - hostname: "my-key"
+      name: "My portable system"
+      profile: "portable"
+      users: [ "darkone", "gponcon" ]
+```
+
+```shell
+# Generate, fix, check...
+just clean
+```
+
+3. Apply the configuration
+
+Launch the usb key system with any machine (click F12 at startup, then choose the usb key). The minimal installation have a special `nix` user used for maintenance.
+
+```shell
+# Network check: "my-key" must be accessible
+ping my-key
+
+# Register and install the new host
+just install my-key
+```
+
+</Steps>
