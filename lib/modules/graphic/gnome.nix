@@ -98,10 +98,10 @@ in
       (lib.mkIf cfg.enableDashToDock gnomeExtensions.dash-to-dock)
       (lib.mkIf cfg.enableGsConnect gnomeExtensions.gsconnect)
       bibata-cursors
-      gnome-secrets
+      #gnome-secrets
       gnomeExtensions.appindicator
       papirus-icon-theme
-      rofi-wayland # TODO: module for rofi
+      #rofi-wayland # TODO: module for rofi
     ];
 
     # Communication avec les devices

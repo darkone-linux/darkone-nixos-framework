@@ -5,8 +5,9 @@
     # Outils CLI
     #asciidoc-full
     #asciidoctor
-    aspellDicts.fr
-    presenterm
+
+    #aspellDicts.fr
+    #presenterm
 
     # Développement, administration
     nodejs_23
@@ -31,26 +32,26 @@
     #kdePackages.kig # BROKEN
     #qstopmotion
     anki-bin
-    cantor # Outil puissant pour les maths et les stats
-    gaphor # UML
-    geogebra6
-    gnome-graphs
-    gnome-maps
-    kdePackages.blinken # Entrainement de la mémoire
-    kdePackages.isoimagewriter
-    kdePackages.kalgebra # Outil mathématique
-    kdePackages.kalzium # Tableau périodique
-    kdePackages.kbruch # Exercices fractions
-    kdePackages.kgeography # Apprentissage de la géographie
-    kdePackages.kmplot # Maths
-    kdePackages.kturtle # LOGO
-    kdePackages.parley # Vocabulaire
-    kdePackages.step
-    labplot
-    super-productivity
-    textpieces # Couteau suisse chiffrage, text-processing
-    tuba # fediverse
-    wike # wikipedia
+    #cantor # Outil puissant pour les maths et les stats
+    #gaphor # UML
+    #geogebra6
+    #gnome-graphs
+    #gnome-maps
+    #kdePackages.blinken # Entrainement de la mémoire
+    #kdePackages.isoimagewriter
+    #kdePackages.kalgebra # Outil mathématique
+    #kdePackages.kalzium # Tableau périodique
+    #kdePackages.kbruch # Exercices fractions
+    #kdePackages.kgeography # Apprentissage de la géographie
+    #kdePackages.kmplot # Maths
+    #kdePackages.kturtle # LOGO
+    #kdePackages.parley # Vocabulaire
+    #kdePackages.step
+    #labplot
+    #super-productivity
+    #textpieces # Couteau suisse chiffrage, text-processing
+    #tuba # fediverse
+    #wike # wikipedia
 
     # Arduino
     arduino
@@ -63,6 +64,6 @@
 
     # Games
     #supertuxkart
-    chessx
+    #chessx
   ];
 }
