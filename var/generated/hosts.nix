@@ -73,9 +73,23 @@
     hostname = "sn-network";
     name = "SN Network Gateway";
     profile = "sn-network";
+    groups = [ ];
+    networks = [ "sn" ];
+    users = [ "nix" ];
+    colmena = {
+      deployment = {
+        tags = [ "network-sn" ];
+      };
+    };
+  }
+  {
+    hostname = "nixfarm";
+    name = "SN Nix Farm Calculator";
+    profile = "nixfarm";
     groups = [ "sn-admin" ];
     networks = [ "sn" ];
     users = [
+      "gponcon"
       "nix"
       "tserveau"
     ];
@@ -83,6 +97,7 @@
       deployment = {
         tags = [
           "group-sn-admin"
+          "user-gponcon"
           "user-tserveau"
           "network-sn"
         ];

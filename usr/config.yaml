@@ -40,7 +40,7 @@ users:
     uid: 1001
     name: "G. Ponçon"
     profile: "sn-admin"
-    groups: [ "admin", "sn" ]
+    groups: [ "admin", "sn", "sn-admin" ]
 
   # Arthur
   anso:
@@ -185,10 +185,16 @@ hosts:
       profile: "portable"
       groups: [ "common" ]
 
-    # SN gateway
+    # SN gateway (just nix user)
     - hostname: "sn-network"
       name: "SN Network Gateway"
       profile: "sn-network"
+      networks: [ "sn" ]
+
+    # SN NixFarm
+    - hostname: "nixfarm"
+      name: "SN Nix Farm Calculator"
+      profile: "nixfarm"
       networks: [ "sn" ]
       groups: [ "sn-admin" ]
 

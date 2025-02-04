@@ -17,6 +17,7 @@
     groups = [
       "admin"
       "sn"
+      "sn-admin"
     ];
   };
   anso = {
