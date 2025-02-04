@@ -31,7 +31,7 @@ in
 
       # Multimedia
       #graphic.imagery.enable = true;
-      #graphic.video.enable = true;
+      graphic.video.enable = true;
       #graphic.music.enable = true;
     };
 
