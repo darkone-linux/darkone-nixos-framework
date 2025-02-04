@@ -144,11 +144,11 @@ copy-hw host:
 	#!/usr/bin/env bash
 	ssh nix@{{host}} 'test -f /etc/nixos/hardware-configuration.nix'
 	if [ $? -eq 0 ]; then
-		echo "-> Une configuration hardware existe, copie..."
+		echo "-> A hardware configuration exists, extracting..."
 		mkdir -p usr/machines/{{host}}
 		scp nix@{{host}}:/etc/nixos/hardware-configuration.nix usr/machines/{{host}}/default.nix
 	else
-		echo "-> ERR: pas de configuration hardware sur {{host}}"
+		echo "-> ERR: no hardware configuration found on {{host}}"
 	fi
 
 # New host: ssh cp id, extr. hw, clean, commit, apply

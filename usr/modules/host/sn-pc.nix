@@ -35,6 +35,21 @@ in
       #graphic.music.enable = true;
     };
 
+    firewall = {
+      enable = true;
+      allowPing = true;
+      interfaces.${lanInterface} = {
+        allowedTCPPorts = [
+          22
+          80
+        ];
+        allowedUDPPorts = [
+          2757 # STK (discovery)
+          2759 # STK (game)
+        ];
+      };
+    };
+
     # Hardware additional settings
     hardware.bluetooth.enable = lib.mkForce false;
   };

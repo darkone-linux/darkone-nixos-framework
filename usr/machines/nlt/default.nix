@@ -14,6 +14,9 @@
   #networking.enableB43Firmware = true;
   environment.systemPackages = [ pkgs.b43Firmware_6_30_163_46 ];
 
+  # TMP
+  networking.firewall.enable = lib.mkForce false;
+
   boot.initrd.availableKernelModules = [
     "xhci_pci"
     "ehci_pci"

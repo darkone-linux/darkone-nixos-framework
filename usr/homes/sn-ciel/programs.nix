@@ -1,37 +1,17 @@
 { pkgs, ... }:
 {
+  # Additional programs
   home.packages = with pkgs; [
 
     # Outils CLI
     #asciidoc-full
     #asciidoctor
-
     #aspellDicts.fr
     #presenterm
 
-    # Développement, administration
-    nodejs_23
-    python3Full
-    vscode
-
-    # Outils Bac Pro
-    #qucs-s # Schéma elec + simulation - instable
-    #yed # fail
-    fritzing # Simulation ne fonctionne pas
-    godot_4
-    klavaro
-    ngspice # Simulateur elec
-    qelectrotech
-    rpi-imager
-    simulide # TOP!
-
     # Education autre
-    #gnome-binary # EXISTE PAS ENCORE
-    #gnome-workbench # EXISTE PAS ENCORE
-    #kb # Base de connaissances cli
     #kdePackages.kig # BROKEN
     #qstopmotion
-    anki-bin
     #cantor # Outil puissant pour les maths et les stats
     #gaphor # UML
     #geogebra6
@@ -54,15 +34,12 @@
     #wike # wikipedia
 
     # Arduino
-    arduino
-    arduino-ide
-    arduino-cli
-
-    # Tweak
-    powerline
-    powerline-fonts
+    #arduino
+    #arduino-ide
+    #arduino-cli
 
     # Games
+    superTuxKart
     #chessx
   ];
 }

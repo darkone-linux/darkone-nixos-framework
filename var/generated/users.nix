@@ -65,7 +65,7 @@
   ethan = {
     uid = 1101;
     name = "Ethan";
-    profile = "usr/homes/sn-user";
+    profile = "usr/homes/sn-tsn";
     groups = [
       "sn"
       "tsn"
@@ -74,7 +74,7 @@
   nathael = {
     uid = 1102;
     name = "Nathaël";
-    profile = "usr/homes/sn-user";
+    profile = "usr/homes/sn-tsn";
     groups = [
       "sn"
       "tsn"
@@ -83,7 +83,7 @@
   kilic = {
     uid = 1103;
     name = "Kilic";
-    profile = "usr/homes/sn-user";
+    profile = "usr/homes/sn-ciel";
     groups = [
       "sn"
       "1ciel"
@@ -92,7 +92,7 @@
   mathys = {
     uid = 1104;
     name = "Mathys";
-    profile = "usr/homes/sn-user";
+    profile = "usr/homes/sn-ciel";
     groups = [
       "sn"
       "1ciel"
@@ -101,7 +101,7 @@
   julien = {
     uid = 1105;
     name = "Julien";
-    profile = "usr/homes/sn-user";
+    profile = "usr/homes/sn-ciel";
     groups = [
       "sn"
       "1ciel"
@@ -110,7 +110,7 @@
   esteban = {
     uid = 1106;
     name = "Esteban";
-    profile = "usr/homes/sn-user";
+    profile = "usr/homes/sn-ciel";
     groups = [
       "sn"
       "1ciel"

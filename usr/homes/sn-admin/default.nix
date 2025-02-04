@@ -1,7 +1,8 @@
 {
   imports = [
     ./../../../lib/homes/admin
-    ./../sn-user
+    ./../sn-tsn
+    ./../sn-ciel
   ];
   home.stateVersion = "25.05";
 }

@@ -73,32 +73,32 @@ users:
   ethan:
     uid: 1101
     name: "Ethan"
-    profile: "sn-user"
+    profile: "sn-tsn"
     groups: [ "sn", "tsn" ]
   nathael:
     uid: 1102
     name: "Nathaël"
-    profile: "sn-user"
+    profile: "sn-tsn"
     groups: [ "sn", "tsn" ]
   kilic:
     uid: 1103
     name: "Kilic"
-    profile: "sn-user"
+    profile: "sn-ciel"
     groups: [ "sn", "1ciel" ]
   mathys:
     uid: 1104
     name: "Mathys"
-    profile: "sn-user"
+    profile: "sn-ciel"
     groups: [ "sn", "1ciel" ]
   julien:
     uid: 1105
     name: "Julien"
-    profile: "sn-user"
+    profile: "sn-ciel"
     groups: [ "sn", "1ciel" ]
   esteban:
     uid: 1106
     name: "Esteban"
-    profile: "sn-user"
+    profile: "sn-ciel"
     groups: [ "sn", "1ciel" ]
   diego:
     uid: 1107
