@@ -29,25 +29,26 @@ in
       # Virtualbox
       #graphic.virtualbox.enable = true;
 
+      # Dev web
+      service.httpd.enable = true;
+
       # Multimedia
-      #graphic.imagery.enable = true;
+      graphic.imagery.enable = true;
       graphic.video.enable = true;
       #graphic.music.enable = true;
     };
 
-    firewall = {
+    networking.firewall = {
       enable = true;
       allowPing = true;
-      interfaces.${lanInterface} = {
-        allowedTCPPorts = [
-          22
-          80
-        ];
-        allowedUDPPorts = [
-          2757 # STK (discovery)
-          2759 # STK (game)
-        ];
-      };
+      allowedTCPPorts = [
+        22
+        80
+      ];
+      allowedUDPPorts = [
+        2757 # STK (discovery)
+        2759 # STK (game)
+      ];
     };
 
     # Hardware additional settings

@@ -1,5 +1,3 @@
-# MAO
-
 {
   lib,
   config,
@@ -23,14 +21,19 @@ in
     environment.systemPackages =
       with pkgs;
       [
-        evince
         geeqie
         gimp
-        inkscape
         pinta
-        kdePackages.kdenlive
-        krita
       ]
-      ++ (if cfg.enablePro then [ blender ] else [ ]);
+      ++ (
+        if cfg.enablePro then
+          [
+            blender
+            inkscape
+            krita
+          ]
+        else
+          [ ]
+      );
   };
 }

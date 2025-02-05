@@ -38,8 +38,15 @@
     #arduino-ide
     #arduino-cli
 
+    # Web
+    sqlite
+    sqlite-web
+    sqlite-utils
+    sqlitebrowser
+    php84Extensions.sqlite3
+
     # Games
-    #superTuxKart
+    superTuxKart
     #chessx
   ];
 }

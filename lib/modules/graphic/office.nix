@@ -40,6 +40,7 @@ in
       [
         dialect # Traduction
         iotas # Notes / kb software
+        evince
       ]
       ++ (
         if cfg.enableLibreOffice then

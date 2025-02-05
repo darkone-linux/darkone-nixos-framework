@@ -28,6 +28,14 @@ in
       variant = "azerty";
     };
 
+    xdg.mime.defaultApplications = {
+      "application/pdf" = "evince.desktop";
+      "image/*" = [
+        "geeqie.desktop"
+        "gimp.desktop"
+      ];
+    };
+
     # Enable the GNOME Desktop Environment.
     services.xserver.displayManager.lightdm = lib.mkIf (!cfg.enableGDM) {
       enable = true;

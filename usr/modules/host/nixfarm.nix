@@ -24,7 +24,7 @@ in
     # NFS shares
     services.nfs.server.enable = true;
     services.nfs.server.exports = ''
-      /export/homes 192.168.11.0/24(rw,sync,insecure,no_subtree_check,fsid=homes)
+      /export/homes 192.168.11.0/24(rw,sync,insecure,no_subtree_check,fsid=0)
     '';
     networking.firewall.allowedTCPPorts = [ 2049 ]; # NFSv4
 
