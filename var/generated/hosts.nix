@@ -86,18 +86,50 @@
     hostname = "nixfarm";
     name = "SN Nix Farm Calculator";
     profile = "nixfarm";
-    groups = [ "sn-admin" ];
+    groups = [
+      "sn-admin"
+      "sn"
+    ];
     networks = [ "sn" ];
     users = [
+      "baptiste"
+      "brice"
+      "diego"
+      "esteban"
+      "ethan"
+      "evan"
       "gponcon"
+      "julien"
+      "kilic"
+      "mathieu"
+      "mathys"
+      "nathael"
       "nix"
+      "nolann"
+      "tiesto"
+      "titouan"
       "tserveau"
     ];
     colmena = {
       deployment = {
         tags = [
           "group-sn-admin"
+          "group-sn"
+          "user-baptiste"
+          "user-brice"
+          "user-diego"
+          "user-esteban"
+          "user-ethan"
+          "user-evan"
           "user-gponcon"
+          "user-julien"
+          "user-kilic"
+          "user-mathieu"
+          "user-mathys"
+          "user-nathael"
+          "user-nolann"
+          "user-tiesto"
+          "user-titouan"
           "user-tserveau"
           "network-sn"
         ];

@@ -196,7 +196,7 @@ hosts:
       name: "SN Nix Farm Calculator"
       profile: "nixfarm"
       networks: [ "sn" ]
-      groups: [ "sn-admin" ]
+      groups: [ "sn-admin", "sn" ]
 
   # Host groups by range (generated from min to max)
   range:

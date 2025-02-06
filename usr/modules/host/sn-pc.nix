@@ -1,4 +1,9 @@
-{ lib, config, ... }:
+{
+  lib,
+  config,
+  pkgs,
+  ...
+}:
 let
   cfg = config.darkone.host.sn-pc;
 in
@@ -49,6 +54,25 @@ in
         2757 # STK (discovery)
         2759 # STK (game)
       ];
+    };
+
+    # NFS for homes
+    #systemd.tmpfiles.rules = [ "d /mnt/home 0755 root root" ];
+    environment.systemPackages = with pkgs; [ nfs-utils ];
+    boot.initrd = {
+      supportedFilesystems = [ "nfs" ];
+      kernelModules = [ "nfs" ];
+    };
+    fileSystems."/mnt/home" = {
+      device = "nixfarm:/export/home";
+      fsType = "nfs";
+      #options = [ "nfsvers=4.2" ];
+    };
+    security.wrappers."mount.nfs" = {
+      setuid = true;
+      owner = "root";
+      group = "root";
+      source = "${pkgs.nfs-utils.out}/bin/mount.nfs";
     };
 
     # Hardware additional settings
