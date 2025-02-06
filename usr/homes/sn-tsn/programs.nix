@@ -45,6 +45,9 @@
     sqlitebrowser
     php84Extensions.sqlite3
 
+    # Outils spécifiques TSN
+    pixelorama
+
     # Games
     superTuxKart
     #chessx
