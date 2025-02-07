@@ -64,15 +64,32 @@ in
       kernelModules = [ "nfs" ];
     };
     fileSystems."/mnt/home" = {
-      device = "nixfarm:/export/home";
+      device = "nixfarm:/home";
       fsType = "nfs";
-      #options = [ "nfsvers=4.2" ];
+      options = [
+        "nfsvers=4.2"
+        "rsize=65536"
+        "wsize=65536"
+        "hard"
+        "timeo=600"
+        "retrans=2"
+      ];
     };
     security.wrappers."mount.nfs" = {
       setuid = true;
       owner = "root";
       group = "root";
       source = "${pkgs.nfs-utils.out}/bin/mount.nfs";
+    };
+
+    # TODO: factorize with nixfarm
+    services.nfs.settings = {
+      nfsd.udp = false;
+      nfsd.vers3 = false;
+      nfsd.vers4 = true;
+      nfsd."vers4.0" = false;
+      nfsd."vers4.1" = false;
+      nfsd."vers4.2" = true;
     };
 
     # Hardware additional settings

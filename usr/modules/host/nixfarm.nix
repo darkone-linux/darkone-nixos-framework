@@ -22,41 +22,25 @@ in
     };
 
     # NFS shares
-    services.nfs.server = {
-      enable = true;
-      #exports = "/export/home 192.168.11.0/24(rw,async,insecure,no_subtree_check,no_root_squash,fsid=0)";
-      exports = "/export/home 192.168.11.0/24(rw,async,insecure,no_subtree_check,no_root_squash,fsid=0)";
-      createMountPoints = true;
-
-      # TODO: pas utile normalement avec nfsv4...
-      lockdPort = 4001;
-      mountdPort = 4002;
-      statdPort = 4000;
-      extraNfsdConfig = '''';
+    services.nfs = {
+      settings = {
+        nfsd.udp = false;
+        nfsd.vers3 = false;
+        nfsd.vers4 = true;
+        nfsd."vers4.0" = false;
+        nfsd."vers4.1" = false;
+        nfsd."vers4.2" = true;
+      };
+      server = {
+        enable = true;
+        exports = ''
+          /export 192.168.11.0/24(rw,insecure,no_subtree_check,fsid=0,sync)
+          /export/home 192.168.11.0/24(rw,nohide,async,insecure,no_subtree_check,no_root_squash,fsid=0,no_wdelay)
+        '';
+        createMountPoints = true;
+      };
     };
-    #networking.firewall.allowedTCPPorts = [ 2049 ]; # NFSv4
-    # TODO: avec nfsv4 il faut en théorie que ça fonctionne sans toutes ces configurations...
-    networking.firewall = {
-      enable = true;
-      # for NFSv3; view with `rpcinfo -p`
-      allowedTCPPorts = [
-        111
-        2049
-        4000
-        4001
-        4002
-        20048
-      ];
-      allowedUDPPorts = [
-        111
-        2049
-        4000
-        4001
-        4002
-        20048
-      ];
-    };
-    services.rpcbind.enable = true;
+    networking.firewall.allowedTCPPorts = [ 2049 ]; # NFSv4
 
     # AI
     services.ollama.enable = true;
