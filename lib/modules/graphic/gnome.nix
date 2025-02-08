@@ -106,8 +106,9 @@ in
       (lib.mkIf cfg.enableDashToDock gnomeExtensions.dash-to-dock)
       (lib.mkIf cfg.enableGsConnect gnomeExtensions.gsconnect)
       bibata-cursors
-      #gnome-secrets
+      gnome-secrets
       gnomeExtensions.appindicator
+      gnomeExtensions.blur-my-shell
       papirus-icon-theme
       #rofi-wayland # TODO: module for rofi
     ];
@@ -165,7 +166,10 @@ in
             "org/gnome/shell" = {
               disable-user-extensions = false;
               enabled-extensions =
-                [ "appindicatorsupport@rgcjonas.gmail.com" ]
+                [
+                  "appindicatorsupport@rgcjonas.gmail.com"
+                  "blur-my-shell@aunetx"
+                ]
                 ++ (if cfg.enableCaffeine then [ "caffeine@patapon.info" ] else [ ])
                 ++ (if cfg.enableGsConnect then [ "gsconnect@andyholmes.github.io" ] else [ ])
                 ++ (if cfg.enableDashToDock then [ "dash-to-dock@micxgx.gmail.com" ] else [ ]);
