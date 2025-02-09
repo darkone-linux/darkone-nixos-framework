@@ -44,6 +44,10 @@
     #telegram-desktop
     #viking
     #whatsapp-for-linux
-
   ];
+
+  services.easyeffects = {
+    enable = true;
+    preset = "easyeffects-fw16";
+  };
 }

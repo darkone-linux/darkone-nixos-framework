@@ -86,7 +86,7 @@ fix:
 
 # Update the nix generated files
 [group('dev')]
-generate: _gen-default-lib-modules _gen-default-usr-modules _gen-default-overlays \
+generate: _gen-default-lib-modules _gen-default-usr-modules _gen-default-home-modules _gen-default-overlays \
 		(_gen "users" "var/generated/users.nix") \
 		(_gen "hosts" "var/generated/hosts.nix") \
 		(_gen "networks" "var/generated/networks.nix")
@@ -96,6 +96,9 @@ _gen-default-lib-modules: (_gen-default "lib/modules")
 
 # Generate default.nix of usr/modules dir
 _gen-default-usr-modules: (_gen-default "usr/modules")
+
+# Generate default.nix of lib/home-modules dir
+_gen-default-home-modules: (_gen-default "lib/home-modules")
 
 # Generate default.nix of lib/overlays
 _gen-default-overlays: (_gen-default "lib/overlays")

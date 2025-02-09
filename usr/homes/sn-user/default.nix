@@ -12,6 +12,10 @@ in
     ./../../../lib/homes/student
     ./programs.nix
   ];
+
+  # Zed editor
+  darkone.home.zed.enable = true;
+
   home = {
 
     # Shared home only if in SN pc

@@ -42,7 +42,10 @@
       mkHome = login: {
         name = login;
         value = {
-          imports = [ (import ./${users.${login}.profile}) ];
+          imports = [
+            ./lib/home-modules
+            (import ./${users.${login}.profile})
+          ];
 
           # Home profiles loading
           home = {

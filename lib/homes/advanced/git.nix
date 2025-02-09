@@ -26,6 +26,27 @@ in
     ignores = [
       "*~"
       "*.swp"
+      ".vscode"
+      ".idea"
     ];
+    extraConfig = {
+      core = {
+        editor = "vim";
+        whitespace = "fix,-indent-with-non-tab,trailing-space,cr-at-eol";
+      };
+      delta = {
+        enable = true;
+        options = {
+          "navigate" = true;
+        };
+      };
+      diff.tool = "meld";
+      web.browser = "firefox";
+      push.default = "tracking";
+      push.autoSetupRemote = true;
+      pull.rebase = false;
+      init.defaultBranch = "main";
+      color.ui = true;
+    };
   };
 }

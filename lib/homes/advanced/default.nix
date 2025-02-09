@@ -3,6 +3,7 @@
 {
   imports = [
     ./../minimal
+    ./cli.nix
     ./git.nix
     ./programs.nix
     ./vim.nix
