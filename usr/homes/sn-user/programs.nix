@@ -24,6 +24,7 @@
     qelectrotech
     rpi-imager
     simulide # TOP!
+    github-desktop
 
     # Education autre
     #gnome-binary # EXISTE PAS ENCORE
@@ -63,6 +64,7 @@
     powerline-fonts
 
     # Games
+    superTuxKart
     #chessx
   ];
 }
