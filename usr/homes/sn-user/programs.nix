@@ -25,6 +25,7 @@
     rpi-imager
     simulide # TOP!
     github-desktop
+    php
 
     # Education autre
     #gnome-binary # EXISTE PAS ENCORE
