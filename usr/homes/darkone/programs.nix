@@ -15,7 +15,7 @@
 
     # Développement, administration
     gparted
-    jetbrains.idea-ultimate
+    #jetbrains.idea-ultimate # Compilation fail
     nodejs_23
     python3Full
     vscode

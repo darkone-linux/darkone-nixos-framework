@@ -22,13 +22,13 @@
 
   outputs =
     {
+      self,
       nixpkgs,
       nixpkgs-stable,
       home-manager,
       colmena,
       ...
     }:
-
     let
 
       # Main system
@@ -187,6 +187,30 @@
           } // commonNodeArgs;
           modules = [ ./lib/hosts/iso.nix ];
         };
+      };
+
+      # Dev env (already set in nix user profile)
+      devShells.default = nixpkgs.mkShell {
+        buildInputs = with nixpkgs; [
+          colmena
+          deadnix
+          just
+          nixfmt-rfc-style
+          php84
+          php84Packages.composer
+          statix
+        ];
+      };
+
+      # TODO: just tools packages
+
+      # Darkone modules
+      nixosModules = {
+        darkone = ./lib/modules;
+        default = self.nixosModules.darkone;
+      };
+      homeManagerModules = {
+        darkone = ./lib/home-modules;
       };
     }; # outputs
 }
