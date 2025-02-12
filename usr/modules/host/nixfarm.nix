@@ -42,6 +42,20 @@ in
     };
     networking.firewall.allowedTCPPorts = [ 2049 ]; # NFSv4
 
+    # Gateway for the last room network
+    networking.interfaces.enp3s0f0.useDHCP = true; # Interface connected to 192.168.11.*
+    networking.interfaces.enp3s0f1.ipv4.addresses = [
+      {
+        address = "192.168.10.1";
+        prefixLength = 24;
+      }
+    ]; # Interface for the network 192.168.10.*
+    networking.firewall.extraCommands = ''
+      iptables -t nat -A POSTROUTING -s 192.168.10.0/24 -o enp3s0f0 -j MASQUERADE
+      iptables -A INPUT -i enp3s0f1 -j ACCEPT
+    '';
+    boot.kernel.sysctl."net.ipv4.ip_forward" = 1;
+
     # AI
     services.ollama.enable = true;
 
