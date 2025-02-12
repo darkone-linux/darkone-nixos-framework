@@ -32,7 +32,7 @@ in
       graphic.office.enableEmail = false;
 
       # Virtualbox
-      #graphic.virtualbox.enable = true;
+      graphic.virtualbox.enable = true;
 
       # Dev web
       service.httpd.enable = true;
@@ -94,5 +94,8 @@ in
 
     # Hardware additional settings
     hardware.bluetooth.enable = lib.mkForce false;
+
+    # SN-PC state version (do not touch or update)
+    system.stateVersion = "25.05";
   };
 }

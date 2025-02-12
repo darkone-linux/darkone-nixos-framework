@@ -7,7 +7,7 @@
     #asciidoctor
 
     #aspellDicts.fr
-    #presenterm
+    presenterm
 
     # Développement, administration
     nodejs_23
@@ -16,7 +16,7 @@
 
     # Outils Bac Pro
     #qucs-s # Schéma elec + simulation - instable
-    #yed # fail
+    yed # fail
     fritzing # Simulation ne fonctionne pas
     godot_4
     klavaro
@@ -35,14 +35,14 @@
     #qstopmotion
     anki-bin
     #cantor # Outil puissant pour les maths et les stats
-    #gaphor # UML
-    #geogebra6
+    #gaphor # UML err. de dépendance
+    geogebra6
     #gnome-graphs
     #gnome-maps
     #kdePackages.blinken # Entrainement de la mémoire
-    #kdePackages.isoimagewriter
+    kdePackages.isoimagewriter
     #kdePackages.kalgebra # Outil mathématique
-    #kdePackages.kalzium # Tableau périodique
+    kdePackages.kalzium # Tableau périodique
     #kdePackages.kbruch # Exercices fractions
     #kdePackages.kgeography # Apprentissage de la géographie
     #kdePackages.kmplot # Maths
@@ -51,8 +51,8 @@
     #kdePackages.step
     #labplot
     #super-productivity
-    #textpieces # Couteau suisse chiffrage, text-processing
-    #tuba # fediverse
+    textpieces # Couteau suisse chiffrage, text-processing
+    tuba # fediverse
     #wike # wikipedia
 
     # Arduino
@@ -66,6 +66,6 @@
 
     # Games
     superTuxKart
-    #chessx
+    chessx
   ];
 }

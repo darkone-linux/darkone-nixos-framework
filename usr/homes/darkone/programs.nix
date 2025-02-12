@@ -31,6 +31,7 @@
     gimp
     inkscape
     super-productivity
+    yed
 
     # Tweak
     powerline
