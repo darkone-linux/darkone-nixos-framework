@@ -26,6 +26,7 @@ in
       php84
       php84Packages.composer
       statix
+      wakeonlan
     ];
 
     # Optimized switch (perl -> rust)

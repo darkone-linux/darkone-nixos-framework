@@ -43,6 +43,11 @@ in
       #graphic.music.enable = true;
     };
 
+    # Partition de boot limitée par le partitionnement windows
+    boot.loader.systemd-boot.configurationLimit = 2;
+    boot.loader.timeout = 15;
+    networking.interfaces.enp2s0.wakeOnLan.enable = true;
+
     networking.firewall = {
       enable = true;
       allowPing = true;
