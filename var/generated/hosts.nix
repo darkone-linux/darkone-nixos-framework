@@ -4,31 +4,135 @@
 
 [
   {
-    hostname = "nlt";
-    name = "Darkone Laptop";
-    profile = "admin-laptop";
-    groups = [
-      "admin"
-      "common"
-    ];
-    networks = [
-      "default"
-      "sn"
-    ];
+    hostname = "test-key";
+    name = "Test key";
+    profile = "portable";
+    groups = [ "common" ];
+    networks = [ "default" ];
     users = [
-      "darkone"
+      "anso"
+      "axelle"
+      "charlie"
       "nix"
+      "tristan"
     ];
     colmena = {
       deployment = {
         tags = [
-          "laptops"
-          "admin"
-          "group-admin"
           "group-common"
-          "user-darkone"
+          "user-anso"
+          "user-axelle"
+          "user-charlie"
+          "user-tristan"
           "network-default"
-          "network-sn"
+        ];
+      };
+    };
+  }
+  {
+    hostname = "vbox-01";
+    name = "Virtual 01";
+    profile = "vbox";
+    groups = [ "common" ];
+    networks = [ "default" ];
+    users = [
+      "anso"
+      "axelle"
+      "charlie"
+      "nix"
+      "tristan"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "vbox"
+          "group-common"
+          "user-anso"
+          "user-axelle"
+          "user-charlie"
+          "user-tristan"
+          "network-default"
+        ];
+      };
+    };
+  }
+  {
+    hostname = "vbox-02";
+    name = "Virtual 02";
+    profile = "vbox";
+    groups = [ "common" ];
+    networks = [ "default" ];
+    users = [
+      "anso"
+      "axelle"
+      "charlie"
+      "nix"
+      "tristan"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "vbox"
+          "group-common"
+          "user-anso"
+          "user-axelle"
+          "user-charlie"
+          "user-tristan"
+          "network-default"
+        ];
+      };
+    };
+  }
+  {
+    hostname = "vbox-03";
+    name = "Virtual 03";
+    profile = "vbox";
+    groups = [ "common" ];
+    networks = [ "default" ];
+    users = [
+      "anso"
+      "axelle"
+      "charlie"
+      "nix"
+      "tristan"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "vbox"
+          "group-common"
+          "user-anso"
+          "user-axelle"
+          "user-charlie"
+          "user-tristan"
+          "network-default"
+        ];
+      };
+    };
+  }
+  {
+    hostname = "vbox-04";
+    name = "Virtual 04";
+    profile = "vbox";
+    groups = [ "common" ];
+    networks = [ "default" ];
+    users = [
+      "anso"
+      "axelle"
+      "charlie"
+      "nix"
+      "tristan"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "vbox"
+          "group-common"
+          "user-anso"
+          "user-axelle"
+          "user-charlie"
+          "user-tristan"
+          "network-default"
         ];
       };
     };

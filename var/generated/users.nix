@@ -10,10 +10,43 @@
     profile = "usr/homes/darkone";
     groups = [ "admin" ];
   };
+  anso = {
+    uid = 1002;
+    name = "Anso";
+    profile = "lib/homes/normal";
+    groups = [ "common" ];
+  };
+  charlie = {
+    uid = 1003;
+    name = "Charlie";
+    profile = "lib/homes/teenager";
+    groups = [
+      "kids"
+      "common"
+    ];
+  };
+  axelle = {
+    uid = 1004;
+    name = "Axelle";
+    profile = "lib/homes/children";
+    groups = [
+      "kids"
+      "common"
+    ];
+  };
+  tristan = {
+    uid = 1005;
+    name = "Tristan";
+    profile = "lib/homes/children";
+    groups = [
+      "kids"
+      "common"
+    ];
+  };
   nix = {
     uid = 65000;
     name = "Nix Maintenance User";
-    profile = "dnf/homes/nix-admin";
+    profile = "lib/homes/nix-admin";
     groups = [ ];
   };
 }

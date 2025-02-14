@@ -4,7 +4,7 @@
 
 {
   default = {
-    domain = "darkone.lan";
+    domain = "arthur.lan";
     gateway = {
       hostname = "gateway";
       ip = "192.168.0.1";
