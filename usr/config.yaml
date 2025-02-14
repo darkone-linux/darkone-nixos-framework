@@ -6,7 +6,7 @@ networks:
 
   # The default network
   default:
-    domain: "darkone.lan"
+    domain: "arthur.lan"
     gateway:
       hostname: "gateway"
       ip: "192.168.0.1"
@@ -28,6 +28,28 @@ users:
     profile: "darkone"
     groups: [ "admin" ]
 
+  # Arthur
+  anso:
+    uid: 1002
+    name: "Anso"
+    profile: "normal"
+    groups: [ "common" ]
+  charlie:
+    uid: 1003
+    name: "Charlie"
+    profile: "teenager"
+    groups: [ "kids", "common" ]
+  axelle:
+    uid: 1004
+    name: "Axelle"
+    profile: "children"
+    groups: [ "kids", "common" ]
+  tristan:
+    uid: 1005
+    name: "Tristan"
+    profile: "children"
+    groups: [ "kids", "common" ]
+
 # Hosts declaration
 # -> name: human readable name or description
 # -> profile: the host profile related to this host
@@ -42,15 +64,59 @@ hosts:
   static:
 
     # Darkone (multi-network)
-    - hostname: "nlt"
-      name: "Darkone Laptop"
-      profile: "admin-laptop"
-      users: [ "darkone" ]
-      groups: [ "admin", "common" ]
-      networks: [ "default", "sn" ]
-      tags: [ "laptops", "admin" ]
-      local: true
+#    - hostname: "nlt"
+#      name: "Darkone Laptop"
+#      profile: "admin-laptop"
+#      users: [ "darkone" ]
+#      groups: [ "admin", "common" ]
+#      networks: [ "default", "sn" ]
+#      tags: [ "laptops", "admin" ]
+#      local: true
 
+    # Default network
+    # NOTE: if no "networks" is specified, hosts are linked to "default" network
+#    - hostname: "gateway"
+#      name: "Home Gateway & HomeLab"
+#      profile: "gateway"
+#      groups: [ "admin" ]
+#    - hostname: "charlie"
+#      name: "Cle USB Charlie"
+#      profile: "child-key"
+#      users: [ "charlie" ]
+#    - hostname: "axelle"
+#      name: "Cle USB Axelle"
+#      profile: "child-key"
+#      users: [ "axelle" ]
+
+    # Test key
+    - hostname: "test-key"
+      name: "Test key"
+      profile: "portable"
+      groups: [ "common" ]
+
+  # Host groups by range (generated from min to max)
+  range:
+
+    # Virtualbox hosts for tests
+    - hostname: "vbox-%'02s"
+      name: "Virtual %'02s"
+      profile: "vbox"
+      range: [ 1, 4 ]
+      groups: [ "common" ]
+      tags: [ "vbox" ]
+
+    # Host groups by list of hostnames
+#    list:
+#
+#        - hostname: "laptop-%s" # optional
+#          name: "Ordi portable %s" # optional
+#          profile: "laptop"
+#          hosts:
+#              darktwo: "Darktwo"
+#              kids: "Kids"
+#          groups: [ "common" ]
+
+#------------------------------------------------------------------------------
 # Nix DNF hosts from LLDAP (wip)
 # Contains users and groups
 # users <-> groups <-> hosts
@@ -67,4 +133,3 @@ hostProvider:
     bind:
       user: "admin"
       passwordFile: "lldap" # located in usr/secrets
-
