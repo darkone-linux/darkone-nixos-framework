@@ -61,6 +61,9 @@ in
       ];
     };
 
+    # TODO: TMPFS pour les caches
+
+
     # NFS for homes
     #systemd.tmpfiles.rules = [ "d /mnt/home 0755 root root" ];
     environment.systemPackages = with pkgs; [ nfs-utils ];
