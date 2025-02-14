@@ -5,7 +5,6 @@
   imports = [
     ./../../../lib/homes/nix-admin
     ./programs.nix
-    #./gtk.nix
   ];
 
   # Zed editor
