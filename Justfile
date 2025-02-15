@@ -1,14 +1,20 @@
 # Darkone framework just file
 # darkone@darkone.yt
 
-#alias c := clean
-#alias f := fix
-#alias g := generate
+workDir := '/etc/nixos'
+dnfDir := '/home/nix/dnf'
 
 # NOT WORKING FOR THE MOMENT
 # TODO: use this key with colmena
 nixKeyDir := './var/security/ssh'
 nixKeyFile := nixKeyDir + '/id_ed25519_nix'
+
+# Cannot use {{workDir}}...
+set working-directory := "/etc/nixos"
+
+#alias c := clean
+#alias f := fix
+#alias g := generate
 
 # Justfile help
 _default:
@@ -208,6 +214,32 @@ fix-boot on:
 [group('dev')]
 apply-local what='switch':
 	colmena apply-local --sudo {{what}}
+
+# Pull common files from DNF repository
+[group('dev')]
+pull:
+	#!/usr/bin/env bash
+	if [[ `git status -s` != '' ]] ;then
+		echo "ERR: please commit your changes before."
+		exit 1
+	fi
+	if [ ! -d "{{dnfDir}}" ] ;then
+		echo "ERR: {{dnfDir}} do not exists."
+		exit 1
+	fi
+	cd {{dnfDir}} && \
+		git pull --rebase --force && \
+		rsync -av --exclude 'usr' --exclude 'var' --exclude '.*' --exclude '*.lock' {{dnfDir}}/ {{workDir}}/
+
+# Push common files to DNF repository
+[group('dev')]
+push:
+	#!/usr/bin/env bash
+	if [ ! -d "{{dnfDir}}" ] ;then
+		echo "ERR: {{dnfDir}} do not exists."
+		exit 1
+	fi
+	rsync -av --exclude 'usr' --exclude 'var' --exclude '.*' --exclude '*.lock' {{workDir}}/ {{dnfDir}}/
 
 [group('install')]
 format-dnf-shell:

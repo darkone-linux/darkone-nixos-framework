@@ -48,5 +48,8 @@ in
       init.defaultBranch = "main";
       color.ui = true;
     };
+
+    # Undefined but required from 02/2025
+    signing.format = "ssh";
   };
 }
