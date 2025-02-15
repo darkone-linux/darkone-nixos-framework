@@ -34,6 +34,7 @@ in
         nx = "cd /etc/nixos";
         nf = "nixfmt -s"; # Nix Format
         nc = "deadnix"; # Nix Check
+        dnf = "cd /home/nix/dnf";
         update = "sudo nixos-rebuild switch";
       };
       promptInit = "source ${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/powerlevel10k.zsh-theme";
