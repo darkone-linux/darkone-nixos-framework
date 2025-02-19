@@ -27,12 +27,7 @@ in
       example = false;
       description = "Enable firewall (default true)";
     };
-    darkone.system.core.enableBoost = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      example = true;
-      description = "Enable overclocking, corectl";
-    };
+    darkone.system.core.enableBoost = lib.mkEnableOption "Enable overclocking, corectl";
   };
 
   # Useful man & nix documentation
@@ -55,6 +50,39 @@ in
     # Enable the host profile
     darkone.host.${host.profile}.enable = true;
 
+    # Nerd fond for gnome terminal and default monospace
+    fonts.packages = with pkgs; [ nerd-fonts.jetbrains-mono ];
+    fonts.fontconfig.enable = true;
+
+    # Nerd font for TTY
+    # TODO: use global configuration for keyboard layout
+    services.kmscon = {
+      enable = true;
+      fonts = [
+        {
+          name = "JetBrainsMono Nerd Font Mono";
+          package = pkgs.nerd-fonts.jetbrains-mono;
+        }
+      ];
+      extraOptions = "--term xterm-256color";
+      extraConfig = ''
+        font-size=14
+        xkb-layout=fr
+      '';
+    };
+
+    # To manage nodes, openssh must be activated
+    services.openssh.enable = true;
+
+    # Write installed packages in /etc/installed-packages
+    environment.etc."installed-packages".text =
+      let
+        packages = builtins.map (p: "${p.name}") config.environment.systemPackages;
+        sortedUnique = builtins.sort builtins.lessThan (pkgs.lib.lists.unique packages);
+        formatted = builtins.concatStringsSep "\n" sortedUnique;
+      in
+      formatted;
+
     # Overclocking & performance optimisations (WIP)
     programs.corectrl = lib.mkIf cfg.enableBoost {
       enable = true;
@@ -72,17 +100,5 @@ in
       enable = true;
       interval = "daily";
     };
-
-    # To manage nodes, openssh must be activated
-    services.openssh.enable = true;
-
-    # Write installed packages in /etc/installed-packages
-    environment.etc."installed-packages".text =
-      let
-        packages = builtins.map (p: "${p.name}") config.environment.systemPackages;
-        sortedUnique = builtins.sort builtins.lessThan (pkgs.lib.lists.unique packages);
-        formatted = builtins.concatStringsSep "\n" sortedUnique;
-      in
-      formatted;
   };
 }

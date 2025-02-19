@@ -68,10 +68,6 @@ in
     # Enable networking with networkmanager
     networking.networkmanager.enable = true;
 
-    # Nerd fond for gnome terminal and default monospace
-    fonts.packages = with pkgs; [ nerd-fonts.jetbrains-mono ];
-    fonts.fontconfig.enable = true;
-
     # Suppression des paquets gnome inutiles
     environment.gnome.excludePackages = with pkgs; [
       atomix
