@@ -55,7 +55,6 @@ in
     fonts.fontconfig.enable = true;
 
     # Nerd font for TTY
-    # TODO: use global configuration for keyboard layout
     services.kmscon = {
       enable = true;
       fonts = [
@@ -65,21 +64,11 @@ in
         }
       ];
       extraOptions = "--term xterm-256color";
-      extraConfig = ''
-        font-size=14
-        xkb-layout=fr
-      '';
+      extraConfig = "font-size=14";
     };
 
     # To manage nodes, openssh must be activated
     services.openssh.enable = true;
-
-    # Disks checking / monitoring
-    # https://doc.ubuntu-fr.org/smartmontools
-    services.smartd = {
-      enable = false;
-      autodetect = true;
-    };
 
     # Write installed packages in /etc/installed-packages
     environment.etc."installed-packages".text =
