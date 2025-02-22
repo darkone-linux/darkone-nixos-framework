@@ -74,6 +74,13 @@ in
     # To manage nodes, openssh must be activated
     services.openssh.enable = true;
 
+    # Disks checking / monitoring
+    # https://doc.ubuntu-fr.org/smartmontools
+    services.smartd = {
+      enable = false;
+      autodetect = true;
+    };
+
     # Write installed packages in /etc/installed-packages
     environment.etc."installed-packages".text =
       let

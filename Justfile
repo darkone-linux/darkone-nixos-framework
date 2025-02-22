@@ -115,7 +115,7 @@ _gen-default dir:
 	echo "-> generating {{dir}} default.nix..."
 	cd {{dir}}
 	echo "# DO NOT EDIT, this is a generated file." > default.nix
-	echo >> default.nix 
+	echo >> default.nix
 	echo "{ imports = [" >> default.nix
 	find . -name "*.nix" | sort | grep -v default.nix >> default.nix
 	echo "];}" >> default.nix
@@ -168,18 +168,18 @@ install host:
 	@echo "-> Extracting hardware information..."
 	@just copy-hw {{host}}
 	@echo "-> Clean and commiting before apply..."
-	@just clean	
+	@just clean
 	git add . && git commit -m "Installing new host {{host}}"
 	@echo "-> First apply {{host}}..."
 	@just apply-force {{host}}
 
 # Apply configuration using colmena
-[group('dev')]
+[group('apply')]
 apply on what='switch':
 	colmena apply --eval-node-limit 3 --evaluator streaming --on "{{on}}" {{what}}
 
 # Apply with build-on-target + force repl. unk profiles
-[group('dev')]
+[group('apply')]
 apply-force on what='switch':
 	colmena apply --eval-node-limit 3 --evaluator streaming --build-on-target --force-replace-unknown-profiles --on "{{on}}" {{what}}
 
@@ -211,7 +211,7 @@ fix-boot on:
 	colmena exec --on "{{on}}" "sudo NIXOS_INSTALL_BOOTLOADER=1 /nix/var/nix/profiles/system/bin/switch-to-configuration boot"
 
 # Apply the local host configuration
-[group('dev')]
+[group('apply')]
 apply-local what='switch':
 	colmena apply-local --sudo {{what}}
 
@@ -241,11 +241,12 @@ push:
 	fi
 	rsync -av --exclude 'usr' --exclude 'var' --exclude '.*' --exclude '*.lock' {{workDir}}/ {{dnfDir}}/
 
+# Nix shell with tools to create usb keys
 [group('install')]
 format-dnf-shell:
 	nix-shell -p parted btrfs-progs nixos-install
 
-# Format and install DNF on a key (danger)
+# Format and install DNF on an usb key (danger)
 [confirm('This command is dangerous. Are you sure? (y/N)')]
 [group('install')]
 format-dnf-on host dev:
@@ -285,7 +286,7 @@ format-dnf-on host dev:
 	DISK={{dev}}
 	OPTS=defaults,x-mount.mkdir,noatime,nodiratime,ssd,compress=zstd:3
 	parted $DISK -- mklabel gpt && \
-	parted $DISK -- mkpart ESP fat32 1MB 500MB && \ 
+	parted $DISK -- mkpart ESP fat32 1MB 500MB && \
 	parted $DISK -- mkpart root btrfs 500MB 100% && \
 	parted $DISK -- set 1 esp on && \
 	mkfs.fat -F 32 -n BOOT ${DISK}'1' && \
@@ -329,4 +330,3 @@ format-dnf-on host dev:
 	}
 	''' > /mnt/etc/nixos/configuration.nix && \
 	nixos-install --root /mnt --no-root-passwd
-

@@ -29,20 +29,27 @@ in
       autosuggestions.enable = true;
       syntaxHighlighting.enable = true;
       shellAliases = {
-        ll = "ls -l";
+        ll = "eza --icons -a --group-directories-first -1 --no-user --long";
         vz = "vim `fzf`";
         nx = "cd /etc/nixos";
         nf = "nixfmt -s"; # Nix Format
         nc = "deadnix"; # Nix Check
         dnf = "cd /home/nix/dnf";
-        update = "sudo nixos-rebuild switch";
+        mrproper = "nix-collect-garbage --delete-old && sudo nix-collect-garbage -d && sudo /run/current-system/bin/switch-to-configuration boot";
+        treef = "eza --icons --tree --group-directories-first";
+        treed = "eza --icons --tree --group-directories-first --only-dirs";
       };
       promptInit = "source ${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/powerlevel10k.zsh-theme";
       shellInit = ''
         export MANPAGER="less -M -R -i --use-color -Dd+R -Du+B -DHkC -j5";
         bindkey "^A" beginning-of-line
         bindkey "^E" end-of-line
+        bindkey "^D" delete-char
         bindkey "^R" history-incremental-search-backward
+        bindkey "^H" backward-word
+        bindkey "^J" down-line-or-history
+        bindkey "^K" up-line-or-history
+        bindkey "^L" forward-word
       '';
     };
 

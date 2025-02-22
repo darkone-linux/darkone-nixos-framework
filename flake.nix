@@ -2,12 +2,12 @@
   description = "NixOS Darkone Framework";
 
   # Usefull cache for colmena
-  nixConfig = {
-    extra-trusted-substituters = [
-      "https://cache.garnix.io"
-      "https://nix-community.cachix.org"
-    ];
-  };
+  #nixConfig = {
+  #  extra-trusted-substituters = [
+  #    "https://cache.garnix.io"
+  #    "https://nix-community.cachix.org"
+  #  ];
+  #};
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -190,17 +190,21 @@
       };
 
       # Dev env (already set in nix user profile)
-      devShells.default = nixpkgs.mkShell {
-        buildInputs = with nixpkgs; [
-          colmena
-          deadnix
-          just
-          nixfmt-rfc-style
-          php84
-          php84Packages.composer
-          statix
-        ];
-      };
+      devShell.x86_64-linux =
+        let
+          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        in
+        pkgs.mkShell {
+          buildInputs = [
+            pkgs.colmena
+            pkgs.deadnix
+            pkgs.just
+            pkgs.nixfmt-rfc-style
+            pkgs.php84
+            pkgs.php84Packages.composer
+            pkgs.statix
+          ];
+        };
 
       # TODO: just tools packages
 
