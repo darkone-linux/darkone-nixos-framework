@@ -5,7 +5,7 @@ Une configuration NixOS multi-utilisateur, multi-host, multi-réseaux.
 > [!NOTE]
 > A [documentation](https://darkone-linux.github.io) is available.
 
-> [!WARNING]  
+> [!WARNING]
 > Projet en cours de développement.
 
 Ce framework simplifie les choses grâce à&nbsp;:
@@ -40,7 +40,7 @@ A la racine :
 ```
 flake.nix .................... Main flake
 Justfile ..................... Project management
-lib/ ......................... Projet library (framework)
+dnf/ ......................... Projet library (framework)
 ├── modules/ ................. Framework modules
 │   ├── default.nix .......... Auto-generated default (by Justfile)
 │   ├── system/(...) ......... System / Hardware configurations
@@ -138,7 +138,7 @@ hosts:
 ```
 
 - Le profile `desktop-office` fait référence à `usr/modules/host/desktop-office.nix`.
-- Il existe aussi des profils de hosts pré-configurés dans `lib/modules/host`.
+- Il existe aussi des profils de hosts pré-configurés dans `dnf/modules/host`.
 - Les utilisateurs liés au host sont déclarés via `users` et/ou `groups`.
 - Utilisateurs et groupes peuvent être déclarés dans la configuration ou dans LDAP.
 
@@ -149,30 +149,30 @@ hosts:
 > # Création de l'iso d'installation
 > nix build .#start-img-iso
 > ```
-> 
+>
 > Création du poste et mises à jour (commandes simplifiées et optimisées) :
 >
 > ```sh
 > # Création du host "pc01"
 > just apply pc01 <ip-du-poste>
-> 
+>
 > # Mise à jour
 > just apply pc01
-> 
+>
 > # Mise à jour de tous les "desktop"
 > just apply @desktop
 > ```
 >
 > On peut aussi utiliser des commandes régulières :
-> 
+>
 > ```sh
 > # Injection de la conf de patrick dans un poste physique
 > # sur lequel a été installé l'iso du framework
 > nixos-anywhere --flake '.#patrick' --target-host nix@<ip-du-poste>
-> 
+>
 > # Mise à jour
 > colmena apply --on patrick switch
-> 
+>
 > # Mise à jour de tous les desktops
 > colmena apply --on @desktop switch
 > ```

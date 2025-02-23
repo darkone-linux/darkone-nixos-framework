@@ -3,7 +3,7 @@
 {
   # Is a nix administrator with additional home environment
   imports = [
-    ./../../../lib/homes/nix-admin
+    ./../../../dnf/homes/nix-admin
     ./programs.nix
   ];
 

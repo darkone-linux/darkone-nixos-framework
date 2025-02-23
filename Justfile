@@ -97,17 +97,17 @@ generate: _gen-default-lib-modules _gen-default-usr-modules _gen-default-home-mo
 		(_gen "hosts" "var/generated/hosts.nix") \
 		(_gen "networks" "var/generated/networks.nix")
 
-# Generate default.nix of lib/modules dir
-_gen-default-lib-modules: (_gen-default "lib/modules")
+# Generate default.nix of dnf/modules dir
+_gen-default-lib-modules: (_gen-default "dnf/modules")
 
 # Generate default.nix of usr/modules dir
 _gen-default-usr-modules: (_gen-default "usr/modules")
 
-# Generate default.nix of lib/home-modules dir
-_gen-default-home-modules: (_gen-default "lib/home-modules")
+# Generate default.nix of dnf/home-modules dir
+_gen-default-home-modules: (_gen-default "dnf/home-modules")
 
-# Generate default.nix of lib/overlays
-_gen-default-overlays: (_gen-default "lib/overlays")
+# Generate default.nix of dnf/overlays
+_gen-default-overlays: (_gen-default "dnf/overlays")
 
 # Generator of default.nix files
 _gen-default dir:
