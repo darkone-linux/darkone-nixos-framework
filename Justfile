@@ -92,34 +92,32 @@ fix:
 
 # Update the nix generated files
 [group('dev')]
-generate: _gen-default-lib-modules _gen-default-usr-modules _gen-default-home-modules _gen-default-overlays \
-		(_gen "users" "var/generated/users.nix") \
-		(_gen "hosts" "var/generated/hosts.nix") \
-		(_gen "networks" "var/generated/networks.nix")
-
-# Generate default.nix of dnf/modules dir
-_gen-default-lib-modules: (_gen-default "dnf/modules")
-
-# Generate default.nix of usr/modules dir
-_gen-default-usr-modules: (_gen-default "usr/modules")
-
-# Generate default.nix of dnf/home-modules dir
-_gen-default-home-modules: (_gen-default "dnf/home-modules")
-
-# Generate default.nix of dnf/overlays
-_gen-default-overlays: (_gen-default "dnf/overlays")
+generate: \
+	(_gen-default "dnf/modules/nix") \
+	(_gen-default "usr/modules/nix") \
+	(_gen-default "dnf/modules/home") \
+	(_gen-default "usr/modules/home") \
+	(_gen-default "dnf/overlays") \
+	(_gen-default "usr/overlays") \
+	(_gen "users" "var/generated/users.nix") \
+	(_gen "hosts" "var/generated/hosts.nix") \
+	(_gen "networks" "var/generated/networks.nix")
 
 # Generator of default.nix files
 _gen-default dir:
 	#!/usr/bin/env bash
-	echo "-> generating {{dir}} default.nix..."
-	cd {{dir}}
-	echo "# DO NOT EDIT, this is a generated file." > default.nix
-	echo >> default.nix
-	echo "{ imports = [" >> default.nix
-	find . -name "*.nix" | sort | grep -v default.nix >> default.nix
-	echo "];}" >> default.nix
-	nixfmt -s default.nix
+	if [ ! -d "{{dir}}" ] ;then
+		echo "-> Skipping unknown directory {{dir}}..."
+	else
+		echo "-> generating {{dir}} default.nix..."
+		cd {{dir}}
+		echo "# DO NOT EDIT, this is a generated file." > default.nix
+		echo >> default.nix
+		echo "{ imports = [" >> default.nix
+		find . -name "*.nix" | sort | grep -v default.nix >> default.nix
+		echo "];}" >> default.nix
+		nixfmt -s default.nix
+	fi
 
 # Generate var/generated/*.nix files
 _gen what targetFile:

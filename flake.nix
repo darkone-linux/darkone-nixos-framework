@@ -43,7 +43,7 @@
         name = login;
         value = {
           imports = [
-            ./dnf/home-modules
+            ./dnf/modules/home
             (import ./${users.${login}.profile})
           ];
 
@@ -94,8 +94,8 @@
         value = host.colmena // {
           imports =
             [
-              ./dnf/modules
-              ./usr/modules
+              ./dnf/modules/nix
+              ./usr/modules/nix
               home-manager.nixosModules.home-manager
               {
                 home-manager = {
@@ -210,11 +210,11 @@
 
       # Darkone modules
       nixosModules = {
-        darkone = ./dnf/modules;
+        darkone = ./dnf/modules/nix;
         default = self.nixosModules.darkone;
       };
       homeManagerModules = {
-        darkone = ./dnf/home-modules;
+        darkone = ./dnf/modules/home;
       };
     }; # outputs
 }

@@ -15,7 +15,7 @@ let
         inherit (users.${login}) uid;
         description = "${users.${login}.name}";
       }
-      // import ./../../../${users.${login}.profile}.nix {
+      // import ./../../../../../${users.${login}.profile}.nix {
         inherit
           pkgs
           lib
