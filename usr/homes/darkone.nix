@@ -6,4 +6,4 @@
   config,
   ...
 }:
-import ./../../lib/homes/nix-admin.nix { inherit pkgs lib config; }
+import ./../../dnf/homes/nix-admin.nix { inherit pkgs lib config; }

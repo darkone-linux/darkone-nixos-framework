@@ -51,9 +51,9 @@ A `just clean`:
 ❯ just clean
 -> Fixing source code with statix...
 -> Checking nix files with deadnix...
--> generating lib/modules default.nix...
+-> generating dnf/modules default.nix...
 -> generating usr/modules default.nix...
--> generating lib/overlays default.nix...
+-> generating dnf/overlays default.nix...
 -> generating users in var/generated/users.nix...
 -> generating hosts in var/generated/hosts.nix...
 -> generating networks in var/generated/networks.nix...
@@ -233,7 +233,7 @@ networks:
     ```
 
     :::note
-    - There are also pre-configured host profiles in `lib/modules/host`.
+    - There are also pre-configured host profiles in `dnf/modules/host`.
     - Users linked to the host are declared via `users` and/or `groups`.
     - Users and groups can be declared in [the configuration](#the-configuration-file) or in LDAP.
     :::
@@ -291,7 +291,7 @@ just apply @user-darkone
     # A student for the network "sn"
     { pkgs, lib, config, ... }:
     { initialPassword = "sn2025"; }
-    // import ./../../lib/homes/student.nix { inherit pkgs lib config; }
+    // import ./../../dnf/homes/student.nix { inherit pkgs lib config; }
     ```
 
 2. Home manager profile
@@ -300,7 +300,7 @@ just apply @user-darkone
     # usr/homes/sn-user/default.nix
     { pkgs, ... }:
     {
-      imports = [ ./../../../lib/homes/student ];
+      imports = [ ./../../../dnf/homes/student ];
       home.packages = with pkgs; [
         hunspell
         hunspellDicts.fr-moderne

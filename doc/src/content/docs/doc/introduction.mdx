@@ -38,7 +38,7 @@ If you'd like to be informed about upcoming stable versions, please let me know 
 
 Main folders:
 
-- `lib` -> **Framework**: tools + modules + profiles (users, hosts, themes)
+- `dnf` -> **Framework**: tools + modules + profiles (users, hosts, themes)
 - `usr` -> **Local project**: config, modules + profiles, machines, users
 - `src` -> Generator and scripts for tools
 - `var` -> Generated files and logs
@@ -63,36 +63,43 @@ The configurations are also organized by category:
 <FileTree>
 - flake.nix Main flake
 - Justfile Project management with [just](/doc/user-manual/#just-commands)
-- lib/ Projet library (framework)
+- dnf/ Darkone Nixos Framework (modules & common files)
   - modules/ [Framework modules](/ref/modules/)
-    - default.nix Auto-generated default
-    - system/ System / Hardware configurations
-      - core.nix
-      - i18n.nix
-      - doc.nix
+    - nix Nix modules
+      - core Core (regular) nix modules
+        - system/ System / Hardware configurations
+          - core.nix
+          - i18n.nix
+          - doc.nix
+          - …
+        - console/ CLI applications
+        - graphic/ X applications
+        - service/ Daemons
+        - admin/ Nix administration settings
+          - nix.nix Nix tools
+          - …
+        - user/ User management (not home)
+          - nix.nix Nix special user (for deployments)
+          - build.nix Users builder
+          - …
+      - macro Macro modules
+        - host/ [Host profiles](/ref/host-profiles/)
+          - desktop.nix
+          - laptop.nix
+          - server.nix
+          - vm.nix
+          - minimal.nix
+          - …
+        - theme/ [Thematic features](/ref/themes/)
+          - office.nix
+          - advanced.nix
+          - student.nix
+          - …
+      - default.nix Auto-generated default
+    - home Home manager modules
+      - zed.nix
       - …
-    - console/ CLI applications
-    - graphic/ X applications
-    - service/ Daemons
-    - admin/ Nix administration settings
-      - nix.nix Nix tools
-      - …
-    - user/ User management (not home)
-      - nix.nix Nix special user (for deployments)
-      - build.nix Users builder
-      - …
-    - host/ [Host profiles](/ref/host-profiles/) (macro-modules)
-      - desktop.nix
-      - laptop.nix
-      - server.nix
-      - vm.nix
-      - minimal.nix
-      - …
-    - theme/ [Thematic features](/ref/themes/) (macro-modules)
-      - office.nix
-      - advanced.nix
-      - student.nix
-      - …
+      - default.nix Auto-generated default
   - homes/ [User profiles (.nix) + home profiles (dirs)](/ref/user-profiles/)
     - admin.nix Admin user profile config (extragroups, etc.)
     - admin/ Admin user profile home
@@ -102,13 +109,19 @@ The configurations are also organized by category:
     - gamer/ Optimized environment for gamers
     - child/ Kids softwares and settings
     - …
+  - overlays/
 - **usr/** Writable zone for local network project
   - config.yaml [Local configuration](/doc/specifications/#the-configuration-file) used by [the generator](/doc/specifications/#the-generator)
   - modules/ Local modules
-    - host/ [Local host profiles](/doc/specifications/#create-a-host-profile-example)
+    - nix/
+      - core/
+      - macro/
+        - host/ [Local host profiles](/doc/specifications/#create-a-host-profile-example)
+    - home/
   - secrets/ Local secrets file
   - homes/ [Local home profiles](/doc/specifications/#create-a-user-profile-example)
-  - machines/ Machine specific configuration by hostname (hardwares)
+  - machines/ Machine specific configuration by host (hardwares)
+  - overlays/
 - var/
   - log/
   - generated/ [Generated files](/doc/specifications/#the-generator)
@@ -117,7 +130,3 @@ The configurations are also organized by category:
     - networks.nix Networks configuration
 - src/ Generator sources
 </FileTree>
-
-:::caution
-For now, [the framework](https://github.com/darkone-linux/darkone-nixos-framework) is intended to be forked, with the user's project located in `usr`, which should be able to be hosted as an independent Git project in the future. A separation between the local project and the framework (which would be a simple input of the local flake) is currently under consideration.
-:::

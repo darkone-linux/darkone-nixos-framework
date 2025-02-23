@@ -92,34 +92,32 @@ fix:
 
 # Update the nix generated files
 [group('dev')]
-generate: _gen-default-lib-modules _gen-default-usr-modules _gen-default-home-modules _gen-default-overlays \
-		(_gen "users" "var/generated/users.nix") \
-		(_gen "hosts" "var/generated/hosts.nix") \
-		(_gen "networks" "var/generated/networks.nix")
-
-# Generate default.nix of lib/modules dir
-_gen-default-lib-modules: (_gen-default "lib/modules")
-
-# Generate default.nix of usr/modules dir
-_gen-default-usr-modules: (_gen-default "usr/modules")
-
-# Generate default.nix of lib/home-modules dir
-_gen-default-home-modules: (_gen-default "lib/home-modules")
-
-# Generate default.nix of lib/overlays
-_gen-default-overlays: (_gen-default "lib/overlays")
+generate: \
+	(_gen-default "dnf/modules/nix") \
+	(_gen-default "usr/modules/nix") \
+	(_gen-default "dnf/modules/home") \
+	(_gen-default "usr/modules/home") \
+	(_gen-default "dnf/overlays") \
+	(_gen-default "usr/overlays") \
+	(_gen "users" "var/generated/users.nix") \
+	(_gen "hosts" "var/generated/hosts.nix") \
+	(_gen "networks" "var/generated/networks.nix")
 
 # Generator of default.nix files
 _gen-default dir:
 	#!/usr/bin/env bash
-	echo "-> generating {{dir}} default.nix..."
-	cd {{dir}}
-	echo "# DO NOT EDIT, this is a generated file." > default.nix
-	echo >> default.nix
-	echo "{ imports = [" >> default.nix
-	find . -name "*.nix" | sort | grep -v default.nix >> default.nix
-	echo "];}" >> default.nix
-	nixfmt -s default.nix
+	if [ ! -d "{{dir}}" ] ;then
+		echo "-> Skipping unknown directory {{dir}}..."
+	else
+		echo "-> generating {{dir}} default.nix..."
+		cd {{dir}}
+		echo "# DO NOT EDIT, this is a generated file." > default.nix
+		echo >> default.nix
+		echo "{ imports = [" >> default.nix
+		find . -name "*.nix" | sort | grep -v default.nix >> default.nix
+		echo "];}" >> default.nix
+		nixfmt -s default.nix
+	fi
 
 # Generate var/generated/*.nix files
 _gen what targetFile:
@@ -131,6 +129,12 @@ _gen what targetFile:
 	echo >> "{{targetFile}}"
 	php ./src/generate.php "{{what}}" >> "{{targetFile}}"
 	nixfmt -s "{{targetFile}}"
+
+# Launch a "nix develop" with zsh (dev env)
+[group('dev')]
+develop:
+	@echo Lauching nix develop with zsh...
+	nix --extra-experimental-features "nix-command flakes" develop -c zsh
 
 # Copy pub key to the node (nix user must exists)
 [group('install')]
