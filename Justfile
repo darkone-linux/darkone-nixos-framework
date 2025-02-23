@@ -130,6 +130,12 @@ _gen what targetFile:
 	php ./src/generate.php "{{what}}" >> "{{targetFile}}"
 	nixfmt -s "{{targetFile}}"
 
+# Launch a "nix develop" with zsh (dev env)
+[group('dev')]
+develop:
+	@echo Lauching nix develop with zsh...
+	nix --extra-experimental-features "nix-command flakes" develop -c zsh
+
 # Copy pub key to the node (nix user must exists)
 [group('install')]
 copy-id host:
