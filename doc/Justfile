@@ -35,7 +35,7 @@ deploy:
 	#!/usr/bin/env bash
 	LAST_MESG=`git log -1 --pretty=%B | head -n 1`
 	cd darkone-linux.github.io && \
-	    git pull --rebase && \
+	    git pull --rebase --autostash && \
 	    git add . && \
 	    git commit -m "$LAST_MESG" && \
 	    git push -u origin main
