@@ -137,4 +137,32 @@
       };
     };
   }
+  {
+    hostname = "kids-laptop";
+    name = "Ordi portable Kids";
+    profile = "laptop";
+    groups = [ "common" ];
+    networks = [ "default" ];
+    users = [
+      "anso"
+      "axelle"
+      "charlie"
+      "darkone"
+      "nix"
+      "tristan"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "group-common"
+          "user-anso"
+          "user-axelle"
+          "user-charlie"
+          "user-darkone"
+          "user-tristan"
+          "network-default"
+        ];
+      };
+    };
+  }
 ]
