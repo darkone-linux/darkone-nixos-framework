@@ -244,7 +244,7 @@ push:
 # Nix shell with tools to create usb keys
 [group('install')]
 format-dnf-shell:
-	nix-shell -p parted btrfs-progs nixos-install
+	nix-shell -p parted btrfs-progs nixos-install nixos-install-tools
 
 # Format and install DNF on an usb key (danger)
 [confirm('This command is dangerous. Are you sure? (y/N)')]
@@ -284,20 +284,21 @@ format-dnf-on host dev:
 	umount -R /mnt
 	echo "-> Start installation of {{host}} in {{dev}}..."
 	DISK={{dev}}
-	OPTS=defaults,x-mount.mkdir,noatime,nodiratime,ssd,compress=zstd:3
 	parted $DISK -- mklabel gpt && \
-	parted $DISK -- mkpart ESP fat32 1MB 500MB && \
-	parted $DISK -- mkpart root btrfs 500MB 100% && \
+	parted $DISK -- mkpart KESP fat32 1MB 500MB && \
+	parted $DISK -- mkpart KROOT btrfs 500MB 100% && \
 	parted $DISK -- set 1 esp on && \
-	mkfs.fat -F 32 -n BOOT ${DISK}'1' && \
-	mkfs.btrfs -f -L NIXOS ${DISK}'2' && \
-	mount ${DISK}'2' /mnt && \
+	mkfs.fat -F 32 -n BOOT /dev/disk/by-partlabel/KESP && \
+	mkfs.btrfs -f -L NIXOS /dev/disk/by-partlabel/KROOT && \
+	mount /dev/disk/by-partlabel/KROOT /mnt && \
 	btrfs subvolume create /mnt/@ && \
 	btrfs subvolume create /mnt/@home && \
+	btrfs subvolume create /mnt/@nix && \
 	umount /mnt && \
-	mount -o $OPTS,subvol=@ ${DISK}'2' /mnt && \
-	mount -o $OPTS,subvol=@home ${DISK}'2' /mnt/home && \
-	mount --mkdir -o umask=077 ${DISK}'1' /mnt/boot && \
+	mount -o compress=zstd,subvol=@ /dev/disk/by-partlabel/KROOT /mnt && \
+	mount --mkdir -o compress=zstd,subvol=@home /dev/disk/by-partlabel/KROOT /mnt/home && \
+	mount --mkdir -o compress=zstd,noatime,subvol=@nix /dev/disk/by-partlabel/KROOT /mnt/nix && \
+	mount --mkdir -o umask=077 /dev/disk/by-partlabel/KESP /mnt/boot && \
 	nixos-generate-config --root /mnt && \
 	echo '''{ config, lib, pkgs, ... }:
 	{
@@ -305,6 +306,11 @@ format-dnf-on host dev:
 	    [ # Include the results of the hardware scan.
 	      ./hardware-configuration.nix
 	    ];
+	  fileSystems = {
+	    "/".options = [ "compress=zstd" ];
+	    "/home".options = [ "compress=zstd" ];
+	    "/nix".options = [ "compress=zstd" "noatime" ];
+	  };
 	  boot.loader.systemd-boot.enable = true;
 	  boot.loader.efi.canTouchEfiVariables = true;
 	  networking.hostName = "{{host}}";
@@ -329,4 +335,7 @@ format-dnf-on host dev:
 	  system.stateVersion = "25.05";
 	}
 	''' > /mnt/etc/nixos/configuration.nix && \
-	nixos-install --root /mnt --no-root-passwd
+	nix-channel --add https://nixos.org/channels/nixpkgs-unstable && \
+	nix-channel --update && \
+	nixos-install --root /mnt --no-root-passwd && \
+	umount -R /mnt
