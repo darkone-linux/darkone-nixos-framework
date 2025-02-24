@@ -13,13 +13,13 @@
   anso = {
     uid = 1002;
     name = "Anso";
-    profile = "lib/homes/normal";
+    profile = "dnf/homes/normal";
     groups = [ "common" ];
   };
   charlie = {
     uid = 1003;
     name = "Charlie";
-    profile = "lib/homes/teenager";
+    profile = "dnf/homes/teenager";
     groups = [
       "kids"
       "common"
@@ -28,7 +28,7 @@
   axelle = {
     uid = 1004;
     name = "Axelle";
-    profile = "lib/homes/children";
+    profile = "dnf/homes/children";
     groups = [
       "kids"
       "common"
@@ -37,7 +37,7 @@
   tristan = {
     uid = 1005;
     name = "Tristan";
-    profile = "lib/homes/children";
+    profile = "dnf/homes/children";
     groups = [
       "kids"
       "common"
@@ -46,7 +46,7 @@
   nix = {
     uid = 65000;
     name = "Nix Maintenance User";
-    profile = "lib/homes/nix-admin";
+    profile = "dnf/homes/nix-admin";
     groups = [ ];
   };
 }

@@ -105,16 +105,16 @@ hosts:
       groups: [ "common" ]
       tags: [ "vbox" ]
 
-    # Host groups by list of hostnames
-#    list:
-#
-#        - hostname: "laptop-%s" # optional
-#          name: "Ordi portable %s" # optional
-#          profile: "laptop"
-#          hosts:
-#              darktwo: "Darktwo"
-#              kids: "Kids"
-#          groups: [ "common" ]
+  # Host groups by list of hostnames
+  list:
+
+    - hostname: "%s-laptop" # optional
+      name: "Ordi portable %s" # optional
+      profile: "laptop"
+      hosts:
+        kids: "Kids"
+      groups: [ "common" ]
+      users: [ "darkone" ]
 
 #------------------------------------------------------------------------------
 # Nix DNF hosts from LLDAP (wip)
