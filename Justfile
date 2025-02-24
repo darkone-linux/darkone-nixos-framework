@@ -251,6 +251,7 @@ format-dnf-shell:
 [group('install')]
 format-dnf-on host dev:
 	#!/usr/bin/env bash
+	MNTDIR=/mnt/dnf
 	echo "-> checking..."
 	if [ `whoami` != 'root' ] ;then
 	  echo "Only root can perform this operation."
@@ -280,39 +281,42 @@ format-dnf-on host dev:
 		echo "nixos-generate-config is required"
 		exit 1
 	fi
+	if -d $MNTDIR ;then
+		echo "The $MNTDIR directory already exists, unable to continue"
+		exit 1
+	fi
 	echo "-> Preparing..."
-	umount -R /mnt
+	mkdir -p $MNTDIR
 	echo "-> Start installation of {{host}} in {{dev}}..."
 	DISK={{dev}}
 	parted $DISK -- mklabel gpt && \
 	parted $DISK -- mkpart KESP fat32 1MB 500MB && \
-	parted $DISK -- mkpart KROOT btrfs 500MB 100% && \
-	parted $DISK -- set 1 esp on && \
+	parted $DISK -- mkpart KROOT 500MB 100% && \
+	parted $DISK -- set 1 esp on && sleep 0.1 && \
 	mkfs.fat -F 32 -n BOOT /dev/disk/by-partlabel/KESP && \
-	mkfs.btrfs -f -L NIXOS /dev/disk/by-partlabel/KROOT && \
-	mount /dev/disk/by-partlabel/KROOT /mnt && \
-	btrfs subvolume create /mnt/@ && \
-	btrfs subvolume create /mnt/@home && \
-	btrfs subvolume create /mnt/@nix && \
-	umount /mnt && \
-	mount -o compress=zstd,subvol=@ /dev/disk/by-partlabel/KROOT /mnt && \
-	mount --mkdir -o compress=zstd,subvol=@home /dev/disk/by-partlabel/KROOT /mnt/home && \
-	mount --mkdir -o compress=zstd,noatime,subvol=@nix /dev/disk/by-partlabel/KROOT /mnt/nix && \
-	mount --mkdir -o umask=077 /dev/disk/by-partlabel/KESP /mnt/boot && \
-	nixos-generate-config --root /mnt && \
+	cryptsetup luksFormat /dev/disk/by-partlabel/KROOT && \
+	cryptsetup luksOpen /dev/disk/by-partlabel/KROOT cryptroot && \
+	mkfs.ext4 -L NIXOS /dev/mapper/cryptroot && sleep 1 && \
+	mount /dev/disk/by-label/NIXOS $MNTDIR && \
+	mount --mkdir -o umask=077 /dev/disk/by-partlabel/KESP $MNTDIR/boot && \
+	nixos-generate-config --root $MNTDIR && \
 	echo '''{ config, lib, pkgs, ... }:
 	{
-	  imports =
-	    [ # Include the results of the hardware scan.
-	      ./hardware-configuration.nix
-	    ];
-	  fileSystems = {
-	    "/".options = [ "compress=zstd" ];
-	    "/home".options = [ "compress=zstd" ];
-	    "/nix".options = [ "compress=zstd" "noatime" ];
+	  imports = [
+	    ./hardware-configuration.nix
+	  ];
+	  boot = {
+	    loader = {
+	      efi.canTouchEfiVariables = true;
+	      systemd-boot.enable = true;
+	    };
+	    initrd = {
+	      availableKernelModules = [
+	        "aesni_intel"
+	        "cryptd"
+	      ];
+	    };
 	  };
-	  boot.loader.systemd-boot.enable = true;
-	  boot.loader.efi.canTouchEfiVariables = true;
 	  networking.hostName = "{{host}}";
 	  time.timeZone = "America/Miquelon";
 	  i18n.defaultLocale = "fr_FR.UTF-8";
@@ -334,8 +338,8 @@ format-dnf-on host dev:
 	  services.openssh.enable = true;
 	  system.stateVersion = "25.05";
 	}
-	''' > /mnt/etc/nixos/configuration.nix && \
+	''' | sed 's/UUID/'$UUID'/' > $MNTDIR/etc/nixos/configuration.nix && \
 	nix-channel --add https://nixos.org/channels/nixpkgs-unstable && \
 	nix-channel --update && \
-	nixos-install --root /mnt --no-root-passwd && \
-	umount -R /mnt
+	nixos-install --root $MNTDIR --no-root-passwd && \
+	umount -R $MNTDIR && cryptsetup luksClose /dev/mapper/cryptroot && rmdir $MNTDIR
