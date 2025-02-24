@@ -30,7 +30,7 @@ in
           [
             gcompris
             tuxpaint
-            tuxtype
+            #tuxtype # FAIL
           ]
           ++ (if cfg.enableGames then [ rili ] else [ ])
 
