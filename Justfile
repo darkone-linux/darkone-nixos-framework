@@ -294,29 +294,18 @@ format-dnf-on host dev:
 	parted $DISK -- mkpart KROOT 500MB 100% && \
 	parted $DISK -- set 1 esp on && sleep 0.1 && \
 	mkfs.fat -F 32 -n BOOT /dev/disk/by-partlabel/KESP && \
-	cryptsetup luksFormat /dev/disk/by-partlabel/KROOT && \
-	cryptsetup luksOpen /dev/disk/by-partlabel/KROOT cryptroot && \
-	mkfs.ext4 -L NIXOS /dev/mapper/cryptroot && sleep 1 && \
-	mount /dev/disk/by-label/NIXOS $MNTDIR && \
+	mkfs.ext4 -L NIXOS /dev/disk/by-partlabel/KROOT && \
+	mount /dev/disk/by-partlabel/KROOT $MNTDIR && \
 	mount --mkdir -o umask=077 /dev/disk/by-partlabel/KESP $MNTDIR/boot && \
 	nixos-generate-config --root $MNTDIR && \
 	echo '''{ config, lib, pkgs, ... }:
 	{
-	  imports = [
-	    ./hardware-configuration.nix
-	  ];
-	  boot = {
-	    loader = {
-	      efi.canTouchEfiVariables = true;
-	      systemd-boot.enable = true;
-	    };
-	    initrd = {
-	      availableKernelModules = [
-	        "aesni_intel"
-	        "cryptd"
-	      ];
-	    };
-	  };
+	  imports =
+	    [ # Include the results of the hardware scan.
+	      ./hardware-configuration.nix
+	    ];
+	  boot.loader.systemd-boot.enable = true;
+	  boot.loader.efi.canTouchEfiVariables = true;
 	  networking.hostName = "{{host}}";
 	  time.timeZone = "America/Miquelon";
 	  i18n.defaultLocale = "fr_FR.UTF-8";
@@ -338,8 +327,8 @@ format-dnf-on host dev:
 	  services.openssh.enable = true;
 	  system.stateVersion = "25.05";
 	}
-	''' | sed 's/UUID/'$UUID'/' > $MNTDIR/etc/nixos/configuration.nix && \
+	''' > $MNTDIR/etc/nixos/configuration.nix && \
 	nix-channel --add https://nixos.org/channels/nixpkgs-unstable && \
 	nix-channel --update && \
 	nixos-install --root $MNTDIR --no-root-passwd && \
-	umount -R $MNTDIR && cryptsetup luksClose /dev/mapper/cryptroot && rmdir $MNTDIR
+	umount -R $MNTDIR && rmdir $MNTDIR
