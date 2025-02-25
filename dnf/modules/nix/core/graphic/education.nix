@@ -1,4 +1,4 @@
-# Graphical & education packages for kids
+# Graphical & education packages for kids (obsolete)
 
 {
   lib,
@@ -30,7 +30,7 @@ in
           [
             gcompris
             tuxpaint
-            tuxtype
+            #tuxtype # FAIL
           ]
           ++ (if cfg.enableGames then [ rili ] else [ ])
 

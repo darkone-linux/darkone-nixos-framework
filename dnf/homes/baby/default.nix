@@ -1,4 +1,4 @@
-# Features for childs (education)
+# Features for babies (education)
 
 {
   imports = [
