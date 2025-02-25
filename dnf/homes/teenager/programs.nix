@@ -24,7 +24,7 @@
     maxima # math
     octaveFull # math
     sage # math
-    scilab-bin # math
+    #scilab-bin # math (ERR)
     solfege
     stellarium
     stellarium
