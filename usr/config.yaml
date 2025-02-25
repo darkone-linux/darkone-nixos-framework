@@ -47,7 +47,7 @@ users:
   tristan:
     uid: 1005
     name: "Tristan"
-    profile: "children"
+    profile: "baby"
     groups: [ "kids", "common" ]
 
 # Hosts declaration

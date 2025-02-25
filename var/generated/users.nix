@@ -37,7 +37,7 @@
   tristan = {
     uid = 1005;
     name = "Tristan";
-    profile = "dnf/homes/children";
+    profile = "dnf/homes/baby";
     groups = [
       "kids"
       "common"

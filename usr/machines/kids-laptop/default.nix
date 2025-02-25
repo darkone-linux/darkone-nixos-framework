@@ -12,8 +12,6 @@
 {
   imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
 
-  darkone.theme.children.enable = true;
-
   # TMP
   nixpkgs.config.permittedInsecurePackages = [ "SDL_ttf-2.0.11" ];
 

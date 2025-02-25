@@ -1,4 +1,4 @@
-# Graphical & education packages for kids
+# Graphical & education packages for kids (obsolete)
 
 {
   lib,
