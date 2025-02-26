@@ -266,6 +266,7 @@ Available recipes:
 - [ ] Passerelle type (dhcp, dns, ap, firewall, adguard, AD, VPN).
 - [ ] [Nix Cache Proxy Server](https://github.com/kalbasit/ncps).
 - [ ] Gestion des mots de passe avec [sops](https://github.com/Mic92/sops-nix).
+- [ ] Configuration multi-architecture (x86_64 & aarch64).
 
 ### Planifié
 

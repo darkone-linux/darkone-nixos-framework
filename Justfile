@@ -10,7 +10,7 @@ nixKeyDir := './var/security/ssh'
 nixKeyFile := nixKeyDir + '/id_ed25519_nix'
 
 # Cannot use {{workDir}}...
-set working-directory := "/etc/nixos"
+#set working-directory := "/etc/nixos"
 
 #alias c := clean
 #alias f := fix

@@ -36,6 +36,7 @@ in
 
     # Minimum console features
     darkone.console.packages.enable = lib.mkDefault true;
+    darkone.console.zsh.enable = lib.mkDefault true;
 
     # No password for sudoers
     security.sudo.wheelNeedsPassword = lib.mkDefault false;
