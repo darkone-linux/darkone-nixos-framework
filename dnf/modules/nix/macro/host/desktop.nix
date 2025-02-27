@@ -1,3 +1,5 @@
+# A full desktop configuration with gnome, multimedia and office tools.
+
 { lib, config, ... }:
 let
   cfg = config.darkone.host.desktop;

@@ -1,4 +1,4 @@
-# Start image for new nodes
+# Start image for new nodes (used for iso generation).
 
 {
   lib,

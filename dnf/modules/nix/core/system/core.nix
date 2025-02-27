@@ -1,3 +1,9 @@
+# The core DNF module.
+#
+# :::caution
+# This module is enabled by default (required by DNF configuration).
+# :::
+
 {
   lib,
   config,
@@ -18,16 +24,18 @@ in
     darkone.system.core.enableFstrim = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      example = false;
       description = "SSD optimisation with fstrim";
     };
     darkone.system.core.enableFirewall = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      example = false;
       description = "Enable firewall (default true)";
     };
-    darkone.system.core.enableBoost = lib.mkEnableOption "Enable overclocking, corectl";
+    darkone.system.core.enableBoost = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Enable overclocking, corectl";
+    };
   };
 
   # Useful man & nix documentation

@@ -1,4 +1,4 @@
-# Features for childs and babies
+# Features for childs and babies.
 
 { lib, config, ... }:
 let

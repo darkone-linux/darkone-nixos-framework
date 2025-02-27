@@ -1,3 +1,5 @@
+# Documentation (man) for developers and admins.
+
 { lib, config, ... }:
 let
   cfg = config.darkone.system.documentation;

@@ -1,3 +1,5 @@
+# Virt manager + viewer with spice, win-virtio and ovmf.
+
 {
   lib,
   config,

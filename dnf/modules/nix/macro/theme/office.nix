@@ -1,4 +1,4 @@
-# Graphic environment with office softwares
+# Graphic environment with office softwares.
 
 { lib, config, ... }:
 let

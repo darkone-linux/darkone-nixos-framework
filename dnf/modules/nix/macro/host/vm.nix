@@ -1,3 +1,5 @@
+# Virtual machines guest tools.
+
 { lib, config, ... }:
 let
   cfg = config.darkone.host.vm;

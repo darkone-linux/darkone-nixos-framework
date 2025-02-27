@@ -1,4 +1,4 @@
-# Profile for advanced users (computer scientists, developers, admins)
+# Profile for advanced users (computer scientists, developers, admins).
 
 { lib, config, ... }:
 let

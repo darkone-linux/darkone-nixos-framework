@@ -9,7 +9,7 @@ require __DIR__ . '/vendor/autoload.php';
 
 try {
     $generator = new Generate(__DIR__ . '/../usr/config.yaml');
-    echo $generator->generate($_SERVER['argv'][1] ?? null);
+    echo $generator->generate($_SERVER['argv'][1] ?? '?');
 } catch (NixException $e) {
     echo "ERR: " . $e->getMessage() . PHP_EOL;
     exit(1);

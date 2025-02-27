@@ -1,3 +1,5 @@
+# A full zsh installation with aliases and bindkeys.
+
 {
   lib,
   config,

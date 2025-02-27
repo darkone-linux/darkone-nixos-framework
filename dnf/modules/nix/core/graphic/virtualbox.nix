@@ -1,3 +1,5 @@
+# Virtualbox host installation.
+
 { lib, config, ... }:
 let
   cfg = config.darkone.graphic.virtualbox;

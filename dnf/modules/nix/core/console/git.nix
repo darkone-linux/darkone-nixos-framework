@@ -1,3 +1,5 @@
+# A pre-configured git environment.
+
 {
   lib,
   config,

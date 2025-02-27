@@ -1,3 +1,5 @@
+# Gimp, geeqie, pinta + blender, inkscape, krita.
+
 {
   lib,
   config,
@@ -9,10 +11,8 @@ let
 in
 {
   options = {
-    darkone.graphic.imagery = {
-      enable = lib.mkEnableOption "Imagery creation";
-      enablePro = lib.mkEnableOption "Image softwares for pros";
-    };
+    darkone.graphic.imagery.enable = lib.mkEnableOption "Imagery creation";
+    darkone.graphic.imagery.enablePro = lib.mkEnableOption "Image softwares for pros";
   };
 
   config = lib.mkIf cfg.enable {

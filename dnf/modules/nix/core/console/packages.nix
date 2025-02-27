@@ -1,3 +1,8 @@
+# Some useful packages:
+#
+# * **Base**: vim, less, zip, unzip
+# * **Additional**: findutils, fzf, git, htop, neofetch, ranger, tree, wget...
+
 {
   lib,
   config,

@@ -10,7 +10,7 @@ dev:
 	npm run dev
 
 # Build + deploy
-update: build deploy
+update: codegen build deploy
 
 # Build the documentation
 build:
@@ -64,3 +64,10 @@ upgrade:
 	npx @astrojs/upgrade
 	npm update
 	npm upgrade
+
+# Generate documentation from code
+codegen:
+	@echo Full upgrade of doc dependencies...
+	php ../src/generate.php doc
+	@echo Done.
+

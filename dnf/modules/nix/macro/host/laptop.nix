@@ -1,3 +1,5 @@
+# Desktop config + laptop specific tools & configuration.
+
 {
   lib,
   pkgs,

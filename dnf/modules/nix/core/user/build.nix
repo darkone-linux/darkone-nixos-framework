@@ -1,3 +1,9 @@
+# Build users from DNF configuration.
+#
+# :::caution
+# This module is enabled by default (required by DNF configuration).
+# :::
+
 {
   lib,
   config,

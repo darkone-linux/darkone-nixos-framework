@@ -1,3 +1,5 @@
+# Configuration for servers: no sleep, systemd conf improved.
+
 {
   lib,
   config,

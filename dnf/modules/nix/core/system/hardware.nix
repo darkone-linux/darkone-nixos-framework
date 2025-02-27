@@ -1,3 +1,5 @@
+# Hardware configuration improvements.
+
 { lib, config, ... }:
 let
   cfg = config.darkone.system.hardware;
@@ -10,7 +12,6 @@ in
     darkone.system.hardware.enableIntel = lib.mkOption {
       type = lib.types.bool;
       default = false;
-      example = true;
       description = "Enable intel microcode updates";
     };
 
@@ -18,7 +19,6 @@ in
     darkone.system.hardware.enableAmd = lib.mkOption {
       type = lib.types.bool;
       default = false;
-      example = true;
       description = "Enable amd microcode updates";
     };
   };

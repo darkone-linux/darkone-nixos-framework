@@ -1,4 +1,4 @@
-# MAO
+# Several packages to create music.
 
 {
   lib,
@@ -13,13 +13,11 @@ let
 in
 {
   options = {
-    darkone.graphic.music = {
-      enable = lib.mkEnableOption "Music creation module";
+    darkone.graphic.music.enable = lib.mkEnableOption "Music creation module";
 
-      # To update
-      # https://amadeuspaulussen.com/blog/2022/favorite-music-production-software-on-linux
-      enablePro = lib.mkEnableOption "Music creation softwares for pros (wip)";
-    };
+    # To update
+    # https://amadeuspaulussen.com/blog/2022/favorite-music-production-software-on-linux
+    darkone.graphic.music.enablePro = lib.mkEnableOption "Music creation softwares for pros (wip)";
   };
 
   config = lib.mkIf cfg.enable {

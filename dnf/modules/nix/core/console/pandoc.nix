@@ -1,3 +1,5 @@
+# Pandoc with texlive and exiftool utils + gentium fonts.
+
 {
   lib,
   config,

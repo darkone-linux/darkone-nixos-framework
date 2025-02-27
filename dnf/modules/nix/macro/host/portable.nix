@@ -1,3 +1,5 @@
+# Portable configuration for usb keys (wip).
+
 { lib, config, ... }:
 let
   cfg = config.darkone.host.portable;

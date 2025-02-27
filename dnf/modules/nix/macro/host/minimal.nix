@@ -1,3 +1,5 @@
+# All host configuration is based on this minimal config.
+
 { lib, config, ... }:
 let
 
@@ -5,14 +7,14 @@ let
   cfg = config.darkone.host;
 in
 {
-  options.darkone.host = {
-    minimal.enable = lib.mkEnableOption "Minimal host configuration";
+  options = {
+    darkone.host.minimal.enable = lib.mkEnableOption "Minimal host configuration";
 
     # Securefull configuration
-    secure = lib.mkEnableOption "Prefer more secure options";
+    darkone.host.secure = lib.mkEnableOption "Prefer more secure options";
 
     # Host is a darkone network host by default
-    isNode = lib.mkOption {
+    darkone.host.isNode = lib.mkOption {
       type = lib.types.bool;
       default = true;
       example = false;

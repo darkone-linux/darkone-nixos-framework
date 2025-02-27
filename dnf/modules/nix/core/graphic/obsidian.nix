@@ -1,3 +1,5 @@
+# Preconfigured obsidian installation.
+
 {
   lib,
   config,

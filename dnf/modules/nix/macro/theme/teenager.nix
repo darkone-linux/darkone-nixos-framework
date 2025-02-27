@@ -1,4 +1,4 @@
-# Features for teenagers
+# Features for teenagers.
 
 { lib, config, ... }:
 let

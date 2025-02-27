@@ -1,3 +1,5 @@
+# Common office tools for office desktop.
+
 {
   lib,
   config,

@@ -1,4 +1,4 @@
-# NixOS configuration for the LAN administrator
+# NixOS configuration for the local LAN administrator.
 
 {
   lib,

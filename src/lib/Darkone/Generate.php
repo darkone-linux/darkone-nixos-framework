@@ -2,6 +2,7 @@
 
 namespace Darkone;
 
+use Darkone\MdxGenerator\Generator;
 use Darkone\NixGenerator\Configuration;
 use Darkone\NixGenerator\Item\Host;
 use Darkone\NixGenerator\NixBuilder;
@@ -34,7 +35,8 @@ class Generate
             return match ($what) {
                 'hosts' => $this->generateHosts(),
                 'users' => $this->generateUsers(),
-                'networks' => $this->generateNetworksConfig()
+                'networks' => $this->generateNetworksConfig(),
+                'doc' => $this->generateDoc()
             };
         } catch (UnhandledMatchError) {
             throw new NixException('Unknown item "' . $what . '", unable to generate');
@@ -102,5 +104,11 @@ class Generate
     private function generateNetworksConfig(): string
     {
         return (string) NixBuilder::arrayToNix($this->config->getNetworksConfig());
+    }
+
+    private function generateDoc(): string
+    {
+        Generator::generateAll();
+        return '';
     }
 }

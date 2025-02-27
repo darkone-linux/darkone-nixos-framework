@@ -1,3 +1,5 @@
+# Location and lang configuration.
+
 { lib, config, ... }:
 let
   cfg = config.darkone.system.i18n;

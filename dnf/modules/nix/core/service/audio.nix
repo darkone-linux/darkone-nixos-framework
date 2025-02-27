@@ -1,3 +1,5 @@
+# Audio services: alsa, pulse (not jack for the moment).
+
 { lib, config, ... }:
 let
   cfg = config.darkone.service.audio;

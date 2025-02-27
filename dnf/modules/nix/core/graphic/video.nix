@@ -1,4 +1,4 @@
-# MAO
+# Video tools.
 
 {
   lib,
@@ -11,10 +11,8 @@ let
 in
 {
   options = {
-    darkone.graphic.video = {
-      enable = lib.mkEnableOption "Video creation (kdenlive...)";
-      enablePro = lib.mkEnableOption "Video softwares for pros";
-    };
+    darkone.graphic.video.enable = lib.mkEnableOption "Video creation (kdenlive...)";
+    darkone.graphic.video.enablePro = lib.mkEnableOption "Video softwares for pros";
   };
 
   config = lib.mkIf cfg.enable {

@@ -1,4 +1,4 @@
-# Graphical & education packages for kids (obsolete)
+# Graphical & education packages for kids (obsolete).
 
 {
   lib,
@@ -11,12 +11,10 @@ let
 in
 {
   options = {
-    darkone.graphic.education = {
-      enable = lib.mkEnableOption "Default useful packages";
-      enableBaby = lib.mkEnableOption "Sofwares for childs <= 6-8 yo";
-      enableTeenager = lib.mkEnableOption "Sofwares for childs >= 12-14 yo";
-      enableGames = lib.mkEnableOption "Additional games packages";
-    };
+    darkone.graphic.education.enable = lib.mkEnableOption "Default useful packages";
+    darkone.graphic.education.enableBaby = lib.mkEnableOption "Sofwares for childs <= 6-8 yo";
+    darkone.graphic.education.enableTeenager = lib.mkEnableOption "Sofwares for childs >= 12-14 yo";
+    darkone.graphic.education.enableGames = lib.mkEnableOption "Additional games packages";
   };
 
   config = lib.mkIf cfg.enable {

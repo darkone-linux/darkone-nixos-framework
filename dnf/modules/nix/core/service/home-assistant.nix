@@ -1,3 +1,5 @@
+# A Home Assistant with some plugins.
+
 { lib, config, ... }:
 let
   cfg = config.darkone.service.home-assistant;

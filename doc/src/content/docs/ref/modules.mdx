@@ -1,0 +1,350 @@
+---
+title: Modules
+sidebar:
+  order: 1
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Macro modules
+
+:::note
+**A macro module** enables a collection of modules and a thematic configuration.
+:::
+
+### &#x1F4E6; darkone.host.desktop
+
+A full desktop configuration with gnome, multimedia and office tools.
+
+* **enable** `false` Desktop optimized host configuration
+
+<hr/>
+
+### &#x1F4E6; darkone.host.laptop
+
+Desktop config + laptop specific tools & configuration.
+
+* **enable** `false` Laptop optimized host configuration
+
+<hr/>
+
+### &#x1F4E6; darkone.host.minimal
+
+All host configuration is based on this minimal config.
+
+* **enable** `false` Minimal host configuration
+* **secure** `false` Prefer more secure options
+* **isNode** `true` Is local network node
+
+<hr/>
+
+### &#x1F4E6; darkone.host.portable
+
+Portable configuration for usb keys (wip).
+
+* **enable** `false` Portable host configuration for usb keys
+
+<hr/>
+
+### &#x1F4E6; darkone.host.server
+
+Configuration for servers: no sleep, systemd conf improved.
+
+* **enable** `false` Server host minimal configuration
+* **enableWatchdog** `true` Enable systemd watchdog
+
+<hr/>
+
+### &#x1F4E6; darkone.host.start-img
+
+Start image for new nodes (used for iso generation).
+
+* **enable** `false` Start minimal iso image
+
+<hr/>
+
+### &#x1F4E6; darkone.host.vm
+
+Virtual machines guest tools.
+
+* **enableVirtualbox** `false` Virtualbox client
+* **enableXen** `false` Xen client
+
+<hr/>
+
+### &#x1F4E6; darkone.theme.advanced
+
+Profile for advanced users (computer scientists, developers, admins).
+
+* **enable** `false` Advanced user (admin sys, developper)
+
+<hr/>
+
+### &#x1F4E6; darkone.theme.children
+
+Features for childs and babies.
+
+* **enable** `false` Children softwares
+
+<hr/>
+
+### &#x1F4E6; darkone.theme.office
+
+Graphic environment with office softwares.
+
+* **enable** `false` Graphic environment with office softwares
+
+<hr/>
+
+### &#x1F4E6; darkone.theme.teenager
+
+Features for teenagers.
+
+* **enable** `false` Teenager softwares
+
+<hr/>
+
+
+
+## Standard modules
+
+:::note
+**A standard module** enables a feature with one or several packages + a configuration.
+:::
+
+### &#x1F48E; darkone.admin.nix
+
+NixOS configuration for the local LAN administrator.
+
+* **enable** `false` Enable NIX configuration builder tools
+* **enableNh** `false` Enable nix helper (nh) management tool
+
+<hr/>
+
+### &#x1F48E; darkone.console.git
+
+A pre-configured git environment.
+
+* **enable** `false` Pre-configured git environment
+
+<hr/>
+
+### &#x1F48E; darkone.console.packages
+
+Some useful packages:
+
+* **Base**: vim, less, zip, unzip
+* **Additional**: findutils, fzf, git, htop, neofetch, ranger, tree, wget...
+
+* **enable** `false` Useful base packages
+* **enableAdditional** `false` Useful additional packages
+
+<hr/>
+
+### &#x1F48E; darkone.console.pandoc
+
+Pandoc with texlive and exiftool utils + gentium fonts.
+
+* **enable** `false` Pre-configured pandoc environment
+
+<hr/>
+
+### &#x1F48E; darkone.console.zsh
+
+A full zsh installation with aliases and bindkeys.
+
+* **enable** `false` ZSH environment
+
+<hr/>
+
+### &#x1F48E; darkone.graphic.education
+
+Graphical & education packages for kids (obsolete).
+
+* **enable** `false` Default useful packages
+* **enableBaby** `false` Sofwares for childs &lt;= 6-8 yo
+* **enableTeenager** `false` Sofwares for childs &gt;= 12-14 yo
+* **enableGames** `false` Additional games packages
+
+<hr/>
+
+### &#x1F48E; darkone.graphic.gnome
+
+Pre-configured gnome environment with dependences (auto xserver activation).
+
+* **enable** `false` Pre-configured gnome WM
+* **enableDashToDock** `false` Dash to dock plugin
+* **enableGDM** `false` Enable GDM instead of LightDM
+* **enableCaffeine** `false` Disable auto-suspend
+* **enableGsConnect** `false` Communication with devices
+
+<hr/>
+
+### &#x1F48E; darkone.graphic.imagery
+
+Gimp, geeqie, pinta + blender, inkscape, krita.
+
+* **enable** `false` Imagery creation
+* **enablePro** `false` Image softwares for pros
+
+<hr/>
+
+### &#x1F48E; darkone.graphic.music
+
+Several packages to create music.
+
+* **enable** `false` Music creation module
+* **enablePro** `false` Music creation softwares for pros (wip)
+
+<hr/>
+
+### &#x1F48E; darkone.graphic.obsidian
+
+Preconfigured obsidian installation.
+
+* **enable** `false` Default useful packages
+
+<hr/>
+
+### &#x1F48E; darkone.graphic.office
+
+Common office tools for office desktop.
+
+* **enable** `false` Default useful packages
+* **enableLibreOffice** `true` Office packages (libreoffice)
+* **enableInternet** `true` Internet packages (firefox)
+* **enableEmail** `true` Email management packages (thunderbird)
+
+<hr/>
+
+### &#x1F48E; darkone.graphic.video
+
+Video tools.
+
+* **enable** `false` Video creation (kdenlive...)
+* **enablePro** `false` Video softwares for pros
+
+<hr/>
+
+### &#x1F48E; darkone.graphic.virt-manager
+
+Virt manager + viewer with spice, win-virtio and ovmf.
+
+* **enable** `false` Virt manager with dependencies
+
+<hr/>
+
+### &#x1F48E; darkone.graphic.virtualbox
+
+Virtualbox host installation.
+
+* **enable** `false` Pre-configured virtualbox installation
+* **enableExtensionPack** `false` Enable extension pack (causes recompilations)
+
+<hr/>
+
+### &#x1F48E; darkone.service.audio
+
+Audio services: alsa, pulse (not jack for the moment).
+
+* **enable** `false` Enable sound system
+
+<hr/>
+
+### &#x1F48E; darkone.service.home-assistant
+
+A Home Assistant with some plugins.
+
+* **enable** `false` Enable home assitant
+
+<hr/>
+
+### &#x1F48E; darkone.service.httpd
+
+Httpd (apache) server with PHP84.
+
+* **enable** `false` Enable httpd (apache)
+
+<hr/>
+
+### &#x1F48E; darkone.service.printing
+
+Printers and scanners.
+
+* **enable** `false` Default useful packages
+* **loadAll** `false` Full printers and scanners
+* **enableScanners** `false` Enable scanners
+* **enableHpPrinters** `false` HP printers
+* **enableManualInstall** `false` Manual installation
+
+<hr/>
+
+### &#x1F48E; darkone.system.core
+
+The core DNF module.
+
+:::caution
+This module is enabled by default (required by DNF configuration).
+:::
+
+* **enable** `true` Darkone framework core system (activated by default)
+* **enableFstrim** `true` SSD optimisation with fstrim
+* **enableFirewall** `true` Enable firewall (default true)
+* **enableBoost** `false` Enable overclocking, corectl
+
+<hr/>
+
+### &#x1F48E; darkone.system.documentation
+
+Documentation (man) for developers and admins.
+
+* **enable** `false` Enable useful technical documentation (man, nixos)
+
+<hr/>
+
+### &#x1F48E; darkone.system.hardware
+
+Hardware configuration improvements.
+
+* **enable** `false` Enable hardware optimisations
+* **enableIntel** `false` Enable intel microcode updates
+* **enableAmd** `false` Enable amd microcode updates
+
+<hr/>
+
+### &#x1F48E; darkone.system.i18n
+
+Location and lang configuration.
+
+* **enable** `false` Enable i18n
+* **locale** `fr_FR.UTF-8` Your locale
+* **timeZone** `Europe/Paris` Your timezone
+
+<hr/>
+
+### &#x1F48E; darkone.user.build
+
+Build users from DNF configuration.
+
+:::caution
+This module is enabled by default (required by DNF configuration).
+:::
+
+* **enable** `true` Users common builder (enabled by default)
+
+<hr/>
+
+
+
+## Home Manager modules
+
+:::note
+**A home manager module** works with [home manager](https://github.com/nix-community/home-manager) profiles.
+:::
+
+### &#x1F3E0; darkone.home.zed
+
+* **enable** `false` Preconfigured ZED editor
+
+<hr/>
+
