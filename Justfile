@@ -1,20 +1,17 @@
 # Darkone framework just file
 # darkone@darkone.yt
 
-workDir := '/etc/nixos'
-dnfDir := '/home/nix/dnf'
+workDir := source_directory()
+dnfDir := home_directory() + '/dnf'
 
 # NOT WORKING FOR THE MOMENT
 # TODO: use this key with colmena
-nixKeyDir := './var/security/ssh'
+nixKeyDir := workDir + '/var/security/ssh'
 nixKeyFile := nixKeyDir + '/id_ed25519_nix'
 
-# Cannot use {{workDir}}...
-#set working-directory := "/etc/nixos"
-
-#alias c := clean
-#alias f := fix
-#alias g := generate
+alias c := clean
+alias f := fix
+alias g := generate
 
 # Justfile help
 _default:
