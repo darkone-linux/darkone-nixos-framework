@@ -56,7 +56,7 @@
         };
       };
 
-      extractDefaultNetwork =
+      extractCurrentNetwork =
         host:
         if (nixpkgs.lib.lists.count (_: true) host.networks) > 0 then
           builtins.elemAt host.networks 0
@@ -77,7 +77,7 @@
         name = host.hostname;
         value =
           let
-            networkId = extractDefaultNetwork host;
+            networkId = extractCurrentNetwork host;
           in
           {
             inherit host;
@@ -115,7 +115,7 @@
 
                   extraSpecialArgs =
                     let
-                      networkId = extractDefaultNetwork host;
+                      networkId = extractCurrentNetwork host;
                     in
                     {
                       inherit host;

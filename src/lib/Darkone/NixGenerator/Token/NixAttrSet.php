@@ -66,6 +66,11 @@ class NixAttrSet implements NixItemInterface, Iterator
     {
         $retVal = '';
         foreach ($this->attrSet as $key => $value) {
+
+            // Complex keys (for example ip addresses)
+            if (!preg_match('/^[a-zA-Z0-9_-]+$/', $key)) {
+                $key = '"' . $key . '"';
+            }
             $retVal .= $key . '=' . $value . ';';
         }
 
