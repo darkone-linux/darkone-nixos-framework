@@ -45,8 +45,5 @@ in
 
     # Can manage users with useradd, usermod...
     users.mutableUsers = lib.mkDefault (!cfg.secure);
-
-    # Is a local network managed node (true by default)
-    darkone.user.isNode = lib.mkDefault true;
   };
 }
