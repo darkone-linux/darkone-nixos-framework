@@ -4,6 +4,7 @@ namespace Darkone\NixGenerator\Item;
 
 use Darkone\NixGenerator\Configuration;
 use Darkone\NixGenerator\NixException;
+use Darkone\NixGenerator\NixNetwork;
 
 class Host
 {
@@ -23,14 +24,30 @@ class Host
     private array $groups = [];
 
     /**
-     * Networks
-     */
-    private array $networks = [];
-
-    /**
      * Host tags (for colmena deployments)
      */
     private array $tags = [];
+
+    /**
+     * @throws NixException
+     */
+    public function registerAliases(NixNetwork $extraNetwork, array $aliases): Host
+    {
+        $extraNetwork->registerAliases($this->getHostname(), $aliases);
+        return $this;
+    }
+
+    /**
+     * @throws NixException
+     */
+    public function registerInterfaces(NixNetwork $extraNetwork, array $interfaces): Host
+    {
+        $extraNetwork->registerHost($this->getHostname(), $interfaces[0]['ip'] ?? null);
+        foreach ($interfaces as $interface) {
+            $extraNetwork->registerMacAddress($interface['mac'], $interface['ip'], $this->getHostname());
+        }
+        return $this;
+    }
 
     public function getHostname(): string
     {
@@ -78,17 +95,6 @@ class Host
     {
         $this->groups = $groups;
         return $this;
-    }
-
-    public function setNetworks(array $networks): Host
-    {
-        $this->networks = $networks;
-        return $this;
-    }
-
-    public function getNetworks(): array
-    {
-        return $this->networks;
     }
 
     public function setProfile(string $profile): Host

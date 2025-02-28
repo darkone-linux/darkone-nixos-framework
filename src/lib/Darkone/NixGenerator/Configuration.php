@@ -44,7 +44,14 @@ class Configuration extends NixAttrSet
      * @var Host[]
      */
     private array $hosts = [];
-    private array $networksConfig = [];
+    private array $networkConfig = [];
+    private NixNetwork $extraNetwork;
+
+    public function __construct()
+    {
+        $this->extraNetwork = new NixNetwork();
+        parent::__construct();
+    }
 
     /**
      * Load nix configuration
@@ -57,7 +64,8 @@ class Configuration extends NixAttrSet
         $this->loadHosts($config);
         $this->loadFormatter($config);
         $this->loadLldapProvider($config);
-        $this->setNetworksConfig($config['networks'] ?? []);
+        $this->setNetworkConfig($config['network'] ?? []);
+
         return $this;
     }
 
@@ -157,8 +165,9 @@ class Configuration extends NixAttrSet
                 ->setLocal($host['local'] ?? false)
                 ->setUsers($this->extractAllUsers($host['users'] ?? [], $host['groups'] ?? []))
                 ->setGroups($host['groups'] ?? [])
-                ->setNetworks($host['networks'] ?? ['default'])
-                ->setTags($host['tags'] ?? []);
+                ->setTags($host['tags'] ?? [])
+                ->registerAliases($this->extraNetwork, $host['aliases'] ?? [])
+                ->registerInterfaces($this->extraNetwork, $host['interfaces'] ?? []);
         }, $staticHosts);
     }
 
@@ -204,16 +213,20 @@ class Configuration extends NixAttrSet
 
         $hosts = [];
         for ($i = $range[0]; $i <= $range[1]; $i++) {
-            $hosts[] = [
+            $hosts[$i] = [
                 'hostname' => sprintf($rangeHostGroup['hostname'], $i),
                 'name' => sprintf($rangeHostGroup['name'], $i),
                 'profile' => $rangeHostGroup['profile'],
                 'users' => $rangeHostGroup['users'] ?? [],
                 'groups' => $rangeHostGroup['groups'] ?? [],
-                'networks' => $rangeHostGroup['networks'] ?? null,
                 'tags' => $rangeHostGroup['tags'] ?? [],
             ];
         }
+
+        foreach ($rangeHostGroup['hosts'] as $id => $extraConfig) {
+            $hosts[$id] += $extraConfig;
+        }
+
         $this->loadStaticHosts($hosts);
     }
 
@@ -229,18 +242,18 @@ class Configuration extends NixAttrSet
     {
         $list = $this->assert(self::TYPE_ARRAY, $listHostGroup['hosts'], "Bad hosts list type");
         $hosts = [];
-        foreach ($list as $hostname => $hostdesc) {
+        foreach ($list as $hostname => $hostCfg) {
             $this->assert(self::TYPE_STRING, $hostname, "Bad host name (hostname key)", self::REGEX_HOSTNAME);
-            $this->assert(self::TYPE_STRING, $hostdesc, "Bad host description (name)", self::REGEX_NAME);
-            $hosts[] = [
+            $this->assert(self::TYPE_ARRAY, $hostCfg, "Bad host configuration type");
+            $this->assert(self::TYPE_STRING, $hostCfg['name'], "Bad host description (name) type detected", self::REGEX_NAME);
+            $hosts[] = array_merge($hostCfg, [
                 'hostname' => sprintf($listHostGroup['hostname'] ?? "%s", $hostname),
-                'name' => sprintf($listHostGroup['name'] ?? "%s", $hostdesc),
+                'name' => sprintf($listHostGroup['name'] ?? "%s", $hostCfg['name']),
                 'profile' => $listHostGroup['profile'],
                 'users' => $listHostGroup['users'] ?? [],
                 'groups' => $listHostGroup['groups'] ?? [],
-                'networks' => $listHostGroup['networks'] ?? null,
                 'tags' => $listHostGroup['tags'] ?? [],
-            ];
+            ]);
         }
         $this->loadStaticHosts($hosts);
     }
@@ -317,19 +330,18 @@ class Configuration extends NixAttrSet
         return $this->hosts;
     }
 
-    public function setNetworksConfig(array $networksConfig): Configuration
+    /**
+     * @throws NixException
+     */
+    public function setNetworkConfig(array $networkConfig): Configuration
     {
-        array_map(fn (mixed $key)
-            => preg_match('/^[a-z0-9][a-z0-9_-]{0,63}$/', $key)
-                || throw new NixException('Bad network key syntax "' . $key  . '".'),
-            array_keys($networksConfig)
-        );
-        $this->networksConfig = $networksConfig;
+        $this->networkConfig = $networkConfig;
+        $this->extraNetwork->registerNetworkConfig($networkConfig);
         return $this;
     }
 
-    public function getNetworksConfig(): array
+    public function getNetworkConfig(): array
     {
-        return $this->networksConfig;
+        return $this->networkConfig + $this->extraNetwork->buildExtraNetworkConfig();
     }
 }

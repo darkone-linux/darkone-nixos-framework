@@ -37,7 +37,7 @@
       # Generated files (with just generate)
       hosts = import ./var/generated/hosts.nix;
       users = import ./var/generated/users.nix;
-      networks = import ./var/generated/networks.nix;
+      network = import ./var/generated/network.nix;
 
       mkHome = login: {
         name = login;
@@ -56,16 +56,9 @@
         };
       };
 
-      extractCurrentNetwork =
-        host:
-        if (nixpkgs.lib.lists.count (_: true) host.networks) > 0 then
-          builtins.elemAt host.networks 0
-        else
-          "default";
-
       commonNodeArgs = {
         inherit users;
-        inherit networks;
+        inherit network;
         imgFormat = nixpkgs.lib.mkDefault "iso";
         pkgs-stable = import nixpkgs-stable {
           inherit system;
@@ -75,17 +68,10 @@
 
       mkNodeSpecialArgs = host: {
         name = host.hostname;
-        value =
-          let
-            networkId = extractCurrentNetwork host;
-          in
-          {
-            inherit host;
-            network = networks.${networkId} // {
-              id = networkId;
-            };
-          }
-          // commonNodeArgs;
+        value = {
+          inherit host;
+          inherit network;
+        } // commonNodeArgs;
       };
       nodeSpecialArgs = builtins.listToAttrs (map mkNodeSpecialArgs hosts);
 
@@ -113,29 +99,23 @@
                   # Load users profiles
                   users = builtins.listToAttrs (map mkHome host.users);
 
-                  extraSpecialArgs =
-                    let
-                      networkId = extractCurrentNetwork host;
-                    in
-                    {
-                      inherit host;
-                      inherit users;
-                      network = networks.${networkId} // {
-                        id = networkId;
-                      };
+                  extraSpecialArgs = {
+                    inherit network;
+                    inherit host;
+                    inherit users;
 
-                      # This hack must be set to allow unfree packages
-                      # in home manager configurations.
-                      # useGlobalPkgs with allowUnfree nixpkgs do not works.
-                      pkgs = import nixpkgs {
-                        inherit system;
-                        config.allowUnfree = true;
-                      };
-                      pkgs-stable = import nixpkgs-stable {
-                        inherit system;
-                        config.allowUnfree = true;
-                      };
+                    # This hack must be set to allow unfree packages
+                    # in home manager configurations.
+                    # useGlobalPkgs with allowUnfree nixpkgs do not works.
+                    pkgs = import nixpkgs {
+                      inherit system;
+                      config.allowUnfree = true;
                     };
+                    pkgs-stable = import nixpkgs-stable {
+                      inherit system;
+                      config.allowUnfree = true;
+                    };
+                  };
                 };
               }
             ]
