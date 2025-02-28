@@ -177,7 +177,6 @@ Pre-configured gnome environment with dependences (auto xserver activation).
 * **enableGDM** `false` Enable GDM instead of LightDM
 * **enableCaffeine** `false` Disable auto-suspend
 * **enableGsConnect** `false` Communication with devices
-* **xkbVariant** `latin1` Keyboard variant. Layout is extracted from console keymap.
 
 <hr/>
 
@@ -317,9 +316,9 @@ Hardware configuration improvements.
 
 Location and lang configuration.
 
-* **enable** `false` Enable i18n with network configuration by default
-* **locale** `${network.locale}` Network locale
-* **timeZone** `${network.timezone}` Network time zone
+* **enable** `false` Enable i18n
+* **locale** `fr_FR.UTF-8` Your locale
+* **timeZone** `Europe/Paris` Your timezone
 
 <hr/>
 
@@ -332,14 +331,6 @@ This module is enabled by default (required by DNF configuration).
 :::
 
 * **enable** `true` Users common builder (enabled by default)
-
-<hr/>
-
-### &#x1F48E; darkone.user.nix
-
-Special nix user for Darkone Network maintenance
-
-* **isNode** `false` Darkone Network node
 
 <hr/>
 
