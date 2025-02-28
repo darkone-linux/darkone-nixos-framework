@@ -25,15 +25,9 @@ in
   config = lib.mkIf cfg.minimal.enable {
 
     # Darkone main modules
-    # TODO: put timezone in the configuration
     darkone.system = {
-      core = {
-        enableFirewall = lib.mkDefault true;
-      };
-      i18n = {
-        enable = lib.mkDefault true;
-        timeZone = "America/Miquelon";
-      };
+      core.enableFirewall = lib.mkDefault true;
+      i18n.enable = lib.mkDefault true;
     };
 
     # Minimum console features
