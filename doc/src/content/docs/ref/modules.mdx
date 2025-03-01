@@ -16,7 +16,29 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 A full desktop configuration with gnome, multimedia and office tools.
 
-* **enable** `false` Desktop optimized host configuration
+* **enable** `false` Desktop optimized host configuration (bool)
+```nix
+darkone.host.desktop.enable = false;
+
+```
+
+<hr/>
+
+### &#x1F4E6; darkone.host.gateway
+
+The gateway / NAS of local network.
+
+* **enable** `false` Enable gateway features for the current host (dhcp, dns, proxy, etc.). (bool)
+* **enableForgejo** `false` Enable pre-configured forgejo git forge service. (bool)
+* **enableNcps** `true` Enable the proxy cache for packages (bool)
+```nix
+darkone.host.gateway = {
+  enable = false;
+  enableForgejo = false;
+  enableNcps = true;
+}
+
+```
 
 <hr/>
 
@@ -24,7 +46,11 @@ A full desktop configuration with gnome, multimedia and office tools.
 
 Desktop config + laptop specific tools & configuration.
 
-* **enable** `false` Laptop optimized host configuration
+* **enable** `false` Laptop optimized host configuration (bool)
+```nix
+darkone.host.laptop.enable = false;
+
+```
 
 <hr/>
 
@@ -32,9 +58,15 @@ Desktop config + laptop specific tools & configuration.
 
 All host configuration is based on this minimal config.
 
-* **enable** `false` Minimal host configuration
-* **secure** `false` Prefer more secure options
-* **isNode** `true` Is local network node
+* **enable** `false` Minimal host configuration (bool)
+* **secure** `false` Prefer more secure options (bool)
+```nix
+darkone.host.minimal = {
+  enable = false;
+  secure = false;
+}
+
+```
 
 <hr/>
 
@@ -42,7 +74,11 @@ All host configuration is based on this minimal config.
 
 Portable configuration for usb keys (wip).
 
-* **enable** `false` Portable host configuration for usb keys
+* **enable** `false` Portable host configuration for usb keys (bool)
+```nix
+darkone.host.portable.enable = false;
+
+```
 
 <hr/>
 
@@ -50,16 +86,27 @@ Portable configuration for usb keys (wip).
 
 Configuration for servers: no sleep, systemd conf improved.
 
-* **enable** `false` Server host minimal configuration
-* **enableWatchdog** `true` Enable systemd watchdog
+* **enable** `false` Server host minimal configuration (bool)
+* **enableWatchdog** `true` Enable systemd watchdog (bool)
+```nix
+darkone.host.server = {
+  enable = false;
+  enableWatchdog = true;
+}
+
+```
 
 <hr/>
 
 ### &#x1F4E6; darkone.host.start-img
 
-Start image for new nodes (used for iso generation).
+Start image for new hosts (used for iso generation).
 
-* **enable** `false` Start minimal iso image
+* **enable** `false` Start minimal iso image (bool)
+```nix
+darkone.host.start-img.enable = false;
+
+```
 
 <hr/>
 
@@ -67,8 +114,15 @@ Start image for new nodes (used for iso generation).
 
 Virtual machines guest tools.
 
-* **enableVirtualbox** `false` Virtualbox client
-* **enableXen** `false` Xen client
+* **enableVirtualbox** `false` Virtualbox client (bool)
+* **enableXen** `false` Xen client (bool)
+```nix
+darkone.host.vm = {
+  enableVirtualbox = false;
+  enableXen = false;
+}
+
+```
 
 <hr/>
 
@@ -76,7 +130,11 @@ Virtual machines guest tools.
 
 Profile for advanced users (computer scientists, developers, admins).
 
-* **enable** `false` Advanced user (admin sys, developper)
+* **enable** `false` Advanced user (admin sys, developper) (bool)
+```nix
+darkone.theme.advanced.enable = false;
+
+```
 
 <hr/>
 
@@ -84,7 +142,11 @@ Profile for advanced users (computer scientists, developers, admins).
 
 Features for childs and babies.
 
-* **enable** `false` Children softwares
+* **enable** `false` Children softwares (bool)
+```nix
+darkone.theme.children.enable = false;
+
+```
 
 <hr/>
 
@@ -92,7 +154,11 @@ Features for childs and babies.
 
 Graphic environment with office softwares.
 
-* **enable** `false` Graphic environment with office softwares
+* **enable** `false` Graphic environment with office softwares (bool)
+```nix
+darkone.theme.office.enable = false;
+
+```
 
 <hr/>
 
@@ -100,7 +166,11 @@ Graphic environment with office softwares.
 
 Features for teenagers.
 
-* **enable** `false` Teenager softwares
+* **enable** `false` Teenager softwares (bool)
+```nix
+darkone.theme.teenager.enable = false;
+
+```
 
 <hr/>
 
@@ -116,8 +186,15 @@ Features for teenagers.
 
 NixOS configuration for the local LAN administrator.
 
-* **enable** `false` Enable NIX configuration builder tools
-* **enableNh** `false` Enable nix helper (nh) management tool
+* **enable** `false` Enable NIX configuration builder tools (bool)
+* **enableNh** `false` Enable nix helper (nh) management tool (bool)
+```nix
+darkone.admin.nix = {
+  enable = false;
+  enableNh = false;
+}
+
+```
 
 <hr/>
 
@@ -125,7 +202,11 @@ NixOS configuration for the local LAN administrator.
 
 A pre-configured git environment.
 
-* **enable** `false` Pre-configured git environment
+* **enable** `false` Pre-configured git environment (bool)
+```nix
+darkone.console.git.enable = false;
+
+```
 
 <hr/>
 
@@ -136,8 +217,15 @@ Some useful packages:
 * **Base**: vim, less, zip, unzip
 * **Additional**: findutils, fzf, git, htop, neofetch, ranger, tree, wget...
 
-* **enable** `false` Useful base packages
-* **enableAdditional** `false` Useful additional packages
+* **enable** `false` Useful base packages (bool)
+* **enableAdditional** `false` Useful additional packages (bool)
+```nix
+darkone.console.packages = {
+  enable = false;
+  enableAdditional = false;
+}
+
+```
 
 <hr/>
 
@@ -145,7 +233,11 @@ Some useful packages:
 
 Pandoc with texlive and exiftool utils + gentium fonts.
 
-* **enable** `false` Pre-configured pandoc environment
+* **enable** `false` Pre-configured pandoc environment (bool)
+```nix
+darkone.console.pandoc.enable = false;
+
+```
 
 <hr/>
 
@@ -153,7 +245,11 @@ Pandoc with texlive and exiftool utils + gentium fonts.
 
 A full zsh installation with aliases and bindkeys.
 
-* **enable** `false` ZSH environment
+* **enable** `false` ZSH environment (bool)
+```nix
+darkone.console.zsh.enable = false;
+
+```
 
 <hr/>
 
@@ -161,10 +257,19 @@ A full zsh installation with aliases and bindkeys.
 
 Graphical & education packages for kids (obsolete).
 
-* **enable** `false` Default useful packages
-* **enableBaby** `false` Sofwares for childs &lt;= 6-8 yo
-* **enableTeenager** `false` Sofwares for childs &gt;= 12-14 yo
-* **enableGames** `false` Additional games packages
+* **enable** `false` Default useful packages (bool)
+* **enableBaby** `false` Sofwares for childs &lt;= 6-8 yo (bool)
+* **enableTeenager** `false` Sofwares for childs &gt;= 12-14 yo (bool)
+* **enableGames** `false` Additional games packages (bool)
+```nix
+darkone.graphic.education = {
+  enable = false;
+  enableBaby = false;
+  enableTeenager = false;
+  enableGames = false;
+}
+
+```
 
 <hr/>
 
@@ -172,11 +277,23 @@ Graphical & education packages for kids (obsolete).
 
 Pre-configured gnome environment with dependences (auto xserver activation).
 
-* **enable** `false` Pre-configured gnome WM
-* **enableDashToDock** `false` Dash to dock plugin
-* **enableGDM** `false` Enable GDM instead of LightDM
-* **enableCaffeine** `false` Disable auto-suspend
-* **enableGsConnect** `false` Communication with devices
+* **enable** `false` Pre-configured gnome WM (bool)
+* **enableDashToDock** `false` Dash to dock plugin (bool)
+* **enableGDM** `false` Enable GDM instead of LightDM (bool)
+* **enableCaffeine** `false` Disable auto-suspend (bool)
+* **enableGsConnect** `false` Communication with devices (bool)
+* **xkbVariant** `latin1` Keyboard variant. Layout is extracted from console keymap. (str)
+```nix
+darkone.graphic.gnome = {
+  enable = false;
+  enableDashToDock = false;
+  enableGDM = false;
+  enableCaffeine = false;
+  enableGsConnect = false;
+  xkbVariant = "latin1";
+}
+
+```
 
 <hr/>
 
@@ -184,8 +301,15 @@ Pre-configured gnome environment with dependences (auto xserver activation).
 
 Gimp, geeqie, pinta + blender, inkscape, krita.
 
-* **enable** `false` Imagery creation
-* **enablePro** `false` Image softwares for pros
+* **enable** `false` Imagery creation (bool)
+* **enablePro** `false` Image softwares for pros (bool)
+```nix
+darkone.graphic.imagery = {
+  enable = false;
+  enablePro = false;
+}
+
+```
 
 <hr/>
 
@@ -193,8 +317,15 @@ Gimp, geeqie, pinta + blender, inkscape, krita.
 
 Several packages to create music.
 
-* **enable** `false` Music creation module
-* **enablePro** `false` Music creation softwares for pros (wip)
+* **enable** `false` Music creation module (bool)
+* **enablePro** `false` Music creation softwares for pros (wip) (bool)
+```nix
+darkone.graphic.music = {
+  enable = false;
+  enablePro = false;
+}
+
+```
 
 <hr/>
 
@@ -202,7 +333,11 @@ Several packages to create music.
 
 Preconfigured obsidian installation.
 
-* **enable** `false` Default useful packages
+* **enable** `false` Default useful packages (bool)
+```nix
+darkone.graphic.obsidian.enable = false;
+
+```
 
 <hr/>
 
@@ -210,10 +345,19 @@ Preconfigured obsidian installation.
 
 Common office tools for office desktop.
 
-* **enable** `false` Default useful packages
-* **enableLibreOffice** `true` Office packages (libreoffice)
-* **enableInternet** `true` Internet packages (firefox)
-* **enableEmail** `true` Email management packages (thunderbird)
+* **enable** `false` Default useful packages (bool)
+* **enableLibreOffice** `true` Office packages (libreoffice) (bool)
+* **enableInternet** `true` Internet packages (firefox) (bool)
+* **enableEmail** `true` Email management packages (thunderbird) (bool)
+```nix
+darkone.graphic.office = {
+  enable = false;
+  enableLibreOffice = true;
+  enableInternet = true;
+  enableEmail = true;
+}
+
+```
 
 <hr/>
 
@@ -221,8 +365,15 @@ Common office tools for office desktop.
 
 Video tools.
 
-* **enable** `false` Video creation (kdenlive...)
-* **enablePro** `false` Video softwares for pros
+* **enable** `false` Video creation (kdenlive...) (bool)
+* **enablePro** `false` Video softwares for pros (bool)
+```nix
+darkone.graphic.video = {
+  enable = false;
+  enablePro = false;
+}
+
+```
 
 <hr/>
 
@@ -230,7 +381,11 @@ Video tools.
 
 Virt manager + viewer with spice, win-virtio and ovmf.
 
-* **enable** `false` Virt manager with dependencies
+* **enable** `false` Virt manager with dependencies (bool)
+```nix
+darkone.graphic.virt-manager.enable = false;
+
+```
 
 <hr/>
 
@@ -238,8 +393,15 @@ Virt manager + viewer with spice, win-virtio and ovmf.
 
 Virtualbox host installation.
 
-* **enable** `false` Pre-configured virtualbox installation
-* **enableExtensionPack** `false` Enable extension pack (causes recompilations)
+* **enable** `false` Pre-configured virtualbox installation (bool)
+* **enableExtensionPack** `false` Enable extension pack (causes recompilations) (bool)
+```nix
+darkone.graphic.virtualbox = {
+  enable = false;
+  enableExtensionPack = false;
+}
+
+```
 
 <hr/>
 
@@ -247,7 +409,39 @@ Virtualbox host installation.
 
 Audio services: alsa, pulse (not jack for the moment).
 
-* **enable** `false` Enable sound system
+* **enable** `false` Enable sound system (bool)
+```nix
+darkone.service.audio.enable = false;
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.dnsmasq
+
+Pre-configured dnsmasq for local gateway / router.
+
+* **enable** `false` Enable local dnsmasq service (bool)
+```nix
+darkone.service.dnsmasq.enable = false;
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.forgejo
+
+Forgejo (git forge) full-configured service.
+
+* **enable** `false` Enable local forgejo service (bool)
+* **domainName** `forgejo` Domain name for the forge, registered in forgejo, nginx &amp; hosts. (str)
+```nix
+darkone.service.forgejo = {
+  enable = false;
+  domainName = "forgejo";
+}
+
+```
 
 <hr/>
 
@@ -255,7 +449,11 @@ Audio services: alsa, pulse (not jack for the moment).
 
 A Home Assistant with some plugins.
 
-* **enable** `false` Enable home assitant
+* **enable** `false` Enable home assitant (bool)
+```nix
+darkone.service.home-assistant.enable = false;
+
+```
 
 <hr/>
 
@@ -263,7 +461,29 @@ A Home Assistant with some plugins.
 
 Httpd (apache) server with PHP84.
 
-* **enable** `false` Enable httpd (apache)
+* **enable** `false` Enable httpd (apache) (bool)
+```nix
+darkone.service.httpd.enable = false;
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.ncps
+
+Nix cache proxy with NCPS module.
+
+* **enable** `false` Enable nix cache proxy for packages (bool)
+* **dataPath** `/var/cache/ncps` Nix cache proxy cache folder (path)
+* **extraOptions** `{ }` services.ncps extra options (attrs)
+```nix
+darkone.service.ncps = {
+  enable = false;
+  dataPath = /var/cache/ncps;
+  extraOptions = { };
+}
+
+```
 
 <hr/>
 
@@ -271,11 +491,21 @@ Httpd (apache) server with PHP84.
 
 Printers and scanners.
 
-* **enable** `false` Default useful packages
-* **loadAll** `false` Full printers and scanners
-* **enableScanners** `false` Enable scanners
-* **enableHpPrinters** `false` HP printers
-* **enableManualInstall** `false` Manual installation
+* **enable** `false` Default useful packages (bool)
+* **loadAll** `false` Full printers and scanners (bool)
+* **enableScanners** `false` Enable scanners (bool)
+* **enableHpPrinters** `false` HP printers (bool)
+* **enableManualInstall** `false` Manual installation (bool)
+```nix
+darkone.service.printing = {
+  enable = false;
+  loadAll = true;
+  enableScanners = true;
+  enableHpPrinters = true;
+  enableManualInstall = true;
+}
+
+```
 
 <hr/>
 
@@ -287,10 +517,21 @@ The core DNF module.
 This module is enabled by default (required by DNF configuration).
 :::
 
-* **enable** `true` Darkone framework core system (activated by default)
-* **enableFstrim** `true` SSD optimisation with fstrim
-* **enableFirewall** `true` Enable firewall (default true)
-* **enableBoost** `false` Enable overclocking, corectl
+* **enable** `true` Darkone framework core system (activated by default) (bool)
+* **enableSystemdBoot** `true` Enable the default boot loader (bool)
+* **enableFstrim** `true` SSD optimisation with fstrim (bool)
+* **enableFirewall** `true` Enable firewall (default true) (bool)
+* **enableBoost** `false` Enable overclocking, corectl (bool)
+```nix
+darkone.system.core = {
+  enable = true;
+  enableSystemdBoot = true;
+  enableFstrim = true;
+  enableFirewall = true;
+  enableBoost = false;
+}
+
+```
 
 <hr/>
 
@@ -298,7 +539,11 @@ This module is enabled by default (required by DNF configuration).
 
 Documentation (man) for developers and admins.
 
-* **enable** `false` Enable useful technical documentation (man, nixos)
+* **enable** `false` Enable useful technical documentation (man, nixos) (bool)
+```nix
+darkone.system.documentation.enable = false;
+
+```
 
 <hr/>
 
@@ -306,9 +551,17 @@ Documentation (man) for developers and admins.
 
 Hardware configuration improvements.
 
-* **enable** `false` Enable hardware optimisations
-* **enableIntel** `false` Enable intel microcode updates
-* **enableAmd** `false` Enable amd microcode updates
+* **enable** `false` Enable hardware optimisations (bool)
+* **enableIntel** `false` Enable intel microcode updates (bool)
+* **enableAmd** `false` Enable amd microcode updates (bool)
+```nix
+darkone.system.hardware = {
+  enable = false;
+  enableIntel = false;
+  enableAmd = false;
+}
+
+```
 
 <hr/>
 
@@ -316,9 +569,17 @@ Hardware configuration improvements.
 
 Location and lang configuration.
 
-* **enable** `false` Enable i18n
-* **locale** `fr_FR.UTF-8` Your locale
-* **timeZone** `Europe/Paris` Your timezone
+* **enable** `false` Enable i18n with network configuration by default (bool)
+* **locale** `${network.locale}` Network locale (str)
+* **timeZone** `${network.timezone}` Network time zone (str)
+```nix
+darkone.system.i18n = {
+  enable = false;
+  locale = "fr_FR.UTF-8";
+  timeZone = "Europe/Paris";
+}
+
+```
 
 <hr/>
 
@@ -330,7 +591,11 @@ Build users from DNF configuration.
 This module is enabled by default (required by DNF configuration).
 :::
 
-* **enable** `true` Users common builder (enabled by default)
+* **enable** `true` Users common builder (enabled by default) (bool)
+```nix
+darkone.user.build.enable = true;
+
+```
 
 <hr/>
 
@@ -344,7 +609,11 @@ This module is enabled by default (required by DNF configuration).
 
 ### &#x1F3E0; darkone.home.zed
 
-* **enable** `false` Preconfigured ZED editor
+* **enable** `false` Preconfigured ZED editor (bool)
+```nix
+darkone.home.zed.enable = false;
+
+```
 
 <hr/>
 

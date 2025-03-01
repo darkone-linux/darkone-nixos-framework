@@ -277,7 +277,7 @@ class Configuration extends NixAttrSet
     /**
      * @throws NixException
      */
-    public function assertHostCommonParams(array $host): void
+    public static function assertHostCommonParams(array $host): void
     {
         self::assert(self::TYPE_STRING, $host['hostname'] ?? null, "A hostname is required");
         self::assert(self::TYPE_STRING, $host['name'] ?? null, 'A name (description) is required for "' . $host['hostname'] . '"');

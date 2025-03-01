@@ -75,15 +75,23 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
     private static function moduleToMd(array $moduleContent, string $icon): string
     {
         $options = '';
+        $optionCount = count($moduleContent['options']);
+        $code = "```nix\n" . ($optionCount > 1 ? $moduleContent['path'] . " = {\n" : "");
+        $prefix = $optionCount > 1 ? '  ' : $moduleContent['path'] . '.';
         foreach ($moduleContent['options'] as $option) {
             $options .= '* **' . $option['name'] . '**';
             $options .= $option['default'] ? ' `' . htmlspecialchars($option['default']) . '`' : '';
             $options .= $option['desc'] ? ' ' . htmlspecialchars($option['desc']) : '';
+            $options .= ' (' . $option['type'] . ')';
             $options .= "\n";
+            $codeValue = empty($option['example']) ? $option['default'] : $option['example'];
+            $codeValue = str_ends_with(strtolower($option['type']), 'str') ? '"' . $codeValue . '"' : $codeValue;
+            $code .= $prefix . $option['name'] . ' = ' . $codeValue . ';' . "\n";
         }
+        $code .= ($optionCount > 1 ? "}\n" : "") . "\n```\n\n";
 
         return '### ' . $icon . ' ' . $moduleContent['path'] . "\n\n"
-        . (is_null($moduleContent['comment']) ? '' : $moduleContent['comment'] . "\n\n") . $options . "\n<hr/>\n\n";
+        . (is_null($moduleContent['comment']) ? '' : $moduleContent['comment'] . "\n\n") . $options . $code . "<hr/>\n\n";
     }
 
     /**

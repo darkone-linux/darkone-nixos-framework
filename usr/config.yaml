@@ -7,7 +7,7 @@ network:
   timezone: "America/Miquelon"
   locale: "fr_FR.UTF-8"
   gateway:
-    host: "gateway" # required (if gateway key exists)
+    hostname: "gateway" # required (if gateway key exists)
     interfaces:
       wan:
         interface: "eth0" # required
@@ -49,6 +49,14 @@ hosts:
 
   # Static hosts
   static:
+
+    # The gateway
+    - hostname: "gateway"
+      name: "Local Gateway"
+      arch: "aarch64-linux"
+      profile: "gateway"
+      groups: ["admin"]
+      aliases: ["gateway", "passerelle"]
 
     # A laptop
     - hostname: "my-laptop"

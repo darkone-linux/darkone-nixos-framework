@@ -13,8 +13,8 @@ in
   options = {
     darkone.service.ncps.enable = lib.mkEnableOption "Enable nix cache proxy for packages";
     darkone.service.ncps.dataPath = lib.mkOption {
-      type = lib.types.str;
-      default = "/var/cache/ncps";
+      type = lib.types.path;
+      default = /var/cache/ncps;
       description = "Nix cache proxy cache folder";
     };
     darkone.service.ncps.extraOptions = lib.mkOption {
