@@ -203,4 +203,9 @@ class NixNetwork
             Configuration::REGEX_IPV4
         );
     }
+
+    public function getHostIp(string $host): ?string
+    {
+        return $this->hosts[$host] ?? null;
+    }
 }

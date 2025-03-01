@@ -58,6 +58,8 @@ class Generate
                 ->setString('hostname', $host->getHostname())
                 ->setString('name', $host->getName())
                 ->setString('profile', $host->getProfile())
+                ->setString('ip', $host->getIp())
+                ->setString('arch', $host->getArch())
                 ->set('groups', (new NixList())->populateStrings($host->getGroups()))
                 ->set('users', (new NixList())->populateStrings($host->getUsers()))
                 ->set('colmena', $colmena);

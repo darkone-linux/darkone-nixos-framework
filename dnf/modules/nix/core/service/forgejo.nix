@@ -1,0 +1,86 @@
+# Forgejo (git forge) full-configured service.
+
+{
+  lib,
+  config,
+  host,
+  network,
+  ...
+}:
+let
+  inherit network;
+  cfg = config.darkone.service.forgejo;
+  fjCfg = config.services.forgejo;
+  srv = fjCfg.settings.server;
+in
+{
+  options = {
+    darkone.service.forgejo.enable = lib.mkEnableOption "Enable local forgejo service";
+    darkone.service.forgejo.domainName = lib.mkOption {
+      type = lib.types.str;
+      default = "forgejo";
+      description = "Domain name for the forge, registered in forgejo, nginx & hosts.";
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
+
+    # Create a virtualhost with
+    services.nginx = {
+      enable = lib.mkForce true;
+      virtualHosts.${srv.DOMAIN} = {
+        forceSSL = false;
+        enableACME = false;
+        extraConfig = ''
+          client_max_body_size 512M;
+        '';
+        locations."/".proxyPass = "http://localhost:${toString srv.HTTP_PORT}";
+      };
+    };
+
+    # Add forgejo domain to /etc/hosts
+    networking.hosts."${host.ip}" = lib.mkIf config.services.dnsmasq.enable [ "${srv.DOMAIN}" ];
+
+    services.forgejo = {
+      enable = true;
+      database.type = "postgres";
+      lfs.enable = true;
+      settings = {
+        server = {
+          DOMAIN = cfg.domainName;
+
+          # You need to specify this to remove the port from URLs in the web UI.
+          ROOT_URL = "http://${srv.DOMAIN}/";
+          HTTP_PORT = 3000;
+          LANDING_PAGE = "explore";
+        };
+        DEFAULT = {
+          APP_NAME = "La forge de Darkone";
+        };
+
+        # You can temporarily allow registration to create an admin user.
+        service.DISABLE_REGISTRATION = true;
+        "service.explore".DISABLE_USERS_PAGE = true;
+        "ui.meta".AUTHOR = "Darkone Linux";
+        "ui.meta".DESCRIPTION = "${network.domain} git forge";
+
+        # Add support for actions, based on act: https://github.com/nektos/act
+        actions = {
+          ENABLED = true;
+          DEFAULT_ACTIONS_URL = "github";
+        };
+
+        # TODO: Sending emails is completely optional
+        # You can send a test email from the web UI at:
+        # Profile Picture > Site Administration > Configuration >  Mailer Configuration
+        # mailer = {
+        #   ENABLED = false;
+        #   SMTP_ADDR = "mail.cheznoo.net";
+        #   FROM = "noreply@${srv.DOMAIN}.${network.domain}";
+        #   USER = "noreply@${srv.DOMAIN}.${network.domain}";
+        # };
+      };
+      #mailerPasswordFile = config.age.secrets.forgejo-mailer-password.path;
+    };
+  };
+}

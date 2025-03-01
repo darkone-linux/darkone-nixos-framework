@@ -65,7 +65,7 @@ class Configuration extends NixAttrSet
         $this->loadHosts($config);
         $this->loadFormatter($config);
         $this->loadLldapProvider($config);
-        $this->setNetworkConfig($config['network'] ?? []);
+        $this->loadNetwork($config);
 
         return $this;
     }
@@ -164,11 +164,13 @@ class Configuration extends NixAttrSet
                 ->setName($host['name'])
                 ->setProfile($host['profile'])
                 ->setLocal($host['local'] ?? false)
+                ->setArch($host['arch'] ?? null)
                 ->setUsers($this->extractAllUsers($host['users'] ?? [], $host['groups'] ?? []))
                 ->setGroups($host['groups'] ?? [])
                 ->setTags($host['tags'] ?? [])
                 ->registerAliases($this->extraNetwork, $host['aliases'] ?? [])
-                ->registerInterfaces($this->extraNetwork, $host['interfaces'] ?? []);
+                ->registerInterfaces($this->extraNetwork, $host['interfaces'] ?? [])
+                ->setIp($this->extraNetwork->getHostIp($host['hostname']));
         }, $staticHosts);
     }
 
@@ -334,9 +336,25 @@ class Configuration extends NixAttrSet
     /**
      * @throws NixException
      */
-    public function setNetworkConfig(array $networkConfig): Configuration
+    public function loadNetwork(array $config): Configuration
     {
-        $this->networkConfig = $this->extraNetwork->registerNetworkConfig($networkConfig)->getConfig();
+        $this->networkConfig = $this->extraNetwork->registerNetworkConfig($config['network'] ?? [])->getConfig();
+        if (isset($this->networkConfig['gateway']['hostname'])) {
+            $gwHost = $this->networkConfig['gateway']['hostname'];
+            if (!isset($this->hosts[$gwHost])) {
+                throw new NixException('Gateway host "' . $gwHost . '" not found in hosts declarations.');
+            }
+            $gw = $this->hosts[$gwHost];
+            $nip = $this->networkConfig['gateway']['interfaces']['lan']['ip'];
+            if (($ip = $gw->getIp()) !== null) {
+                if ($ip !== $nip) {
+                    throw new NixException('Concurrent gw ip declarations "' . $ip . '" vs "' . $nip . '"');
+                }
+            } else {
+                $gw->setIp($nip);
+            }
+        }
+
         return $this;
     }
 

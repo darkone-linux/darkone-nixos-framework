@@ -17,7 +17,6 @@ in
     darkone.host.isNode = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      example = false;
       description = "Is local network node";
     };
   };

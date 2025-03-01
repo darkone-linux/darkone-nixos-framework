@@ -1,5 +1,6 @@
 # Httpd (apache) server with PHP84.
 
+# TODO: use nginx instead of apache
 {
   lib,
   config,

@@ -12,6 +12,8 @@ class Host
     private string $name;
     private string $profile;
     private bool $local = false;
+    private ?string $ip;
+    private ?string $arch;
 
     /**
      * @var array of string (logins)
@@ -129,5 +131,27 @@ class Host
     public function isLocal(): bool
     {
         return $this->local;
+    }
+
+    public function getIp(): ?string
+    {
+        return $this->ip;
+    }
+
+    public function setIp(?string $ip): Host
+    {
+        $this->ip = $ip;
+        return $this;
+    }
+
+    public function getArch(): ?string
+    {
+        return $this->arch;
+    }
+
+    public function setArch(?string $arch): Host
+    {
+        $this->arch = $arch;
+        return $this;
     }
 }

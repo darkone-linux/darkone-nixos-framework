@@ -5,8 +5,6 @@ let
   cfg = config.darkone.host.vm;
 in
 {
-  imports = [ ./minimal.nix ];
-
   options = {
     darkone.host.vm = {
       enableVirtualbox = lib.mkEnableOption "Virtualbox client";
