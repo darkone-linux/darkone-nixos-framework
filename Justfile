@@ -98,7 +98,7 @@ generate: \
 	(_gen-default "usr/overlays") \
 	(_gen "users" "var/generated/users.nix") \
 	(_gen "hosts" "var/generated/hosts.nix") \
-	(_gen "networks" "var/generated/networks.nix")
+	(_gen "network" "var/generated/network.nix")
 
 # Generator of default.nix files
 _gen-default dir:

@@ -17,19 +17,16 @@ in
     darkone.graphic.office.enableLibreOffice = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      example = false;
       description = "Office packages (libreoffice)";
     };
     darkone.graphic.office.enableInternet = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      example = false;
       description = "Internet packages (firefox)";
     };
     darkone.graphic.office.enableEmail = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      example = false;
       description = "Email management packages (thunderbird)";
     };
   };

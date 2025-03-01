@@ -1,9 +1,11 @@
 # Httpd (apache) server with PHP84.
 
+# TODO: use nginx instead of apache
 {
   lib,
   config,
   pkgs,
+  network,
   ...
 }:
 let
@@ -45,9 +47,7 @@ in
       enablePHP = true;
       phpPackage = pkgs.php84;
       extraModules = [ "userdir" ];
-
-      # TODO: email from configuration
-      adminAddr = "admin@localhost";
+      adminAddr = "admin@${network.domain}";
       virtualHosts.localhost = {
         documentRoot = "/var/www";
 

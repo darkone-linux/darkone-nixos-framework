@@ -1,23 +1,28 @@
 # Location and lang configuration.
 
-{ lib, config, ... }:
+{
+  lib,
+  config,
+  network,
+  ...
+}:
 let
   cfg = config.darkone.system.i18n;
 in
 {
   options = {
-    darkone.system.i18n.enable = lib.mkEnableOption "Enable i18n";
+    darkone.system.i18n.enable = lib.mkEnableOption "Enable i18n with network configuration by default";
     darkone.system.i18n.locale = lib.mkOption {
       type = lib.types.str;
-      default = "fr_FR.UTF-8";
+      default = "${network.locale}";
       example = "fr_FR.UTF-8";
-      description = "Your locale";
+      description = "Network locale";
     };
     darkone.system.i18n.timeZone = lib.mkOption {
       type = lib.types.str;
-      default = "Europe/Paris";
-      example = "America/Miquelon";
-      description = "Your timezone";
+      default = "${network.timezone}";
+      example = "Europe/Paris";
+      description = "Network time zone";
     };
   };
 
@@ -25,7 +30,7 @@ in
   config = lib.mkIf cfg.enable {
 
     # Configure console keymap
-    console.keyMap = builtins.substring 0 2 cfg.locale;
+    console.keyMap = lib.toLower (builtins.substring 3 2 cfg.locale);
 
     # Set your time zone.
     time.timeZone = cfg.timeZone;

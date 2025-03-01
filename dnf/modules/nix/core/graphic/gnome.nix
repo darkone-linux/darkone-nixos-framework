@@ -16,6 +16,11 @@ in
     darkone.graphic.gnome.enableGDM = lib.mkEnableOption "Enable GDM instead of LightDM";
     darkone.graphic.gnome.enableCaffeine = lib.mkEnableOption "Disable auto-suspend";
     darkone.graphic.gnome.enableGsConnect = lib.mkEnableOption "Communication with devices";
+    darkone.graphic.gnome.xkbVariant = lib.mkOption {
+      type = lib.types.str;
+      default = "latin1";
+      description = "Keyboard variant. Layout is extracted from console keymap.";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -24,10 +29,9 @@ in
     services.xserver.enable = true;
 
     # Configure keymap in X11
-    # TODO: get theses informations in i18n configuration
     services.xserver.xkb = {
-      layout = "fr";
-      variant = "azerty";
+      layout = "${config.console.keyMap}";
+      variant = cfg.xkbVariant;
     };
 
     xdg.mime.defaultApplications = {

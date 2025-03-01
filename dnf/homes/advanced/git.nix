@@ -40,7 +40,7 @@ in
           "navigate" = true;
         };
       };
-      diff.tool = "meld";
+      diff.tool = "vimdiff";
       web.browser = "firefox";
       push.default = "tracking";
       push.autoSetupRemote = true;

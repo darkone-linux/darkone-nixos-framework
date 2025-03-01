@@ -21,6 +21,11 @@ in
       default = true;
       description = "Darkone framework core system (activated by default)";
     };
+    darkone.system.core.enableSystemdBoot = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Enable the default boot loader";
+    };
     darkone.system.core.enableFstrim = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -41,8 +46,8 @@ in
   # Useful man & nix documentation
   config = lib.mkIf cfg.enable {
 
-    # Bootloader
-    boot = {
+    # Bootloader (enabled by default, but not with RPI dependencies)
+    boot = lib.mkIf cfg.enableSystemdBoot {
       loader.systemd-boot.enable = true;
       loader.efi.canTouchEfiVariables = true;
     };
