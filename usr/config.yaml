@@ -1,29 +1,27 @@
 # Nix generator configuration file for Darkone NixOS Framework (common file)
 
 # Global network configuration is converted in lists / attSets to be used in
-# your nix configuration through "networks.<network>" or "network" special arg.
-networks:
-  # The default network
-  default:
-    domain: "darkone.lan"
-    timezone: "America/Miquelon"
-    locale: "fr_FR.UTF-8"
-    gateway:
-      host: "gateway"
-      ip: "192.168.0.1"
-      interfaces:
-        wan:
-          interface: "eth0"
-        lan:
-          interface: "enu1u4"
-          ip: "192.168.1.1"
-          prefixLength: 24
-          dhcp-range:
-            - "192.168.1.100,192.168.1.230,24h"
-          dhcp-extra-option: # option
-            - "option:ntp-server,191.168.1.1"
-    extraHosts:
-      "192.168.0.1": ["box"]
+# your nix configuration through "network" special arg.
+network:
+  domain: "darkone.lan" # required
+  timezone: "America/Miquelon"
+  locale: "fr_FR.UTF-8"
+  gateway:
+    host: "gateway" # required (if gateway key exists)
+    interfaces:
+      wan:
+        interface: "eth0" # required
+        gateway: "192.168.0.1" # required
+      lan:
+        interface: "enu1u4" # required
+        ip: "192.168.1.1"
+        prefixLength: 24
+        dhcp-range:
+          - "192.168.1.100,192.168.1.230,24h"
+        dhcp-extra-option: # option
+          - "option:ntp-server,191.168.1.1"
+  extraHosts:
+    "192.168.0.1": ["box"]
 
 #------------------------------------------------------------------------------
 # Nix DNF static hosts (nested hosts.<type>)
@@ -33,12 +31,11 @@ networks:
 # -> profile is the HomeManager profile
 # -> groups is used to select related hosts
 users:
-  # Darkone
-  darkone:
+
+  nixos:
     uid: 1000
-    name: "Darkone Linux"
-    email: "darkone@darkone.yt"
-    profile: "darkone"
+    name: "An admin user"
+    profile: "admin"
     groups: ["admin"]
 
 # Hosts declaration
@@ -46,21 +43,20 @@ users:
 # -> profile: the host profile related to this host
 # -> users: a list of existing user logins
 # -> groups: used to select related users
-# -> networks: the first one is the default (to auto-generate email for example)
 # -> tags: added to colmena tags for deployment filtering.
 # -> local: true is only for the local (master) machine.
 hosts:
+
   # Static hosts
   static:
-    # Darkone (multi-network)
-    - hostname: "nlt"
-      name: "Darkone Laptop"
-      profile: "admin-laptop"
-      users: ["darkone"]
+
+    # A laptop
+    - hostname: "my-laptop"
+      name: "My Laptop"
+      profile: "laptop"
+      users: ["nixos"]
       groups: ["admin", "common"]
-      networks: ["default", "sn"]
       tags: ["laptops", "admin"]
-      system: "x86_64-linux" # default
       aliases: ["my-laptop", "darkone"] # Host name aliases
       interfaces:
         - mac: "e8:ff:1e:d0:44:82"

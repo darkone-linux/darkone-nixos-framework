@@ -12,13 +12,6 @@ in
 
     # Securefull configuration
     darkone.host.secure = lib.mkEnableOption "Prefer more secure options";
-
-    # Host is a darkone network host by default
-    darkone.host.isNode = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Is local network node";
-    };
   };
 
   config = lib.mkIf cfg.minimal.enable {

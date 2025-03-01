@@ -56,19 +56,19 @@ A `just clean`:
 -> generating dnf/overlays default.nix...
 -> generating users in var/generated/users.nix...
 -> generating hosts in var/generated/hosts.nix...
--> generating networks in var/generated/networks.nix...
+-> generating network in var/generated/network.nix...
 -> Formatting nix files with nixfmt...
 ```
 
 :::note[The generated files]
 - `var/generated/hosts.nix` The full host collection
 - `var/generated/users.nix` The explicitly created user collection
-- `var/generated/networks.nix` The network collection
+- `var/generated/network.nix` The network configuration
 :::
 
 ### The configuration file
 
-The `usr/config.yaml` file contains declarations of users, hosts, networks and providers. [The generator](#the-generator) reads this file to create a static pure nix configuration.
+The `usr/config.yaml` file contains declarations of users, hosts, network config and providers. [The generator](#the-generator) reads this file to create a static pure nix configuration.
 
 :::note[Users - groups - hosts]
 You can link users and hosts either directly or through a group list, which is declared in the users and/or groups items.
@@ -122,7 +122,6 @@ users:
 # -> profile: the host profile related to this host
 # -> users: a list of existing user logins
 # -> groups: used to select related users
-# -> networks: the first one is the default (to auto-generate email for example)
 # -> tags: added to colmena tags for deployment filtering.
 # -> local: true is only for the local (master) machine.
 hosts:
@@ -136,7 +135,6 @@ hosts:
       profile: "nix-admin"
       users: [ "darkone" ]
       groups: [ "admin" ]
-      networks: [ "default", "sn" ]
       tags: [ "local", "admin" ]
       local: true
 
@@ -144,7 +142,6 @@ hosts:
     - hostname: "sn-network"
       name: "SN Network Gateway"
       profile: "sn-network"
-      networks: [ "sn" ]
       groups: [ "sn-admin" ]
 
   # Host groups by range (generated from min to max)
@@ -155,7 +152,6 @@ hosts:
       name: "Workstation %d"
       profile: "sn-workstation"
       range: [ 1, 12 ]
-      networks: [ "sn" ]
       groups: [ "tsn", "sn" ]
 
   # List of similar hosts (each item is a host)
@@ -172,7 +168,7 @@ hosts:
       groups: [ "common" ]
 ```
 
-### Networks' declaration example
+### Network declaration example
 
 :::caution
 This example is incomplete, and this part is subject to future changes.
@@ -181,22 +177,17 @@ This example is incomplete, and this part is subject to future changes.
 ```yaml
 # usr/config.yaml
 # Global network configuration is converted in lists / attSets to be used in
-# your nix configuration through "networks.<network>" or "network" special arg.
-networks:
-
-  # The default network
-  default:
-    domain: "darkone.lan"
-    gateway:
-      hostname: "gateway"
-      ip: "192.168.0.1"
-
-  # Another network (optional)
-  sn:
-    domain: "sn.lan"
-    gateway:
-      hostname: "sn-network"
-      ip: "192.168.11.1"
+# your nix configuration through "network" special arg.
+network:
+  domain: "darkone.lan"
+  gateway:
+    hostname: "gateway"
+    interfaces:
+      wan:
+        interface: "eth0"
+        gateway: "192.168.0.1"
+      lan:
+        interface: "enu1u4"
 ```
 
 ### Create a host profile (example)

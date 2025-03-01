@@ -32,7 +32,6 @@ If you'd like to be informed about upcoming stable versions, please let me know 
 - **Automatic homepage** with [Homepage](https://github.com/gethomepage/homepage), based on activated services.
 - **[Cross-configuration](/doc/specifications/#the-configuration-file)** to ensure network consistency.
 - **Easy and reliable security**, a single password to unlock, with [sops](https://github.com/Mic92/sops-nix).
-- **[Multi-networks](/doc/specifications/#network-declarations-example)**, ability to declare multiple networks in one configuration.
 
 ## Files organisation
 
@@ -126,7 +125,7 @@ The configurations are also organized by category:
   - log/
   - generated/ [Generated files](/doc/specifications/#the-generator)
     - hosts.nix Hosts to deploy
-    - hosts.nix Users to deploy
-    - networks.nix Networks configuration
+    - users.nix Users to deploy
+    - network.nix Local network configuration
 - src/ Generator sources
 </FileTree>

@@ -20,16 +20,6 @@ A full desktop configuration with gnome, multimedia and office tools.
 
 <hr/>
 
-### &#x1F4E6; darkone.host.gateway
-
-The gateway / NAS of local network.
-
-* **enable** `false` Enable gateway features for the current host (dhcp, dns, proxy, etc.).
-* **enableForgejo** `false` Enable pre-configured forgejo git forge service.
-* **enableNcps** `true` Enable the proxy cache for packages
-
-<hr/>
-
 ### &#x1F4E6; darkone.host.laptop
 
 Desktop config + laptop specific tools & configuration.
@@ -187,7 +177,6 @@ Pre-configured gnome environment with dependences (auto xserver activation).
 * **enableGDM** `false` Enable GDM instead of LightDM
 * **enableCaffeine** `false` Disable auto-suspend
 * **enableGsConnect** `false` Communication with devices
-* **xkbVariant** `latin1` Keyboard variant. Layout is extracted from console keymap.
 
 <hr/>
 
@@ -262,23 +251,6 @@ Audio services: alsa, pulse (not jack for the moment).
 
 <hr/>
 
-### &#x1F48E; darkone.service.dnsmasq
-
-Pre-configured dnsmasq for local gateway / router.
-
-* **enable** `false` Enable local dnsmasq service
-
-<hr/>
-
-### &#x1F48E; darkone.service.forgejo
-
-Forgejo (git forge) full-configured service.
-
-* **enable** `false` Enable local forgejo service
-* **domainName** `forgejo` Domain name for the forge, registered in forgejo, nginx &amp; hosts.
-
-<hr/>
-
 ### &#x1F48E; darkone.service.home-assistant
 
 A Home Assistant with some plugins.
@@ -292,16 +264,6 @@ A Home Assistant with some plugins.
 Httpd (apache) server with PHP84.
 
 * **enable** `false` Enable httpd (apache)
-
-<hr/>
-
-### &#x1F48E; darkone.service.ncps
-
-Nix cache proxy with NCPS module.
-
-* **enable** `false` Enable nix cache proxy for packages
-* **dataPath** `/var/cache/ncps` Nix cache proxy cache folder
-* **extraOptions** `{ }` services.ncps extra options
 
 <hr/>
 
@@ -326,7 +288,6 @@ This module is enabled by default (required by DNF configuration).
 :::
 
 * **enable** `true` Darkone framework core system (activated by default)
-* **enableSystemdBoot** `true` Enable the default boot loader
 * **enableFstrim** `true` SSD optimisation with fstrim
 * **enableFirewall** `true` Enable firewall (default true)
 * **enableBoost** `false` Enable overclocking, corectl
@@ -355,9 +316,9 @@ Hardware configuration improvements.
 
 Location and lang configuration.
 
-* **enable** `false` Enable i18n with network configuration by default
-* **locale** `${network.locale}` Network locale
-* **timeZone** `${network.timezone}` Network time zone
+* **enable** `false` Enable i18n
+* **locale** `fr_FR.UTF-8` Your locale
+* **timeZone** `Europe/Paris` Your timezone
 
 <hr/>
 
@@ -370,14 +331,6 @@ This module is enabled by default (required by DNF configuration).
 :::
 
 * **enable** `true` Users common builder (enabled by default)
-
-<hr/>
-
-### &#x1F48E; darkone.user.nix
-
-Special nix user for Darkone Network maintenance
-
-* **isNode** `false` Darkone Network node
 
 <hr/>
 

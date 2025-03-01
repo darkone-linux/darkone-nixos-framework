@@ -28,7 +28,6 @@
     ./core/system/hardware.nix
     ./core/system/i18n.nix
     ./core/user/build.nix
-    ./core/user/nix.nix
     ./macro/host/desktop.nix
     ./macro/host/gateway.nix
     ./macro/host/laptop.nix
