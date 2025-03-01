@@ -35,7 +35,7 @@ class Generate
             return match ($what) {
                 'hosts' => $this->generateHosts(),
                 'users' => $this->generateUsers(),
-                'networks' => $this->generateNetworksConfig(),
+                'network' => $this->generateNetworkConfig(),
                 'doc' => $this->generateDoc()
             };
         } catch (UnhandledMatchError) {
@@ -58,8 +58,9 @@ class Generate
                 ->setString('hostname', $host->getHostname())
                 ->setString('name', $host->getName())
                 ->setString('profile', $host->getProfile())
+                ->setString('ip', $host->getIp())
+                ->setString('arch', $host->getArch())
                 ->set('groups', (new NixList())->populateStrings($host->getGroups()))
-                ->set('networks', (new NixList())->populateStrings($host->getNetworks()))
                 ->set('users', (new NixList())->populateStrings($host->getUsers()))
                 ->set('colmena', $colmena);
             $hosts->add($newHost);
@@ -92,8 +93,7 @@ class Generate
         return array_merge(
             $host->getTags(),
             array_map(fn (string $group): string => 'group-' . $group, $host->getGroups()),
-            array_map(fn (string $user): string => 'user-' . $user, array_filter($host->getUsers(), fn (string $user): bool => $user !== 'nix')),
-            array_map(fn (string $network): string => 'network-' . $network, $host->getNetworks())
+            array_map(fn (string $user): string => 'user-' . $user, array_filter($host->getUsers(), fn (string $user): bool => $user !== 'nix'))
         );
     }
 
@@ -101,9 +101,9 @@ class Generate
      * Generate the hosts.nix file loaded by flake.nix
      * @throws NixException
      */
-    private function generateNetworksConfig(): string
+    private function generateNetworkConfig(): string
     {
-        return (string) NixBuilder::arrayToNix($this->config->getNetworksConfig());
+        return (string) NixBuilder::arrayToNix($this->config->getNetworkConfig());
     }
 
     private function generateDoc(): string

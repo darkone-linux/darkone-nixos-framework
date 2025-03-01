@@ -17,15 +17,20 @@
     ./core/graphic/virt-manager.nix
     ./core/graphic/virtualbox.nix
     ./core/service/audio.nix
+    ./core/service/dnsmasq.nix
+    ./core/service/forgejo.nix
     ./core/service/home-assistant.nix
     ./core/service/httpd.nix
+    ./core/service/ncps.nix
     ./core/service/printing.nix
     ./core/system/core.nix
     ./core/system/documentation.nix
     ./core/system/hardware.nix
     ./core/system/i18n.nix
     ./core/user/build.nix
+    ./core/user/nix.nix
     ./macro/host/desktop.nix
+    ./macro/host/gateway.nix
     ./macro/host/laptop.nix
     ./macro/host/minimal.nix
     ./macro/host/portable.nix

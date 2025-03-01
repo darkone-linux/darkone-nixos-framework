@@ -11,8 +11,6 @@ let
   cfgLimit = 10;
 in
 {
-  imports = [ ./minimal.nix ];
-
   options = {
     darkone.host.server = {
       enable = lib.mkEnableOption "Server host minimal configuration";
@@ -21,7 +19,6 @@ in
       enableWatchdog = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        example = false;
         description = "Enable systemd watchdog";
       };
     };

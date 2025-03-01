@@ -4,6 +4,7 @@ namespace Darkone\NixGenerator\Item;
 
 use Darkone\NixGenerator\Configuration;
 use Darkone\NixGenerator\NixException;
+use Darkone\NixGenerator\NixNetwork;
 
 class Host
 {
@@ -11,6 +12,8 @@ class Host
     private string $name;
     private string $profile;
     private bool $local = false;
+    private ?string $ip;
+    private ?string $arch;
 
     /**
      * @var array of string (logins)
@@ -23,14 +26,30 @@ class Host
     private array $groups = [];
 
     /**
-     * Networks
-     */
-    private array $networks = [];
-
-    /**
      * Host tags (for colmena deployments)
      */
     private array $tags = [];
+
+    /**
+     * @throws NixException
+     */
+    public function registerAliases(NixNetwork $extraNetwork, array $aliases): Host
+    {
+        $extraNetwork->registerAliases($this->getHostname(), $aliases);
+        return $this;
+    }
+
+    /**
+     * @throws NixException
+     */
+    public function registerInterfaces(NixNetwork $extraNetwork, array $interfaces): Host
+    {
+        $extraNetwork->registerHost($this->getHostname(), $interfaces[0]['ip'] ?? null);
+        foreach ($interfaces as $interface) {
+            $extraNetwork->registerMacAddress($interface['mac'], $interface['ip'], $this->getHostname());
+        }
+        return $this;
+    }
 
     public function getHostname(): string
     {
@@ -80,17 +99,6 @@ class Host
         return $this;
     }
 
-    public function setNetworks(array $networks): Host
-    {
-        $this->networks = $networks;
-        return $this;
-    }
-
-    public function getNetworks(): array
-    {
-        return $this->networks;
-    }
-
     public function setProfile(string $profile): Host
     {
         $this->profile = $profile;
@@ -123,5 +131,27 @@ class Host
     public function isLocal(): bool
     {
         return $this->local;
+    }
+
+    public function getIp(): ?string
+    {
+        return $this->ip;
+    }
+
+    public function setIp(?string $ip): Host
+    {
+        $this->ip = $ip;
+        return $this;
+    }
+
+    public function getArch(): ?string
+    {
+        return $this->arch;
+    }
+
+    public function setArch(?string $arch): Host
+    {
+        $this->arch = $arch;
+        return $this;
     }
 }
