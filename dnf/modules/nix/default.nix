@@ -20,6 +20,7 @@
     ./core/service/dnsmasq.nix
     ./core/service/forgejo.nix
     ./core/service/home-assistant.nix
+    ./core/service/homepage.nix
     ./core/service/httpd.nix
     ./core/service/ncps.nix
     ./core/service/printing.nix

@@ -45,10 +45,10 @@ class MdxParser
         // mkOption
         preg_match_all('/([a-zA-Z0-9_-]+) *=[^\n]*mkOption +{(.+?)\n +}; *\n/s', $fileContent, $matches);
         for ($i = 0; $i < count($matches[0]); $i++) {
-            preg_match('/^.*type *= *[a-z.]*?([a-z]+);.*$/s', $matches[2][$i], $typeMatches);
-            preg_match('/^.*default *= *"?([^"]+?)"?;.*$/s', $matches[2][$i], $defaultMatches);
-            preg_match('/^.*example *= *"?([^"]+?)"?;.*$/s', $matches[2][$i], $exampleMatches);
-            preg_match('/^.*description *= *"([^"]+)";.*$/s', $matches[2][$i], $descMatches);
+            preg_match('/^.*type = [a-z.]*?([a-z]+);.*$/s', $matches[2][$i], $typeMatches);
+            preg_match('/^.*default = "?([^\n]+?)"?;\n.*$/s', $matches[2][$i], $defaultMatches);
+            preg_match('/^.*example = "?([^"]+?)"?;.*$/s', $matches[2][$i], $exampleMatches);
+            preg_match('/^.*description = "([^"]+)";.*$/s', $matches[2][$i], $descMatches);
             $options[] = [
                 'name' => $matches[1][$i],
                 'type' => $typeMatches[1] ?? '?',

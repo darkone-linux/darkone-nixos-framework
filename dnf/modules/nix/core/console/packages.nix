@@ -1,7 +1,4 @@
-# Some useful packages:
-#
-# * **Base**: vim, less, zip, unzip
-# * **Additional**: findutils, fzf, git, htop, neofetch, ranger, tree, wget...
+# Some useful packages for console only.
 
 {
   lib,
@@ -14,8 +11,8 @@ let
 in
 {
   options = {
-    darkone.console.packages.enable = lib.mkEnableOption "Useful base packages";
-    darkone.console.packages.enableAdditional = lib.mkEnableOption "Useful additional packages";
+    darkone.console.packages.enable = lib.mkEnableOption "Vim, less, zip, unzip...";
+    darkone.console.packages.enableAdditional = lib.mkEnableOption "Findutils, fzf, git, htop, neofetch, ranger, tree, wget...";
   };
 
   config.environment = lib.mkIf cfg.enable {

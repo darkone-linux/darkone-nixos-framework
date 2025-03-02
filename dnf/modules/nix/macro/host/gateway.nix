@@ -1,8 +1,20 @@
 # The gateway / NAS of local network.
+#
+# :::tip[A ready-to-use gateway]
+# The gateway is configured in `config.yaml` file.
+# All options are common to the network, so services (homepage, forgejo, nix package cache...)
+# are automatically configured on all hosts.
+# :::
 
-{ lib, config, ... }:
+{
+  lib,
+  config,
+  network,
+  ...
+}:
 let
   cfg = config.darkone.host.gateway;
+  inherit (network) gateway;
 in
 {
   imports = [ ./minimal.nix ];
@@ -11,10 +23,19 @@ in
     darkone.host.gateway.enable = lib.mkEnableOption "Enable gateway features for the current host (dhcp, dns, proxy, etc.).";
     darkone.host.gateway.enableNcps = lib.mkOption {
       type = lib.types.bool;
-      default = true;
+      default = builtins.elem "ncps" gateway.services;
       description = "Enable the proxy cache for packages";
     };
-    darkone.host.gateway.enableForgejo = lib.mkEnableOption "Enable pre-configured forgejo git forge service.";
+    darkone.host.gateway.enableHomepage = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.elem "homepage" gateway.services;
+      description = "Enable the auto-configured homepage service";
+    };
+    darkone.host.gateway.enableForgejo = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.elem "forgejo" gateway.services;
+      description = "Enable pre-configured forgejo git forge service";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -25,8 +46,9 @@ in
     # Services
     darkone.service = {
       dnsmasq.enable = true;
-      forgejo.enable = cfg.enableForgejo;
       ncps.enable = cfg.enableNcps;
+      forgejo.enable = cfg.enableForgejo;
+      homepage.enable = cfg.enableHomepage;
     };
   };
 }

@@ -19,7 +19,7 @@ in
     darkone.service.forgejo.domainName = lib.mkOption {
       type = lib.types.str;
       default = "forgejo";
-      description = "Domain name for the forge, registered in forgejo, nginx & hosts.";
+      description = "Domain name for the forge, registered in forgejo, nginx & hosts";
     };
   };
 

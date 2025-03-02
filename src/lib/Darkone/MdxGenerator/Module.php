@@ -80,9 +80,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
         $prefix = $optionCount > 1 ? '  ' : $moduleContent['path'] . '.';
         foreach ($moduleContent['options'] as $option) {
             $options .= '* **' . $option['name'] . '**';
-            $options .= $option['default'] ? ' `' . htmlspecialchars($option['default']) . '`' : '';
+            $options .= $option['type'] ? ' `' . $option['type'] . '`' : '';
             $options .= $option['desc'] ? ' ' . htmlspecialchars($option['desc']) : '';
-            $options .= ' (' . $option['type'] . ')';
             $options .= "\n";
             $codeValue = empty($option['example']) ? $option['default'] : $option['example'];
             $codeValue = str_ends_with(strtolower($option['type']), 'str') ? '"' . $codeValue . '"' : $codeValue;
