@@ -345,7 +345,7 @@ class Configuration extends NixAttrSet
                 throw new NixException('Gateway host "' . $gwHost . '" not found in hosts declarations.');
             }
             $gw = $this->hosts[$gwHost];
-            $nip = $this->networkConfig['gateway']['interfaces']['lan']['ip'];
+            $nip = $this->networkConfig['gateway']['lan']['ip'];
             if (($ip = $gw->getIp()) !== null) {
                 if ($ip !== $nip) {
                     throw new NixException('Concurrent gw ip declarations "' . $ip . '" vs "' . $nip . '"');

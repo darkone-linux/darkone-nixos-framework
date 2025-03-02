@@ -25,7 +25,7 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # Create a virtualhost with
+    # Create a virtualhost for forgejo
     services.nginx = {
       enable = lib.mkForce true;
       virtualHosts.${srv.DOMAIN} = {

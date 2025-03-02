@@ -8,18 +8,17 @@ network:
   locale: "fr_FR.UTF-8"
   gateway:
     hostname: "gateway" # required (if gateway key exists)
-    interfaces:
-      wan:
-        interface: "eth0" # required
-        gateway: "192.168.0.1" # required
-      lan:
-        interface: "enu1u4" # required
-        ip: "192.168.1.1"
-        prefixLength: 24
-        dhcp-range:
-          - "192.168.1.100,192.168.1.230,24h"
-        dhcp-extra-option: # option
-          - "option:ntp-server,191.168.1.1"
+    wan:
+      interface: "eth0" # required
+      gateway: "192.168.0.1" # required
+    lan:
+      interface: "enu1u4" # required
+      ip: "192.168.1.1"
+      prefixLength: 24
+      dhcp-range:
+        - "192.168.1.100,192.168.1.230,24h"
+      dhcp-extra-option: # option
+        - "option:ntp-server,191.168.1.1"
   extraHosts:
     "192.168.0.1": ["box"]
 

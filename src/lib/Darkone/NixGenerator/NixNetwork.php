@@ -118,7 +118,7 @@ class NixNetwork
      */
     public function registerNetworkConfig(array $cfg): NixNetwork
     {
-        $gwStaticIp = $cfg['gateway']['interfaces']['lan']['ip'] ?? self::DEFAULT_LAN_IP;
+        $gwStaticIp = $cfg['gateway']['lan']['ip'] ?? self::DEFAULT_LAN_IP;
         $gwIpPrefix = preg_replace('/^([0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$/', '$1', $gwStaticIp);
 
         // Rewrite cfg with default options
@@ -136,8 +136,8 @@ class NixNetwork
         $this->assertGwCfg($cfg['gateway']);
 
         // Rewrite gateway cfg with default options
-        $cfg['gateway']['interfaces']['lan']['ip'] = $gwStaticIp;
-        $cfg['gateway']['interfaces']['lan']['prefixLength'] ??= self::DEFAULT_LAN_PREFIX_LENGTH;
+        $cfg['gateway']['lan']['ip'] = $gwStaticIp;
+        $cfg['gateway']['lan']['prefixLength'] ??= self::DEFAULT_LAN_PREFIX_LENGTH;
 
         // Gateway host + static ip
         $this->registerHost($cfg['gateway']['hostname'] ?? '', $gwStaticIp, true);
@@ -157,10 +157,10 @@ class NixNetwork
             "option:router," . $gwStaticIp,
             "option:dns-server," . $gwStaticIp,
             "option:domain-name," . $cfg['domain'],
-        ], $cfg['gateway']['interfaces']['lan']['dhcp-extra-option'] ?? []);
+        ], $cfg['gateway']['lan']['dhcp-extra-option'] ?? []);
 
         // DHCP Range
-        $this->dhcpRange = $cfg['gateway']['interfaces']['lan']['dhcp-range'] ?? [
+        $this->dhcpRange = $cfg['gateway']['lan']['dhcp-range'] ?? [
             $gwIpPrefix . '.200,' . $gwIpPrefix . '.249,24h'
         ];
         $this->config = $cfg;
@@ -188,17 +188,17 @@ class NixNetwork
         );
         Configuration::assert(
             Configuration::TYPE_STRING,
-            $gateway['interfaces']['wan']['interface'] ?? null,
+            $gateway['wan']['interface'] ?? null,
             'A WAN interface is required'
         );
         Configuration::assert(
             Configuration::TYPE_STRING,
-            $gateway['interfaces']['lan']['interface'] ?? null,
+            $gateway['lan']['interface'] ?? null,
             'A LAN interface is required'
         );
         Configuration::assert(
             Configuration::TYPE_STRING,
-            $gateway['interfaces']['wan']['gateway'] ?? null,
+            $gateway['wan']['gateway'] ?? null,
             'A WAN ipv4 gateway is required',
             Configuration::REGEX_IPV4
         );

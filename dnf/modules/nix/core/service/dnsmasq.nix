@@ -12,8 +12,8 @@ let
   inherit (network) extraDnsmasqSettings;
   inherit (network) extraNetworking;
   inherit (network) gateway;
-  wanInterface = network.gateway.interfaces.wan.interface;
-  lanInterface = network.gateway.interfaces.lan.interface;
+  wanInterface = network.gateway.wan.interface;
+  lanInterface = network.gateway.lan.interface;
 in
 {
   options = {
@@ -35,11 +35,11 @@ in
 
       # Main configuration
       defaultGateway = {
-        address = gateway.interfaces.wan.gateway;
+        address = gateway.wan.gateway;
         interface = wanInterface;
       };
       nameservers = [
-        gateway.interfaces.wan.gateway
+        gateway.wan.gateway
         "8.8.8.8"
         "8.8.4.4"
       ];
@@ -52,8 +52,8 @@ in
           useDHCP = false;
           ipv4.addresses = [
             {
-              address = gateway.interfaces.lan.ip;
-              inherit (gateway.interfaces.lan) prefixLength;
+              address = gateway.lan.ip;
+              inherit (gateway.lan) prefixLength;
             }
           ];
         };
