@@ -230,7 +230,15 @@ pull:
 	fi
 	cd {{dnfDir}} && \
 		git pull --rebase --force && \
-		rsync -av --exclude 'usr' --exclude 'var' --exclude '.*' --exclude '*.lock' {{dnfDir}}/ {{workDir}}/
+		rsync -av --delete \
+			--exclude 'usr' \
+			--exclude 'var' \
+			--exclude '.*' \
+			--exclude '*.lock' \
+			--exclude node_modules \
+			--exclude doc/dist \
+			--exclude doc/darkone-linux.github.io \
+			{{dnfDir}}/ {{workDir}}/
 
 # Push common files to DNF repository
 [group('dev')]
@@ -240,7 +248,15 @@ push:
 		echo "ERR: {{dnfDir}} do not exists."
 		exit 1
 	fi
-	rsync -av --exclude 'usr' --exclude 'var' --exclude '.*' --exclude '*.lock' {{workDir}}/ {{dnfDir}}/
+	rsync -av --delete \
+		--exclude 'usr' \
+		--exclude 'var' \
+		--exclude '.*' \
+		--exclude '*.lock' \
+		--exclude doc/node_modules \
+		--exclude doc/dist \
+		--exclude doc/darkone-linux.github.io \
+		--delete {{workDir}}/ {{dnfDir}}/
 
 # Nix shell with tools to create usb keys
 [group('install')]

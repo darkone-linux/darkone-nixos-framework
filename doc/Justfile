@@ -70,4 +70,3 @@ codegen:
 	@echo Full upgrade of doc dependencies...
 	php ../src/generate.php doc
 	@echo Done.
-

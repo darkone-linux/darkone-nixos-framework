@@ -30,10 +30,11 @@ Available recipes:
     check-statix                 # Check with statix
 
     [dev]
-    clean                        # format: fix + check + generate + format
-    fix                          # Fix with statix
+    clean                        # format: fix + check + generate + format [alias: c]
+    develop                      # Launch a "nix develop" with zsh (dev env)
+    fix                          # Fix with statix [alias: f]
     format                       # Recursive nixfmt on all nix files
-    generate                     # Update the nix generated files
+    generate                     # Update the nix generated files [alias: g]
     pull                         # Pull common files from DNF repository
     push                         # Push common files to DNF repository
 
