@@ -258,15 +258,10 @@ Available recipes:
 
 ### En cours
 
-- [ ] Création de noeuds avec [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) + [disko](https://github.com/nix-community/disko) (wip).
-- [ ] Homepage automatique en fonction des services activés (wip).
-- [ ] Chaîne CI / CD pour la gestion de ce développement (wip).
-- [ ] Tests unitaires (wip).
-- [ ] Documentation FR et EN (wip).
-- [ ] Passerelle type (dhcp, dns, ap, firewall, adguard, AD, VPN).
+- [ ] Homepage automatique en fonction des services activés.
+- [ ] Chaîne CI / CD pour la gestion de ce développement + tests unitaires.
 - [ ] [Nix Cache Proxy Server](https://github.com/kalbasit/ncps).
 - [ ] Gestion des mots de passe avec [sops](https://github.com/Mic92/sops-nix).
-- [ ] Configuration multi-architecture (x86_64 & aarch64).
 
 ### Planifié
 
@@ -281,6 +276,8 @@ Available recipes:
 - [ ] just clean: détecter les fails, les afficher et s'arrêter.
 - [ ] Passerelle : ajouter [adguard home](https://wiki.nixos.org/wiki/Adguard_Home).
 - [ ] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + synchronisation des home directories.
+- [ ] Sécurisation avec [fail2ban](https://github.com/fail2ban/fail2ban) ([module](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.fail2ban)).
+- [ ] Réseau social à voir : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost), [mastodon](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mastodon), [matrix](https://nixos.wiki/wiki/Matrix), [gotosocial](https://search.nixos.org/options?channel=24.11&from=0&size=50&sort=relevance&type=packages&query=services.gotosocial), [zulip](https://zulip.com/self-hosting/)...
 
 ### Fait
 
@@ -299,6 +296,13 @@ Available recipes:
 - [x] Multi-réseaux.
 - [x] Fixer les UIDs (des users).
 - [x] Normaliser les données générées en séparant hosts et users.
+- [x] Configuration multi-architecture (x86_64 & aarch64).
+- [x] Passerelle type (dhcp, dns, ap, firewall, adguard, AD, VPN).
+- [x] Documentation FR et EN.
+
+### En pause
+
+- [ ] Création de noeuds avec [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) + [disko](https://github.com/nix-community/disko).
 
 ## Idées en cours d'étude
 
