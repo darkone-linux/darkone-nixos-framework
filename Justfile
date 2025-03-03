@@ -64,7 +64,7 @@ check:
 # Check the main flake
 [group('check')]
 check-flake:
-	nix flake check
+	nix --extra-experimental-features "nix-command flakes" flake check --all-systems
 
 # Check with statix
 [group('check')]

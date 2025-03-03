@@ -8,11 +8,18 @@
   lib,
   config,
   host,
+  network,
   pkgs,
   ...
 }:
 let
   cfg = config.darkone.system.core;
+
+  # Current host is a client and not the gateway, but network have a gateway with ncps activated
+  isNcpsClient =
+    cfg.enableGatewayClient
+    && builtins.elem "ncps" network.gateway.services
+    && host.hostname != network.gateway.hostname;
 in
 {
   options = {
@@ -35,6 +42,11 @@ in
       type = lib.types.bool;
       default = true;
       description = "Enable firewall (default true)";
+    };
+    darkone.system.core.enableGatewayClient = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Configuration optimized for local gateway (ncps client...)";
     };
     darkone.system.core.enableBoost = lib.mkOption {
       type = lib.types.bool;
@@ -108,6 +120,12 @@ in
     services.fstrim = lib.mkIf cfg.enableFstrim {
       enable = true;
       interval = "daily";
+    };
+
+    # Enable NCPS client configuration if needed
+    darkone.service.ncps = lib.mkIf isNcpsClient {
+      enable = true;
+      isClient = true;
     };
   };
 }

@@ -30,8 +30,8 @@ The gateway / NAS of local network.
 
 :::tip[A ready-to-use gateway]
 The gateway is configured in `config.yaml` file.
-All options are common to the network, so services (homepage, forgejo, nix package cache...)
-are automatically configured on all hosts.
+Services for hosts (homepage, forgejo, nix package cache...)
+are automatically configured on each machine.
 :::
 
 * **enable** `bool` Enable gateway features for the current host (dhcp, dns, proxy, etc.).
@@ -426,6 +426,10 @@ darkone.service.audio.enable = false;
 
 Pre-configured dnsmasq for local gateway / router.
 
+:::note
+This configuration reads the `network` conf in `config.yaml` file.
+:::
+
 * **enable** `bool` Enable local dnsmasq service
 ```nix
 darkone.service.dnsmasq.enable = false;
@@ -494,12 +498,21 @@ darkone.service.httpd.enable = false;
 
 Nix cache proxy with NCPS module.
 
+To check if a host contains the local gateway in substituters:
+
+```sh
+nix --extra-experimental-features nix-command show-config | grep substituters
+telnet <your-gateway> 8501
+```
+
 * **enable** `bool` Enable nix cache proxy for packages
+* **isClient** `bool` Only enable client configuration
 * **dataPath** `str` Nix cache proxy cache folder
 * **extraOptions** `attrs` services.ncps extra options
 ```nix
 darkone.service.ncps = {
   enable = false;
+  isClient = false;
   dataPath = "/var/cache/ncps";
   extraOptions = { };
 }
@@ -542,6 +555,7 @@ This module is enabled by default (required by DNF configuration).
 * **enableSystemdBoot** `bool` Enable the default boot loader
 * **enableFstrim** `bool` SSD optimisation with fstrim
 * **enableFirewall** `bool` Enable firewall (default true)
+* **enableGatewayClient** `bool` Configuration optimized for local gateway (ncps client...)
 * **enableBoost** `bool` Enable overclocking, corectl
 ```nix
 darkone.system.core = {
@@ -549,6 +563,7 @@ darkone.system.core = {
   enableSystemdBoot = true;
   enableFstrim = true;
   enableFirewall = true;
+  enableGatewayClient = true;
   enableBoost = false;
 }
 

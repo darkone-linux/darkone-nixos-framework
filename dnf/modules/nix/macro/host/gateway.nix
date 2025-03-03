@@ -2,8 +2,8 @@
 #
 # :::tip[A ready-to-use gateway]
 # The gateway is configured in `config.yaml` file.
-# All options are common to the network, so services (homepage, forgejo, nix package cache...)
-# are automatically configured on all hosts.
+# Services for hosts (homepage, forgejo, nix package cache...)
+# are automatically configured on each machine.
 # :::
 
 {

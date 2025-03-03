@@ -1,4 +1,8 @@
 # Pre-configured dnsmasq for local gateway / router.
+#
+# :::note
+# This configuration reads the `network` conf in `config.yaml` file.
+# :::
 
 {
   lib,
@@ -24,7 +28,6 @@ in
   config = lib.mkIf cfg.enable {
 
     boot.kernel.sysctl = {
-      # if you use ipv4, this is all you need
       "net.ipv4.conf.all.forwarding" = true;
     };
 
