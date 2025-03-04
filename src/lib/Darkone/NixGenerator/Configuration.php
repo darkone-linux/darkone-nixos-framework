@@ -127,7 +127,7 @@ class Configuration extends NixAttrSet
             self::assert(self::TYPE_STRING, $user['email'] ?? '', "Bad email type for " . $login); // TODO email validation
             self::assert(self::TYPE_STRING, $user['name'] ?? null, "A valid user name is required for " . $login, self::REGEX_NAME);
             self::assert(self::TYPE_STRING, $user['profile'] ?? null, "A valid user profile is required for " . $login, self::REGEX_NAME);
-            self::assert(self::TYPE_ARRAY, $user['groups'] ?? [], "Bad user group type for " . $login);
+            self::assert(self::TYPE_ARRAY, $user['groups'] ?? [], "Bad user group type for " . $login, null, self::TYPE_STRING);
             $this->users[$login] = (new User())
                 ->setUidAndLogin($user['uid'], $login)
                 ->setEmail($user['email'] ?? null)
@@ -282,14 +282,14 @@ class Configuration extends NixAttrSet
         self::assert(self::TYPE_STRING, $host['hostname'] ?? null, "A hostname is required");
         self::assert(self::TYPE_STRING, $host['name'] ?? null, 'A name (description) is required for "' . $host['hostname'] . '"');
         self::assert(self::TYPE_STRING, $host['profile'] ?? null, 'A host profile is required for "' . $host['hostname'] . '"');
-        self::assert(self::TYPE_ARRAY, $host['users'] ?? [], 'Bad users list type for "' . $host['hostname'] . '"');
+        self::assert(self::TYPE_ARRAY, $host['users'] ?? [], 'Bad users list type for "' . $host['hostname'] . '"', null, self::TYPE_STRING);
         self::assert(self::TYPE_BOOL, $host['local'] ?? false, 'Bad local key type for "' . $host['hostname'] . '"');
     }
 
     /**
      * @throws NixException
      */
-    public static function assert(string $type, mixed $value, string $errMessage, ?string $regex = null): mixed
+    public static function assert(string $type, mixed $value, string $errMessage, ?string $regex = null, ?string $subType = null): mixed
     {
         if ($type !== gettype($value)) {
             throw new NixException($errMessage);
@@ -301,6 +301,12 @@ class Configuration extends NixAttrSet
             if (!preg_match($regex, $value)) {
                 throw new NixException('Syntax Error for value "' . $value . '": ' . $errMessage);
             }
+        }
+        if (!is_null($subType)) {
+            if ($type !== self::TYPE_ARRAY) {
+                throw new NixException('Cannot declare subtype for non-array content');
+            }
+            array_walk($value, fn ($subValue) => self::assert($subType, $subValue, $errMessage . ' (subvalue type error)'));
         }
 
         return $value;

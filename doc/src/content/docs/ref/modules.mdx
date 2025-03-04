@@ -484,17 +484,11 @@ darkone.service.homepage = {
 
 ### &#x1F48E; darkone.service.httpd
 
-Httpd (nginx) server with PHP84.
+Httpd (apache) server with PHP84.
 
-* **enable** `bool` Enable httpd (nginx)
-* **enableUserDir** `bool` Enable user dir configuration
-* **enablePhp** `bool` Enable PHP 8.4 with useful modules
+* **enable** `bool` Enable httpd (apache)
 ```nix
-darkone.service.httpd = {
-  enable = false;
-  enableUserDir = false;
-  enablePhp = false;
-}
+darkone.service.httpd.enable = false;
 
 ```
 

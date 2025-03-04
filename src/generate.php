@@ -11,5 +11,5 @@ try {
     $generator = new Generate(__DIR__ . '/../usr/config.yaml');
     echo $generator->generate($_SERVER['argv'][1] ?? '?');
 } catch (NixException $e) {
-    trigger_error("ERR: " . $e->getMessage(), E_USER_ERROR);
+    exit("ERR: " . $e->getMessage());
 }

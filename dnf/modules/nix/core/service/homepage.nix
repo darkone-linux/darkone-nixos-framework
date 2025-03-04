@@ -137,7 +137,7 @@ in
             cputemp = true;
             memory = true;
             #disk = "/";
-            network = network.gateway.lan.interface;
+            network = network.gateway.wan.interface;
           };
         }
         {

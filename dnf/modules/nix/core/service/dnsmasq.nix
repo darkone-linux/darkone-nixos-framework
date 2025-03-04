@@ -17,7 +17,8 @@ let
   inherit (network) extraNetworking;
   inherit (network) gateway;
   wanInterface = network.gateway.wan.interface;
-  lanInterface = network.gateway.lan.interface;
+  lanInterface = "lan0"; # bridge for internal interfaces
+  lanIpRange = gateway.lan.ip + "/" + toString gateway.lan.prefixLength;
 in
 {
   options = {
@@ -26,10 +27,6 @@ in
 
   # TODO: IPv6 (cf. arthur gw conf)
   config = lib.mkIf cfg.enable {
-
-    boot.kernel.sysctl = {
-      "net.ipv4.conf.all.forwarding" = true;
-    };
 
     networking = {
 
@@ -46,6 +43,17 @@ in
         "8.8.8.8"
         "8.8.4.4"
       ];
+
+      # We need a bridge for dnsmasq settings
+      bridges.${lanInterface}.interfaces = network.gateway.lan.interfaces;
+
+      # Internet sharing / nat
+      nat = {
+        enable = true;
+        externalInterface = gateway.wan.interface;
+        internalIPs = [ lanIpRange ];
+        internalInterfaces = [ lanInterface ];
+      };
 
       # DHCP Clients
       useDHCP = false;
@@ -65,6 +73,7 @@ in
       # Firewall
       # 53 -> DNS
       # 67, 68 -> DHCP
+      # 80 -> homepage / nginx
       firewall = {
         enable = true;
         allowPing = true;
@@ -72,20 +81,13 @@ in
           allowedTCPPorts = [
             22
             53
-          ];
+          ] ++ lib.optional config.services.nginx.enable 80;
           allowedUDPPorts = [
             53
             67
             68
           ];
         };
-        extraCommands = ''
-          # Set up SNAT on packets going from downstream to the wider internet
-          iptables -t nat -A POSTROUTING -o ${wanInterface} -j MASQUERADE
-
-          # Accept all connections from downstream. May not be necessary
-          iptables -A INPUT -i ${lanInterface} -j ACCEPT
-        '';
       };
 
       # /etc/hosts

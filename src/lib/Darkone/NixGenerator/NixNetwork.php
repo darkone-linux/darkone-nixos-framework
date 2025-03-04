@@ -192,9 +192,11 @@ class NixNetwork
             'A WAN interface is required'
         );
         Configuration::assert(
-            Configuration::TYPE_STRING,
-            $gateway['lan']['interface'] ?? null,
-            'A LAN interface is required'
+            Configuration::TYPE_ARRAY,
+            $gateway['lan']['interfaces'] ?? null,
+            'Valid LAN interfaces are required',
+            null,
+            Configuration::TYPE_STRING
         );
         Configuration::assert(
             Configuration::TYPE_STRING,
