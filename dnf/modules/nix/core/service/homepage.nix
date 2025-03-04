@@ -31,8 +31,7 @@ in
     services.nginx = {
       enable = lib.mkForce true;
       virtualHosts.${cfg.domainName} = {
-        forceSSL = false;
-        enableACME = false;
+        default = lib.mkDefault true;
         extraConfig = ''
           client_max_body_size 512M;
         '';

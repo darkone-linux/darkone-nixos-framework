@@ -1,11 +1,10 @@
-# Httpd (apache) server with PHP84.
+# Httpd (nginx) server with PHP84.
 
-# TODO: use nginx instead of apache
 {
   lib,
   config,
   pkgs,
-  network,
+  host,
   ...
 }:
 let
@@ -13,68 +12,69 @@ let
 in
 {
   options = {
-    darkone.service.httpd.enable = lib.mkEnableOption "Enable httpd (apache)";
+    darkone.service.httpd.enable = lib.mkEnableOption "Enable httpd (nginx)";
+    darkone.service.httpd.enableUserDir = lib.mkEnableOption "Enable user dir configuration";
+    darkone.service.httpd.enablePhp = lib.mkEnableOption "Enable PHP 8.4 with useful modules";
   };
 
-  #environment.systemPackages =
-  #let
-  #  php = pkgs.php.buildEnv { extraConfig = "display_errors = on"; };
-  #in [
-  #  php
-  #];
-
+  # TODO: TLS
   config = lib.mkIf cfg.enable {
 
-    environment.systemPackages = with pkgs; [
-      php84
-      php84Extensions.iconv
-      php84Extensions.intl
-      php84Extensions.ldap
-      php84Extensions.mbstring
-      php84Extensions.pdo
-      php84Extensions.pdo_sqlite
-      php84Extensions.redis
-      php84Extensions.simplexml
-      php84Extensions.sqlite3
-      php84Extensions.xdebug
-      php84Packages.composer
-      phpunit
+    environment.systemPackages = lib.mkIf cfg.enablePhp [
+      pkgs.php84
+      pkgs.php84Extensions.iconv
+      pkgs.php84Extensions.intl
+      pkgs.php84Extensions.ldap
+      pkgs.php84Extensions.mbstring
+      pkgs.php84Extensions.pdo
+      pkgs.php84Extensions.pdo_sqlite
+      pkgs.php84Extensions.redis
+      pkgs.php84Extensions.simplexml
+      pkgs.php84Extensions.sqlite3
+      pkgs.php84Extensions.xdebug
+      pkgs.php84Packages.composer
+      pkgs.phpunit
     ];
 
-    # Apache
-    services.httpd = {
-      enable = true;
-      enablePHP = true;
-      phpPackage = pkgs.php84;
-      extraModules = [ "userdir" ];
-      adminAddr = "admin@${network.domain}";
-      virtualHosts.localhost = {
-        documentRoot = "/var/www";
-
-        # Works only with /home/xxx, not with /mnt/home/xxx
-        #enableUserDir = true;
-        extraConfig = ''
-          UserDir /mnt/home/*/www
-          UserDir disabled root
-          <Directory "/mnt/home/*/www">
-              AllowOverride FileInfo AuthConfig Limit Indexes
-              Options MultiViews Indexes SymLinksIfOwnerMatch IncludesNoExec
-              <Limit GET POST OPTIONS>
-                  Require all granted
-              </Limit>
-              <LimitExcept GET POST OPTIONS>
-                  Require all denied
-              </LimitExcept>
-          </Directory>
-
-          <Directory "/var/www">
-            DirectoryIndex index.php index.htm index.html
-              Allow from *
-              Options FollowSymLinks
-              AllowOverride All
-          </Directory>
-        '';
+    services.phpfpm.pools.mypool = lib.mkIf cfg.enablePhp {
+      user = "nobody";
+      settings = {
+        "pm" = "dynamic";
+        "listen.owner" = config.services.nginx.user;
+        "pm.max_children" = 5;
+        "pm.start_servers" = 2;
+        "pm.min_spare_servers" = 1;
+        "pm.max_spare_servers" = 3;
+        "pm.max_requests" = 500;
       };
     };
+
+    services.nginx = {
+      enable = true;
+      virtualHosts.${host.hostname} = {
+        root = "/var/www";
+        extraConfig = lib.mkIf cfg.enableUserDir ''
+          location ~ ^/~(.+?)(/.*)?$ {
+            alias /home/$1/public_html$2;
+            index index.html index.htm index.php;
+            autoindex on;
+          }
+        '';
+        locations."/".extraConfig = ''
+          rewrite ^ /index.php;
+        '';
+        locations."~ \\.php$" = lib.mkIf cfg.enablePhp {
+          extraConfig = ''
+            fastcgi_pass unix:${config.services.phpfpm.pools.mypool.socket};
+            fastcgi_index index.php;
+          '';
+        };
+      };
+    };
+
+    # TODO: fix userdir access
+    #users.users.nginx.extraGroups = lib.mkIf cfg.enableUserDir [ "users" ];
+
+    networking.firewall.allowedTCPPorts = [ 80 ];
   };
 }
