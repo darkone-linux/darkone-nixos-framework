@@ -18,7 +18,7 @@ in
     darkone.graphic.gnome.enableGsConnect = lib.mkEnableOption "Communication with devices";
     darkone.graphic.gnome.xkbVariant = lib.mkOption {
       type = lib.types.str;
-      default = "latin1";
+      default = "";
       description = "Keyboard variant. Layout is extracted from console keymap.";
     };
   };
@@ -29,6 +29,7 @@ in
     services.xserver.enable = true;
 
     # Configure keymap in X11
+    # Type `localectl list-x11-keymap-variants` to list variants
     services.xserver.xkb = {
       layout = "${config.console.keyMap}";
       variant = cfg.xkbVariant;
