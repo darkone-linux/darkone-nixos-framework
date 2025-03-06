@@ -84,7 +84,9 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
             $options .= $option['desc'] ? ' ' . htmlspecialchars($option['desc']) : '';
             $options .= "\n";
             $codeValue = empty($option['example']) ? $option['default'] : $option['example'];
-            $codeValue = str_ends_with(strtolower($option['type']), 'str') ? '"' . $codeValue . '"' : $codeValue;
+            $codeValue = str_ends_with(strtolower($option['type']), 'str')
+                ? '"' . trim($codeValue, '"') . '"'
+                : $codeValue;
             $code .= $prefix . $option['name'] . ' = ' . $codeValue . ';' . "\n";
         }
         $code .= ($optionCount > 1 ? "}\n" : "") . "\n```\n\n";

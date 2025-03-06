@@ -295,7 +295,7 @@ darkone.graphic.gnome = {
   enableGDM = false;
   enableCaffeine = false;
   enableGsConnect = false;
-  xkbVariant = "latin1";
+  xkbVariant = "";
 }
 
 ```
@@ -484,11 +484,17 @@ darkone.service.homepage = {
 
 ### &#x1F48E; darkone.service.httpd
 
-Httpd (apache) server with PHP84.
+Httpd (nginx) server with PHP84.
 
-* **enable** `bool` Enable httpd (apache)
+* **enable** `bool` Enable httpd (nginx)
+* **enableUserDir** `bool` Enable user dir configuration
+* **enablePhp** `bool` Enable PHP 8.4 with useful modules
 ```nix
-darkone.service.httpd.enable = false;
+darkone.service.httpd = {
+  enable = false;
+  enableUserDir = false;
+  enablePhp = false;
+}
 
 ```
 
