@@ -31,11 +31,34 @@ network:
 # -> groups is used to select related hosts
 users:
 
+  # A nix administrator
   nixos:
     uid: 1000
     name: "An admin user"
     profile: "admin"
     groups: ["admin"]
+
+  # A real user with its own profile "darkone"
+  darkone:
+    uid: 1001
+    name: "Darkone Linux"
+    email: "darkone@darkone.yt"
+    profile: "darkone"
+    groups: ["admin", "media", "common"]
+
+  # A student with specific profile "student"
+  ethan:
+    uid: 1002
+    name: "Ethan"
+    profile: "student"
+    groups: ["sn", "tsn"]
+
+  # A child of my home network
+  esteban:
+    uid: 1003
+    name: "Esteban"
+    profile: "teenager"
+    groups: [ "kids", "common" ]
 
 # Hosts declaration
 # -> name: human readable name or description
@@ -70,6 +93,55 @@ hosts:
           ip: "192.168.1.2"
         - mac: "e8:ff:1e:d0:44:83"
           ip: "192.168.1.82"
+
+  # Host groups by range (generated from min to max)
+  range:
+
+    # 12 workstations based on the profile "workstation"
+    - hostname: "pc%'02s"
+      name: "Workstation %d"
+      profile: "workstation"
+      range: [1, 4]
+      groups: ["tsn", "sn"]
+      hosts:
+        1:
+          interfaces:
+            - mac: "08:00:27:03:BB:20"
+              ip: "192.168.1.101"
+        2:
+          interfaces:
+            - mac: "08:00:27:AE:49:7F"
+              ip: "192.168.1.102"
+        3:
+          interfaces:
+            - mac: "08:00:27:EA:85:CB"
+              ip: "192.168.1.103"
+        4:
+          interfaces:
+            - mac: "08:00:27:A4:B1:36"
+              ip: "192.168.1.104"
+
+
+  # List of similar hosts (each item is a host)
+  list:
+
+    # 3 similar hosts (for the default network)
+    - hostname: "laptop-%s"
+      name: "Laptop %s"
+      profile: "home-laptop"
+      groups: ["common"]
+      users: ["darkone"]
+      hosts:
+        kids:
+          name: "Kids"
+          interfaces:
+            - mac: "f0:1f:af:13:61:c6"
+              ip: "192.168.1.20"
+        family:
+          name: "Kids"
+          interfaces:
+            - mac: "f0:1f:af:13:61:c7"
+              ip: "192.168.1.21"
 
 # Nix DNF hosts from LLDAP (wip)
 # Contains users and groups

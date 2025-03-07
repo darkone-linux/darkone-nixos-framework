@@ -10,5 +10,5 @@ Each user have a **profile declaration** in the general nix configuration and a 
 - `dnf/homes/admin.nix` contains the `users.users.` declaration.
 - `dnf/homes/admin/` contains home manager files for this profile.
 
-Coming soon: list of standard user/home profiles and how to create profiles.
+Coming soon: list of standard `user/home` profiles and how to create profiles.
 :::

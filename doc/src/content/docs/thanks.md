@@ -65,7 +65,6 @@ The communities:
 - [Snowfall guides](https://snowfall.org/guides/lib/quickstart/)
 - [Article about Colmena](https://oblivious.observer/posts/nixos-multi-host-deployment-with-flakes-and-colmena/)
 - [LDAP discussion](https://www.reddit.com/r/NixOS/comments/1arf373/workstation_setup_with_multiple_users/)
-
 - [An OpenLDAP config](https://gist.github.com/mbbx6spp/64f83aaa945cd52e75927100e5942b65)
 - [A crypted install](https://codeberg.org/AndrewKvalheim/configuration/src/branch/main/Provisioning.md)
 - [Active Directory & dnsmasq](https://serverfault.com/questions/964567/forwarding-active-directory-queries-through-dnsmasq)
