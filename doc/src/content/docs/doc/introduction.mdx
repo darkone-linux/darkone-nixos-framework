@@ -3,9 +3,6 @@ title: Introduction
 description: A multi-user, multi-host, ready-to-use NixOS configuration
 sidebar:
   order: 1
-  badge:
-    text: New
-    variant: tip
 ---
 
 import { FileTree } from '@astrojs/starlight/components';
@@ -24,12 +21,12 @@ If you'd like to be informed about upcoming stable versions, please let me know 
 ## Features
 
 - **[Multi-hosts and multi-users](/doc/specifications/#the-generator)**, deployed with [colmena](https://github.com/zhaofengli/colmena) and [just](https://github.com/casey/just).
-- **[Host profiles](/ref/host-profiles/)** for servers, containers, and workstations.
-- **[User profiles](/ref/user-profiles/)** providing common configurations for various users.
+- **[Host profiles](/ref/modules/#-darkonehostdesktop)** for servers, containers, and workstations.
+- **[User profiles](/doc/specifications/#create-a-user-profile-example)** providing common configurations for various users.
 - **[High-level modules](/ref/modules/)** 100% functional with a simple `.enable = true`.
 - **[Extensible](#files-organisation)**, scalable, consistent, customizable architecture.
-- **[User profiles management](/ref/user-profiles/)** with [home manager](https://github.com/nix-community/home-manager) + [home profiles](/ref/user-profiles/#home-profiles).
-- **Automatic homepage** with [Homepage](https://github.com/gethomepage/homepage), based on activated services.
+- **User profiles management** with [home manager](https://github.com/nix-community/home-manager) + [home profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/homes).
+- **[Automatic homepage](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/dnf/modules/nix/core/service/homepage.nix)** with [Homepage](https://github.com/gethomepage/homepage), based on activated services.
 - **[Cross-configuration](/doc/specifications/#the-configuration-file)** to ensure network consistency.
 - **Easy and reliable security**, a single password to unlock, with [sops](https://github.com/Mic92/sops-nix).
 
@@ -82,14 +79,14 @@ The configurations are also organized by category:
           - build.nix Users builder
           - …
       - macro Macro modules
-        - host/ [Host profiles](/ref/host-profiles/)
+        - host/ Host profiles
           - desktop.nix
           - laptop.nix
           - server.nix
           - vm.nix
           - minimal.nix
           - …
-        - theme/ [Thematic features](/ref/themes/)
+        - theme/ Thematic features
           - office.nix
           - advanced.nix
           - student.nix
@@ -99,7 +96,7 @@ The configurations are also organized by category:
       - zed.nix
       - …
       - default.nix Auto-generated default
-  - homes/ [User profiles (.nix) + home profiles (dirs)](/ref/user-profiles/)
+  - homes/ User profiles (.nix) + home profiles (dirs)
     - admin.nix Admin user profile config (extragroups, etc.)
     - admin/ Admin user profile home
     - advanced/ Advanced user with development tools

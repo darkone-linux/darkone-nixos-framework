@@ -13,12 +13,13 @@ I note here the links to people and resources that have helped me, but I may for
 
 ## People
 
-Who help me regularly:
+Who help / advise me:
 
 - [b0th](https://github.com/theobori/nixos-configuration)
 - [Fez](https://github.com/CORAAL)
 - [Nixy](https://github.com/anotherhadi/nixy)
 - [liberodark](https://gist.github.com/liberodark)
+- [adamdicarlo](https://github.com/adamdicarlo)
 
 The communities:
 

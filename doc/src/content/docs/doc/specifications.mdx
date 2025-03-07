@@ -74,13 +74,26 @@ The `usr/config.yaml` file contains declarations of users, hosts, network config
 You can link users and hosts either directly or through a group list, which is declared in the users and/or groups items.
 :::
 
-:::tip[Example]
+Content accessible in your nix configuration:
+
+- `network` attrSet contains useful content to build a gateway and more.
+- `users` attrSet is a full list of users.
+- `hosts` list is a full list of hosts.
+- `host` contains the current host informations.
+
+:::tip
 The framework repository contains an example:
 
-- This [`usr/config.yaml`]() file generates...
-- This [`var/generated/users.nix`]() file and...
-- This [`var/generated/hosts.nix`]() file and...
-- This [`var/generated/network.nix`]() file.
+- [`usr/config.yaml`](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml) main config file generates...
+- [`var/generated/users.nix`](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/var/generated/users.nix) attrSet (accessible through `users`) and...
+- [`var/generated/hosts.nix`](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/var/generated/hosts.nix) list (accessible through `hosts` and `host`) and...
+- [`var/generated/network.nix`](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/var/generated/network.nix) attrSet (accessible through `network`).
+
+Usage examples:
+
+- [`service/dnsmasq.nix`](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/dnf/modules/nix/core/service/dnsmasq.nix) module uses `network` to create a full-featured gateway.
+- [`user/build.nix`](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/dnf/modules/nix/core/user/build.nix) module creates some users with `users` and current `host`.
+- [`service/ncps.nix`](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/dnf/modules/nix/core/service/ncps.nix) module uses `host` and `network` to declare server and clients.
 :::
 
 ### Network declaration example
@@ -338,6 +351,11 @@ just apply @user-darkone
 :::
 
 ### Create a user profile (example)
+
+Each user have a **profile declaration** in the nix configuration and a **home profile** used by home manager. For example:
+
+- `dnf/homes/admin.nix` contains the `users.users.` declaration.
+- `dnf/homes/admin/` contains home manager files for this profile.
 
 <Steps>
 

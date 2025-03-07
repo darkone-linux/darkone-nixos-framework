@@ -37,9 +37,10 @@ class Module
 title: Modules
 sidebar:
   order: 1
+  badge:
+    text: New
+    variant: tip
 ---
-
-import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 " . implode("\n\n", array_map(fn (array $category): string => self::parseModules($category), self::$moduleCategories));
     }
