@@ -29,6 +29,9 @@
     nixos-hardware = {
       url = "github:NixOS/nixos-hardware/master";
     };
+
+    sops-nix.url = "github:Mic92/sops-nix";
+    sops-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
@@ -40,6 +43,7 @@
       colmena,
       raspberry-pi-nix,
       nixos-hardware,
+      sops-nix,
       ...
     }:
     let
@@ -122,6 +126,7 @@
               ./dnf/modules/nix
               ./usr/modules/nix
               "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+              sops-nix.nixosModules.sops
               home-manager.nixosModules.home-manager
               {
                 home-manager = {

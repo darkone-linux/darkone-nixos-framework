@@ -105,6 +105,20 @@ in
       in
       formatted;
 
+    # Sops
+    sops = {
+      defaultSopsFile = ./../../../../../usr/secrets/passwd.yaml;
+      age = {
+        sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+        keyFile = "/var/lib/sops-nix/key.txt";
+        generateKey = true;
+      };
+      secrets.default-pass = {
+        mode = "0440";
+        inherit (config.users.users.nobody) group;
+      };
+    };
+
     # Overclocking & performance optimisations (WIP)
     programs.corectrl = lib.mkIf cfg.enableBoost {
       enable = true;

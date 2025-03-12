@@ -10,6 +10,7 @@
 let
   cfg = config.darkone.service.lldap;
   srv = config.services.lldap.settings;
+  inherit (config.sops) secrets;
 in
 {
   options = {
@@ -46,10 +47,17 @@ in
         http_host = "localhost";
         ldap_host = "${cfg.domainName}";
         ldap_user_email = "${srv.ldap_user_dn}@${network.domain}";
+        #force_ldap_user_pass_reset = true;
         ldap_base_dn =
           "dc=" + (lib.concatStringsSep ",dc=" (builtins.match "^([^.]+)\.([^.]+)$" "${network.domain}"));
       };
+      environment = {
+        LLDAP_LDAP_USER_PASS_FILE = secrets.default-pass.path;
+      };
     };
+
+    # Access to password
+    systemd.services.lldap.serviceConfig.SupplementaryGroups = [ config.users.users.nobody.group ];
 
     # Open LLDAP in local network (not required by default)
     networking.firewall.allowedTCPPorts = lib.mkIf cfg.openLdapPort [ srv.ldap_port ];
