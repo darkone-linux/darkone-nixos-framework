@@ -127,7 +127,7 @@ class NixNetwork
         $cfg['timezone'] ??= self::DEFAULT_TIMEZONE;
 
         // No gateway?
-        if (!isset($cfg['gateway'])) {
+        if (!isset($cfg['gateway']['lan']) && !isset($cfg['gateway']['wan'])) {
             $this->config = $cfg;
             return $this;
         }

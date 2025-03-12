@@ -18,6 +18,7 @@ let
   # Current host is a client and not the gateway, but network have a gateway with ncps activated
   isNcpsClient =
     cfg.enableGatewayClient
+    && network.gateway ? services
     && builtins.elem "ncps" network.gateway.services
     && host.hostname != network.gateway.hostname;
 in

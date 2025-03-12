@@ -20,7 +20,7 @@ class Configuration extends NixAttrSet
     public const REGEX_IPV4 = '/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/';
 
     private const MAX_RANGE_BOUND = 1000;
-    
+
     private const DEFAULT_PROFILE = 'minimal';
 
     // Nix user login name
@@ -226,7 +226,7 @@ class Configuration extends NixAttrSet
             ];
         }
 
-        foreach ($rangeHostGroup['hosts'] as $id => $extraConfig) {
+        foreach ($rangeHostGroup['hosts'] ?? [] as $id => $extraConfig) {
             $hosts[$id] += $extraConfig;
         }
 
@@ -345,7 +345,7 @@ class Configuration extends NixAttrSet
     public function loadNetwork(array $config): Configuration
     {
         $this->networkConfig = $this->extraNetwork->registerNetworkConfig($config['network'] ?? [])->getConfig();
-        if (isset($this->networkConfig['gateway']['hostname'])) {
+        if (isset($this->networkConfig['gateway']['hostname']['lan'])) {
             $gwHost = $this->networkConfig['gateway']['hostname'];
             if (!isset($this->hosts[$gwHost])) {
                 throw new NixException('Gateway host "' . $gwHost . '" not found in hosts declarations.');
