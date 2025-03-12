@@ -39,12 +39,14 @@ are automatically configured on each machine.
 * **enableNcps** `bool` Enable the proxy cache for packages
 * **enableHomepage** `bool` Enable the auto-configured homepage service
 * **enableForgejo** `bool` Enable pre-configured forgejo git forge service
+* **enableLldap** `bool` Enable pre-configured lldap service (additional users &amp; groups)
 ```nix
 darkone.host.gateway = {
   enable = false;
   enableNcps = builtins.elem "ncps" gateway.services;
   enableHomepage = builtins.elem "homepage" gateway.services;
   enableForgejo = builtins.elem "forgejo" gateway.services;
+  enableLldap = builtins.elem "lldap" gateway.services;
 }
 
 ```
@@ -445,10 +447,12 @@ Forgejo (git forge) full-configured service.
 
 * **enable** `bool` Enable local forgejo service
 * **domainName** `str` Domain name for the forge, registered in forgejo, nginx &amp; hosts
+* **appName** `str` Default title for the local GIT forge
 ```nix
 darkone.service.forgejo = {
   enable = false;
   domainName = "forgejo";
+  appName = "The local forge";
 }
 
 ```
@@ -495,6 +499,24 @@ darkone.service.httpd = {
   enable = false;
   enableUserDir = false;
   enablePhp = false;
+}
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.lldap
+
+Pre-configured lldap configuration for users and groups.
+
+* **enable** `bool` Enable local lldap service
+* **openLdapPort** `bool` Open the lldap port (default is 3890)
+* **domainName** `str` Domain name for lldap, registered in forgejo, nginx &amp; hosts
+```nix
+darkone.service.lldap = {
+  enable = false;
+  openLdapPort = false;
+  domainName = "users";
 }
 
 ```

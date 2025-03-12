@@ -19,6 +19,12 @@
       dhcp-range = [ "192.168.1.100,192.168.1.230,24h" ];
       dhcp-extra-option = [ "option:ntp-server,191.168.1.1" ];
     };
+    services = [
+      "homepage"
+      "ncps"
+      "forgejo"
+      "lldap"
+    ];
   };
   extraDnsmasqSettings = {
     dhcp-host = [

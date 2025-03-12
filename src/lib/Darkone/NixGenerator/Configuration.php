@@ -345,7 +345,7 @@ class Configuration extends NixAttrSet
     public function loadNetwork(array $config): Configuration
     {
         $this->networkConfig = $this->extraNetwork->registerNetworkConfig($config['network'] ?? [])->getConfig();
-        if (isset($this->networkConfig['gateway']['hostname']['lan'])) {
+        if (isset($this->networkConfig['gateway']['hostname']) && isset($this->networkConfig['gateway']['lan']['ip'])) {
             $gwHost = $this->networkConfig['gateway']['hostname'];
             if (!isset($this->hosts[$gwHost])) {
                 throw new NixException('Gateway host "' . $gwHost . '" not found in hosts declarations.');

@@ -36,6 +36,11 @@ in
       default = builtins.elem "forgejo" gateway.services;
       description = "Enable pre-configured forgejo git forge service";
     };
+    darkone.host.gateway.enableLldap = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.elem "lldap" gateway.services;
+      description = "Enable pre-configured lldap service (additional users & groups)";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -49,6 +54,7 @@ in
       ncps.enable = cfg.enableNcps;
       forgejo.enable = cfg.enableForgejo;
       homepage.enable = cfg.enableHomepage;
+      lldap.enable = cfg.enableLldap;
     };
   };
 }

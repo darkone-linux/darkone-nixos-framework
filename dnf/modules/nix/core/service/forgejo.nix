@@ -21,14 +21,19 @@ in
       default = "forgejo";
       description = "Domain name for the forge, registered in forgejo, nginx & hosts";
     };
+    darkone.service.forgejo.appName = lib.mkOption {
+      type = lib.types.str;
+      default = "The local forge";
+      description = "Default title for the local GIT forge";
+    };
   };
 
   config = lib.mkIf cfg.enable {
 
-    # Create a virtualhost for forgejo
+    # Virtualhost for forgejo
     services.nginx = {
       enable = lib.mkForce true;
-      virtualHosts.${srv.DOMAIN} = {
+      virtualHosts.${cfg.domainName} = {
         extraConfig = ''
           client_max_body_size 512M;
         '';
@@ -37,7 +42,7 @@ in
     };
 
     # Add forgejo domain to /etc/hosts
-    networking.hosts."${host.ip}" = lib.mkIf config.services.dnsmasq.enable [ "${srv.DOMAIN}" ];
+    networking.hosts."${host.ip}" = lib.mkIf config.services.dnsmasq.enable [ "${cfg.domainName}" ];
 
     services.forgejo = {
       enable = true;
@@ -45,15 +50,15 @@ in
       lfs.enable = true;
       settings = {
         server = {
-          DOMAIN = cfg.domainName;
+          DOMAIN = "localhost";
 
           # You need to specify this to remove the port from URLs in the web UI.
-          ROOT_URL = "http://${srv.DOMAIN}/";
+          ROOT_URL = "http://${cfg.domainName}/";
           HTTP_PORT = 3000;
           LANDING_PAGE = "explore";
         };
         DEFAULT = {
-          APP_NAME = "La forge de Darkone";
+          APP_NAME = cfg.appName;
         };
 
         # You can temporarily allow registration to create an admin user.
