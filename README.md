@@ -5,9 +5,11 @@ Une configuration NixOS multi-utilisateur, multi-host.
 > [!WARNING]
 > Après de nombreuses heures d'utilisation, il apparaît que Colmena et Deploy-rs ne répondent pas
 > à une gestion de postes NixOS à large échelle. Je vais remplacer la configuration colmena actuelle
-> par un équivalent non-nix, certainement salt, pour administrer de nombreux postes en parallèle.
+> par un équivalent non-nix, certainement [salt](https://github.com/saltstack/salt), pour administrer de nombreux postes en parallèle.
 > Enfin, je ferai également en sorte de pouvoir builder et switcher chaque poste indépendemment au
 > besoin, plutôt qu'être tributaire de la machine maître.
+> 
+> ![Archi prévisionnelle avec Salt](doc/src/assets/new-network-architecture-black-tr.png)
 
 > [!NOTE]
 > A [documentation](https://darkone-linux.github.io) is available.
