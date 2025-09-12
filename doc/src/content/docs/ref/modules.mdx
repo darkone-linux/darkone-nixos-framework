@@ -39,12 +39,16 @@ are automatically configured on each machine.
 * **enableNcps** `bool` Enable the proxy cache for packages
 * **enableHomepage** `bool` Enable the auto-configured homepage service
 * **enableForgejo** `bool` Enable pre-configured forgejo git forge service
+* **enableLldap** `bool` Enable pre-configured lldap service (additional users &amp; groups)
+* **enableAdguardhome** `bool` Enable pre-configured Aguard Home service
 ```nix
 darkone.host.gateway = {
   enable = false;
   enableNcps = builtins.elem "ncps" gateway.services;
   enableHomepage = builtins.elem "homepage" gateway.services;
   enableForgejo = builtins.elem "forgejo" gateway.services;
+  enableLldap = builtins.elem "lldap" gateway.services;
+  enableAdguardhome = builtins.elem "adguardhome" gateway.services;
 }
 
 ```
@@ -411,6 +415,26 @@ darkone.graphic.virtualbox = {
 
 <hr/>
 
+### &#x1F48E; darkone.service.adguardhome
+
+Pre-configured adguard-home for local gateway / router.
+
+:::note
+This configuration reads the `network` conf in `config.yaml` file.
+:::
+
+* **enable** `bool` Enable local adguardhome service
+* **domainName** `str` Domain name for Adguard Home, registered in nginx &amp; hosts
+```nix
+darkone.service.adguardhome = {
+  enable = false;
+  domainName = "adguardhome";
+}
+
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.service.audio
 
 Audio services: alsa, pulse (not jack for the moment).
@@ -445,10 +469,12 @@ Forgejo (git forge) full-configured service.
 
 * **enable** `bool` Enable local forgejo service
 * **domainName** `str` Domain name for the forge, registered in forgejo, nginx &amp; hosts
+* **appName** `str` Default title for the local GIT forge
 ```nix
 darkone.service.forgejo = {
   enable = false;
   domainName = "forgejo";
+  appName = "The local forge";
 }
 
 ```
@@ -473,10 +499,12 @@ Automatically configured homepage dashboard for your local network (wip).
 
 * **enable** `bool` Enable homepage dashboard + nginx + host
 * **domainName** `str` Domain name for homepage, registered in nginx &amp; hosts
+* **adminServices** `?` Services à ajouter dans la section Administration
 ```nix
 darkone.service.homepage = {
   enable = false;
   domainName = "home";
+  adminServices = [ ];
 }
 
 ```
@@ -495,6 +523,44 @@ darkone.service.httpd = {
   enable = false;
   enableUserDir = false;
   enablePhp = false;
+}
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.immich
+
+Immich (photo management) full-configured service.
+
+* **enable** `bool` Enable local immich service
+* **domainName** `str` Domain name for immich, registered in nginx &amp; hosts
+* **enable** `bool` Enable machine learning features (face recognition, object detection)
+* **enable** `bool` Enable Redis for caching (recommended for performance)
+```nix
+darkone.service.immich = {
+  enable = false;
+  domainName = "immich";
+  enable = false;
+  enable = false;
+}
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.lldap
+
+Pre-configured lldap configuration for users and groups.
+
+* **enable** `bool` Enable local lldap service
+* **openLdapPort** `bool` Open the lldap port (default is 3890)
+* **domainName** `str` Domain name for lldap, registered in forgejo, nginx &amp; hosts
+```nix
+darkone.service.lldap = {
+  enable = false;
+  openLdapPort = false;
+  domainName = "users";
 }
 
 ```
@@ -522,6 +588,26 @@ darkone.service.ncps = {
   isClient = false;
   dataPath = "/var/cache/ncps";
   extraOptions = { };
+}
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.nextcloud
+
+Nextcloud service full-configured service.
+
+* **enable** `bool` Enable local nextcloud service
+* **domainName** `str` Domain name for nextcloud, registered in nextcloud, nginx &amp; hosts
+* **adminUser** `str` Admin username for Nextcloud
+* **adminPassword** `str` Admin password for Nextcloud (change this!)
+```nix
+darkone.service.nextcloud = {
+  enable = false;
+  domainName = "nextcloud";
+  adminUser = "admin";
+  adminPassword = "changeme";
 }
 
 ```
@@ -564,6 +650,7 @@ This module is enabled by default (required by DNF configuration).
 * **enableFirewall** `bool` Enable firewall (default true)
 * **enableGatewayClient** `bool` Configuration optimized for local gateway (ncps client...)
 * **enableBoost** `bool` Enable overclocking, corectl
+* **enableKmscon** `bool` Enable nerd font for TTY
 ```nix
 darkone.system.core = {
   enable = true;
@@ -572,6 +659,7 @@ darkone.system.core = {
   enableFirewall = true;
   enableGatewayClient = true;
   enableBoost = false;
+  enableKmscon = false;
 }
 
 ```
