@@ -54,6 +54,11 @@ in
       default = false;
       description = "Enable overclocking, corectl";
     };
+    darkone.system.core.enableKmscon = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Enable nerd font for TTY";
+    };
   };
 
   # Useful man & nix documentation
@@ -81,7 +86,7 @@ in
     fonts.fontconfig.enable = true;
 
     # Nerd font for TTY
-    services.kmscon = {
+    services.kmscon = lib.mkIf cfg.enableKmscon {
       enable = true;
       fonts = [
         {
@@ -104,20 +109,6 @@ in
         formatted = builtins.concatStringsSep "\n" sortedUnique;
       in
       formatted;
-
-    # Sops
-    sops = {
-      defaultSopsFile = ./../../../../../usr/secrets/passwd.yaml;
-      age = {
-        sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
-        keyFile = "/var/lib/sops-nix/key.txt";
-        generateKey = true;
-      };
-      secrets.default-pass = {
-        mode = "0440";
-        inherit (config.users.users.nobody) group;
-      };
-    };
 
     # Overclocking & performance optimisations (WIP)
     programs.corectrl = lib.mkIf cfg.enableBoost {

@@ -110,7 +110,6 @@ network:
     hostname: "gateway"
     wan:
       interface: "eth0"
-      gateway: "192.168.0.1"
     lan:
       interfaces: ["enu1u4"]
 ```
@@ -127,7 +126,6 @@ network:
     hostname: "gateway"
     wan:
       interface: "eth0"
-      gateway: "192.168.0.1"
     lan:
       interfaces: ["enu1u4", "wlan0"]
       ip: "192.168.1.1"
@@ -452,7 +450,6 @@ A more complete version:
     enable = true;
     wan = {
       interface = "eth0";
-      gateway = "192.168.0.1"; # optional
     };
     lan = {
       interfaces = [ "wlan0" "enu1u4" ]; # wlan must be an AP

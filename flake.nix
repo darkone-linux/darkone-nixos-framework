@@ -12,8 +12,9 @@
   };
 
   inputs = {
+
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-24.11";
+    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-25.05";
 
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
@@ -29,9 +30,6 @@
     nixos-hardware = {
       url = "github:NixOS/nixos-hardware/master";
     };
-
-    sops-nix.url = "github:Mic92/sops-nix";
-    sops-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
@@ -40,10 +38,8 @@
       nixpkgs,
       nixpkgs-stable,
       home-manager,
-      colmena,
       raspberry-pi-nix,
       nixos-hardware,
-      sops-nix,
       ...
     }:
     let
@@ -113,7 +109,8 @@
         value = {
           inherit host;
           inherit network;
-        } // mkCommonNodeArgs (getHostArch host);
+        }
+        // mkCommonNodeArgs (getHostArch host);
       };
       nodeSpecialArgs = builtins.listToAttrs (map mkNodeSpecialArgs hosts);
 
@@ -121,45 +118,43 @@
         name = host.hostname;
         value = host.colmena // {
           nixpkgs.system = getHostArch host;
-          imports =
-            [
-              ./dnf/modules/nix
-              ./usr/modules/nix
-              "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
-              sops-nix.nixosModules.sops
-              home-manager.nixosModules.home-manager
-              {
-                home-manager = {
-                  # Use global packages from nixpkgs
-                  useGlobalPkgs = true;
+          imports = [
+            ./dnf/modules/nix
+            ./usr/modules/nix
+            "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+            home-manager.nixosModules.home-manager
+            {
+              home-manager = {
+                # Use global packages from nixpkgs
+                useGlobalPkgs = true;
 
-                  # Install in /etc/profiles instead of ~/nix-profiles.
-                  useUserPackages = true;
+                # Install in /etc/profiles instead of ~/nix-profiles.
+                useUserPackages = true;
 
-                  # Avoid error on replacing a file (.zshrc for example)
-                  # LIMITATION: if bkp file already exists -> fail
-                  backupFileExtension = "bkp";
+                # Avoid error on replacing a file (.zshrc for example)
+                # LIMITATION: if bkp file already exists -> fail
+                backupFileExtension = "bkp";
 
-                  # Load users profiles
-                  users = builtins.listToAttrs (map mkHome host.users);
+                # Load users profiles
+                users = builtins.listToAttrs (map mkHome host.users);
 
-                  extraSpecialArgs = {
-                    inherit network;
-                    inherit host;
-                    inherit users;
-                    system = getHostArch host;
-                    pkgs-stable = nixpkgsStableFor.${getHostArch host};
-                  };
+                extraSpecialArgs = {
+                  inherit network;
+                  inherit host;
+                  inherit users;
+                  system = getHostArch host;
+                  pkgs-stable = nixpkgsStableFor.${getHostArch host};
                 };
-              }
-            ]
-            ++ nixpkgs.lib.optional (
-              getHostArch host == "aarch64-linux"
-            ) raspberry-pi-nix.nixosModules.raspberry-pi
-            ++ nixpkgs.lib.optional (
-              getHostArch host == "aarch64-linux"
-            ) nixos-hardware.nixosModules.raspberry-pi-5
-            ++ nixpkgs.lib.optional (builtins.pathExists ./usr/machines/${host.hostname}) ./usr/machines/${host.hostname};
+              };
+            }
+          ]
+          ++ nixpkgs.lib.optional (
+            getHostArch host == "aarch64-linux"
+          ) raspberry-pi-nix.nixosModules.raspberry-pi
+          ++ nixpkgs.lib.optional (
+            getHostArch host == "aarch64-linux"
+          ) nixos-hardware.nixosModules.raspberry-pi-5
+          ++ nixpkgs.lib.optional (builtins.pathExists ./usr/machines/${host.hostname}) ./usr/machines/${host.hostname};
         };
       };
 
@@ -197,7 +192,8 @@
           replaceUnknownProfiles = true;
           targetUser = "nix";
         };
-      } // builtins.listToAttrs (map mkHost hosts);
+      }
+      // builtins.listToAttrs (map mkHost hosts);
 
       # Iso image for first install DNF system
       # nix build .#nixosConfigurations.iso.config.system.build.isoImage

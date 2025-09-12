@@ -44,6 +44,17 @@ in
     # Add forgejo domain to /etc/hosts
     networking.hosts."${host.ip}" = lib.mkIf config.services.dnsmasq.enable [ "${cfg.domainName}" ];
 
+    # Add forgejo in Administration section of homepage
+    darkone.service.homepage.adminServices = [
+      {
+        "Forgejo" = {
+          description = "Forge GIT locale";
+          href = "http://forgejo";
+          icon = "sh-forgejo";
+        };
+      }
+    ];
+
     services.forgejo = {
       enable = true;
       database.type = "postgres";

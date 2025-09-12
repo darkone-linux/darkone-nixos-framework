@@ -50,7 +50,7 @@ in
             klavaro
             maxima # math
             octaveFull # math
-            sage # math
+            #sage # math
             scilab-bin # math
             #solfege
             verbiste

@@ -16,14 +16,17 @@
     ./core/graphic/video.nix
     ./core/graphic/virt-manager.nix
     ./core/graphic/virtualbox.nix
+    ./core/service/adguardhome.nix
     ./core/service/audio.nix
     ./core/service/dnsmasq.nix
     ./core/service/forgejo.nix
     ./core/service/home-assistant.nix
     ./core/service/homepage.nix
     ./core/service/httpd.nix
+    ./core/service/immich.nix
     ./core/service/lldap.nix
     ./core/service/ncps.nix
+    ./core/service/nextcloud.nix
     ./core/service/printing.nix
     ./core/system/core.nix
     ./core/system/documentation.nix

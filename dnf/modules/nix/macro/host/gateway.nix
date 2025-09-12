@@ -41,6 +41,11 @@ in
       default = builtins.elem "lldap" gateway.services;
       description = "Enable pre-configured lldap service (additional users & groups)";
     };
+    darkone.host.gateway.enableAdguardhome = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.elem "adguardhome" gateway.services;
+      description = "Enable pre-configured Aguard Home service";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -55,6 +60,7 @@ in
       forgejo.enable = cfg.enableForgejo;
       homepage.enable = cfg.enableHomepage;
       lldap.enable = cfg.enableLldap;
+      adguardhome.enable = cfg.enableAdguardhome;
     };
   };
 }

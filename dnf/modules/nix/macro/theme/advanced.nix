@@ -11,17 +11,31 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # System additional features
-    darkone.system.documentation.enable = lib.mkDefault true;
+    # DNF Modules
+    darkone = {
 
-    # Console additional features
-    darkone.console.git.enable = lib.mkDefault true;
-    darkone.console.pandoc.enable = lib.mkDefault false;
-    darkone.console.zsh.enable = lib.mkDefault true;
-    darkone.console.packages.enable = lib.mkDefault true;
-    darkone.console.packages.enableAdditional = lib.mkDefault true;
+      # System additional features
+      system.documentation.enable = lib.mkDefault true;
 
-    # Daemons
-    darkone.service.httpd.enable = lib.mkDefault false;
+      # Console additional features
+      console = {
+        git.enable = lib.mkDefault true;
+        pandoc.enable = lib.mkDefault false;
+        zsh.enable = lib.mkDefault true;
+        packages.enable = lib.mkDefault true;
+        packages.enableAdditional = lib.mkDefault true;
+      };
+
+      # Daemons
+      service.httpd.enable = lib.mkDefault false;
+    };
+
+    # Additional tools
+    programs = {
+      iotop.enable = lib.mkDefault true;
+      less.enable = lib.mkDefault true;
+      htop.enable = lib.mkDefault true;
+      bat.enable = lib.mkDefault true;
+    };
   };
 }

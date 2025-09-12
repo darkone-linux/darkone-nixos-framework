@@ -33,17 +33,6 @@ in
       # No IPv6 for the moment
       enableIPv6 = false;
 
-      # Main configuration
-      defaultGateway = {
-        address = gateway.wan.gateway;
-        interface = wanInterface;
-      };
-      nameservers = [
-        gateway.wan.gateway
-        "8.8.8.8"
-        "8.8.4.4"
-      ];
-
       # We need a bridge for dnsmasq settings
       bridges.${lanInterface}.interfaces = network.gateway.lan.interfaces;
 
@@ -57,6 +46,7 @@ in
 
       # DHCP Clients
       useDHCP = false;
+      useNetworkd = true;
       interfaces = {
         ${wanInterface}.useDHCP = true;
         ${lanInterface} = {
@@ -81,18 +71,46 @@ in
           allowedTCPPorts = [
             22
             53
-          ] ++ lib.optional config.services.nginx.enable 80;
+            5353
+          ]
+          ++ lib.optional config.services.nginx.enable 80;
           allowedUDPPorts = [
             53
+            5353
             67
             68
           ];
         };
       };
 
-      # /etc/hosts
-      inherit (extraNetworking) hosts;
+      # /etc/hosts + avoid additional loopback entries in 127.0.0.2
+      hosts = (extraNetworking.hosts or { }) // {
+        "127.0.0.2" = lib.mkForce [ ];
+      };
     };
+
+    # lan0 bridge must be created before starting dnsmasq
+    systemd.services.dnsmasq = {
+      wants = [
+        "network-online.target"
+        "sys-subsystem-net-devices-${lanInterface}.device"
+      ];
+      after = [
+        "network-online.target"
+        "sys-subsystem-net-devices-${lanInterface}.device"
+      ];
+      bindsTo = [ "sys-subsystem-net-devices-${lanInterface}.device" ];
+    };
+
+    # Required for network-online.target
+    systemd.network.wait-online = {
+      enable = true;
+      anyInterface = true;
+      timeout = 30;
+    };
+
+    # No resolved service
+    services.resolved.enable = false;
 
     services.dnsmasq = {
       enable = true;
@@ -104,6 +122,9 @@ in
         bind-interfaces = true;
         dhcp-authoritative = true;
         no-dhcp-interface = "lo";
+
+        # Utiliser un port DNS différent si adguardhome est activé
+        port = if config.darkone.service.adguardhome.enable then 5353 else 53;
 
         # Prends dans /etc/hosts les ips qui matchent le réseau en priorité
         localise-queries = true;
@@ -124,8 +145,13 @@ in
         domain-needed = true;
 
         # Serveurs de nom
-        server = config.networking.nameservers;
-      } // extraDnsmasqSettings;
+        server =
+          if config.darkone.service.adguardhome.enable then
+            [ "127.0.0.1#5353" ]
+          else
+            config.networking.nameservers;
+      }
+      // extraDnsmasqSettings;
     };
   };
 }

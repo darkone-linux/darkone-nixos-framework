@@ -1,7 +1,5 @@
 # Automatically configured homepage dashboard for your local network (wip).
 
-# TODO: configure
-
 {
   lib,
   config,
@@ -22,6 +20,11 @@ in
       type = lib.types.str;
       default = "home";
       description = "Domain name for homepage, registered in nginx & hosts";
+    };
+    darkone.service.homepage.adminServices = lib.mkOption {
+      type = lib.types.listOf lib.types.attrs;
+      default = [ ];
+      description = "Services à ajouter dans la section Administration";
     };
   };
 
@@ -115,19 +118,7 @@ in
       ];
 
       # https://gethomepage.dev/latest/configs/services/
-      services = [
-        {
-          "Development" = [
-            {
-              "Forgejo" = {
-                description = "Forgejo";
-                href = "http://forgejo";
-                icon = "sh-forgejo";
-              };
-            }
-          ];
-        }
-      ];
+      services = [ { "Administration" = cfg.adminServices; } ];
 
       # https://gethomepage.dev/latest/configs/service-widgets/
       widgets = [

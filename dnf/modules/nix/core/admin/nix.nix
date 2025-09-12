@@ -29,12 +29,6 @@ in
       wakeonlan
     ];
 
-    # Optimized switch (perl -> rust)
-    system.switch = {
-      enable = false;
-      enableNg = true;
-    };
-
     # Allow unfree packages
     nixpkgs.config.allowUnfree = true;
 
@@ -45,8 +39,10 @@ in
     ];
 
     # We trust users to allow send configurations
+    # nix --extra-experimental-features nix-command config show | grep trusted
     nix.settings.trusted-users = [
       "root"
+      "nix"
       "@wheel"
     ];
 
@@ -68,7 +64,7 @@ in
     };
     environment.shellAliases = lib.mkIf cfg.enable { rebuild = "nh os switch /etc/nixos/"; };
 
-    # We need ssh agent to deploy nodes
-    programs.ssh.startAgent = true;
+    # We need an ssh agent to deploy nodes
+    programs.ssh.startAgent = !config.services.gnome.gcr-ssh-agent.enable;
   };
 }

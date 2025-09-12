@@ -47,6 +47,7 @@ in
     # Add local gw to substituters.
     # Check with nix --extra-experimental-features nix-command show-config | grep substituters
     nix.settings = {
+
       substituters = [ "http://${network.gateway.hostname}:8501" ];
       trusted-public-keys = [ "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=" ];
     };

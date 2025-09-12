@@ -98,9 +98,9 @@ class Configuration extends NixAttrSet
             self::assert(self::TYPE_STRING, $lldapConfig['bind']['user'] ?? null, "A valid lldap bind user is required", '#^[a-zA-Z][a-zA-Z0-9_-]+$#');
             self::assert(self::TYPE_STRING, $lldapConfig['bind']['passwordFile'] ?? null, "A valid lldap password file is required");
             $pwdFile = (NIX_PROJECT_ROOT ? NIX_PROJECT_ROOT . '/usr/secrets/' : '') . $lldapConfig['bind']['passwordFile'];
-            //if (!file_exists($pwdFile)) {
-            //    throw new NixException('LLDAP password file "' . $pwdFile . '" not found.');
-            //}
+            if (!file_exists($pwdFile)) {
+                throw new NixException('LLDAP password file "' . $pwdFile . '" not found.');
+            }
         }
     }
 

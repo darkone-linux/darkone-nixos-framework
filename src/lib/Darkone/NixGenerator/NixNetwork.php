@@ -198,12 +198,6 @@ class NixNetwork
             null,
             Configuration::TYPE_STRING
         );
-        Configuration::assert(
-            Configuration::TYPE_STRING,
-            $gateway['wan']['gateway'] ?? null,
-            'A WAN ipv4 gateway is required',
-            Configuration::REGEX_IPV4
-        );
     }
 
     public function getHostIp(string $host): ?string

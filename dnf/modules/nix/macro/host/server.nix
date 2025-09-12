@@ -67,23 +67,22 @@ in
       enableEmergencyMode = false;
 
       # https://0pointer.de/blog/projects/watchdog.html
-      watchdog = lib.mkIf cfg.enableWatchdog {
+      settings.Manager = lib.mkIf cfg.enableWatchdog {
 
         # systemd will send a signal to the hardware watchdog at half
         # the interval defined here, so every 15s.
         # If the hardware watchdog does not get a signal for 30s,
         # it will forcefully reboot the system.
-        runtimeTime = "30s";
+        RuntimeWatchdogSec = "30s";
 
         # Forcefully reboot if the final stage of the reboot
         # hangs without progress for more than 60s.
         # https://utcc.utoronto.ca/~cks/space/blog/linux/SystemdShutdownWatchdog
-        rebootTime = "60s";
+        RebootWatchdogSec = "60s";
 
         # Forcefully reboot when a host hangs after kexec.
         # This may be the case when the firmware does not support kexec.
-        kexecTime = "1m";
-
+        KExecWatchdogSec = "1m";
       };
 
       # No sleep

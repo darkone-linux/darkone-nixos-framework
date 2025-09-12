@@ -1,14 +1,29 @@
 { pkgs, ... }:
 {
+  # Useful vim tools
+  home.packages = with pkgs; [
+    nodejs_24 # CoC
+  ];
+
   # TODO vim common module
   # Conf complète : https://github.com/jagajaga/my_configs/blob/master/.nixpkgs/vimrc.nix
   programs.vim = {
     enable = true;
     defaultEditor = true; # Define EDITOR envvar
+
+    # Vim plugins
     plugins = with pkgs.vimPlugins; [
       #vim-airline
       LazyVim
-      YouCompleteMe
+      coc-fzf
+      coc-git
+      coc-html
+      coc-json
+      coc-markdownlint
+      coc-nvim
+      coc-pairs
+      coc-sh
+      coc-yaml
       ctrlp-vim
       emmet-vim
       fzf-vim
@@ -23,10 +38,13 @@
       vim-just
       vim-lastplace
       vim-nix
+      vim-polyglot
     ];
+
     settings = {
       ignorecase = true;
     };
+
     extraConfig = ''
       set mouse=a
 
@@ -120,16 +138,42 @@
       map <space> /
       map <C-space> ?
 
-      " Visual mode pressing - or + searches for the current selection
-      " (only with nvim?)
-      "vnoremap <silent> - :call VisualSelection('f')<CR>
-      "vnoremap <silent> + :call VisualSelection('b')<CR>
-
       " Nerd tree
       nnoremap <leader>n :NERDTreeFocus<CR>
       nnoremap <C-n> :NERDTree<CR>
       nnoremap <C-t> :NERDTreeToggle<CR>
       nnoremap <C-f> :NERDTreeFind<CR>
+
+      " Configuration CoC
+      set hidden
+      set nobackup
+      set nowritebackup
+      set cmdheight=2
+      set updatetime=300
+      set shortmess+=c
+      set signcolumn=yes
+
+      " Navigation
+      nmap <silent> gd <Plug>(coc-definition)
+      nmap <silent> gy <Plug>(coc-type-definition)
+      nmap <silent> gi <Plug>(coc-implementation)
+      nmap <silent> gr <Plug>(coc-references)
+
+      " Auto-completion with Tab
+      inoremap <silent><expr> <TAB>
+        \ pumvisible() ? "\<C-n>" :
+        \ <SID>check_back_space() ? "\<TAB>" :
+        \ coc#refresh()
+      inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"      
+
+      function! s:check_back_space() abort
+        let col = col('.') - 1
+        return !col || getline('.')[col - 1]  =~# '\s'
+      endfunction
+
+      " Formatting du code
+      xmap <leader>f  <Plug>(coc-format-selected)
+      nmap <leader>f  <Plug>(coc-format-selected)
     '';
   };
 
