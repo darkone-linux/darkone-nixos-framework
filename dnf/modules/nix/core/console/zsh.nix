@@ -60,5 +60,26 @@ in
 
     # Set zsh as the default shell
     users.defaultUserShell = pkgs.zsh;
+
+    # ZSH minimal configuration for root
+    home-manager.users.root = {
+      home.stateVersion = "25.05";
+      programs.zsh = {
+        enable = true;
+        autocd = true;
+        plugins = [
+          {
+            name = "powerlevel10k-config";
+            src = ../../../../dotfiles;
+            file = "p10k.zsh";
+          }
+          {
+            name = "zsh-powerlevel10k";
+            src = "${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/";
+            file = "powerlevel10k.zsh-theme";
+          }
+        ];
+      };
+    };
   };
 }

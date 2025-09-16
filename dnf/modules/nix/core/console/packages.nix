@@ -19,9 +19,12 @@ in
     systemPackages =
       with pkgs;
       [
-        vim
+        git
         less
+        tree
         unzip
+        vim
+        wget
         zip
       ]
       ++ (
@@ -29,12 +32,9 @@ in
           [
             findutils # locate
             fzf
-            git
             htop
             neofetch
             ranger
-            tree
-            wget
           ]
         else
           [ ]

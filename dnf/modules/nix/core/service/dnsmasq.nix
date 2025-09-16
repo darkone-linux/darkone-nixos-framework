@@ -64,6 +64,7 @@ in
       # 53 -> DNS
       # 67, 68 -> DHCP
       # 80 -> homepage / nginx
+      # 8501 -> packages proxy (ncps)
       firewall = {
         enable = true;
         allowPing = true;
@@ -73,7 +74,8 @@ in
             53
             5353
           ]
-          ++ lib.optional config.services.nginx.enable 80;
+          ++ lib.optional config.services.nginx.enable 80
+          ++ lib.optional config.darkone.service.ncps.enable 8501;
           allowedUDPPorts = [
             53
             5353

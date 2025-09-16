@@ -182,7 +182,7 @@ apply on what='switch':
 # Apply with build-on-target + force repl. unk profiles
 [group('apply')]
 apply-force on what='switch':
-	colmena apply --eval-node-limit 3 --evaluator streaming --build-on-target --force-replace-unknown-profiles "{{on}}" {{what}}
+	colmena apply --eval-node-limit 3 --evaluator streaming --build-on-target --force-replace-unknown-profiles --on "{{on}}" {{what}}
 
 # Apply force with verbose options
 [group('apply')]

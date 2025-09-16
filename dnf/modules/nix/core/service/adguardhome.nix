@@ -61,7 +61,7 @@ in
       allowDHCP = false;
 
       # Default host + port, target for nginx
-      port = 3003;
+      port = 3083;
       host = "127.0.0.1";
 
       # Allow changes made on the AdGuard Home web interface to persist between service restarts.

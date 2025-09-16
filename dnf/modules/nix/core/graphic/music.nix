@@ -29,7 +29,9 @@ in
         audacity
         hydrogen
         lame
-        lmms
+
+        # lmms # Erreur de compilation avec pyliblo3 + overide python 312 ne fonctionne pas
+
         mixxx
         mpg123
         mpv

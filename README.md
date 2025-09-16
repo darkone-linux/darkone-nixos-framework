@@ -8,7 +8,7 @@ Une configuration NixOS multi-utilisateur, multi-host.
 > par un équivalent non-nix, certainement [salt](https://github.com/saltstack/salt), pour administrer de nombreux postes en parallèle.
 > Enfin, je ferai également en sorte de pouvoir builder et switcher chaque poste indépendemment au
 > besoin, plutôt qu'être tributaire de la machine maître.
-> 
+>
 > ![Archi prévisionnelle avec Salt](doc/src/assets/new-network-architecture-black-tr.png)
 
 > [!NOTE]
@@ -146,6 +146,20 @@ Elle contient un serveur DHCP + DNS auto-configurés avec tous les postes décla
 
 ```yaml
 # usr/config.yaml
+network:
+  domain: "arthur.lan"
+  locale: "fr_FR.UTF-8"
+  timezone: "America/Miquelon"
+  gateway:
+    hostname: "gateway" # required (if a gateway exists)
+    wan:
+      interface: "enp1s0" # required
+    lan:
+      interfaces: ["enp2s0", "wlo1", "wlp0s20f0u1"] # required
+      ip: "192.168.1.1"
+      prefixLength: 24
+      dhcp-range:
+        - "192.168.1.200,192.168.1.230,24h"
 
 hosts:
     static:
@@ -153,67 +167,6 @@ hosts:
           name: "Local Gateway"
           profile: local-gateway
           groups: [ "nix-admin" ]
-```
-
-
-```nix
-# usr/modules/nix/host/local-gateway.nix
-
-{ lib, config, ... }:
-let
-  cfg = config.darkone.host.local-gateway;
-in
-{
-  options = {
-    darkone.host.local-gateway.enable = lib.mkEnableOption "My local gateway";
-  };
-
-  config = lib.mkIf cfg.enable {
-    darkone.host.gateway = {
-      enable = true;
-      wan.interface = "eth0";
-      lan.interfaces = [ "eth1" "eth2" ];
-    };
-  };
-}
-```
-
-Version plus complète :
-
-```nix
-# usr/modules/host/local-gateway.nix
-# ...
-darkone.host.gateway = {
-  enable = true;
-  wan = {
-    interface = "eth0";
-    gateway = "192.168.0.1"; # optional
-  };
-  lan = {
-    interfaces = [ "wlan0" "enu1u4" ]; # wlan must be an AP
-    bridgeIp = "192.168.1.1";
-    domain = "arthur.lan"; # optional (default is <hostname>.lan)
-    dhcp = { # optional
-      range = "192.168.1.100,192.168.1.230,24h";
-      extraHosts = [
-        "e8:ff:1e:d0:44:82,192.168.1.2,darkone,infinite"
-        "f0:1f:af:13:62:a5,192.168.1.3,laptop,infinite"
-      ];
-      extraOptions = [
-        "option:ntp-server,191.168.1.1"
-      ];
-    };
-    accessPoints = [
-      {
-        wlan0 = {
-          ssid = "Mon AP";
-          passphrase = "Un password";
-        };
-      }
-    ];
-  };
-};
-# ...
 ```
 
 Déploiement :
@@ -267,24 +220,22 @@ Available recipes:
 
 ### En cours
 
-- [ ] Homepage automatique en fonction des services activés.
-- [ ] Chaîne CI / CD pour la gestion de ce développement + tests unitaires.
-- [ ] [Nix Cache Proxy Server](https://github.com/kalbasit/ncps).
 - [ ] Gestion des mots de passe avec [sops](https://github.com/Mic92/sops-nix).
+- [ ] Gestion centralisée des utilisateurs avec [lldap](https://github.com/lldap/lldap).
+- [ ] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + synchronisation des home directories.
+- [ ] Passerelle : ajouter [adguard home](https://wiki.nixos.org/wiki/Adguard_Home).
 
 ### Planifié
 
-- [ ] Gestion centralisée des utilisateurs avec [lldap](https://github.com/lldap/lldap).
+- [ ] Configuration pour réseau extérieur (https, dns, vpn...)
+- [ ] Services distribués (aujourd'hui les services réseau sont sur la passerelle)
 - [ ] Intégration de [nixvim](https://nix-community.github.io/nixvim/).
 - [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
 - [ ] Attributions d'emails automatiques par réseaux.
 - [ ] Serveur de mails.
 - [ ] Générateur / gestionnaire d'UIDs (pour les grands réseaux).
-- [ ] Générateur automatique de documentation à partir des sources.
 - [ ] just clean: détecter les fails, les afficher et s'arrêter.
-- [ ] Passerelle : ajouter [adguard home](https://wiki.nixos.org/wiki/Adguard_Home).
-- [ ] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + synchronisation des home directories.
 - [ ] Sécurisation avec [fail2ban](https://github.com/fail2ban/fail2ban) ([module](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.fail2ban)).
 - [ ] Réseau social à voir : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost), [mastodon](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mastodon), [matrix](https://nixos.wiki/wiki/Matrix), [gotosocial](https://search.nixos.org/options?channel=24.11&from=0&size=50&sort=relevance&type=packages&query=services.gotosocial), [zulip](https://zulip.com/self-hosting/)...
 
@@ -308,6 +259,9 @@ Available recipes:
 - [x] Configuration multi-architecture (x86_64 & aarch64).
 - [x] Passerelle type (dhcp, dns, ap, firewall, adguard, AD, VPN).
 - [x] Documentation FR et EN.
+- [x] [Nix Cache Proxy Server](https://github.com/kalbasit/ncps).
+- [x] Homepage automatique en fonction des services activés.
+- [x] Générateur automatique de documentation à partir des sources.
 
 ### En pause
 

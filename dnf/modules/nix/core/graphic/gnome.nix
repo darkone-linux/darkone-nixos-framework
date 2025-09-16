@@ -62,8 +62,8 @@ in
         ];
       };
     };
-    services.xserver.displayManager.gdm.enable = cfg.enableGDM;
-    services.xserver.desktopManager.gnome.enable = true;
+    services.displayManager.gdm.enable = cfg.enableGDM;
+    services.desktopManager.gnome.enable = true;
 
     # Disable the GNOME3/GDM auto-suspend feature that cannot be disabled in GUI!
     # If no user is logged in, the machine will power down after 20 minutes.
