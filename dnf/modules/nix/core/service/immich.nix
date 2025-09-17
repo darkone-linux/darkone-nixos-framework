@@ -133,8 +133,19 @@ in
           # Optimize for CPU if no GPU available
           TRANSFORMERS_CACHE = "/var/lib/immich/cache/transformers";
           TORCH_HOME = "/var/lib/immich/cache/torch";
+
+          # Machine learning fix
+          # https://discourse.nixos.org/t/immich-machine-learning-not-working/69208
+          HF_XET_CACHE = "/var/cache/immich/huggingface-xet";
         };
       };
+    };
+
+    # Machine learning fix
+    # https://discourse.nixos.org/t/immich-machine-learning-not-working/69208
+    users.users.immich = {
+      home = "/var/lib/immich";
+      createHome = true;
     };
 
     # System packages needed for immich functionality
@@ -145,5 +156,15 @@ in
       postgresql
       redis
     ];
+
+    # Permet l'accès à /home (si les images sont dans des homes directories)
+    systemd.services = {
+      immich-server.serviceConfig = {
+        ProtectHome = lib.mkForce false;
+      };
+      immich-microservices.serviceConfig = {
+        ProtectHome = lib.mkForce false;
+      };
+    };
   };
 }
