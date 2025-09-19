@@ -14,5 +14,13 @@ in
 
     # Based on laptop configuration
     darkone.host.laptop.enable = lib.mkForce true;
+
+    # More hardware drivers
+    darkone.system.hardware = {
+      enable = true;
+      enableIntel = true;
+      enableAmd = true;
+    };
+    hardware.enableAllHardware = true;
   };
 }

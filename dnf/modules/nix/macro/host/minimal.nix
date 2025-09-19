@@ -18,6 +18,7 @@ in
 
     # Darkone main modules
     darkone.system = {
+      hardware.enable = true; # firmwares
       core.enableFirewall = lib.mkDefault true;
       i18n.enable = lib.mkDefault true;
     };

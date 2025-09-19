@@ -21,6 +21,11 @@ in
 
   options = {
     darkone.host.gateway.enable = lib.mkEnableOption "Enable gateway features for the current host (dhcp, dns, proxy, etc.).";
+    darkone.host.gateway.enableFail2ban = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Enable fail2ban service";
+    };
     darkone.host.gateway.enableNcps = lib.mkOption {
       type = lib.types.bool;
       default = builtins.elem "ncps" gateway.services;
@@ -62,5 +67,8 @@ in
       lldap.enable = cfg.enableLldap;
       adguardhome.enable = cfg.enableAdguardhome;
     };
+
+    # Fail2ban
+    services.fail2ban.enable = cfg.enableFail2ban;
   };
 }

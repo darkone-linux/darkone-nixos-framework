@@ -74,8 +74,9 @@ in
     networking.hostName = host.hostname;
     networking.firewall = {
       enable = cfg.enableFirewall;
-      allowedTCPPorts = [ 22 ];
-      allowedUDPPorts = [ ];
+      allowPing = lib.mkDefault true;
+      allowedTCPPorts = lib.mkDefault [ 22 ];
+      allowedUDPPorts = lib.mkDefault [ ];
     };
 
     # Enable the host profile

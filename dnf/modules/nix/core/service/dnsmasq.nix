@@ -67,7 +67,7 @@ in
       # 8501 -> packages proxy (ncps)
       firewall = {
         enable = true;
-        allowPing = true;
+        allowPing = lib.mkDefault true;
         interfaces.${lanInterface} = {
           allowedTCPPorts = [
             22
@@ -83,6 +83,20 @@ in
             68
           ];
         };
+
+        # No access from internet
+        interfaces.${wanInterface} = {
+          allowedTCPPorts = [ ];
+          allowedUDPPorts = [ ];
+        };
+        extraCommands = ''
+          # No ping on wan interface
+          iptables -A nixos-fw -i ${wanInterface} -p icmp --icmp-type echo-request -j DROP
+        '';
+        extraStopCommands = ''
+          # Extra rules cleans
+          iptables -D nixos-fw -i ${wanInterface} -p icmp --icmp-type echo-request -j DROP 2>/dev/null || true
+        '';
       };
 
       # /etc/hosts + avoid additional loopback entries in 127.0.0.2
