@@ -18,6 +18,8 @@ in
 
     # ZSH additional packages
     environment.systemPackages = with pkgs; [
+      eza
+      vim
       zsh
       zsh-powerlevel10k
       zsh-forgit
@@ -31,7 +33,9 @@ in
       autosuggestions.enable = true;
       syntaxHighlighting.enable = true;
       shellAliases = {
-        ll = "eza --icons -a --group-directories-first -1 --no-user --long";
+        la = "ls -la";
+        ll = "ls -l";
+        l = "eza --icons -a --group-directories-first -1 --no-user --long";
         vz = "vim `fzf`";
         nx = "cd /etc/nixos";
         nf = "nixfmt -s"; # Nix Format

@@ -13,6 +13,7 @@
     iw
     jq
     lsof
+    microfetch
     pciutils # lspci pcilmr setpci
     psmisc # killall, pstree, pslog, fuser...
     pv
