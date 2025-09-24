@@ -32,6 +32,7 @@
     ./core/system/documentation.nix
     ./core/system/hardware.nix
     ./core/system/i18n.nix
+    ./core/system/sops.nix
     ./core/user/build.nix
     ./macro/host/desktop.nix
     ./macro/host/gateway.nix

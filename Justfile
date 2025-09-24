@@ -3,11 +3,16 @@
 
 workDir := source_directory()
 dnfDir := home_directory() + '/dnf'
-
-# NOT WORKING FOR THE MOMENT
-# TODO: use this key with colmena
-nixKeyDir := workDir + '/var/security/ssh'
-nixKeyFile := nixKeyDir + '/id_ed25519_nix'
+secretsDir := workDir + '/usr/secrets'
+secretsGitIgnore := secretsDir + '/.gitignore'
+sopsSecretsFile := secretsDir + '/secrets.yaml'
+sopsAdminKeyDir := home_directory() + '/.config/sops/age'
+sopsAdminKeyFile := sopsAdminKeyDir + '/keys.txt'
+sopsInfraKeyFile := secretsDir + '/infra.key'
+sopsYamlFile := secretsDir + '/.sops.yaml'
+sopsInfraTargetDir := '/etc/sops/age'
+sopsInfraTargetFile := sopsInfraTargetDir + '/infra.key'
+generatedConfigFile := workDir + '/var/generated/config.yaml'
 
 alias c := clean
 alias f := fix
@@ -17,26 +22,17 @@ alias g := generate
 _default:
 	@just --list
 
-# Framework installation on local machine (builder)
+# Framework installation on local machine (builder / admin)
 [group('install')]
-install-local:
+install-admin-host:
 	#!/usr/bin/env bash
+	set -euo pipefail
 	if [ `whoami` != "nix" ]; then
 		echo "Only nix user can install and manage DNF configuration."
 		exit 1
 	fi
-	#if [ ! -d {{nixKeyDir}} ] ;then
-	#	echo "-> Creating {{nixKeyDir}} directory..."
-	#	mkdir -p {{nixKeyDir}}
-	#fi
-	#if [ ! -f {{nixKeyFile}} ] ;then
-	#  echo "-> Creating ssh keys..."
-	#	ssh-keygen -t ed25519 -f {{nixKeyFile}} -N ""
-	#else
-	#	echo "-> Maintenance ssh key already exists."
-	#fi
 	if [ ! -f ~/.ssh/id_ed25519 ] ;then
-	  echo "-> Creating ssh keys..."
+		echo "-> Creating ssh keys..."
 		ssh-keygen -t ed25519 -N ""
 	else
 		echo "-> Maintenance ssh key already exists."
@@ -47,7 +43,50 @@ install-local:
 	else
 		echo "-> Generator is ok."
 	fi
-	#ssh-add {{nixKeyFile}}
+	if [ ! -f {{secretsGitIgnore}} ] ;then
+		echo "-> [SOPS] Creating usr/secrets directory + gitignore..."
+		mkdir -p {{secretsDir}}
+		echo '*.key' > {{secretsGitIgnore}}
+	else
+		echo "-> [SOPS] usr/secrets/.gitignore file already exists."
+	fi
+	if [ ! -f {{sopsAdminKeyFile}} ] ;then
+		echo "-> [SOPS] Admin key file creation from ssh private key..."
+		mkdir -p {{sopsAdminKeyDir}}
+		ssh-to-age -private-key -i ~/.ssh/id_ed25519 > {{sopsAdminKeyFile}}
+	else
+		echo "-> [SOPS] Admin key file already exists."
+	fi
+	if [ ! -f {{sopsInfraKeyFile}} ] ;then
+		echo "-> [SOPS] Infra private key file generation..."
+		age-keygen -o {{sopsInfraKeyFile}}
+	else
+		echo "-> [SOPS] Infra key file already exists."
+	fi
+	if [ ! -f {{sopsYamlFile}} ] ;then
+		echo "-> [SOPS] .sops.yaml file generation..."
+		INF_PUB_KEY=$(age-keygen -y {{sopsInfraKeyFile}})
+		ADM_PUB_KEY=$(age-keygen -y {{sopsAdminKeyFile}})
+		[ -f {{sopsYamlFile}} ] || echo "{}" > {{sopsYamlFile}}
+		echo "keys:" > {{sopsYamlFile}}
+		echo "  - &nix ${ADM_PUB_KEY}" >> {{sopsYamlFile}}
+		echo "  - &infra ${INF_PUB_KEY}" >> {{sopsYamlFile}}
+		echo "creation_rules:" >> {{sopsYamlFile}}
+		echo "  - path_regex: \"[^/]+\\\\.yaml$\"" >> {{sopsYamlFile}}
+		echo "    key_groups:" >> {{sopsYamlFile}}
+		echo "    - age:" >> {{sopsYamlFile}}
+		echo "      - *nix" >> {{sopsYamlFile}}
+		echo "      - *infra" >> {{sopsYamlFile}}
+	else
+		echo "-> [SOPS] .sops.yaml file already exists."
+	fi
+	if [ ! -f {{sopsSecretsFile}} ] ;then
+		echo "-> [SOPS] We need a default password..."
+		just passwd-default
+		just push-key localhost
+	else
+		echo "-> [SOPS] Default secret file already exists."
+	fi
 	echo "-> Done"
 
 # format: fix + check + generate + format
@@ -138,15 +177,12 @@ develop:
 copy-id host:
 	#!/usr/bin/env bash
 	ssh-copy-id -f nix@{{host}}
-	ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@{{host}} 'echo "OK, it works! You can apply to {{host}}"'
-	#ssh-copy-id -i "{{nixKeyFile}}.pub" -t /home/nix/.ssh/authorized_keys nix@{{host}}
-	#ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes -i {{nixKeyFile}} nix@{{host}} 'echo "OK, it works! You can apply to {{host}}"'
+	ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@{{host}} 'echo "OK, it works! You can type \"just install {{host}}\" and apply to {{host}}"'
 
 # Interactive shell to the host
 [group('manage')]
 enter host:
 	ssh nix@{{host}}
-	#ssh -i {{nixKeyFile}} nix@{{host}}
 
 # Extract hardware config from host
 [group('install')]
@@ -161,6 +197,21 @@ copy-hw host:
 		echo "-> ERR: no hardware configuration found on {{host}}"
 	fi
 
+# Push the infrastructure key to the host
+[group('install')]
+push-key host:
+	#!/usr/bin/env bash
+	if [ ! -f {{sopsInfraKeyFile}} ] ;then
+		echo "Infra private key not found, you must do that from the admin host."
+		echo "If you are on the admin host, type 'just install-admin-host' before."
+		exit 1
+	fi
+	ssh nix@{{host}} 'sudo mkdir -p {{sopsInfraTargetDir}}'
+	ssh nix@{{host}} 'sudo chown -R nix {{sopsInfraTargetDir}}'
+	scp {{sopsInfraKeyFile}} nix@{{host}}:{{sopsInfraTargetFile}}
+	ssh nix@{{host}} 'sudo chown -R root {{sopsInfraTargetDir}}'
+	ssh nix@{{host}} 'sudo chmod 600 {{sopsInfraTargetFile}}'
+
 # New host: ssh cp id, extr. hw, clean, commit, apply
 [group('install')]
 install host:
@@ -168,11 +219,71 @@ install host:
 	@just copy-id {{host}}
 	@echo "-> Extracting hardware information..."
 	@just copy-hw {{host}}
+	@echo "-> Pushing infra key file..."
+	@just push-key {{host}}
 	@echo "-> Clean and commiting before apply..."
 	@just clean
-	git add . && git commit -m "Installing new host {{host}}"
-	@echo "-> First apply {{host}}..."
-	@just apply-force {{host}}
+	@echo "-> If not error occurs, do not forget to commit and apply:"
+	@echo "git add . && git commit -m 'Installing new host {{host}}'"
+	@echo "just apply-force {{host}}"
+
+# Update the default DNF password
+[group('install')]
+passwd-default:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	cd {{secretsDir}}
+	echo -n "New default DNF password: "
+	read -s PASSWORD
+	echo
+	echo -n "Please confirm: "
+	read -s PASSWORD_CONFIRM
+	echo
+	if [ "$PASSWORD" != "$PASSWORD_CONFIRM" ]; then
+		echo "Error: not corresponding."
+		exit 1
+	fi
+	if [ -f {{sopsSecretsFile}} ] ;then
+		sops -d -i {{sopsSecretsFile}}
+	else
+		echo "{}" >> {{sopsSecretsFile}}
+	fi
+	yq -y --arg pw "$PASSWORD" '."default-password" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
+	BCRYPT_HASH=$(mkpasswd --method=bcrypt --rounds=12 "$PASSWORD")
+	yq -y --arg pw "$BCRYPT_HASH" '."default-password-hash" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
+	sops -e -i {{sopsSecretsFile}}
+	if [ ! -f {{generatedConfigFile}} ] ;then
+		echo "{}" >> {{generatedConfigFile}}
+	fi
+	yq -y --arg pw "$BCRYPT_HASH" '.network.default."password-hash" = $pw' {{generatedConfigFile}} | sponge {{generatedConfigFile}}
+	echo "Password updated, dont forget to deploy"
+
+# Update a user password
+[group('install')]
+passwd user:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	if [ ! -f {{sopsSecretsFile}} ] ;then
+		echo "No secrets sops file found, run 'just install-admin-host' before."
+		exit 1
+	fi
+	cd {{secretsDir}}
+	echo -n "New password for {{user}}: "
+	read -s PASSWORD
+	echo
+	echo -n "Please confirm: "
+	read -s PASSWORD_CONFIRM
+	echo
+	if [ "$PASSWORD" != "$PASSWORD_CONFIRM" ]; then
+		echo "Error: not corresponding."
+		exit 1
+	fi
+	HASH=$(mkpasswd -m sha-512 "$PASSWORD")
+	sops -d -i {{sopsSecretsFile}}
+	yq -y --arg pw "$HASH" '.user.{{user}}."password-hash" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
+	sops -e -i {{sopsSecretsFile}}
+	echo "Password updated for {{user}}"
+	echo "Now deploy with 'just apply @user-{{user}}'"
 
 # Apply configuration using colmena
 [group('apply')]
@@ -275,7 +386,7 @@ format-dnf-on host dev:
 	#!/usr/bin/env bash
 	echo "-> checking..."
 	if [ `whoami` != 'root' ] ;then
-	  echo "Only root can perform this operation."
+	echo "Only root can perform this operation."
 		exit 1
 	fi
 	if ! command -v parted 2>&1 >/dev/null ;then
@@ -323,32 +434,32 @@ format-dnf-on host dev:
 	nixos-generate-config --root /mnt && \
 	echo '''{ config, lib, pkgs, ... }:
 	{
-	  imports =
-	    [ # Include the results of the hardware scan.
-	      ./hardware-configuration.nix
-	    ];
-	  boot.loader.systemd-boot.enable = true;
-	  boot.loader.efi.canTouchEfiVariables = true;
-	  networking.hostName = "{{host}}";
-	  time.timeZone = "America/Miquelon";
-	  i18n.defaultLocale = "fr_FR.UTF-8";
-	  console = {
-	    font = "Lat2-Terminus16";
-	    keyMap = lib.mkForce "fr";
-	    useXkbConfig = true;
-	  };
-	  users.users.nix = {
-	    uid = 65000;
-	    initialPassword = "nixos";
-	    isNormalUser = true;
-	    extraGroups = [ "wheel" ];
-	  };
-	  security.sudo.wheelNeedsPassword = false;
-	  environment.systemPackages = with pkgs; [
-	    vim
-	  ];
-	  services.openssh.enable = true;
-	  system.stateVersion = "25.05";
+	imports =
+		[ # Include the results of the hardware scan.
+		./hardware-configuration.nix
+		];
+	boot.loader.systemd-boot.enable = true;
+	boot.loader.efi.canTouchEfiVariables = true;
+	networking.hostName = "{{host}}";
+	time.timeZone = "America/Miquelon";
+	i18n.defaultLocale = "fr_FR.UTF-8";
+	console = {
+		font = "Lat2-Terminus16";
+		keyMap = lib.mkForce "fr";
+		useXkbConfig = true;
+	};
+	users.users.nix = {
+		uid = 65000;
+		initialPassword = "nixos";
+		isNormalUser = true;
+		extraGroups = [ "wheel" ];
+	};
+	security.sudo.wheelNeedsPassword = false;
+	environment.systemPackages = with pkgs; [
+		vim
+	];
+	services.openssh.enable = true;
+	system.stateVersion = "25.05";
 	}
 	''' > /mnt/etc/nixos/configuration.nix && \
 	nixos-install --root /mnt --no-root-passwd

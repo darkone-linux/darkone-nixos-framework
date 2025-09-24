@@ -88,7 +88,7 @@
       colorscheme gruvbox
 
       " Airline options
-      "let g:airline#extensions#tabline#enabled = 1 
+      "let g:airline#extensions#tabline#enabled = 1
       "let g:airline_powerline_fonts = 1
 
       let g:lightline = {
@@ -159,12 +159,13 @@
       nmap <silent> gi <Plug>(coc-implementation)
       nmap <silent> gr <Plug>(coc-references)
 
-      " Auto-completion with Tab
-      inoremap <silent><expr> <TAB>
-        \ pumvisible() ? "\<C-n>" :
-        \ <SID>check_back_space() ? "\<TAB>" :
-        \ coc#refresh()
-      inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"      
+      " Auto-completion with Tab (TODO: voir comment améliorer)
+      "inoremap <silent><expr> <TAB>
+      "  \ pumvisible() ? "\<C-n>" :
+      "  \ <SID>check_back_space() ? "\<TAB>" :
+      "  \ coc#refresh()
+      "inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
+      inoremap <Tab> <Tab>
 
       function! s:check_back_space() abort
         let col = col('.') - 1

@@ -22,6 +22,9 @@
     colmena.url = "github:zhaofengli/colmena/main";
     colmena.inputs.nixpkgs.follows = "nixpkgs";
 
+    sops-nix.url = "github:Mic92/sops-nix";
+    sops-nix.inputs.nixpkgs.follows = "nixpkgs";
+
     raspberry-pi-nix = {
       url = "github:nix-community/raspberry-pi-nix?ref=v0.4.1";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -40,6 +43,7 @@
       home-manager,
       raspberry-pi-nix,
       nixos-hardware,
+      sops-nix,
       ...
     }:
     let
@@ -122,6 +126,7 @@
             ./dnf/modules/nix
             ./usr/modules/nix
             "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+            sops-nix.nixosModules.sops
             home-manager.nixosModules.home-manager
             {
               home-manager = {
@@ -165,14 +170,20 @@
           pkgs = nixpkgsFor.${system};
         in
         pkgs.mkShell {
-          buildInputs = [
-            pkgs.colmena
-            pkgs.deadnix
-            pkgs.just
-            pkgs.nixfmt-rfc-style
-            pkgs.php84
-            pkgs.php84Packages.composer
-            pkgs.statix
+          buildInputs = with pkgs; [
+            age
+            colmena
+            deadnix
+            just
+            mkpasswd
+            moreutils # sponge
+            nixfmt-rfc-style
+            php84
+            php84Packages.composer
+            sops
+            ssh-to-age
+            statix
+            yq
           ];
         };
 

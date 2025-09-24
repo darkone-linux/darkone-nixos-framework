@@ -58,9 +58,10 @@ class Configuration extends NixAttrSet
      * Load nix configuration
      * @throws NixException
      */
-    public function loadYamlFile(string $configFile): Configuration
+    public function loadYamlFiles(string $configFile, string $generatedConfigFile): Configuration
     {
         $config = Yaml::parseFile($configFile);
+        $config = array_replace_recursive(Yaml::parseFile($generatedConfigFile), $config);
         $this->loadUsers($config);
         $this->loadHosts($config);
         $this->loadFormatter($config);

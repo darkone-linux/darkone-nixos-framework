@@ -75,7 +75,9 @@ in
         users = [
           {
             name = "admin";
-            password = "$2a$10$f1Tlj9/r55e9NG6cmKBA2eZxp6Ltdl51yyymbaxcjpHBganS34LZq";
+
+            # TODO: How to use that with sops without complications ?
+            password = "$2b$12$bSUAGe7N8zbBCEyJ87puruGQapdjG04M9iskDCbhn34oFVmGrnkZ2";
           }
         ];
         auth_attempts = 5;

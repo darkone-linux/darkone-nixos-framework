@@ -18,7 +18,7 @@ _: {
   # ls alternative
   programs.eza = {
     enable = true;
-    enableZshIntegration = true;
+    enableZshIntegration = false;
   };
 
   # cat alternative + man pages

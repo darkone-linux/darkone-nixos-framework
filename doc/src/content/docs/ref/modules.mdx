@@ -36,6 +36,7 @@ are automatically configured on each machine.
 :::
 
 * **enable** `bool` Enable gateway features for the current host (dhcp, dns, proxy, etc.).
+* **enableFail2ban** `bool` Enable fail2ban service
 * **enableNcps** `bool` Enable the proxy cache for packages
 * **enableHomepage** `bool` Enable the auto-configured homepage service
 * **enableForgejo** `bool` Enable pre-configured forgejo git forge service
@@ -44,6 +45,7 @@ are automatically configured on each machine.
 ```nix
 darkone.host.gateway = {
   enable = false;
+  enableFail2ban = true;
   enableNcps = builtins.elem "ncps" gateway.services;
   enableHomepage = builtins.elem "homepage" gateway.services;
   enableForgejo = builtins.elem "forgejo" gateway.services;
@@ -648,6 +650,7 @@ This module is enabled by default (required by DNF configuration).
 * **enableSystemdBoot** `bool` Enable the default boot loader
 * **enableFstrim** `bool` SSD optimisation with fstrim
 * **enableFirewall** `bool` Enable firewall (default true)
+* **enableSops** `bool` Enable sops dnf module (default true)
 * **enableGatewayClient** `bool` Configuration optimized for local gateway (ncps client...)
 * **enableBoost** `bool` Enable overclocking, corectl
 * **enableKmscon** `bool` Enable nerd font for TTY
@@ -657,6 +660,7 @@ darkone.system.core = {
   enableSystemdBoot = true;
   enableFstrim = true;
   enableFirewall = true;
+  enableSops = true;
   enableGatewayClient = true;
   enableBoost = false;
   enableKmscon = false;
@@ -709,6 +713,22 @@ darkone.system.i18n = {
   locale = "fr_FR.UTF-8";
   timeZone = "Europe/Paris";
 }
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.system.sops
+
+DNF sops, passwords and secrets management
+
+:::caution
+This module is enabled by default in core module.
+:::
+
+* **enable** `bool` Enable sops automated configuration for DNF
+```nix
+darkone.system.sops.enable = false;
 
 ```
 

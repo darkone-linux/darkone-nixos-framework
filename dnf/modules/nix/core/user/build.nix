@@ -19,6 +19,12 @@ let
       isNormalUser = true;
       inherit (users.${login}) uid;
       description = "${users.${login}.name}";
+      hashedPasswordFile = config.sops.secrets."user/${login}/password-hash".path;
+      #hashedPasswordFile =
+      #  if config.sops.secrets ? user && config.sops.secrets.user ? ${login} then
+      #    config.sops.secrets.user.${login}.password-hash.path
+      #  else
+      #    config.sops.secrets.default-password-hash.path;
     }
     // import ./../../../../../${users.${login}.profile}.nix {
       inherit

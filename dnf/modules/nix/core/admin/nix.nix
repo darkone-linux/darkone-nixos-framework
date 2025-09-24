@@ -19,14 +19,19 @@ in
 
     # Nix / Darkone management packages
     environment.systemPackages = with pkgs; [
+      age
       colmena
       deadnix
       just
+      mkpasswd
+      moreutils # sponge
       nixfmt-rfc-style
       php84
       php84Packages.composer
+      sops
       statix
       wakeonlan
+      yq
     ];
 
     # Allow unfree packages

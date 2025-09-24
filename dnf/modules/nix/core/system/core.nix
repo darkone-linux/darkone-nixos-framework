@@ -44,6 +44,11 @@ in
       default = true;
       description = "Enable firewall (default true)";
     };
+    darkone.system.core.enableSops = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Enable sops dnf module (default true)";
+    };
     darkone.system.core.enableGatewayClient = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -61,7 +66,7 @@ in
     };
   };
 
-  # Useful man & nix documentation
+  # Core module for DNF machines
   config = lib.mkIf cfg.enable {
 
     # Bootloader (enabled by default, but not with RPI dependencies)
@@ -81,6 +86,9 @@ in
 
     # Enable the host profile
     darkone.host.${host.profile}.enable = true;
+
+    # Users are not mutable from sops installation (use config.yaml + just)
+    users.mutableUsers = false;
 
     # Nerd fond for gnome terminal and default monospace
     fonts.packages = with pkgs; [ nerd-fonts.jetbrains-mono ];
@@ -110,6 +118,9 @@ in
         formatted = builtins.concatStringsSep "\n" sortedUnique;
       in
       formatted;
+
+    # SOPS DNF module
+    darkone.system.sops.enable = cfg.enableSops;
 
     # Overclocking & performance optimisations (WIP)
     programs.corectrl = lib.mkIf cfg.enableBoost {

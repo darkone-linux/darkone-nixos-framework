@@ -18,12 +18,12 @@ class Generate
     /**
      * @throws NixException
      */
-    public function __construct(string $yamlConfigFile)
+    public function __construct(string $yamlConfigFile, string $yamlGeneratedConfigFile)
     {
         if (!defined('NIX_PROJECT_ROOT')) {
             throw new NixException('NIX_PROJECT_ROOT must be defined');
         }
-        $this->config = (new Configuration())->loadYamlFile($yamlConfigFile);
+        $this->config = (new Configuration())->loadYamlFiles($yamlConfigFile, $yamlGeneratedConfigFile);
     }
 
     /**

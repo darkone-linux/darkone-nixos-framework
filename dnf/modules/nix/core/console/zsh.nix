@@ -35,7 +35,7 @@ in
       shellAliases = {
         la = "ls -la";
         ll = "ls -l";
-        l = "eza --icons -a --group-directories-first -1 --no-user --long";
+        l = "eza --icons -a --group-directories-first -1 --group --git --long";
         vz = "vim `fzf`";
         nx = "cd /etc/nixos";
         nf = "nixfmt -s"; # Nix Format

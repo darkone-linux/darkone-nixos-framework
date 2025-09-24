@@ -236,7 +236,6 @@ Available recipes:
 - [ ] Serveur de mails.
 - [ ] Générateur / gestionnaire d'UIDs (pour les grands réseaux).
 - [ ] just clean: détecter les fails, les afficher et s'arrêter.
-- [ ] Sécurisation avec [fail2ban](https://github.com/fail2ban/fail2ban) ([module](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.fail2ban)).
 - [ ] Réseau social à voir : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost), [mastodon](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mastodon), [matrix](https://nixos.wiki/wiki/Matrix), [gotosocial](https://search.nixos.org/options?channel=24.11&from=0&size=50&sort=relevance&type=packages&query=services.gotosocial), [zulip](https://zulip.com/self-hosting/)...
 
 ### Fait
@@ -262,6 +261,7 @@ Available recipes:
 - [x] [Nix Cache Proxy Server](https://github.com/kalbasit/ncps).
 - [x] Homepage automatique en fonction des services activés.
 - [x] Générateur automatique de documentation à partir des sources.
+- [x] Sécurisation avec [fail2ban](https://github.com/fail2ban/fail2ban) ([module](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.fail2ban)).
 
 ### En pause
 
