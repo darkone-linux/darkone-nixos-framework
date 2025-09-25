@@ -226,6 +226,8 @@
             };
             modules = [
               "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+              sops-nix.nixosModules.sops
+              home-manager.nixosModules.home-manager
               ./dnf/hosts/iso.nix
               { nixpkgs.pkgs = nixpkgsFor.${system}; }
             ];
