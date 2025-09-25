@@ -14,8 +14,8 @@ class Configuration extends NixAttrSet
     public const TYPE_ARRAY = 'array';
     public const TYPE_INT = 'integer';
 
-    public const REGEX_HOSTNAME = '/^[a-zA-Z][a-zA-Z0-9_-]{2,59}$/';
-    public const REGEX_LOGIN = '/^[a-zA-Z][a-zA-Z0-9_-]{2,59}$/';
+    public const REGEX_HOSTNAME = '/^[a-zA-Z][a-zA-Z0-9_-]{1,59}$/';
+    public const REGEX_LOGIN = '/^[a-zA-Z][a-zA-Z0-9_-]{1,59}$/';
     public const REGEX_NAME = '/^.{3,128}$/';
     public const REGEX_IPV4 = '/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/';
 

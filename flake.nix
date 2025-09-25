@@ -174,6 +174,7 @@
             age
             colmena
             deadnix
+            git
             just
             mkpasswd
             moreutils # sponge
@@ -184,6 +185,7 @@
             ssh-to-age
             statix
             yq
+            zsh
           ];
         };
 
