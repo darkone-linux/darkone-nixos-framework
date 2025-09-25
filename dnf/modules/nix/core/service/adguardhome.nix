@@ -75,9 +75,7 @@ in
         users = [
           {
             name = "admin";
-
-            # TODO: How to use that with sops without complications ?
-            password = "$2b$12$bSUAGe7N8zbBCEyJ87puruGQapdjG04M9iskDCbhn34oFVmGrnkZ2";
+            password = network.default.password-hash;
           }
         ];
         auth_attempts = 5;
