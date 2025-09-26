@@ -25,7 +25,9 @@
     ./core/service/httpd.nix
     ./core/service/immich.nix
     ./core/service/lldap.nix
+    ./core/service/monitoring.nix
     ./core/service/ncps.nix
+    ./core/service/netdata.nix
     ./core/service/nextcloud.nix
     ./core/service/printing.nix
     ./core/system/core.nix

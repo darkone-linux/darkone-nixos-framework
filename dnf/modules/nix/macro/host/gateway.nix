@@ -51,6 +51,16 @@ in
       default = builtins.elem "adguardhome" gateway.services;
       description = "Enable pre-configured Aguard Home service";
     };
+    darkone.host.gateway.enableNetdata = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.elem "netdata" gateway.services;
+      description = "Enable pre-configured Netdata service";
+    };
+    darkone.host.gateway.enableMonitoring = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.elem "monitoring" gateway.services;
+      description = "Enable pre-configured monitoring service (prometheus, grafana)";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -61,11 +71,13 @@ in
     # Services
     darkone.service = {
       dnsmasq.enable = true;
-      ncps.enable = cfg.enableNcps;
+      adguardhome.enable = cfg.enableAdguardhome;
       forgejo.enable = cfg.enableForgejo;
       homepage.enable = cfg.enableHomepage;
       lldap.enable = cfg.enableLldap;
-      adguardhome.enable = cfg.enableAdguardhome;
+      monitoring.enable = cfg.enableMonitoring;
+      ncps.enable = cfg.enableNcps;
+      netdata.enable = cfg.enableNetdata;
     };
 
     # Fail2ban

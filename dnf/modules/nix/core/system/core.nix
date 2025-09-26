@@ -71,8 +71,14 @@ in
 
     # Bootloader (enabled by default, but not with RPI dependencies)
     boot = lib.mkIf cfg.enableSystemdBoot {
-      loader.systemd-boot.enable = true;
-      loader.efi.canTouchEfiVariables = true;
+      loader = {
+        timeout = 3;
+        systemd-boot = {
+          enable = true;
+          configurationLimit = lib.mkOverride 1337 10; # Less than mkDefault
+        };
+        efi.canTouchEfiVariables = true;
+      };
     };
 
     # Hostname and firewall

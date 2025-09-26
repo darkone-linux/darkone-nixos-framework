@@ -49,7 +49,7 @@ in
       {
         "Forgejo" = {
           description = "Forge GIT locale";
-          href = "http://forgejo";
+          href = "http://${cfg.domainName}";
           icon = "sh-forgejo";
         };
       }

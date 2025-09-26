@@ -42,6 +42,8 @@ are automatically configured on each machine.
 * **enableForgejo** `bool` Enable pre-configured forgejo git forge service
 * **enableLldap** `bool` Enable pre-configured lldap service (additional users &amp; groups)
 * **enableAdguardhome** `bool` Enable pre-configured Aguard Home service
+* **enableNetdata** `bool` Enable pre-configured Netdata service
+* **enableMonitoring** `bool` Enable pre-configured monitoring service (prometheus, grafana)
 ```nix
 darkone.host.gateway = {
   enable = false;
@@ -51,6 +53,8 @@ darkone.host.gateway = {
   enableForgejo = builtins.elem "forgejo" gateway.services;
   enableLldap = builtins.elem "lldap" gateway.services;
   enableAdguardhome = builtins.elem "adguardhome" gateway.services;
+  enableNetdata = builtins.elem "netdata" gateway.services;
+  enableMonitoring = builtins.elem "monitoring" gateway.services;
 }
 
 ```
@@ -258,8 +262,12 @@ darkone.console.pandoc.enable = false;
 A full zsh installation with aliases and bindkeys.
 
 * **enable** `bool` ZSH environment
+* **enableForRoot** `bool` Root home manager ZSH configuration
 ```nix
-darkone.console.zsh.enable = false;
+darkone.console.zsh = {
+  enable = false;
+  enableForRoot = false;
+}
 
 ```
 
@@ -569,6 +577,24 @@ darkone.service.lldap = {
 
 <hr/>
 
+### &#x1F48E; darkone.service.monitoring
+
+Supervision module with prometheus, grafana and node exporter.
+
+* **enable** `bool` Enable monitoring with prometheus, grafana and node exporter
+* **domainName** `str` Domain name for monitoring, registered in nginx &amp; hosts
+* **retentionTime** `str` Durée de rétention des métriques Prometheus
+```nix
+darkone.service.monitoring = {
+  enable = false;
+  domainName = "monitoring";
+  retentionTime = "15d";
+}
+
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.service.ncps
 
 Nix cache proxy with NCPS module.
@@ -590,6 +616,22 @@ darkone.service.ncps = {
   isClient = false;
   dataPath = "/var/cache/ncps";
   extraOptions = { };
+}
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.netdata
+
+Netdata supervision module.
+
+* **enable** `bool` Enable netdata application
+* **domainName** `str` Domain name for netdata, registered in nginx &amp; hosts
+```nix
+darkone.service.netdata = {
+  enable = false;
+  domainName = "netdata";
 }
 
 ```
