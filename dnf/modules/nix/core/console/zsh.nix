@@ -61,7 +61,7 @@ in
     };
 
     # Prevent the new user dialog in zsh
-    system.userActivationScripts.zshrc = "touch .zshrc";
+    system.userActivationScripts.zshrc = "[ -f .zshrc ] || touch .zshrc";
 
     # Set zsh as the default shell
     users.defaultUserShell = pkgs.zsh;
