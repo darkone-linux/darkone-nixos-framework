@@ -91,7 +91,7 @@ darkone.host.minimal = {
 
 ### &#x1F4E6; darkone.host.portable
 
-Portable configuration for usb keys (wip).
+Portable configuration for usb keys.
 
 * **enable** `bool` Portable host configuration for usb keys
 ```nix
@@ -275,18 +275,48 @@ darkone.console.zsh = {
 
 ### &#x1F48E; darkone.graphic.education
 
-Graphical & education packages for kids (obsolete).
+Graphical education packages.
+
+:::note
+These programs are installed for all user profiles.
+To ensure each user has software that matches their profile (baby, child, teenager, student, etc.), use HomeManager profiles.
+:::
 
 * **enable** `bool` Default useful packages
-* **enableBaby** `bool` Sofwares for childs &lt;= 6-8 yo
-* **enableTeenager** `bool` Sofwares for childs &gt;= 12-14 yo
-* **enableGames** `bool` Additional games packages
+* **enableBaby** `bool` Software for babies (&lt;=6 yo)
+* **enableChildren** `bool` Software for children (6-12 yo)
+* **enableTeenager** `bool` Software for teenagers and adults (&gt;=12 yo)
 ```nix
 darkone.graphic.education = {
   enable = false;
   enableBaby = false;
+  enableChildren = false;
   enableTeenager = false;
-  enableGames = false;
+}
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.graphic.games
+
+Several graphical games packages.
+
+:::note
+These programs are installed for all user profiles.
+To ensure each user has software that matches their profile (baby, child, teenager, student, etc.), use HomeManager profiles.
+:::
+
+* **enable** `bool` Enable games packages (please select age group)
+* **enableBaby** `bool` Games for babies (&lt;=6 yo)
+* **enableChildren** `bool` Games for children (6-12 yo)
+* **enableTeenager** `bool` Games for teenagers and adults (&gt;=12 yo)
+```nix
+darkone.graphic.games = {
+  enable = false;
+  enableBaby = false;
+  enableChildren = false;
+  enableTeenager = false;
 }
 
 ```
@@ -299,17 +329,25 @@ Pre-configured gnome environment with dependences (auto xserver activation).
 
 * **enable** `bool` Pre-configured gnome WM
 * **enableDashToDock** `bool` Dash to dock plugin
-* **enableGDM** `bool` Enable GDM instead of LightDM
+* **enableLightDM** `bool` Enable LightDM instead of GDM
 * **enableCaffeine** `bool` Disable auto-suspend
 * **enableGsConnect** `bool` Communication with devices
+* **enableSuspend** `bool` Enable suspend, sleep, hybernate features (usefull for laptops)
+* **enableMoreGnomeApps** `bool` More gnome apps for regular users (music, calendar, maps, contacts...)
+* **enableTechnicalFeatures** `bool` Gnome apps for techniciens (binary, collision, apostrophe...)
+* **enableGames** `bool` Enable gnome games
 * **xkbVariant** `str` Keyboard variant. Layout is extracted from console keymap.
 ```nix
 darkone.graphic.gnome = {
   enable = false;
   enableDashToDock = false;
-  enableGDM = false;
+  enableLightDM = false;
   enableCaffeine = false;
   enableGsConnect = false;
+  enableSuspend = false;
+  enableMoreGnomeApps = false;
+  enableTechnicalFeatures = false;
+  enableGames = false;
   xkbVariant = "";
 }
 
@@ -335,7 +373,7 @@ darkone.graphic.imagery = {
 
 ### &#x1F48E; darkone.graphic.music
 
-Several packages to create music.
+Music creation packages.
 
 * **enable** `bool` Music creation module
 * **enablePro** `bool` Music creation softwares for pros (wip)
@@ -383,7 +421,7 @@ darkone.graphic.office = {
 
 ### &#x1F48E; darkone.graphic.video
 
-Video tools.
+Video creation tools.
 
 * **enable** `bool` Video creation (kdenlive...)
 * **enablePro** `bool` Video softwares for pros
