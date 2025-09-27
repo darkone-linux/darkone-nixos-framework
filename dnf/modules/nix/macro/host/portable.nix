@@ -1,4 +1,4 @@
-# Portable configuration for usb keys (wip).
+# Portable configuration for usb keys.
 
 { lib, config, ... }:
 let

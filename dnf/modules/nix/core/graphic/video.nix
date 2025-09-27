@@ -1,4 +1,4 @@
-# Video tools.
+# Video creation tools.
 
 {
   lib,

@@ -19,7 +19,7 @@
     lenmus
     leocad
     solfege
-    stellarium
+    superTuxKart
     tuxpaint
     verbiste
     wike

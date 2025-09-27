@@ -33,6 +33,9 @@ in
       hibernate.enable = true;
       hybrid-sleep.enable = false;
     };
+    darkone.graphic.gnome = lib.mkIf config.darkone.graphic.gnome.enable {
+      enableSuspend = lib.mkDefault true;
+    };
 
     # WIP
     #hardware.fancontrol.enable = true;

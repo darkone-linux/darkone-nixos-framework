@@ -15,9 +15,9 @@ in
     darkone.host.minimal.enable = lib.mkDefault true;
 
     # System additional features
-    darkone.system = {
-      core.enableFstrim = lib.mkDefault true;
-      core.enableBoost = lib.mkDefault false;
+    darkone.system.core = {
+      enableFstrim = lib.mkDefault true;
+      enableBoost = lib.mkDefault false;
     };
 
     # Daemons
@@ -28,12 +28,17 @@ in
 
     # Graphical applications
     darkone.graphic = {
-      gnome.enable = lib.mkDefault true;
+      gnome = {
+        enable = lib.mkDefault true;
+        enableMoreGnomeApps = lib.mkDefault true;
+      };
       obsidian.enable = lib.mkDefault true;
-      office.enable = lib.mkDefault true;
-      office.enableEmail = lib.mkDefault true;
-      office.enableLibreOffice = lib.mkDefault true;
-      office.enableInternet = lib.mkDefault true;
+      office = {
+        enable = lib.mkDefault true;
+        enableEmail = lib.mkDefault true;
+        enableLibreOffice = lib.mkDefault true;
+        enableInternet = lib.mkDefault true;
+      };
     };
   };
 }

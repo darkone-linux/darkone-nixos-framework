@@ -12,8 +12,12 @@ in
   config = lib.mkIf cfg.enable {
 
     # Additional features for children
-    darkone.graphic.education.enable = lib.mkDefault true;
-    darkone.graphic.education.enableBaby = lib.mkDefault true;
-    darkone.graphic.education.enableGames = lib.mkDefault true;
+    darkone.graphic = {
+      education = {
+        enable = lib.mkDefault true;
+        enableBaby = lib.mkDefault true;
+      };
+      games.enable = lib.mkDefault true;
+    };
   };
 }

@@ -28,6 +28,11 @@ in
 
       # Daemons
       service.httpd.enable = lib.mkDefault false;
+
+      # Graphical
+      graphic.gnome = lib.mkIf config.darkone.graphic.gnome.enable {
+        enableTechnicalFeatures = lib.mkDefault true;
+      };
     };
 
     # Additional tools

@@ -8,6 +8,7 @@
     ./core/console/pandoc.nix
     ./core/console/zsh.nix
     ./core/graphic/education.nix
+    ./core/graphic/games.nix
     ./core/graphic/gnome.nix
     ./core/graphic/imagery.nix
     ./core/graphic/music.nix

@@ -17,10 +17,9 @@ in
     # Based on server configuration
     darkone.host.server.enable = lib.mkDefault true;
 
+    # VM parameters
     virtualisation.virtualbox = lib.mkIf cfg.enableVirtualbox { guest.enable = true; };
-
     services.xe-guest-utilities = lib.mkIf cfg.enableXen { enable = true; };
-
     boot.initrd.kernelModules = lib.mkIf cfg.enableXen [
       "xen-blkfront"
       "xen-tpmfront"

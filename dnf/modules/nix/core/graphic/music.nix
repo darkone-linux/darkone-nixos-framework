@@ -1,4 +1,4 @@
-# Several packages to create music.
+# Music creation packages.
 
 {
   lib,
@@ -15,7 +15,7 @@ in
   options = {
     darkone.graphic.music.enable = lib.mkEnableOption "Music creation module";
 
-    # To update
+    # TODO: To update
     # https://amadeuspaulussen.com/blog/2022/favorite-music-production-software-on-linux
     darkone.graphic.music.enablePro = lib.mkEnableOption "Music creation softwares for pros (wip)";
   };
@@ -29,9 +29,7 @@ in
         audacity
         hydrogen
         lame
-
-        # lmms # Erreur de compilation avec pyliblo3 + overide python 312 ne fonctionne pas
-
+        lmms
         mixxx
         mpg123
         mpv

@@ -14,6 +14,6 @@ in
     # Additional features for teens
     darkone.graphic.education.enable = lib.mkDefault true;
     darkone.graphic.education.enableTeenager = lib.mkDefault true;
-    darkone.graphic.education.enableGames = lib.mkDefault true;
+    darkone.graphic.games.enable = lib.mkDefault true;
   };
 }

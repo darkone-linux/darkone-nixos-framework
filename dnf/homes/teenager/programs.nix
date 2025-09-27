@@ -8,7 +8,9 @@
     celestia
     chessx
     geogebra6 # math
+    gnome-graphs
     gnome-maps
+    inkscape
     kdePackages.blinken # Entrainement de la mémoire
     kdePackages.cantor
     kdePackages.kalgebra # Outil mathématique
@@ -22,17 +24,20 @@
     labplot
     lenmus
     leocad
-    #lmms # Erreur de compilation avec pyliblo3 + overide python 312 ne fonctionne pas
+    lmms # Erreur de compilation avec pyliblo3 + overide python 312 ne fonctionne pas
     maxima # math
     mixxx
     muse-sounds-manager
     musescore
     octaveFull # math
-    #sage # math
+    pingus
+    sage # math
     solfege
     soundfont-fluid
-    stellarium
+    super-productivity
+    superTuxKart
     tuxpaint
+    veloren
     verbiste
     wike
   ];
