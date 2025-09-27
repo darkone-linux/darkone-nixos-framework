@@ -1,28 +1,15 @@
 # Darkone NixOS Framework
 
-Une configuration NixOS multi-utilisateur, multi-host.
-
-> [!WARNING]
-> Après de nombreuses heures d'utilisation, il apparaît que Colmena et Deploy-rs ne répondent pas
-> à une gestion de postes NixOS à large échelle. Je vais remplacer la configuration colmena actuelle
-> par un équivalent non-nix, certainement [salt](https://github.com/saltstack/salt), pour administrer de nombreux postes en parallèle.
-> Enfin, je ferai également en sorte de pouvoir builder et switcher chaque poste indépendemment au
-> besoin, plutôt qu'être tributaire de la machine maître.
->
-> ![Archi prévisionnelle avec Salt](doc/src/assets/new-network-architecture-black-tr.png)
-
 > [!NOTE]
 > A [documentation](https://darkone-linux.github.io) is available.
 
-Ce framework simplifie la gestion d'une infra réseau grâce à&nbsp;:
+Une infrastructure réseau déclarative complète&nbsp;:
 
-- Une structure cohérente et modulaire.
-- Des outils préconfigurés et fonctionnels.
-- Une organisation pensée pour la scalabilité.
+- Structure cohérente et modulaire.
+- Outils préconfigurés et fonctionnels.
+- Organisation pensée pour la scalabilité.
 
 ## Fonctionnalités
-
-Fonctionnel :
 
 - **Multi-hosts et multi-users**, déploiements avec [colmena](https://github.com/zhaofengli/colmena) et [just](https://github.com/casey/just).
 - **Profils de hosts** pour serveurs, conteneurs et machines de travail.
@@ -33,11 +20,8 @@ Fonctionnel :
 - **Gestion des paramètres** utilisateur avec [home manager](https://github.com/nix-community/home-manager) + profils de homes.
 - **Configuration transversale** pour assurer la cohérence du réseau.
 - **Multi-réseaux**, possibilité de déclarer plusieurs réseaux en une configuration.
-
-A venir :
-
 - **[Homepage](https://github.com/gethomepage/homepage) automatique** en fonction des services activés.
-- **Sécurisation facile et fiable**, un seul mdp pour déverrouiller, avec [sops](https://github.com/Mic92/sops-nix).
+- **Sécurisation facile et fiable** avec [sops](https://github.com/Mic92/sops-nix).
 
 ## Organisation
 
@@ -181,54 +165,56 @@ just apply gateway
 ❯ just
 Available recipes:
     [apply]
-    apply on what='switch'       # Apply configuration using colmena
-    apply-force on what='switch' # Apply with build-on-target + force repl. unk profiles
-    apply-local what='switch'    # Apply the local host configuration
+    apply on what='switch'         # Apply configuration using colmena
+    apply-force on what='switch'   # Apply with build-on-target + force repl. unk profiles
+    apply-local what='switch'      # Apply the local host configuration
+    apply-verbose on what='switch' # Apply force with verbose options
 
     [check]
-    check                        # Recursive deadnix on nix files
-    check-flake                  # Check the main flake
-    check-statix                 # Check with statix
+    check                          # Recursive deadnix on nix files
+    check-flake                    # Check the main flake
+    check-statix                   # Check with statix
 
     [dev]
-    clean                        # format: fix + check + generate + format
-    develop                      # Launch a "nix develop" with zsh (dev env)
-    fix                          # Fix with statix
-    format                       # Recursive nixfmt on all nix files
-    generate                     # Update the nix generated files
-    pull                         # Pull common files from DNF repository
-    push                         # Push common files to DNF repository
+    clean                          # format: fix + check + generate + format [alias: c]
+    develop                        # Launch a "nix develop" with zsh (dev env)
+    fix                            # Fix with statix [alias: f]
+    format                         # Recursive nixfmt on all nix files
+    generate                       # Update the nix generated files [alias: g]
+    pull                           # Pull common files from DNF repository
+    push                           # Push common files to DNF repository
 
     [install]
-    copy-hw host                 # Extract hardware config from host
-    copy-id host                 # Copy pub key to the node (nix user must exists)
-    format-dnf-on host dev       # Format and install DNF on an usb key (danger)
-    format-dnf-shell             # Nix shell with tools to create usb keys
-    install host                 # New host: ssh cp id, extr. hw, clean, commit, apply
-    install-local                # Framework installation on local machine (builder)
+    copy-hw host                   # Extract hardware config from host
+    copy-id host                   # Copy pub key to the node (nix user must exists)
+    format-dnf-on host dev         # Format and install DNF on an usb key (danger)
+    format-dnf-shell               # Nix shell with tools to create usb keys
+    install host                   # New host: ssh cp id, extr. hw, clean, commit, apply
+    install-admin-host             # Framework installation on local machine (builder / admin)
+    passwd user                    # Update a user password
+    passwd-default                 # Update the default DNF password
+    push-key host                  # Push the infrastructure key to the host
 
     [manage]
-    enter host                   # Interactive shell to the host
-    fix-boot on                  # Multi-reinstall bootloader (using colmena)
-    fix-zsh on                   # Remove zshrc bkp to avoid error when replacing zshrc
-    gc on                        # Multi garbage collector (using colmena)
-    halt on                      # Multi-alt (using colmena)
-    reboot on                    # Multi-reboot (using colmena)
+    enter host                     # Interactive shell to the host
+    fix-boot on                    # Multi-reinstall bootloader (using colmena)
+    fix-zsh on                     # Remove zshrc bkp to avoid error when replacing zshrc
+    gc on                          # Multi garbage collector (using colmena)
+    halt on                        # Multi-alt (using colmena)
+    reboot on                      # Multi-reboot (using colmena)
 ```
 
 ## A faire (todo)
 
 ### En cours
 
-- [ ] Gestion des mots de passe avec [sops](https://github.com/Mic92/sops-nix).
-- [ ] Gestion centralisée des utilisateurs avec [lldap](https://github.com/lldap/lldap).
-- [ ] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + synchronisation des home directories.
-- [ ] Passerelle : ajouter [adguard home](https://wiki.nixos.org/wiki/Adguard_Home).
+- [ ] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + configuration multi-postes.
 
 ### Planifié
 
-- [ ] Configuration pour réseau extérieur (https, dns, vpn...)
-- [ ] Services distribués (aujourd'hui les services réseau sont sur la passerelle)
+- [ ] Serveurs et postes "externes" (administrable mais ne faisant pas partie du LAN).
+- [ ] Configuration pour réseau extérieur (https, dns, vpn...).
+- [ ] Services distribués (aujourd'hui les services réseau sont sur la passerelle).
 - [ ] Intégration de [nixvim](https://nix-community.github.io/nixvim/).
 - [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
@@ -262,10 +248,13 @@ Available recipes:
 - [x] Homepage automatique en fonction des services activés.
 - [x] Générateur automatique de documentation à partir des sources.
 - [x] Sécurisation avec [fail2ban](https://github.com/fail2ban/fail2ban) ([module](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.fail2ban)).
+- [x] Gestion des mots de passe avec [sops](https://github.com/Mic92/sops-nix).
+- [x] Passerelle : ajouter [adguard home](https://wiki.nixos.org/wiki/Adguard_Home).
 
 ### En pause
 
 - [ ] Création de noeuds avec [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) + [disko](https://github.com/nix-community/disko).
+- [ ] Gestion centralisée des utilisateurs avec [lldap](https://github.com/lldap/lldap).
 
 ## Idées en cours d'étude
 
@@ -342,3 +331,12 @@ just user
 # User details : content, feature list, host list...
 just user darkone
 ```
+
+> [!WARNING]
+> Après de nombreuses heures d'utilisation, il apparaît que Colmena et Deploy-rs ne répondent pas
+> à une gestion de postes NixOS à large échelle. Je vais remplacer la configuration colmena actuelle
+> par un équivalent non-nix, certainement [salt](https://github.com/saltstack/salt), pour administrer de nombreux postes en parallèle.
+> Enfin, je ferai également en sorte de pouvoir builder et switcher chaque poste indépendemment au
+> besoin, plutôt qu'être tributaire de la machine maître.
+>
+> ![Archi prévisionnelle avec Salt](doc/src/assets/new-network-architecture-black-tr.png)
