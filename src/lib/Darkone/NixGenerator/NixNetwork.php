@@ -48,11 +48,24 @@ class NixNetwork
     {
         $config = [];
         natsort($this->hosts);
+
         foreach ($this->hosts as $host => $ip) {
             if (is_null($ip)) {
                 continue;
             }
             $config[$ip] = array_merge([$host], $this->aliases[$host] ?? []);
+
+            // Add domain to the name
+            foreach ($config[$ip] as $host) {
+                $config[$ip][] = $host . '.' . $this->config['domain'];
+            }
+
+            // Domain -> gateway
+            if ($ip == $this->config['gateway']['lan']['ip']) {
+                $config[$ip][] = $this->config['domain'];
+            }
+
+            array_unique($config[$ip]);
             sort($config[$ip]);
         }
 
