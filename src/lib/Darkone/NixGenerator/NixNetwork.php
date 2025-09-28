@@ -157,6 +157,7 @@ class NixNetwork
             "option:router," . $gwStaticIp,
             "option:dns-server," . $gwStaticIp,
             "option:domain-name," . $cfg['domain'],
+            "option:domain-search," . $cfg['domain'],
         ], $cfg['gateway']['lan']['dhcp-extra-option'] ?? []);
 
         // DHCP Range

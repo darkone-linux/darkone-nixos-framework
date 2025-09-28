@@ -134,6 +134,7 @@ in
 
       settings = {
         inherit domain;
+        local = "/${domain}/";
         interface = lanInterface;
         bind-interfaces = true;
         dhcp-authoritative = true;
@@ -161,6 +162,7 @@ in
         domain-needed = true;
 
         # Serveurs de nom
+        no-resolv = true;
         server =
           if config.darkone.service.adguardhome.enable then
             [ "127.0.0.1#5353" ]
