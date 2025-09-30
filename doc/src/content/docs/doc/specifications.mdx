@@ -8,10 +8,10 @@ import { Steps } from '@astrojs/starlight/components';
 
 ## Goals
 
-This framework enables the quick and easy declaration of one or more computer networks, complete with ready-to-use configurations and profiles:
+This nixos configuration enables a full local network with ready-to-use configurations and profiles:
 
-- **User profiles** range from non-technical users (office tasks, multimedia) to advanced users (developers, administrators).
-- **Host profiles** cover standard use cases: workstations, development environments, administrative systems, or network nodes (e.g., gateways).
+- **User profiles** contains features and configurations for users (employes, developers, administrators, kids...).
+- **Host profiles** cover standard use cases: workstations, servers, network node (gateway).
 
 :::note[Universal settings]
 Configurations are designed to be fully functional, clean, consistent, easy to use, and require no extensive customization.
@@ -20,9 +20,9 @@ Configurations are designed to be fully functional, clean, consistent, easy to u
 :::tip[Use cases]
 For example, this configuration can be used for:
 
-- **Your work**: A network with a gateway, servers, and workstations.
-- **Your family**: Gateway and host profiles tailored for parents and kids.
-- **Your projects**: Servers and workstations designed to meet your specific needs.
+- **Work**: A network with a gateway, servers, and workstations.
+- **Family**: Gateway with adguard and host profiles tailored for parents and kids.
+- **Projects**: Servers and workstations designed to meet your specific needs.
 :::
 
 ## Implemented features
@@ -38,10 +38,7 @@ Its role is to generate a pure static configuration from a definition of machine
 Usage:
 
 ```shell
-# Only generate
-just generate
-
-# Generate + fix + format + check
+# Generate, fix, format, check
 just clean
 ```
 
@@ -51,9 +48,10 @@ A `just clean`:
 ❯ just clean
 -> Fixing source code with statix...
 -> Checking nix files with deadnix...
--> generating dnf/modules default.nix...
--> generating usr/modules default.nix...
--> generating dnf/overlays default.nix...
+-> generating dnf/modules/nix default.nix...
+-> generating usr/modules/nix default.nix...
+-> generating dnf/modules/home default.nix...
+-> generating usr/modules/home default.nix...
 -> generating users in var/generated/users.nix...
 -> generating hosts in var/generated/hosts.nix...
 -> generating network in var/generated/network.nix...
@@ -61,7 +59,7 @@ A `just clean`:
 ```
 
 :::note[The generated files]
-- `var/generated/hosts.nix` The full host collection
+- `var/generated/hosts.nix` The host collection
 - `var/generated/users.nix` The explicitly created user collection
 - `var/generated/network.nix` The network configuration
 :::
@@ -91,9 +89,9 @@ The framework repository contains an example:
 
 Usage examples:
 
-- [`service/dnsmasq.nix`](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/dnf/modules/nix/core/service/dnsmasq.nix) module uses `network` to create a full-featured gateway.
-- [`user/build.nix`](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/dnf/modules/nix/core/user/build.nix) module creates some users with `users` and current `host`.
-- [`service/ncps.nix`](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/dnf/modules/nix/core/service/ncps.nix) module uses `host` and `network` to declare server and clients.
+- [`service/dnsmasq.nix`](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/dnf/modules/nix/standard/service/dnsmasq.nix) module uses `network` to create a full-featured gateway.
+- [`user/build.nix`](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/dnf/modules/nix/standard/user/build.nix) module creates some users with `users` and current `host`.
+- [`service/ncps.nix`](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/dnf/modules/nix/standard/service/ncps.nix) module uses `host` and `network` to declare server and clients.
 :::
 
 ### Network declaration example
@@ -132,7 +130,7 @@ network:
       prefixLength: 24
       dhcp-range:
         - "192.168.1.100,192.168.1.230,24h"
-      dhcp-extra-option: # option
+      dhcp-extra-option:
         - "option:ntp-server,191.168.1.1"
   extraHosts:
     "192.168.0.1": ["box"]
@@ -241,7 +239,6 @@ hosts:
           interfaces:
             - mac: "08:00:27:A4:B1:36"
               ip: "192.168.1.104"
-
 
   # List of similar hosts (each item is a host)
   list:

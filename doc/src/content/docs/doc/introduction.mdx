@@ -24,9 +24,9 @@ If you'd like to be informed about upcoming stable versions, please let me know 
 - **[Host profiles](/ref/modules/#-darkonehostdesktop)** for servers, containers, and workstations.
 - **[User profiles](/doc/specifications/#create-a-user-profile-example)** providing common configurations for various users.
 - **[High-level modules](/ref/modules/)** 100% functional with a simple `.enable = true`.
-- **[Extensible](#files-organisation)**, scalable, consistent, customizable architecture.
+- **[Extensible](#structure)**, scalable, consistent, customizable architecture.
 - **User profiles management** with [home manager](https://github.com/nix-community/home-manager) + [home profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/homes).
-- **[Automatic homepage](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/dnf/modules/nix/core/service/homepage.nix)** with [Homepage](https://github.com/gethomepage/homepage), based on activated services.
+- **[Automatic homepage](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/dnf/modules/nix/standard/service/homepage.nix)** with [Homepage](https://github.com/gethomepage/homepage), based on activated services.
 - **[Cross-configuration](/doc/specifications/#the-configuration-file)** to ensure network consistency.
 - **Easy and reliable security**, a single password to unlock, with [sops](https://github.com/Mic92/sops-nix).
 
@@ -49,9 +49,9 @@ The lower layers serve the upper layers.
 The configurations are also organized by category:
 
 - **[Standard modules](/ref/modules/#standard-modules)**: Ready-to-use simple modules (just write `.enable = true`).
-- **[Macro-modules](/ref/modules/#macro-modules)**: Ready-to-use collections of modules with additional configurations.
+- **[Mixin modules](/ref/modules/#mixin-modules)**: Ready-to-use collections of modules with a consistent common configurations.
 - **[Users' declaration](/doc/specifications/#users-declaration-example)**: Used to instantiate real users from [user profiles](/ref/user-profiles/).
-- **[Home profiles](/doc/specifications/#create-a-user-profile-example)**: Contain core [Home Manager](https://github.com/nix-community/home-manager) configurations for each user profile.
+- **[Home profiles](/doc/specifications/#create-a-user-profile-example)**: Contains [Home Manager](https://github.com/nix-community/home-manager) configurations for each user profile.
 - **[Tools & configurations](/doc/user-manual/#just-commands)**: Manage the generation and quality of Nix declarations.
 
 ### Structure
@@ -62,7 +62,7 @@ The configurations are also organized by category:
 - dnf/ Darkone Nixos Framework (modules & common files)
   - modules/ [Framework modules](/ref/modules/)
     - nix Nix modules
-      - core Core (regular) nix modules
+      - standard Standard nix modules
         - system/ System / Hardware configurations
           - core.nix
           - i18n.nix
@@ -78,7 +78,7 @@ The configurations are also organized by category:
           - nix.nix Nix special user (for deployments)
           - build.nix Users builder
           - …
-      - macro Macro modules
+      - mixin Mixin modules
         - host/ Host profiles
           - desktop.nix
           - laptop.nix
@@ -110,11 +110,12 @@ The configurations are also organized by category:
   - config.yaml [Local configuration](/doc/specifications/#the-configuration-file) used by [the generator](/doc/specifications/#the-generator)
   - modules/ Local modules
     - nix/
-      - core/
-      - macro/
+      - standard/
+      - mixin/
         - host/ [Local host profiles](/doc/specifications/#create-a-host-profile-example)
     - home/
   - secrets/ Local secrets file
+    - secret.yaml SOPS secrets
   - homes/ [Local home profiles](/doc/specifications/#create-a-user-profile-example)
   - machines/ Machine specific configuration by host (hardwares)
   - overlays/
