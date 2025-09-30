@@ -133,8 +133,6 @@ generate: \
 	(_gen-default "usr/modules/nix") \
 	(_gen-default "dnf/modules/home") \
 	(_gen-default "usr/modules/home") \
-	(_gen-default "dnf/overlays") \
-	(_gen-default "usr/overlays") \
 	(_gen "users" "var/generated/users.nix") \
 	(_gen "hosts" "var/generated/hosts.nix") \
 	(_gen "network" "var/generated/network.nix")

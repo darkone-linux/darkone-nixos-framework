@@ -6,16 +6,16 @@ class Module
 {
     private static array $moduleCategories = [
         [
-            'title' => 'Macro modules',
-            'desc' => '**A macro module** enables a collection of modules and a thematic configuration.',
-            'path' => NIX_PROJECT_ROOT . '/dnf/modules/nix/macro',
+            'title' => 'Mixin modules',
+            'desc' => '**A mixin module** defines a collection of standard modules with a consistent common configuration.',
+            'path' => NIX_PROJECT_ROOT . '/dnf/modules/nix/mixin',
             'prefix' => 'darkone.',
             'icon' => '&#x1F4E6;',
         ],
         [
             'title' => 'Standard modules',
-            'desc' => '**A standard module** enables a feature with one or several packages + a configuration.',
-            'path' => NIX_PROJECT_ROOT . '/dnf/modules/nix/core',
+            'desc' => '**A standard module** contains auto-configured features.',
+            'path' => NIX_PROJECT_ROOT . '/dnf/modules/nix/standard',
             'prefix' => 'darkone.',
             'icon' => '&#x1F48E;',
         ],
