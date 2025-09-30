@@ -81,22 +81,16 @@ in
         auth_attempts = 5;
         block_auth_min = 1;
         language = lib.toLower (builtins.substring 0 2 network.locale);
-        dns = {
 
-          # Bind on local dnsmasq
+        # adguardhome is a dnsmasq upstream
+        dns = {
+          port = 5353;
+          bind_hosts = [ "0.0.0.0" ];
           upstream_dns = [
             "94.140.14.14"
             "94.140.15.15"
-            "2a10:50c0::ad1:ff"
-            "2a10:50c0::ad2:ff"
             "https://dns.adguard-dns.com/dns-query"
           ];
-
-          #private_networks = [ "127.0.0.1:5353" ];
-          #use_private_ptr_resolvers = true;
-
-          bind_hosts = [ "0.0.0.0" ];
-
           bootstrap_dns = [
             "9.9.9.10"
             "149.112.112.10"

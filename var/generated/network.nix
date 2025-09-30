@@ -41,6 +41,7 @@
       "option:router,192.168.1.1"
       "option:dns-server,192.168.1.1"
       "option:domain-name,darkone.lan"
+      "option:domain-search,darkone.lan"
       "option:ntp-server,191.168.1.1"
     ];
     dhcp-range = [ "192.168.1.100,192.168.1.230,24h" ];
@@ -48,6 +49,7 @@
   extraNetworking = {
     hosts = {
       "192.168.1.1" = [
+        "darkone.lan"
         "gateway"
         "gateway"
         "passerelle"

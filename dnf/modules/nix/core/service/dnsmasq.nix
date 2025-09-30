@@ -134,17 +134,26 @@ in
 
       settings = {
         inherit domain;
-        local = "/${domain}/";
+
         interface = lanInterface;
         bind-interfaces = true;
         dhcp-authoritative = true;
         no-dhcp-interface = "lo";
 
-        # Utiliser un port DNS différent si adguardhome est activé
-        port = if config.darkone.service.adguardhome.enable then 5353 else 53;
+        # Les requêtes pour ces domaines ne sont traitées qu'à partir de /etc/hosts ou de DHCP.
+        # Elles ne sont pas transmises aux serveurs amont.
+        local = "/${domain}/";
 
-        # Prends dans /etc/hosts les ips qui matchent le réseau en priorité
+        # Utiliser un port DNS différent si adguardhome est activé.
+        port = 53; # if config.darkone.service.adguardhome.enable then 5353 else 53;
+
+        # Filtrer les requêtes DNS inutiles provenant de Windows qui peuvent être déclenchées.
+        filterwin2k = true;
+
+        # Prends dans /etc/hosts les ips qui matchent le réseau en priorité.
         localise-queries = true;
+
+        # local-name = local-name.domain
         expand-hosts = true;
 
         # Accept DNS queries only from hosts whose address is on a local subnet
@@ -157,15 +166,15 @@ in
         # to upstream nameservers
         bogus-priv = true;
 
-        # Don't forward requests without dots or domain parts to
-        # upstream nameservers
-        domain-needed = true;
+        # Don't forward requests without dots or domain parts to upstream nameservers
+        domain-needed = false;
 
-        # Serveurs de nom
-        no-resolv = true;
+        # Dnsmasq récupère ses serveurs DNS amont à partir des fichiers "server"
+        # au lieu de /etc/resolv.conf ou tout autre fichier.
+        no-resolv = config.darkone.service.adguardhome.enable;
         server =
           if config.darkone.service.adguardhome.enable then
-            [ "127.0.0.1#5353" ]
+            [ ("127.0.0.1#" + (toString config.services.adguardhome.settings.dns.port)) ]
           else
             config.networking.nameservers;
       }

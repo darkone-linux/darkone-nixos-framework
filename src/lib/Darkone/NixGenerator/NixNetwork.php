@@ -55,10 +55,10 @@ class NixNetwork
             }
             $config[$ip] = array_merge([$host], $this->aliases[$host] ?? []);
 
-            // Add domain to the name
-            foreach ($config[$ip] as $host) {
-                $config[$ip][] = $host . '.' . $this->config['domain'];
-            }
+            // Add domain to the name. NOTE: this is the work of expand-hosts...
+            //foreach ($config[$ip] as $host) {
+            //    $config[$ip][] = $host . '.' . $this->config['domain'];
+            //}
 
             // Domain -> gateway
             if ($ip == $this->config['gateway']['lan']['ip']) {
