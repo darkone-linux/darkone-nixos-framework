@@ -1,6 +1,6 @@
 # A pre-configured git environment.
 #
-# :::TIP[Git shortcuts]
+# :::tip[Git shortcuts]
 # - `git hdf` (history diff): select a commit to display diff.
 # - `git tree`: history tree.
 # - `git tre`: history with files.

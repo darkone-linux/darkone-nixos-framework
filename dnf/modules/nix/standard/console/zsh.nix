@@ -1,8 +1,15 @@
 # A full zsh installation with aliases and bindkeys.
 #
-# :::TIP[Some shortcuts]
-# - `l`, `la`, `ll`: ls with options.
-# - ``: history tree.
+# :::tip[Some shortcuts]
+# - `l`, `la`, `ll`: ls with options
+# - `vz`: vim + fzf
+# - `nx`: cd /etc/nixos
+# - `nf`: nixfmt
+# - `nc`: deadnix
+# - `dnf`: cd /home/nix/dnf
+# - `mrproper`: nix-collect-garbage(s) + switch-to-conf boot
+# - `treef`: tree with files (eza)
+# - `treed`: tree only dirs (eza)
 # :::
 
 {
