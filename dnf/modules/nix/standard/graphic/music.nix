@@ -1,4 +1,4 @@
-# Music creation packages.
+# Music creation packages and modules.
 
 {
   lib,

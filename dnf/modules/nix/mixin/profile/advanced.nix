@@ -1,4 +1,9 @@
 # Profile for advanced users (computer scientists, developers, admins).
+#
+# :::note[Host profile vs Home profile]
+# This module enables features for all users of the system.
+# Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
+# :::
 
 { lib, config, ... }:
 let

@@ -1,4 +1,4 @@
-# A full zsh installation with aliases and bindkeys.
+# A full zsh installation with aliases, bindkeys and optimized prompt.
 #
 # :::tip[Some shortcuts]
 # - `l`, `la`, `ll`: ls with options

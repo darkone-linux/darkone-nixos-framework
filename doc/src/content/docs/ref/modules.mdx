@@ -27,15 +27,16 @@ darkone.host.desktop.enable = false;
 
 ### &#x1F4E6; darkone.host.gateway
 
-The gateway / NAS of local network.
+The main gateway / router of local network.
 
-:::tip[A ready-to-use gateway]
-The gateway is configured in `config.yaml` file.
-Services for hosts (homepage, forgejo, nix package cache...)
-are automatically configured on each machine.
+:::tip[A ready-to-use gateway!]
+The gateway is configured in `usr/config.yaml` file.
+Additional enabled services (homepage, adguardhome, forgejo, ncps...)
+are automatically configured with consistent network plumbing on the
+gateway and all machines on the local network.
 :::
 
-* **enable** `bool` Enable gateway features for the current host (dhcp, dns, proxy, etc.).
+* **enable** `bool` Enable gateway features for the current host (dhcp, dns, proxy, etc.)
 * **enableFail2ban** `bool` Enable fail2ban service
 * **enableNcps** `bool` Enable the proxy cache for packages
 * **enableHomepage** `bool` Enable the auto-configured homepage service
@@ -91,7 +92,7 @@ darkone.host.minimal = {
 
 ### &#x1F4E6; darkone.host.portable
 
-Portable configuration for usb keys.
+Portable configuration for a bootable USB drive containing a NixOS machine from the local network.
 
 * **enable** `bool` Portable host configuration for usb keys
 ```nix
@@ -103,7 +104,12 @@ darkone.host.portable.enable = false;
 
 ### &#x1F4E6; darkone.host.server
 
-Configuration for servers: no sleep, systemd conf improved.
+Improved configuration for servers (minimal, no sleep, watchdog...).
+
+:::caution[Emergency mode is disabled]
+We prefer the system to attempt to continue booting so
+that we can hopefully still access it remotely. (cf. srvos)
+:::
 
 * **enable** `bool` Server host minimal configuration
 * **enableWatchdog** `bool` Enable systemd watchdog
@@ -119,7 +125,7 @@ darkone.host.server = {
 
 ### &#x1F4E6; darkone.host.start-img
 
-Start image for new hosts (used for iso generation).
+Start image generator for new hosts (for iso image only).
 
 * **enable** `bool` Start minimal iso image
 ```nix
@@ -149,6 +155,11 @@ darkone.host.vm = {
 
 Profile for advanced users (computer scientists, developers, admins).
 
+:::note[Host profile vs Home profile]
+This module enables features for all users of the system.
+Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
+:::
+
 * **enable** `bool` Advanced user (admin sys, developper)
 ```nix
 darkone.profile.advanced.enable = false;
@@ -160,6 +171,11 @@ darkone.profile.advanced.enable = false;
 ### &#x1F4E6; darkone.profile.children
 
 Features for childs and babies.
+
+:::note[Host profile vs Home profile]
+This module enables features for all users of the system.
+Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
+:::
 
 * **enable** `bool` Children softwares
 ```nix
@@ -173,6 +189,11 @@ darkone.profile.children.enable = false;
 
 Graphic environment with office softwares.
 
+:::note[Host profile vs Home profile]
+This module enables features for all users of the system.
+Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
+:::
+
 * **enable** `bool` Graphic environment with office softwares
 ```nix
 darkone.profile.office.enable = false;
@@ -184,6 +205,11 @@ darkone.profile.office.enable = false;
 ### &#x1F4E6; darkone.profile.teenager
 
 Features for teenagers.
+
+:::note[Host profile vs Home profile]
+This module enables features for all users of the system.
+Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
+:::
 
 * **enable** `bool` Teenager softwares
 ```nix
@@ -203,7 +229,7 @@ darkone.profile.teenager.enable = false;
 
 ### &#x1F48E; darkone.admin.nix
 
-NixOS configuration for the local LAN administrator.
+NixOS configuration for the local LAN administrator computer.
 
 * **enable** `bool` Enable NIX configuration builder tools
 * **enableNh** `bool` Enable nix helper (nh) management tool
@@ -239,10 +265,10 @@ darkone.console.git.enable = false;
 
 ### &#x1F48E; darkone.console.packages
 
-Some useful packages for console only.
+Some useful console only softwares.
 
-* **enable** `bool` Vim, less, zip, unzip...
-* **enableAdditional** `bool` Findutils, fzf, git, htop, neofetch, ranger, tree, wget...
+* **enable** `bool` Vim, less, zip, unzip, tree, wget...
+* **enableAdditional** `bool` Findutils, fzf, git, htop, neofetch, ranger...
 ```nix
 darkone.console.packages = {
   enable = false;
@@ -267,7 +293,7 @@ darkone.console.pandoc.enable = false;
 
 ### &#x1F48E; darkone.console.zsh
 
-A full zsh installation with aliases and bindkeys.
+A full zsh installation with aliases, bindkeys and optimized prompt.
 
 :::tip[Some shortcuts]
 - `l`, `la`, `ll`: ls with options
@@ -298,8 +324,8 @@ darkone.console.zsh = {
 Graphical education packages.
 
 :::note
-These programs are installed for all user profiles.
-To ensure each user has software that matches their profile (baby, child, teenager, student, etc.), use HomeManager profiles.
+These programs are enabled for all user profiles.
+Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
 :::
 
 * **enable** `bool` Default useful packages
@@ -320,14 +346,14 @@ darkone.graphic.education = {
 
 ### &#x1F48E; darkone.graphic.games
 
-Several graphical games packages.
+Several graphical game packages.
 
 :::note
 These programs are installed for all user profiles.
-To ensure each user has software that matches their profile (baby, child, teenager, student, etc.), use HomeManager profiles.
+Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
 :::
 
-* **enable** `bool` Enable games packages (please select age group)
+* **enable** `bool` Enable game packages (please select age group)
 * **enableBaby** `bool` Games for babies (&lt;=6 yo)
 * **enableChildren** `bool` Games for children (6-12 yo)
 * **enableTeenager** `bool` Games for teenagers and adults (&gt;=12 yo)
@@ -345,7 +371,7 @@ darkone.graphic.games = {
 
 ### &#x1F48E; darkone.graphic.gnome
 
-Pre-configured gnome environment with dependences (auto xserver activation).
+Pre-configured gnome environment with dependences.
 
 * **enable** `bool` Pre-configured gnome WM
 * **enableDashToDock** `bool` Dash to dock plugin
@@ -377,10 +403,10 @@ darkone.graphic.gnome = {
 
 ### &#x1F48E; darkone.graphic.imagery
 
-Gimp, geeqie, pinta + blender, inkscape, krita.
+Image processing softwares (gimp, geeqie, pinta + blender, inkscape, krita...).
 
 * **enable** `bool` Imagery creation
-* **enablePro** `bool` Image softwares for pros
+* **enablePro** `bool` Additional image processing software for professionals
 ```nix
 darkone.graphic.imagery = {
   enable = false;
@@ -393,7 +419,7 @@ darkone.graphic.imagery = {
 
 ### &#x1F48E; darkone.graphic.music
 
-Music creation packages.
+Music creation packages and modules.
 
 * **enable** `bool` Music creation module
 * **enablePro** `bool` Music creation softwares for pros (wip)
@@ -421,7 +447,7 @@ darkone.graphic.obsidian.enable = false;
 
 ### &#x1F48E; darkone.graphic.office
 
-Common office tools for office desktop.
+Common tools for office desktop.
 
 * **enable** `bool` Default useful packages
 * **enableLibreOffice** `bool` Office packages (libreoffice)
@@ -444,7 +470,7 @@ darkone.graphic.office = {
 Video creation tools.
 
 * **enable** `bool` Video creation (kdenlive...)
-* **enablePro** `bool` Video softwares for pros
+* **enablePro** `bool` Video softwares for professionals
 ```nix
 darkone.graphic.video = {
   enable = false;
@@ -485,10 +511,11 @@ darkone.graphic.virtualbox = {
 
 ### &#x1F48E; darkone.service.adguardhome
 
-Pre-configured adguard-home for local gateway / router.
+Full-configured AdGuard Home for local gateway / router.
 
 :::note
 This configuration reads the `network` conf in `config.yaml` file.
+It uses the [DNF dnsmasq module](/ref/modules/#-darkoneservicednsmasq) as upstream DNS and DHCP.
 :::
 
 * **enable** `bool` Enable local adguardhome service
@@ -521,6 +548,7 @@ Pre-configured dnsmasq for local gateway / router.
 
 :::note
 This configuration reads the `network` conf in `config.yaml` file.
+It is the essential functionality of the local gateway.
 :::
 
 * **enable** `bool` Enable local dnsmasq service
@@ -533,7 +561,7 @@ darkone.service.dnsmasq.enable = false;
 
 ### &#x1F48E; darkone.service.forgejo
 
-Forgejo (git forge) full-configured service.
+A full-configured forgejo git forge.
 
 * **enable** `bool` Enable local forgejo service
 * **domainName** `str` Domain name for the forge, registered in forgejo, nginx &amp; hosts
@@ -551,7 +579,7 @@ darkone.service.forgejo = {
 
 ### &#x1F48E; darkone.service.home-assistant
 
-A Home Assistant with some plugins.
+A Home Assistant with some plugins (wip).
 
 * **enable** `bool` Enable home assitant
 ```nix
@@ -563,7 +591,11 @@ darkone.service.home-assistant.enable = false;
 
 ### &#x1F48E; darkone.service.homepage
 
-Automatically configured homepage dashboard for your local network (wip).
+Dynamically configured homepage dashboard for your local network.
+
+:::note
+For each DNF service enabled, an entry is automatically added to the homepage configuration.
+:::
 
 * **enable** `bool` Enable homepage dashboard + nginx + host
 * **domainName** `str` Domain name for homepage, registered in nginx &amp; hosts
@@ -621,6 +653,11 @@ darkone.service.immich = {
 
 Pre-configured lldap configuration for users and groups.
 
+:::caution[Work in progress user management]
+This module does not yet allow for the management of system users and groups.
+This feature is currently under consideration.
+:::
+
 * **enable** `bool` Enable local lldap service
 * **openLdapPort** `bool` Open the lldap port (default is 3890)
 * **domainName** `str` Domain name for lldap, registered in forgejo, nginx &amp; hosts
@@ -638,6 +675,11 @@ darkone.service.lldap = {
 ### &#x1F48E; darkone.service.monitoring
 
 Supervision module with prometheus, grafana and node exporter.
+
+:::tip
+This module is preconfigured with a configuration that allows you
+to monitor the operating system, network activity, resources, and performance.
+:::
 
 * **enable** `bool` Enable monitoring with prometheus, grafana and node exporter
 * **domainName** `str` Domain name for monitoring, registered in nginx &amp; hosts
@@ -657,12 +699,14 @@ darkone.service.monitoring = {
 
 Nix cache proxy with NCPS module.
 
+:::tip
 To check if a host contains the local gateway in substituters:
 
 ```sh
 nix --extra-experimental-features nix-command show-config | grep substituters
 telnet <your-gateway> 8501
 ```
+:::
 
 * **enable** `bool` Enable nix cache proxy for packages
 * **isClient** `bool` Only enable client configuration
@@ -684,6 +728,11 @@ darkone.service.ncps = {
 
 Netdata supervision module.
 
+:::caution
+The interface of this application contains too much encouragement
+to use the “pro” version, so it is better to use the “monitoring” module.
+:::
+
 * **enable** `bool` Enable netdata application
 * **domainName** `str` Domain name for netdata, registered in nginx &amp; hosts
 ```nix
@@ -698,7 +747,7 @@ darkone.service.netdata = {
 
 ### &#x1F48E; darkone.service.nextcloud
 
-Nextcloud service full-configured service.
+Nextcloud full-configured service.
 
 * **enable** `bool` Enable local nextcloud service
 * **domainName** `str` Domain name for nextcloud, registered in nextcloud, nginx &amp; hosts
@@ -742,8 +791,9 @@ darkone.service.printing = {
 
 The core DNF module.
 
-:::caution
+:::danger[Required module]
 This module is enabled by default (required by DNF configuration).
+It is required for the proper functioning of every NixOS computer on the local network.
 :::
 
 * **enable** `bool` Darkone framework core system (activated by default)
@@ -804,6 +854,10 @@ darkone.system.hardware = {
 
 Location and lang configuration.
 
+:::note
+By default, the configuration of this module adapts to the global configuration usr/config.yaml.
+:::
+
 * **enable** `bool` Enable i18n with network configuration by default
 * **locale** `str` Network locale
 * **timeZone** `str` Network time zone
@@ -822,8 +876,9 @@ darkone.system.i18n = {
 
 DNF sops, passwords and secrets management
 
-:::caution
+:::caution[Essential module]
 This module is enabled by default in core module.
+It is recommended to keep it enabled and configure it (`just passwd*` commands).
 :::
 
 * **enable** `bool` Enable sops automated configuration for DNF
@@ -838,7 +893,7 @@ darkone.system.sops.enable = false;
 
 Build users from DNF configuration.
 
-:::caution
+:::danger[Required module]
 This module is enabled by default (required by DNF configuration).
 :::
 

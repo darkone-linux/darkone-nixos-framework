@@ -1,7 +1,8 @@
 # The core DNF module.
 #
-# :::caution
+# :::danger[Required module]
 # This module is enabled by default (required by DNF configuration).
+# It is required for the proper functioning of every NixOS computer on the local network.
 # :::
 
 {

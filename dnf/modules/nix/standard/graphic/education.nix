@@ -1,8 +1,8 @@
 # Graphical education packages.
 #
 # :::note
-# These programs are installed for all user profiles.
-# To ensure each user has software that matches their profile (baby, child, teenager, student, etc.), use HomeManager profiles.
+# These programs are enabled for all user profiles.
+# Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
 # :::
 
 {

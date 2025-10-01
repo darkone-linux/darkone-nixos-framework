@@ -1,4 +1,4 @@
-# A Home Assistant with some plugins.
+# A Home Assistant with some plugins (wip).
 
 { lib, config, ... }:
 let

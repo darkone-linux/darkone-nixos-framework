@@ -1,4 +1,9 @@
 # Supervision module with prometheus, grafana and node exporter.
+#
+# :::tip
+# This module is preconfigured with a configuration that allows you
+# to monitor the operating system, network activity, resources, and performance.
+# :::
 
 {
   lib,

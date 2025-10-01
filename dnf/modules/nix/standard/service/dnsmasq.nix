@@ -2,6 +2,7 @@
 #
 # :::note
 # This configuration reads the `network` conf in `config.yaml` file.
+# It is the essential functionality of the local gateway.
 # :::
 
 {

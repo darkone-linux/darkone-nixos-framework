@@ -1,9 +1,10 @@
-# The gateway / NAS of local network.
+# The main gateway / router of local network.
 #
-# :::tip[A ready-to-use gateway]
-# The gateway is configured in `config.yaml` file.
-# Services for hosts (homepage, forgejo, nix package cache...)
-# are automatically configured on each machine.
+# :::tip[A ready-to-use gateway!]
+# The gateway is configured in `usr/config.yaml` file.
+# Additional enabled services (homepage, adguardhome, forgejo, ncps...)
+# are automatically configured with consistent network plumbing on the
+# gateway and all machines on the local network.
 # :::
 
 {
@@ -20,7 +21,7 @@ in
   imports = [ ./minimal.nix ];
 
   options = {
-    darkone.host.gateway.enable = lib.mkEnableOption "Enable gateway features for the current host (dhcp, dns, proxy, etc.).";
+    darkone.host.gateway.enable = lib.mkEnableOption "Enable gateway features for the current host (dhcp, dns, proxy, etc.)";
     darkone.host.gateway.enableFail2ban = lib.mkOption {
       type = lib.types.bool;
       default = true;

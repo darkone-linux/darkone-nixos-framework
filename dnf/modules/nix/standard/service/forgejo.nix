@@ -1,4 +1,4 @@
-# Forgejo (git forge) full-configured service.
+# A full-configured forgejo git forge.
 
 {
   lib,

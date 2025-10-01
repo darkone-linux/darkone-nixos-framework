@@ -1,4 +1,8 @@
 # Location and lang configuration.
+#
+# :::note
+# By default, the configuration of this module adapts to the global configuration usr/config.yaml.
+# :::
 
 {
   lib,

@@ -1,4 +1,4 @@
-# Portable configuration for usb keys.
+# Portable configuration for a bootable USB drive containing a NixOS machine from the local network.
 
 { lib, config, ... }:
 let

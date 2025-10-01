@@ -1,4 +1,8 @@
-# Automatically configured homepage dashboard for your local network (wip).
+# Dynamically configured homepage dashboard for your local network.
+#
+# :::note
+# For each DNF service enabled, an entry is automatically added to the homepage configuration.
+# :::
 
 {
   lib,

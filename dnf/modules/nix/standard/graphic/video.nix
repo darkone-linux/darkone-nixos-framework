@@ -12,7 +12,7 @@ in
 {
   options = {
     darkone.graphic.video.enable = lib.mkEnableOption "Video creation (kdenlive...)";
-    darkone.graphic.video.enablePro = lib.mkEnableOption "Video softwares for pros";
+    darkone.graphic.video.enablePro = lib.mkEnableOption "Video softwares for professionals";
   };
 
   config = lib.mkIf cfg.enable {

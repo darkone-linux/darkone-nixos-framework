@@ -1,4 +1,5 @@
 # Immich (photo management) full-configured service.
+
 {
   lib,
   config,
@@ -13,19 +14,16 @@ in
 {
   options = {
     darkone.service.immich.enable = lib.mkEnableOption "Enable local immich service";
-
     darkone.service.immich.domainName = lib.mkOption {
       type = lib.types.str;
       default = "immich";
       description = "Domain name for immich, registered in nginx & hosts";
     };
-
     darkone.service.immich.machine-learning.enable = lib.mkOption {
       type = lib.types.bool;
       default = false;
       description = "Enable machine learning features (face recognition, object detection)";
     };
-
     darkone.service.immich.redis.enable = lib.mkOption {
       type = lib.types.bool;
       default = false;

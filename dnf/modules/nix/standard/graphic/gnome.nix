@@ -1,4 +1,4 @@
-# Pre-configured gnome environment with dependences (auto xserver activation).
+# Pre-configured gnome environment with dependences.
 
 {
   lib,

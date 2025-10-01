@@ -1,4 +1,4 @@
-# Gimp, geeqie, pinta + blender, inkscape, krita.
+# Image processing softwares (gimp, geeqie, pinta + blender, inkscape, krita...).
 
 {
   lib,
@@ -12,7 +12,7 @@ in
 {
   options = {
     darkone.graphic.imagery.enable = lib.mkEnableOption "Imagery creation";
-    darkone.graphic.imagery.enablePro = lib.mkEnableOption "Image softwares for pros";
+    darkone.graphic.imagery.enablePro = lib.mkEnableOption "Additional image processing software for professionals";
   };
 
   config = lib.mkIf cfg.enable {

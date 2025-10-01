@@ -1,4 +1,4 @@
-# Nextcloud service full-configured service.
+# Nextcloud full-configured service.
 
 {
   lib,

@@ -1,4 +1,4 @@
-# Start image for new hosts (used for iso generation).
+# Start image generator for new hosts (for iso image only).
 
 {
   lib,

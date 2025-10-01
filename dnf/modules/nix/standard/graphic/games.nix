@@ -1,8 +1,8 @@
-# Several graphical games packages.
+# Several graphical game packages.
 #
 # :::note
 # These programs are installed for all user profiles.
-# To ensure each user has software that matches their profile (baby, child, teenager, student, etc.), use HomeManager profiles.
+# Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
 # :::
 
 {
@@ -16,7 +16,7 @@ let
 in
 {
   options = {
-    darkone.graphic.games.enable = lib.mkEnableOption "Enable games packages (please select age group)";
+    darkone.graphic.games.enable = lib.mkEnableOption "Enable game packages (please select age group)";
     darkone.graphic.games.enableBaby = lib.mkEnableOption "Games for babies (<=6 yo)";
     darkone.graphic.games.enableChildren = lib.mkEnableOption "Games for children (6-12 yo)";
     darkone.graphic.games.enableTeenager = lib.mkEnableOption "Games for teenagers and adults (>=12 yo)";

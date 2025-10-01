@@ -1,4 +1,9 @@
 # Netdata supervision module.
+#
+# :::caution
+# The interface of this application contains too much encouragement
+# to use the “pro” version, so it is better to use the “monitoring” module.
+# :::
 
 {
   lib,

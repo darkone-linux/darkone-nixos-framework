@@ -1,4 +1,9 @@
-# Configuration for servers: no sleep, systemd conf improved.
+# Improved configuration for servers (minimal, no sleep, watchdog...).
+#
+# :::caution[Emergency mode is disabled]
+# We prefer the system to attempt to continue booting so
+# that we can hopefully still access it remotely. (cf. srvos)
+# :::
 
 {
   lib,

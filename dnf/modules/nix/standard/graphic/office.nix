@@ -1,4 +1,4 @@
-# Common office tools for office desktop.
+# Common tools for office desktop.
 
 {
   lib,
@@ -46,6 +46,8 @@ in
           [
             libreoffice-fresh
             hunspell
+
+            # TODO: auto hunspell for the default language
             hunspellDicts.fr-moderne
           ]
         else

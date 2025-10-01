@@ -1,11 +1,13 @@
 # Nix cache proxy with NCPS module.
 #
+# :::tip
 # To check if a host contains the local gateway in substituters:
 #
 # ```sh
 # nix --extra-experimental-features nix-command show-config | grep substituters
 # telnet <your-gateway> 8501
 # ```
+# :::
 
 {
   lib,

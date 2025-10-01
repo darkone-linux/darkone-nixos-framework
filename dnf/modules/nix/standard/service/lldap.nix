@@ -1,4 +1,9 @@
 # Pre-configured lldap configuration for users and groups.
+#
+# :::caution[Work in progress user management]
+# This module does not yet allow for the management of system users and groups.
+# This feature is currently under consideration.
+# :::
 
 {
   lib,

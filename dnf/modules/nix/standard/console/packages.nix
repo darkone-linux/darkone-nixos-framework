@@ -1,4 +1,4 @@
-# Some useful packages for console only.
+# Some useful console only softwares.
 
 {
   lib,
@@ -11,8 +11,8 @@ let
 in
 {
   options = {
-    darkone.console.packages.enable = lib.mkEnableOption "Vim, less, zip, unzip...";
-    darkone.console.packages.enableAdditional = lib.mkEnableOption "Findutils, fzf, git, htop, neofetch, ranger, tree, wget...";
+    darkone.console.packages.enable = lib.mkEnableOption "Vim, less, zip, unzip, tree, wget...";
+    darkone.console.packages.enableAdditional = lib.mkEnableOption "Findutils, fzf, git, htop, neofetch, ranger...";
   };
 
   config.environment = lib.mkIf cfg.enable {

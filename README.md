@@ -15,7 +15,7 @@ Une infrastructure réseau déclarative complète&nbsp;:
 - **Profils de hosts** pour serveurs, conteneurs et machines de travail.
 - **Profils de users** proposant des confs types pour de nombreux utilisateurs.
 - **Modules complets** et 100% fonctionnels avec un simple `.enable = true`.
-- **Modules "macro"** qui activent et configurent plusieurs modules en même temps.
+- **Modules "mixin"** qui activent et configurent plusieurs modules en même temps.
 - **Architecture extensible**, scalable, cohérente, personnalisable.
 - **Gestion des paramètres** utilisateur avec [home manager](https://github.com/nix-community/home-manager) + profils de homes.
 - **Configuration transversale** pour assurer la cohérence du réseau.

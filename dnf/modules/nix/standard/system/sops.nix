@@ -1,7 +1,8 @@
 # DNF sops, passwords and secrets management
 #
-# :::caution
+# :::caution[Essential module]
 # This module is enabled by default in core module.
+# It is recommended to keep it enabled and configure it (`just passwd*` commands).
 # :::
 
 {

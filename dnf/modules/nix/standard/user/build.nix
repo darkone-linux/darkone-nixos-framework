@@ -1,6 +1,6 @@
 # Build users from DNF configuration.
 #
-# :::caution
+# :::danger[Required module]
 # This module is enabled by default (required by DNF configuration).
 # :::
 
