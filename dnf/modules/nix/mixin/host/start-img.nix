@@ -14,6 +14,7 @@ in
     darkone.host.start-img.enable = lib.mkEnableOption "Start minimal iso image";
   };
 
+  # TODO: Clean minimal image (broken zsh, etc.)
   config = lib.mkIf cfg.enable {
 
     # Enable an image depending on requested format
@@ -28,19 +29,21 @@ in
           minimal.enable = lib.mkDefault true;
         };
 
-    users.users.root.initialPassword = "ToChange";
-
-    boot.initrd.availableKernelModules = [
-      "ata_piix"
-      "ohci_pci"
-      "ehci_pci"
-      "ahci"
-      "sd_mod"
-      "sr_mod"
-    ];
-    boot.initrd.kernelModules = [ ];
-    boot.kernelModules = [ ];
-    boot.extraModulePackages = [ ];
+    boot = {
+      initrd = {
+        availableKernelModules = [
+          "ata_piix"
+          "ohci_pci"
+          "ehci_pci"
+          "ahci"
+          "sd_mod"
+          "sr_mod"
+        ];
+        kernelModules = [ ];
+      };
+      kernelModules = [ ];
+      extraModulePackages = [ ];
+    };
 
     networking.useDHCP = lib.mkDefault true;
     nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
@@ -48,6 +51,5 @@ in
     # Avoid the stateVersion warning.
     # State based on the system nixos release.
     system.stateVersion = config.system.nixos.release;
-
   };
 }

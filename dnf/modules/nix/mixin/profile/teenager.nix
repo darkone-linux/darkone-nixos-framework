@@ -2,11 +2,11 @@
 
 { lib, config, ... }:
 let
-  cfg = config.darkone.theme.teenager;
+  cfg = config.darkone.profile.teenager;
 in
 {
   options = {
-    darkone.theme.teenager.enable = lib.mkEnableOption "Teenager softwares";
+    darkone.profile.teenager.enable = lib.mkEnableOption "Teenager softwares";
   };
 
   config = lib.mkIf cfg.enable {

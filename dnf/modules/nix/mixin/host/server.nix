@@ -30,7 +30,7 @@ in
     darkone.host.minimal.enable = lib.mkForce true;
 
     # Darkone modules
-    darkone.system.documentation.enable = lib.mkDefault true;
+    darkone.system.documentation.enable = lib.mkDefault false;
 
     # Default apps
     environment.systemPackages = map lib.lowPrio [
@@ -49,6 +49,7 @@ in
     darkone.system.core.enableFirewall = lib.mkDefault true;
 
     # Delegate the hostname setting to dhcp/cloud-init by default.
+    # TODO: enable this feature if useful
     #networking.hostName = lib.mkOverride 1337 ""; # lower prio than lib.mkDefault
 
     # Given that our systems are headless, emergency mode is useless.

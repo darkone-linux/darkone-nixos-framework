@@ -2,11 +2,11 @@
 
 { lib, config, ... }:
 let
-  cfg = config.darkone.theme.office;
+  cfg = config.darkone.profile.office;
 in
 {
   options = {
-    darkone.theme.office.enable = lib.mkEnableOption "Graphic environment with office softwares";
+    darkone.profile.office.enable = lib.mkEnableOption "Graphic environment with office softwares";
   };
 
   config = lib.mkIf cfg.enable {

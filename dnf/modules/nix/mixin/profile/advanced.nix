@@ -2,11 +2,11 @@
 
 { lib, config, ... }:
 let
-  cfg = config.darkone.theme.advanced;
+  cfg = config.darkone.profile.advanced;
 in
 {
   options = {
-    darkone.theme.advanced.enable = lib.mkEnableOption "Advanced user (admin sys, developper)";
+    darkone.profile.advanced.enable = lib.mkEnableOption "Advanced user (admin sys, developper)";
   };
 
   config = lib.mkIf cfg.enable {

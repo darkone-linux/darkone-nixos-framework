@@ -10,10 +10,10 @@
     ./mixin/host/server.nix
     ./mixin/host/start-img.nix
     ./mixin/host/vm.nix
-    ./mixin/theme/advanced.nix
-    ./mixin/theme/children.nix
-    ./mixin/theme/office.nix
-    ./mixin/theme/teenager.nix
+    ./mixin/profile/advanced.nix
+    ./mixin/profile/children.nix
+    ./mixin/profile/office.nix
+    ./mixin/profile/teenager.nix
     ./standard/admin/nix.nix
     ./standard/console/git.nix
     ./standard/console/packages.nix

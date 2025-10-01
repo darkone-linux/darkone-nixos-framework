@@ -6,6 +6,7 @@
     bat
     btop
     ccrypt
+    dig
     dos2unix
     duf
     gawk

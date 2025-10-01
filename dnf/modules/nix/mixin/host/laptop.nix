@@ -37,8 +37,7 @@ in
       enableSuspend = lib.mkDefault true;
     };
 
-    # WIP
-    #hardware.fancontrol.enable = true;
+    # Temperature management daemon
     services.thermald.enable = true;
   };
 }

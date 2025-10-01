@@ -78,7 +78,7 @@ darkone.host.laptop.enable = false;
 All host configuration is based on this minimal config.
 
 * **enable** `bool` Minimal host configuration
-* **secure** `bool` Prefer more secure options
+* **secure** `bool` Prefer more secure options (disable mutable users...)
 ```nix
 darkone.host.minimal = {
   enable = false;
@@ -145,49 +145,49 @@ darkone.host.vm = {
 
 <hr/>
 
-### &#x1F4E6; darkone.theme.advanced
+### &#x1F4E6; darkone.profile.advanced
 
 Profile for advanced users (computer scientists, developers, admins).
 
 * **enable** `bool` Advanced user (admin sys, developper)
 ```nix
-darkone.theme.advanced.enable = false;
+darkone.profile.advanced.enable = false;
 
 ```
 
 <hr/>
 
-### &#x1F4E6; darkone.theme.children
+### &#x1F4E6; darkone.profile.children
 
 Features for childs and babies.
 
 * **enable** `bool` Children softwares
 ```nix
-darkone.theme.children.enable = false;
+darkone.profile.children.enable = false;
 
 ```
 
 <hr/>
 
-### &#x1F4E6; darkone.theme.office
+### &#x1F4E6; darkone.profile.office
 
 Graphic environment with office softwares.
 
 * **enable** `bool` Graphic environment with office softwares
 ```nix
-darkone.theme.office.enable = false;
+darkone.profile.office.enable = false;
 
 ```
 
 <hr/>
 
-### &#x1F4E6; darkone.theme.teenager
+### &#x1F4E6; darkone.profile.teenager
 
 Features for teenagers.
 
 * **enable** `bool` Teenager softwares
 ```nix
-darkone.theme.teenager.enable = false;
+darkone.profile.teenager.enable = false;
 
 ```
 
@@ -220,6 +220,14 @@ darkone.admin.nix = {
 ### &#x1F48E; darkone.console.git
 
 A pre-configured git environment.
+
+:::TIP[Git shortcuts]
+- `git hdf` (history diff): select a commit to display diff.
+- `git tree`: history tree.
+- `git tre`: history with files.
+- `git treee`: history with commit messages.
+- `git hist`: tree alternative.
+:::
 
 * **enable** `bool` Pre-configured git environment
 ```nix
@@ -260,6 +268,11 @@ darkone.console.pandoc.enable = false;
 ### &#x1F48E; darkone.console.zsh
 
 A full zsh installation with aliases and bindkeys.
+
+:::TIP[Some shortcuts]
+- `l`, `la`, `ll`: ls with options.
+- ``: history tree.
+:::
 
 * **enable** `bool` ZSH environment
 * **enableForRoot** `bool` Root home manager ZSH configuration

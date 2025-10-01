@@ -72,13 +72,11 @@ in
           allowedTCPPorts = [
             22
             53
-            5353
           ]
           ++ lib.optional config.services.nginx.enable 80
           ++ lib.optional config.darkone.service.ncps.enable 8501;
           allowedUDPPorts = [
             53
-            5353
             67
             68
           ];
@@ -135,7 +133,7 @@ in
       settings = {
         inherit domain;
 
-        interface = lanInterface;
+        interface = if config.darkone.service.adguardhome.enable then "lo" else lanInterface;
         bind-interfaces = true;
         dhcp-authoritative = true;
         no-dhcp-interface = "lo";
@@ -145,7 +143,7 @@ in
         local = "/${domain}/";
 
         # Utiliser un port DNS différent si adguardhome est activé.
-        port = 53; # if config.darkone.service.adguardhome.enable then 5353 else 53;
+        port = if config.darkone.service.adguardhome.enable then 5353 else 53;
 
         # Filtrer les requêtes DNS inutiles provenant de Windows qui peuvent être déclenchées.
         filterwin2k = true;
@@ -177,6 +175,10 @@ in
             [ ("127.0.0.1#" + (toString config.services.adguardhome.settings.dns.port)) ]
           else
             config.networking.nameservers;
+
+        # Force dnsmasq à inclure l’IP réelle du client dans les requêtes DNS transmises en upstream
+        #edns-packet-max = 1232;
+        #add-subnet = "32,128";
       }
       // extraDnsmasqSettings;
     };

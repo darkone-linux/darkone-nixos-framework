@@ -14,6 +14,7 @@
 let
   cfg = config.darkone.service.adguardhome;
   agh = config.services.adguardhome;
+  dnsmasqAddr = "127.0.0.1:" + (toString config.services.dnsmasq.settings.port);
 in
 {
   options = {
@@ -34,7 +35,7 @@ in
         extraConfig = ''
           client_max_body_size 512M;
         '';
-        locations."/".proxyPass = "http://localhost:${toString agh.port}";
+        locations."/".proxyPass = "http://127.0.0.1:${toString agh.port}";
       };
     };
 
@@ -60,7 +61,7 @@ in
       # DHCP is managed by dnsmasq
       allowDHCP = false;
 
-      # Default host + port, target for nginx
+      # Web interface default host + port (target for nginx)
       port = 3083;
       host = "127.0.0.1";
 
@@ -84,9 +85,17 @@ in
 
         # adguardhome is a dnsmasq upstream
         dns = {
-          port = 5353;
+          port = 53;
           bind_hosts = [ "0.0.0.0" ];
           upstream_dns = [
+
+            # Local dns server for internal queries
+            ("[//]" + dnsmasqAddr)
+            ("[/" + network.domain + "/]" + dnsmasqAddr)
+
+            # Reverse DNS upstream
+            ("[/in-addr.arpa/]" + dnsmasqAddr)
+
             "94.140.14.14"
             "94.140.15.15"
             "https://dns.adguard-dns.com/dns-query"
@@ -102,6 +111,16 @@ in
             "8.8.4.4"
             "1.1.1.1"
           ];
+
+          # List of upstream dns for local queries (+reverse?)
+          local_ptr_upstreams = [ dnsmasqAddr ];
+
+          # Forward to dnsmasq if needed!
+          use_private_ptr_resolvers = true;
+
+          # Retrieve client ips from dnsmasq (Active EDNS Client Subnet)
+          # Note: deactivated -> dnsmasq forward external queries to adguard
+          #ecs = true;
         };
         tls.enable = false;
         filtering = {

@@ -1,4 +1,9 @@
 # A full zsh installation with aliases and bindkeys.
+#
+# :::TIP[Some shortcuts]
+# - `l`, `la`, `ll`: ls with options.
+# - ``: history tree.
+# :::
 
 {
   lib,

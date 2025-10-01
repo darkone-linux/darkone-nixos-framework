@@ -2,8 +2,6 @@
 
 { lib, config, ... }:
 let
-
-  # without .minimal
   cfg = config.darkone.host;
 in
 {
@@ -11,7 +9,7 @@ in
     darkone.host.minimal.enable = lib.mkEnableOption "Minimal host configuration";
 
     # Securefull configuration
-    darkone.host.secure = lib.mkEnableOption "Prefer more secure options";
+    darkone.host.secure = lib.mkEnableOption "Prefer more secure options (disable mutable users...)";
   };
 
   config = lib.mkIf cfg.minimal.enable {
@@ -34,6 +32,7 @@ in
     security.sudo.wheelNeedsPassword = lib.mkDefault false;
 
     # Can manage users with useradd, usermod...
+    # Note: sops module force mutable users.
     users.mutableUsers = lib.mkDefault (!cfg.secure);
   };
 }

@@ -2,11 +2,11 @@
 
 { lib, config, ... }:
 let
-  cfg = config.darkone.theme.children;
+  cfg = config.darkone.profile.children;
 in
 {
   options = {
-    darkone.theme.children.enable = lib.mkEnableOption "Children softwares";
+    darkone.profile.children.enable = lib.mkEnableOption "Children softwares";
   };
 
   config = lib.mkIf cfg.enable {
