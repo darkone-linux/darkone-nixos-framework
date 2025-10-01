@@ -1,0 +1,287 @@
+---
+title: User Manual
+sidebar:
+  order: 3
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+## Getting started
+
+The DNF network typically consists of a gateway and its clients.
+
+### Manual installation
+
+This procedure should be automated in the future.
+
+:::tip
+To familiarize yourself with this installation, it is advisable to test it using virtual machines.
+:::
+
+#### 1. Let's start by creating the gateway
+
+:::note
+This host will contains dnsmasq (dhcp + dns), the Nix source code for your entire network (gateway, workstations, servers) and [some services of your choice](/ref/modules/#-darkonehostgateway).
+You won't need to edit the details of these configurations 🚀.
+:::
+
+<Steps>
+
+1. Install a NixOS system from minimal ISO image
+
+    Download [NixOS minimal ISO image](https://channels.nixos.org/nixos-25.05/latest-nixos-minimal-x86_64-linux.iso), boot on it and follow the instructions (change the values according to your needs):
+
+    ```sh
+    # Disk to use
+    export DISK=/dev/nvme0n1
+
+    # GPT
+    parted $DISK -- mklabel gpt
+
+    # Partitions: boot + system + data + swap
+    sgdisk --clear \
+        --new=1:0:+1GiB    --typecode=1:ef00 --change-name=1:EFI \
+        --new=2:0:+200GiB  --typecode=2:8303 --change-name=2:SYS \
+        --new=3:0:-8192MiB --typecode=3:8300 --change-name=3:DAT \
+        --new=4:0:0        --typecode=4:8200 --change-name=4:SWP \
+        $DISK
+
+    # Checks
+    fdisk -l | grep -e '^/dev'
+    ls -l /dev/disk/by-partlabel
+    parted $DISK -- print
+
+    # Filesystems
+    mkfs.fat -F 32 -n boot /dev/disk/by-partlabel/EFI
+    mkfs.ext4 -L nixos /dev/disk/by-partlabel/SYS
+    mkfs.ext4 -L data /dev/disk/by-partlabel/DAT
+    mkswap -L swap /dev/disk/by-partlabel/SWP
+
+    # Mount all
+    mount -o 'defaults,noatime,discard' /dev/disk/by-partlabel/SYS /mnt
+    mount --mkdir -o 'defaults,noatime,discard,user_xattr' /dev/disk/by-partlabel/DAT /mnt/data
+    mount --mkdir /dev/disk/by-partlabel/EFI /mnt/boot
+    swapon /dev/disk/by-partlabel/SWP
+    mount | grep $DISK
+
+    # Generate the configuration
+    nixos-generate-config --root /mnt
+
+    # Replace configuration.nix by this one, after modifying it according to your needs.
+    # To check: hostname, timezone, lang, nix password and/or ssh key
+    echo '''{ config, lib, pkgs, ... }:
+    {
+      # Options to update
+      networking.hostName = "";
+      time.timeZone = "Europe/Paris";
+      i18n.defaultLocale = "fr_FR.UTF-8";
+      console = {
+        keyMap = lib.mkForce "fr";
+        earlySetup = true;
+      };
+      users.users.nix = {
+        uid = 65000;
+        initialPassword = "nixos";
+        isNormalUser = true;
+        extraGroups = [ "wheel" ];
+        openssh.authorizedKeys.keys = [
+          "ssh-ed25519 xxxx your@key.com"
+        ];
+      };
+
+      imports =
+        [
+          ./hardware-configuration.nix
+        ];
+      boot.loader.systemd-boot.enable = true;
+      boot.loader.efi.canTouchEfiVariables = true;
+      security.sudo.wheelNeedsPassword = false;
+      environment.systemPackages = with pkgs; [ vim git just ];
+      services.openssh.enable = true;
+      system.stateVersion = "25.11";
+    }
+    ''' > /mnt/etc/nixos/configuration.nix
+
+    # Install nixos
+    nixos-install --no-root-passwd
+
+    # unmount and reboot
+    umount -R /mnt
+    reboot
+
+    # After reboot, update the nix user password
+    passwd
+    ```
+
+    :::note
+    This configuration is temporary. It will be replaced by the DNF one.
+    :::
+
+    :::tip
+    For more convenience during the following installation, access this minimal installation from another computer.
+    :::
+
+2. Create your repository
+
+    Fork the [Darkone NixOS Framework](https://github.com/darkone-linux/darkone-nixos-framework),
+    give your project the name of your local network.
+
+    After that, clone it in `/usr/nixos` with the `nix` user and edit the main configuration:
+
+    ```sh
+    # With the nix user
+    cd /etc
+    sudo mv nixos nixos-dist
+    sudo mkdir nixos && chown nix:users nixos
+    git clone <your-repository> nixos && cd nixos
+    git switch -c my-configuration # optional
+    mkdir -p usr/machines/gw # use the hostname of your gateway!
+    cp nixos-dist/hardware-configuration.nix usr/machines/gw/
+    vim usr/config.yaml
+    ```
+
+    :::note
+    This fork is not intended to create PRs for DNF, however it is possible
+    to do so by separating the framework code and the network code (`usr` folder)
+    into two different branches.
+    :::
+
+3. Edit a minimal [configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml)
+
+    Fill the minimum information to generate your first system. Example:
+
+    ```yaml
+    # Local network configuration
+    network:
+      domain: "my.lan" # Your network domain
+      timezone: "America/Miquelon"
+      locale: "fr_FR.UTF-8"
+      gateway:
+        hostname: "gw" # Name of the gateway host
+        wan:
+          interface: "eth0" # internet-connected interface
+          gateway: "192.168.0.1" # upstream gateway
+        lan:
+          interfaces: ["enu1u4"] # interfaces in the lan bridge
+          ip: "192.168.1.1" # gateway IP address
+          prefixLength: 24
+          dhcp-range:
+            - "192.168.1.100,192.168.1.230,24h"
+        services: ["homepage", "ncps", "adguardhome"] # useful services
+
+    # A real user (you?)
+    users:
+      alice:
+        uid: 1000
+        name: "Alice Doe"
+        profile: "admin"
+        groups: ["admin"]
+
+    # Host collection (just our gateway for now)
+    hosts:
+      static:
+        - hostname: "gw"
+          name: "Local Gateway"
+          profile: "gateway" # Install a host of type "gateway"
+          groups: ["admin"] # Alice also belongs to this group
+          aliases: ["gateway", "router"] # Name aliases
+    ```
+
+4. Perform your first generation
+
+   ```sh
+   # Enter in a nix-shell with required dependencies
+   just develop
+
+   # Configure keys, generator and sops (will prompt for main password)
+   just install-admin-host
+
+   # Do this for each user
+   just passwd <user>
+
+   # Generate, check and clean your configuration
+   just clean
+
+   # Add and commit
+   git add . && git commit -m "My first configuration"
+
+   # Build and apply your first configuration!
+   just apply-local
+   ```
+
+5. Congratulation, you have a full-featured gateway!
+
+   Let's test it inside (with "nix" user):
+
+   ```sh
+   # Got to /etc/nixos
+   nx
+
+   # Edit a file with your fantastic vim
+   vim usr/config/yaml
+
+   # Display the git tree
+   git tree
+
+   # Clean your host
+   mrproper
+
+   # Check your network
+   ip a
+   brctl show
+   systemctl status dnsmasq
+   ip n
+   ```
+
+   Your gateway is configured to assign IP addresses and share the Internet connection.
+   On the browser of a host connected to its LAN, you can access the home page by typing
+   `http://<your-gateway-name>` and the services by typing `http://<service-name>`.
+
+</Steps>
+
+## The "just" commands
+
+In the root folder, type `just` ([example with `just clean`](/doc/specifications/#the-generator))
+
+```shell
+❯ just
+Available recipes:
+[apply]
+apply on what='switch'         # Apply configuration using colmena
+apply-force on what='switch'   # Apply with build-on-target + force repl. unk profiles
+apply-local what='switch'      # Apply the local host configuration
+apply-verbose on what='switch' # Apply force with verbose options
+
+[check]
+check                          # Recursive deadnix on nix files
+check-flake                    # Check the main flake
+check-statix                   # Check with statix
+
+[dev]
+clean                          # format: fix + check + generate + format [alias: c]
+develop                        # Launch a "nix develop" with zsh (dev env)
+fix                            # Fix with statix [alias: f]
+format                         # Recursive nixfmt on all nix files
+generate                       # Update the nix generated files [alias: g]
+pull                           # Pull common files from DNF repository
+push                           # Push common files to DNF repository
+
+[install]
+copy-hw host                   # Extract hardware config from host
+copy-id host                   # Copy pub key to the node (nix user must exists)
+format-dnf-on host dev         # Format and install DNF on an usb key (danger)
+format-dnf-shell               # Nix shell with tools to create usb keys
+install host                   # New host: ssh cp id, extr. hw, clean, commit, apply
+install-admin-host             # Framework installation on local machine (builder / admin)
+passwd user                    # Update a user password
+passwd-default                 # Update the default DNF password
+push-key host                  # Push the infrastructure key to the host
+
+[manage]
+enter host                     # Interactive shell to the host
+fix-boot on                    # Multi-reinstall bootloader (using colmena)
+fix-zsh on                     # Remove zshrc bkp to avoid error when replacing zshrc
+gc on                          # Multi garbage collector (using colmena)
+halt on                        # Multi-alt (using colmena)
+reboot on                      # Multi-reboot (using colmena)
+```
