@@ -34,9 +34,9 @@ export default defineConfig({
 						lang: 'en-US',
 				},
 			},
-			social: {
-				github: 'https://github.com/darkone-linux/darkone-nixos-framework',
-			},
+			social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/darkone-linux/darkone-nixos-framework' },
+      ],
 			logo: {
 				src: './src/assets/nix-logo.svg',
 			},
