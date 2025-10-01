@@ -134,7 +134,7 @@ in
       settings = {
         inherit domain;
 
-        interface = if config.darkone.service.adguardhome.enable then "lo" else lanInterface;
+        interface = lanInterface;
         bind-interfaces = true;
         dhcp-authoritative = true;
         no-dhcp-interface = "lo";
