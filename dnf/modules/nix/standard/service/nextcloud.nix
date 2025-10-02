@@ -41,7 +41,7 @@ in
     networking.hosts."${host.ip}" = lib.mkIf config.services.dnsmasq.enable [ "${cfg.domainName}" ];
 
     # Add nextcloud in Administration section of homepage
-    darkone.service.homepage.adminServices = [
+    darkone.service.homepage.appServices = [
       {
         "Nextcloud" = {
           description = "Cloud personnel local";

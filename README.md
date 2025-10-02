@@ -1,7 +1,7 @@
 # Darkone NixOS Framework
 
 > [!NOTE]
-> A [documentation (en)](https://darkone-linux.github.io) is available.
+> A [documentation](https://darkone-linux.github.io) is available.
 
 Une infrastructure réseau déclarative complète&nbsp;:
 
@@ -41,11 +41,11 @@ La [structure complète est documentée ici](https://darkone-linux.github.io/doc
 ## Le générateur
 
 ```shell
+# Lancer le générateur
+just generate
+
 # Génération + formattages + checks
 just clean
-
-# Lancer uniquement le générateur
-just generate
 ```
 
 ![Darkone NixOS Framework Generator](doc/src/assets/arch.webp)
@@ -218,9 +218,10 @@ Available recipes:
 - [ ] Intégration de [nixvim](https://nix-community.github.io/nixvim/).
 - [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
-- [ ] Serveur de mails (voir si c'est vraiment utile...).
+- [ ] Attributions d'emails automatiques par réseaux.
+- [ ] Serveur de mails.
+- [ ] Générateur / gestionnaire d'UIDs (pour les grands réseaux).
 - [ ] just clean: détecter les fails, les afficher et s'arrêter.
-- [ ] Synchronisation et sauvegarde avec [syncthing](https://syncthing.net/) + [borg](https://borgbackup.readthedocs.io/en/stable/)/[borgmatic](https://torsion.org/borgmatic/) ? (alternatives: [restic](https://restic.net/), [kopia](https://kopia.io/))
 - [ ] Réseau social à voir : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost), [mastodon](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mastodon), [matrix](https://nixos.wiki/wiki/Matrix), [gotosocial](https://search.nixos.org/options?channel=24.11&from=0&size=50&sort=relevance&type=packages&query=services.gotosocial), [zulip](https://zulip.com/self-hosting/)...
 
 ### Fait

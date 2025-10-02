@@ -19,12 +19,12 @@ in
       default = "immich";
       description = "Domain name for immich, registered in nginx & hosts";
     };
-    darkone.service.immich.machine-learning.enable = lib.mkOption {
+    darkone.service.immich.enableMachineLearning = lib.mkOption {
       type = lib.types.bool;
       default = false;
       description = "Enable machine learning features (face recognition, object detection)";
     };
-    darkone.service.immich.redis.enable = lib.mkOption {
+    darkone.service.immich.enableRedis = lib.mkOption {
       type = lib.types.bool;
       default = false;
       description = "Enable Redis for caching (recommended for performance)";
@@ -34,6 +34,7 @@ in
   config = lib.mkIf cfg.enable {
 
     # Virtualhost for immich
+    darkone.service.homepage.enable = true;
     services.nginx = {
       enable = lib.mkForce true;
       virtualHosts.${cfg.domainName} = {
@@ -62,6 +63,7 @@ in
             proxyPass = "http://localhost:${toString immichCfg.port}";
             proxyWebsockets = true;
           };
+
           # API endpoint with specific settings
           "/api/" = {
             proxyPass = "http://localhost:${toString immichCfg.port}/api/";
@@ -77,7 +79,7 @@ in
     networking.hosts."${host.ip}" = lib.mkIf config.services.dnsmasq.enable [ "${cfg.domainName}" ];
 
     # Add immich in Administration section of homepage
-    darkone.service.homepage.adminServices = [
+    darkone.service.homepage.appServices = [
       {
         "Immich" = {
           description = "Gestionnaire de photos intelligent";
@@ -88,7 +90,7 @@ in
     ];
 
     # Redis for caching (optional but recommended)
-    services.redis.servers.immich = lib.mkIf cfg.redis.enable {
+    services.redis.servers.immich = lib.mkIf cfg.enableRedis {
       enable = true;
       port = 6379;
       bind = "127.0.0.1";
@@ -116,13 +118,13 @@ in
       openFirewall = false;
 
       # Redis configuration
-      redis = lib.mkIf cfg.redis.enable {
+      redis = lib.mkIf cfg.enableRedis {
         host = "127.0.0.1";
         inherit (config.services.redis.servers.immich) port;
       };
 
       # Machine learning configuration
-      machine-learning = lib.mkIf cfg.machine-learning.enable {
+      machine-learning = lib.mkIf cfg.enableMachineLearning {
         enable = true;
 
         # Additional ML settings can be configured here

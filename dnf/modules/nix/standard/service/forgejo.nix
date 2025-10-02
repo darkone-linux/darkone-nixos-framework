@@ -45,7 +45,7 @@ in
     networking.hosts."${host.ip}" = lib.mkIf config.services.dnsmasq.enable [ "${cfg.domainName}" ];
 
     # Add forgejo in Administration section of homepage
-    darkone.service.homepage.adminServices = [
+    darkone.service.homepage.appServices = [
       {
         "Forgejo" = {
           description = "Forge GIT locale";

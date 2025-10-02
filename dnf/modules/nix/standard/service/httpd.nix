@@ -15,6 +15,7 @@ in
     darkone.service.httpd.enable = lib.mkEnableOption "Enable httpd (nginx)";
     darkone.service.httpd.enableUserDir = lib.mkEnableOption "Enable user dir configuration";
     darkone.service.httpd.enablePhp = lib.mkEnableOption "Enable PHP 8.4 with useful modules";
+    darkone.service.httpd.enableVarWww = lib.mkEnableOption "Enable http root on /var/www";
   };
 
   # TODO: TLS
@@ -51,7 +52,7 @@ in
 
     services.nginx = {
       enable = true;
-      virtualHosts.${host.hostname} = {
+      virtualHosts.${host.hostname} = lib.mkIf cfg.enableVarWww {
         root = "/var/www";
         extraConfig = lib.mkIf cfg.enableUserDir ''
           location ~ ^/~(.+?)(/.*)?$ {
@@ -59,9 +60,6 @@ in
             index index.html index.htm index.php;
             autoindex on;
           }
-        '';
-        locations."/".extraConfig = ''
-          rewrite ^ /index.php;
         '';
         locations."~ \\.php$" = lib.mkIf cfg.enablePhp {
           extraConfig = ''

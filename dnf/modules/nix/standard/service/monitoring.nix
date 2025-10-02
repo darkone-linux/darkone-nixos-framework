@@ -67,7 +67,7 @@ in
     darkone.service.homepage.adminServices = [
       {
         "monitoring" = {
-          description = "Outil de monitoring de resources (prometheus, grafana, node exporter)";
+          description = "Outil de monitoring de resources";
           href = "http://${cfg.domainName}";
           icon = "sh-grafana";
         };

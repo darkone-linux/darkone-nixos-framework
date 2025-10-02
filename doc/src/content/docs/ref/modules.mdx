@@ -598,13 +598,19 @@ For each DNF service enabled, an entry is automatically added to the homepage co
 :::
 
 * **enable** `bool` Enable homepage dashboard + nginx + host
-* **domainName** `str` Domain name for homepage, registered in nginx &amp; hosts
-* **adminServices** `?` Services à ajouter dans la section Administration
+* **domainName** `str` Domain name for homepage (default is hostname)
+* **adminServices** `?` Services to add in Administration section
+* **appServices** `?` Services to add in Applications section
+* **bookmarks** `?` Replace default bookmarks (links)
+* **widgets** `?` Replace default widgets
 ```nix
 darkone.service.homepage = {
   enable = false;
-  domainName = "home";
+  domainName = "host.hostname";
   adminServices = [ ];
+  appServices = [ ];
+  bookmarks = [ ];
+  widgets = [ ];
 }
 
 ```
@@ -618,11 +624,13 @@ Httpd (nginx) server with PHP84.
 * **enable** `bool` Enable httpd (nginx)
 * **enableUserDir** `bool` Enable user dir configuration
 * **enablePhp** `bool` Enable PHP 8.4 with useful modules
+* **enableVarWww** `bool` Enable http root on /var/www
 ```nix
 darkone.service.httpd = {
   enable = false;
   enableUserDir = false;
   enablePhp = false;
+  enableVarWww = false;
 }
 
 ```
@@ -635,14 +643,14 @@ Immich (photo management) full-configured service.
 
 * **enable** `bool` Enable local immich service
 * **domainName** `str` Domain name for immich, registered in nginx &amp; hosts
-* **enable** `bool` Enable machine learning features (face recognition, object detection)
-* **enable** `bool` Enable Redis for caching (recommended for performance)
+* **enableMachineLearning** `bool` Enable machine learning features (face recognition, object detection)
+* **enableRedis** `bool` Enable Redis for caching (recommended for performance)
 ```nix
 darkone.service.immich = {
   enable = false;
   domainName = "immich";
-  enable = false;
-  enable = false;
+  enableMachineLearning = false;
+  enableRedis = false;
 }
 
 ```
