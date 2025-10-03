@@ -62,7 +62,8 @@ class Generate
                 ->setString('arch', $host->getArch())
                 ->set('groups', (new NixList())->populateStrings($host->getGroups()))
                 ->set('users', (new NixList())->populateStrings($host->getUsers()))
-                ->set('colmena', $colmena);
+                ->set('colmena', $colmena)
+                ->set('services', NixBuilder::arrayToNix($host->getServices()));
             $hosts->add($newHost);
         }
 

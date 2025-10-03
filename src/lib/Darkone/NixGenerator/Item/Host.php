@@ -31,6 +31,11 @@ class Host
     private array $tags = [];
 
     /**
+     * Activated services
+     */
+    private array $services = [];
+
+    /**
      * @throws NixException
      */
     public function registerAliases(NixNetwork $extraNetwork, array $aliases): Host
@@ -48,6 +53,21 @@ class Host
         foreach ($interfaces as $interface) {
             $extraNetwork->registerMacAddress($interface['mac'], $interface['ip'], $this->getHostname());
         }
+        return $this;
+    }
+
+    /**
+     * @throws NixException
+     */
+    public function registerServices(NixNetwork $extraNetwork, array $services): Host
+    {
+        Configuration::assert(
+            Configuration::TYPE_ARRAY, $services, $this->getHostname() . '.services must contains collection of strings', null, Configuration::TYPE_ARRAY, true
+        );
+        foreach ($services as $name => $params) {
+            $extraNetwork->registerAliases($this->getHostname(), [$this->populateService($name, $params)]);
+        }
+
         return $this;
     }
 
@@ -120,6 +140,35 @@ class Host
     public function getTags(): array
     {
         return $this->tags;
+    }
+
+    /**
+     * @throws NixException
+     * @return string alias name
+     */
+    public function populateService(string $name, ?array $params): string
+    {
+        $params = $params ?? [];
+        isset($params['title']) && Configuration::assert(Configuration::TYPE_STRING, $params['title'], $this->getHostname() . '.services.' . $name . '.title must be a string');
+        isset($params['description']) && Configuration::assert(Configuration::TYPE_STRING, $params['description'], $this->getHostname() . '.services.' . $name . '.description must be a string');
+        isset($params['domain']) && Configuration::assert(Configuration::TYPE_STRING, $params['domain'], 'Invalid name: ' . $this->getHostname() . '.services.' . $name . '.domain', Configuration::REGEX_HOSTNAME);
+        isset($params['icon']) && Configuration::assert(Configuration::TYPE_STRING, $params['icon'], 'Invalid name: ' . $this->getHostname() . '.services.' . $name . '.domain', Configuration::REGEX_HOSTNAME);
+        $domain = $params['domain'] ?? $name;
+        if (isset($this->services[$name])) {
+            throw new NixException('Service ' . $this->getHostname() . ':' . $name . ' already registered');
+        }
+        $this->services[$name] = $params;
+        unset($params['title'], $params['description'], $params['domain'], $params['icon']);
+        if (!empty($params)) {
+            throw new NixException('Service ' . $this->getHostname() . ':' . $name . ', unknown values ' . json_encode($params));
+        }
+
+        return $domain;
+    }
+
+    public function getServices(): array
+    {
+        return $this->services;
     }
 
     public function setLocal(bool $local): Host

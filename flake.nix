@@ -127,6 +127,7 @@
             ./usr/modules/nix
             "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
             sops-nix.nixosModules.sops
+            { _module.args.dnfLib = mkDnfLib (getHostArch host); }
             home-manager.nixosModules.home-manager
             {
               home-manager = {
@@ -189,8 +190,19 @@
           ];
         };
 
+      # DNF tools
+      mkDnfLib =
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
+        in
+        import ./dnf/lib { inherit (pkgs) lib; };
+
     in
     {
+      # Exposer la lib directement
+      lib = forAllSystems mkDnfLib;
+
       colmena = {
         meta = {
           description = "Darkone Framework Network";
@@ -232,6 +244,7 @@
               home-manager.nixosModules.home-manager
               ./dnf/hosts/iso.nix
               { nixpkgs.pkgs = nixpkgsFor.${system}; }
+              { _module.args.dnfLib = mkDnfLib system; }
             ];
           };
         }) supportedSystems

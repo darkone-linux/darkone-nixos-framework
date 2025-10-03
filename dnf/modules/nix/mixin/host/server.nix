@@ -17,15 +17,11 @@ let
 in
 {
   options = {
-    darkone.host.server = {
-      enable = lib.mkEnableOption "Server host minimal configuration";
-
-      # Enable systemd watchdog
-      enableWatchdog = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = "Enable systemd watchdog";
-      };
+    darkone.host.server.enable = lib.mkEnableOption "Server host minimal configuration";
+    darkone.host.server.enableWatchdog = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Enable systemd watchdog";
     };
   };
 

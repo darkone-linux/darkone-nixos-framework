@@ -65,7 +65,7 @@ class NixNetwork
                 $config[$ip][] = $this->config['domain'];
             }
 
-            array_unique($config[$ip]);
+            $config[$ip] = array_unique($config[$ip]);
             sort($config[$ip]);
         }
 

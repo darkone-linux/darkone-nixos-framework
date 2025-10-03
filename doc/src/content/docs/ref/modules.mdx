@@ -38,24 +38,16 @@ gateway and all machines on the local network.
 
 * **enable** `bool` Enable gateway features for the current host (dhcp, dns, proxy, etc.)
 * **enableFail2ban** `bool` Enable fail2ban service
-* **enableNcps** `bool` Enable the proxy cache for packages
-* **enableHomepage** `bool` Enable the auto-configured homepage service
-* **enableForgejo** `bool` Enable pre-configured forgejo git forge service
-* **enableLldap** `bool` Enable pre-configured lldap service (additional users &amp; groups)
 * **enableAdguardhome** `bool` Enable pre-configured Aguard Home service
-* **enableNetdata** `bool` Enable pre-configured Netdata service
-* **enableMonitoring** `bool` Enable pre-configured monitoring service (prometheus, grafana)
+* **enableNcps** `bool` Enable the proxy cache for packages
+* **enableLldap** `bool` Enable pre-configured lldap service (additional users &amp; groups)
 ```nix
 darkone.host.gateway = {
   enable = false;
   enableFail2ban = true;
-  enableNcps = builtins.elem "ncps" gateway.services;
-  enableHomepage = builtins.elem "homepage" gateway.services;
-  enableForgejo = builtins.elem "forgejo" gateway.services;
-  enableLldap = builtins.elem "lldap" gateway.services;
-  enableAdguardhome = builtins.elem "adguardhome" gateway.services;
-  enableNetdata = builtins.elem "netdata" gateway.services;
-  enableMonitoring = builtins.elem "monitoring" gateway.services;
+  enableAdguardhome = builtins.hasAttr "adguardhome" host.services;
+  enableNcps = builtins.hasAttr "ncps" host.services;
+  enableLldap = builtins.hasAttr "lldap" host.services;
 }
 
 ```
@@ -76,14 +68,32 @@ darkone.host.laptop.enable = false;
 
 ### &#x1F4E6; darkone.host.minimal
 
-All host configuration is based on this minimal config.
+Every host configuration is based on this minimal config.
+
+:::caution[Services declaration]
+A number of services (immich, nextcloud, forgejo, etc.) can be declared in the configuration `usr/config.yaml`
+of each host, regardless of its type (server, laptop, desktop, etc.). **It is advisable to declare them in the
+yaml file so that the service is visible across the entire network!**
+:::
 
 * **enable** `bool` Minimal host configuration
 * **secure** `bool` Prefer more secure options (disable mutable users...)
+* **enableHomepage** `bool` Enable the auto-configured homepage service
+* **enableForgejo** `bool` Enable pre-configured forgejo git forge service
+* **enableImmich** `bool` Enable pre-configured immich service
+* **enableNextcloud** `bool` Enable pre-configured nextcloud service
+* **enableNetdata** `bool` Enable pre-configured Netdata service
+* **enableMonitoring** `bool` Enable pre-configured monitoring service (prometheus, grafana)
 ```nix
 darkone.host.minimal = {
   enable = false;
   secure = false;
+  enableHomepage = builtins.hasAttr "homepage" host.services;
+  enableForgejo = builtins.hasAttr "forgejo" host.services;
+  enableImmich = builtins.hasAttr "immich" host.services;
+  enableNextcloud = builtins.hasAttr "nextcloud" host.services;
+  enableNetdata = builtins.hasAttr "netdata" host.services;
+  enableMonitoring = builtins.hasAttr "monitoring" host.services;
 }
 
 ```
@@ -625,12 +635,38 @@ Httpd (nginx) server with PHP84.
 * **enableUserDir** `bool` Enable user dir configuration
 * **enablePhp** `bool` Enable PHP 8.4 with useful modules
 * **enableVarWww** `bool` Enable http root on /var/www
+* **enable** `bool` Enable service proxy
+* **service** `bool` Display a link on homepage
+* **domainName** `str` Domain name for the service
+* **displayName** `str` Display name in homepage
+* **description** `str` Service description for homepage
+* **icon** `str` Icon name for homepage (https://dashboardicons.com/)
+* **manageVirtualHost** `bool` Whether to create nginx virtualHost configuration (false for services that manage their own)
+* **defaultVirtualHost** `bool` Default nginx virtualhost
+* **proxyPort** `?` Service internal port
+* **extraConfig** `lines` Extra nginx virtualHost configuration
+* **locations** `str` Proxy pass URL
+* **proxyWebsockets** `bool` Enable WebSocket support
+* **extraConfig** `lines` Extra location configuration
 ```nix
 darkone.service.httpd = {
   enable = false;
   enableUserDir = false;
   enablePhp = false;
   enableVarWww = false;
+  enable = false;
+  service = true;
+  domainName = "name";
+  displayName = "name";
+  description = "name";
+  icon = "name";
+  manageVirtualHost = true;
+  defaultVirtualHost = host.hostname == (mkDomainName name srv.domainName);
+  proxyPort = null;
+  extraConfig = ;
+  locations = "";
+  proxyWebsockets = false;
+  extraConfig = "";
 }
 
 ```

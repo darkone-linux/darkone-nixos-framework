@@ -171,6 +171,7 @@ class Configuration extends NixAttrSet
                 ->setTags($host['tags'] ?? [])
                 ->registerAliases($this->extraNetwork, $host['aliases'] ?? [])
                 ->registerInterfaces($this->extraNetwork, $host['interfaces'] ?? [])
+                ->registerServices($this->extraNetwork, $host['services'] ?? [])
                 ->setIp($this->extraNetwork->getHostIp($host['hostname']));
         }, $staticHosts);
     }
@@ -249,7 +250,7 @@ class Configuration extends NixAttrSet
         foreach ($list as $hostname => $hostCfg) {
             self::assert(self::TYPE_STRING, $hostname, "Bad host name (hostname key)", self::REGEX_HOSTNAME);
             self::assert(self::TYPE_ARRAY, $hostCfg, "Bad host configuration type");
-            self::assert(self::TYPE_STRING, $hostCfg['name'], "Bad host description (name) type detected", self::REGEX_NAME);
+            self::assert(self::TYPE_STRING, $hostCfg['name'], "Bad host description (name) type", self::REGEX_NAME);
             $hosts[] = array_merge($hostCfg, [
                 'hostname' => sprintf($listHostGroup['hostname'] ?? "%s", $hostname),
                 'name' => sprintf($listHostGroup['name'] ?? "%s", $hostCfg['name']),
@@ -290,8 +291,14 @@ class Configuration extends NixAttrSet
     /**
      * @throws NixException
      */
-    public static function assert(string $type, mixed $value, string $errMessage, ?string $regex = null, ?string $subType = null): mixed
-    {
+    public static function assert(
+        string $type,
+        mixed $value,
+        string $errMessage,
+        ?string $regex = null,
+        ?string $subType = null,
+        bool $nullableSubType = false
+    ): mixed {
         if ($type !== gettype($value)) {
             throw new NixException($errMessage);
         }
@@ -307,7 +314,10 @@ class Configuration extends NixAttrSet
             if ($type !== self::TYPE_ARRAY) {
                 throw new NixException('Cannot declare subtype for non-array content');
             }
-            array_walk($value, fn ($subValue) => self::assert($subType, $subValue, $errMessage . ' (subvalue type error)'));
+            array_walk(
+                $value,
+                fn ($subValue) => ($nullableSubType && is_null($subValue)) || self::assert($subType, $subValue, $errMessage . ' (subvalue type error)')
+            );
         }
 
         return $value;

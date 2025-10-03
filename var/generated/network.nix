@@ -19,12 +19,6 @@
       dhcp-range = [ "192.168.1.100,192.168.1.230,24h" ];
       dhcp-extra-option = [ "option:ntp-server,191.168.1.1" ];
     };
-    services = [
-      "homepage"
-      "ncps"
-      "forgejo"
-      "lldap"
-    ];
   };
   extraDnsmasqSettings = {
     dhcp-host = [
@@ -50,14 +44,19 @@
     hosts = {
       "192.168.1.1" = [
         "darkone.lan"
+        "forgejo"
         "gateway"
-        "gateway"
+        "homepage"
+        "lldap"
+        "ncps"
         "passerelle"
       ];
       "192.168.1.2" = [
+        "cloud"
         "darkone"
+        "laptop-home"
         "my-laptop"
-        "my-laptop"
+        "photos"
       ];
       "192.168.1.20" = [ "laptop-kids" ];
       "192.168.1.21" = [ "laptop-family" ];

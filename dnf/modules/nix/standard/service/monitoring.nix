@@ -5,12 +5,7 @@
 # to monitor the operating system, network activity, resources, and performance.
 # :::
 
-{
-  lib,
-  config,
-  host,
-  ...
-}:
+{ lib, config, ... }:
 let
   cfg = config.darkone.service.monitoring;
   port = {
@@ -42,6 +37,19 @@ in
     # Home page
     #--------------------------------------------------------------------------
 
+    # httpd + dnsmasq + homepage registration
+    darkone.service.httpd = {
+      enable = true;
+      service.monitoring = {
+        enable = true;
+        inherit (cfg) domainName;
+        displayName = "Monitoring";
+        description = "Visualisation des ressources système et réseau";
+        icon = "grafana";
+        nginx.manageVirtualHost = false;
+      };
+    };
+
     # Virtualhost for monitoring
     services.nginx = {
       enable = lib.mkForce true;
@@ -59,20 +67,6 @@ in
         };
       };
     };
-
-    # Add monitoring domain to /etc/hosts
-    networking.hosts."${host.ip}" = lib.mkIf config.services.dnsmasq.enable [ "${cfg.domainName}" ];
-
-    # Add monitoring in Administration section of homepage
-    darkone.service.homepage.adminServices = [
-      {
-        "monitoring" = {
-          description = "Outil de monitoring de resources";
-          href = "http://${cfg.domainName}";
-          icon = "sh-grafana";
-        };
-      }
-    ];
 
     #--------------------------------------------------------------------------
     # Prometheus

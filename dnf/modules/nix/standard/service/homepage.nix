@@ -52,26 +52,21 @@ in
   # https://gethomepage.dev/widgets
   config = lib.mkIf cfg.enable {
 
-    # Enable DNF HTTP server
+    # httpd + dnsmasq + homepage registration
     darkone.service.httpd = {
       enable = true;
-      enablePhp = true;
-    };
-
-    # Create a virtualhost for homepage
-    services.nginx = {
-      enable = lib.mkForce true;
-      virtualHosts.${cfg.domainName} = {
-        default = lib.mkDefault true;
-        extraConfig = ''
-          client_max_body_size 512M;
-        '';
-        locations."/".proxyPass = "http://localhost:${toString hpd.listenPort}";
+      service.homepage = {
+        enable = true;
+        displayOnHomepage = false;
+        domainName = host.hostname;
+        displayName = "Homepage";
+        description = "Page d'accueil du réseau local";
+        nginx = {
+          proxyPort = hpd.listenPort;
+          defaultVirtualHost = true;
+        };
       };
     };
-
-    # Add homepage domain to /etc/hosts
-    networking.hosts."${host.ip}" = lib.mkIf config.services.dnsmasq.enable [ "${cfg.domainName}" ];
 
     services.homepage-dashboard = {
       enable = true;

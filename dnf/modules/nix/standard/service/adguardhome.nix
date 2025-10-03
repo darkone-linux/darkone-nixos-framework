@@ -8,7 +8,6 @@
 {
   lib,
   config,
-  host,
   network,
   ...
 }:
@@ -29,30 +28,18 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # Virtualhost for adguardhome
-    services.nginx = {
-      enable = lib.mkForce true;
-      virtualHosts.${cfg.domainName} = {
-        extraConfig = ''
-          client_max_body_size 512M;
-        '';
-        locations."/".proxyPass = "http://127.0.0.1:${toString agh.port}";
+    # httpd + dnsmasq + homepage registration
+    darkone.service.httpd = {
+      enable = true;
+      service.adguardhome = {
+        enable = true;
+        inherit (cfg) domainName;
+        displayName = "AdGuard Home";
+        description = "Bloqueur de publicités et de traqueurs";
+        icon = "adguard-home";
+        nginx.proxyPort = agh.port;
       };
     };
-
-    # Add adguardhome domain to /etc/hosts
-    networking.hosts."${host.ip}" = lib.mkIf config.services.adguardhome.enable [ "${cfg.domainName}" ];
-
-    # Add adguardhome in Administration section of homepage
-    darkone.service.homepage.adminServices = [
-      {
-        "AdGuard Home" = {
-          description = "Bloqueur de publicités et de traqueurs";
-          href = "http://adguardhome";
-          icon = "sh-adguard-home";
-        };
-      }
-    ];
 
     # adguardhome Service
     # TODO: clients from config.yaml + update password

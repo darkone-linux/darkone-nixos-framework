@@ -19,7 +19,6 @@ network:
         - "192.168.1.100,192.168.1.230,24h"
       dhcp-extra-option: # option
         - "option:ntp-server,191.168.1.1"
-    services: ["homepage", "ncps", "forgejo", "lldap"]
   extraHosts:
     "192.168.0.1": ["box"]
 
@@ -80,6 +79,12 @@ hosts:
       profile: "gateway"
       groups: ["admin"]
       aliases: ["gateway", "passerelle"]
+      services:
+        homepage:
+        ncps:
+        forgejo:
+          title: "Our local forge"
+        lldap:
 
     # A laptop
     - hostname: "my-laptop"
@@ -94,6 +99,16 @@ hosts:
           ip: "192.168.1.2"
         - mac: "e8:ff:1e:d0:44:83"
           ip: "192.168.1.82"
+      services:
+        homepage:
+          domain: "laptop-home"
+        immich:
+          title: "My pictures"
+          description: "A very cool images app"
+          domain: "photos"
+          icon: "immich"
+        nextcloud:
+          domain: "cloud"
 
   # Host groups by range (generated from min to max)
   range:

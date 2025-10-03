@@ -9,7 +9,6 @@
   lib,
   config,
   pkgs,
-  host,
   ...
 }:
 let
@@ -27,30 +26,17 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # Virtualhost for netdata
-    services.nginx = {
-      enable = lib.mkForce true;
-      virtualHosts.${cfg.domainName} = {
-        extraConfig = ''
-          client_max_body_size 512M;
-        '';
-        locations."/".proxyPass = "http://localhost:19999";
+    # httpd + dnsmasq + homepage registration
+    darkone.service.httpd = {
+      enable = true;
+      service.netdata = {
+        enable = true;
+        inherit (cfg) domainName;
+        displayName = "Netdata";
+        description = "Outil de supervision";
+        nginx.proxyPort = 19999;
       };
     };
-
-    # Add netdata domain to /etc/hosts
-    networking.hosts."${host.ip}" = lib.mkIf config.services.dnsmasq.enable [ "${cfg.domainName}" ];
-
-    # Add netdata in Administration section of homepage
-    darkone.service.homepage.adminServices = [
-      {
-        "netdata" = {
-          description = "Outil de supervision";
-          href = "http://${cfg.domainName}";
-          icon = "sh-netdata";
-        };
-      }
-    ];
 
     #networking.firewall.allowedTCPPorts = [ 19999 ];
     services.netdata = {

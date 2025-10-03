@@ -3,12 +3,20 @@
 {
   lib,
   config,
-  host,
   pkgs,
+  host,
   ...
 }:
 let
   cfg = config.darkone.service.nextcloud;
+
+  # TODO: factoriser dans lib avec httpd
+  mkDomain =
+    defaultDomain:
+    if lib.attrsets.hasAttrByPath [ "services" "nextcloud" "domain" ] host then
+      host.services.nextcloud.domain
+    else
+      defaultDomain;
 in
 {
   options = {
@@ -32,24 +40,17 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # Virtualhost for nextcloud
-    services.nginx = {
-      enable = lib.mkForce true;
+    # httpd + dnsmasq + homepage registration
+    darkone.service.httpd = {
+      enable = true;
+      service.nextcloud = {
+        enable = true;
+        domainName = mkDomain cfg.domainName;
+        displayName = "Nextcloud";
+        description = "Cloud personnel local";
+        nginx.manageVirtualHost = false;
+      };
     };
-
-    # Add nextcloud domain to /etc/hosts
-    networking.hosts."${host.ip}" = lib.mkIf config.services.dnsmasq.enable [ "${cfg.domainName}" ];
-
-    # Add nextcloud in Administration section of homepage
-    darkone.service.homepage.appServices = [
-      {
-        "Nextcloud" = {
-          description = "Cloud personnel local";
-          href = "http://${cfg.domainName}";
-          icon = "nextcloud";
-        };
-      }
-    ];
 
     # Initial admin password
     environment.etc."nextcloud-admin-pass".text = "changeme";
@@ -57,7 +58,7 @@ in
     services.nextcloud = {
       enable = true;
       package = pkgs.nextcloud31;
-      hostName = cfg.domainName;
+      hostName = mkDomain cfg.domainName;
 
       # Configuration de base
       config = {
@@ -96,7 +97,7 @@ in
       settings = {
         overwriteprotocol = "http";
         trusted_domains = [
-          cfg.domainName
+          (mkDomain cfg.domainName)
           "localhost"
         ];
         default_phone_region = "FR";

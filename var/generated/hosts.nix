@@ -24,6 +24,14 @@
         ];
       };
     };
+    services = {
+      homepage = { };
+      ncps = { };
+      forgejo = {
+        title = "Our local forge";
+      };
+      lldap = { };
+    };
   }
   {
     hostname = "my-laptop";
@@ -53,6 +61,20 @@
         ];
       };
     };
+    services = {
+      homepage = {
+        domain = "laptop-home";
+      };
+      immich = {
+        title = "My pictures";
+        description = "A very cool images app";
+        domain = "photos";
+        icon = "immich";
+      };
+      nextcloud = {
+        domain = "cloud";
+      };
+    };
   }
   {
     hostname = "pc01";
@@ -76,6 +98,7 @@
         ];
       };
     };
+    services = { };
   }
   {
     hostname = "pc02";
@@ -99,6 +122,7 @@
         ];
       };
     };
+    services = { };
   }
   {
     hostname = "pc03";
@@ -122,6 +146,7 @@
         ];
       };
     };
+    services = { };
   }
   {
     hostname = "pc04";
@@ -145,6 +170,7 @@
         ];
       };
     };
+    services = { };
   }
   {
     hostname = "laptop-kids";
@@ -166,6 +192,7 @@
         ];
       };
     };
+    services = { };
   }
   {
     hostname = "laptop-family";
@@ -187,5 +214,6 @@
         ];
       };
     };
+    services = { };
   }
 ]

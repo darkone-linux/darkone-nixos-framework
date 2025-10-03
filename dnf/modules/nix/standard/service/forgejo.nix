@@ -3,7 +3,6 @@
 {
   lib,
   config,
-  host,
   network,
   ...
 }:
@@ -30,30 +29,17 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # Virtualhost for forgejo
-    services.nginx = {
-      enable = lib.mkForce true;
-      virtualHosts.${cfg.domainName} = {
-        extraConfig = ''
-          client_max_body_size 512M;
-        '';
-        locations."/".proxyPass = "http://localhost:${toString srv.HTTP_PORT}";
+    # httpd + dnsmasq + homepage registration
+    darkone.service.httpd = {
+      enable = true;
+      service.forgejo = {
+        enable = true;
+        inherit (cfg) domainName;
+        displayName = "Forgejo";
+        description = "Forge GIT locale";
+        nginx.proxyPort = srv.HTTP_PORT;
       };
     };
-
-    # Add forgejo domain to /etc/hosts
-    networking.hosts."${host.ip}" = lib.mkIf config.services.dnsmasq.enable [ "${cfg.domainName}" ];
-
-    # Add forgejo in Administration section of homepage
-    darkone.service.homepage.appServices = [
-      {
-        "Forgejo" = {
-          description = "Forge GIT locale";
-          href = "http://${cfg.domainName}";
-          icon = "sh-forgejo";
-        };
-      }
-    ];
 
     services.forgejo = {
       enable = true;

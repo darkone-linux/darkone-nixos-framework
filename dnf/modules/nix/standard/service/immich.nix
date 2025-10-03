@@ -3,7 +3,6 @@
 {
   lib,
   config,
-  host,
   pkgs,
   ...
 }:
@@ -33,61 +32,52 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # Virtualhost for immich
-    darkone.service.homepage.enable = true;
-    services.nginx = {
-      enable = lib.mkForce true;
-      virtualHosts.${cfg.domainName} = {
-        extraConfig = ''
-          # Increase upload size for photos/videos
-          client_max_body_size 50000M;
+    # httpd + dnsmasq + homepage registration
+    darkone.service.httpd = {
+      enable = true;
+      service.immich = {
+        enable = true;
+        inherit (cfg) domainName;
+        displayName = "Immich";
+        description = "Gestionnaire de photos intelligent";
+        nginx = {
+          extraConfig = ''
+            # Increase upload size for photos/videos
+            client_max_body_size 50000M;
 
-          # Timeout settings for large uploads
-          proxy_read_timeout 600s;
-          proxy_connect_timeout 600s;
-          proxy_send_timeout 600s;
+            # Timeout settings for large uploads
+            proxy_read_timeout 600s;
+            proxy_connect_timeout 600s;
+            proxy_send_timeout 600s;
 
-          # Headers for proper proxying
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto $scheme;
+            # Headers for proper proxying
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
 
-          # WebSocket support for live updates
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection "upgrade";
-        '';
-        locations = {
-          "/" = {
-            proxyPass = "http://localhost:${toString immichCfg.port}";
-            proxyWebsockets = true;
-          };
+            # WebSocket support for live updates
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+          '';
+          locations = {
+            "/" = {
+              proxyPass = "http://localhost:${toString immichCfg.port}";
+              proxyWebsockets = true;
+            };
 
-          # API endpoint with specific settings
-          "/api/" = {
-            proxyPass = "http://localhost:${toString immichCfg.port}/api/";
-            extraConfig = ''
-              proxy_buffering off;
-            '';
+            # API endpoint with specific settings
+            "/api/" = {
+              proxyPass = "http://localhost:${toString immichCfg.port}/api/";
+              extraConfig = ''
+                proxy_buffering off;
+              '';
+            };
           };
         };
       };
     };
-
-    # Add immich domain to /etc/hosts
-    networking.hosts."${host.ip}" = lib.mkIf config.services.dnsmasq.enable [ "${cfg.domainName}" ];
-
-    # Add immich in Administration section of homepage
-    darkone.service.homepage.appServices = [
-      {
-        "Immich" = {
-          description = "Gestionnaire de photos intelligent";
-          href = "http://${cfg.domainName}";
-          icon = "sh-immich";
-        };
-      }
-    ];
 
     # Redis for caching (optional but recommended)
     services.redis.servers.immich = lib.mkIf cfg.enableRedis {
