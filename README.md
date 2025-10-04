@@ -209,19 +209,33 @@ Available recipes:
 ### En cours
 
 - [ ] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + configuration multi-postes.
+- [ ] Services distribués (aujourd'hui les services réseau sont sur la passerelle).
 
-### Planifié
+### Planifié (prioritaire)
 
+- [ ] just clean: détecter les fails, les afficher et s'arrêter.
 - [ ] Serveurs et postes "externes" (administrable mais ne faisant pas partie du LAN).
 - [ ] Configuration pour réseau extérieur (https, dns, vpn...).
-- [ ] Services distribués (aujourd'hui les services réseau sont sur la passerelle).
+- [ ] Accès externe au réseau : fqdn + lets encrypt + sécurité.
+- [ ] Partages Samba pour windows + linux.
+- [ ] Stratégie de synchronisation avec syncthing.
+- [ ] SSO avec [Authelia](https://github.com/authelia/authelia) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.authelia)) 
+  - Intégration du module Authelia (cf. mes notes, fichier `PAM`).
+  - Gestion auto `secrets/users_database.yml` de authelia (via module ?).
+  - Conf auto pour nginx, immich, nextcloud...
+- [ ] Stratégie de sauvegarde, plusieurs options :
+  - Ecosystème [Borg](https://github.com/borgbackup/borg) + [Borgmatic](https://github.com/borgmatic-collective/borgmatic) + [BorgWeb](https://github.com/borgbackup/borgweb) (plus maintenu ?) + [BorgWarehouse](https://github.com/ravinou/borgwarehouse) (bien mais pas intégré à nix) + [Vorta](https://vorta.borgbase.com/).
+  - Ecosystème [Restic](https://github.com/kopia/kopia), bon module nix, plus simple, plus "CLI", plus de connexions que Borg, moins performant.
+  - [Kopia](https://github.com/kopia/kopia) : très prometteur mais pas encore de module officiel pour NixOS.
+
+### Planifié (secondaire)
+
 - [ ] Intégration de [nixvim](https://nix-community.github.io/nixvim/).
 - [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
 - [ ] Attributions d'emails automatiques par réseaux.
 - [ ] Serveur de mails.
 - [ ] Générateur / gestionnaire d'UIDs (pour les grands réseaux).
-- [ ] just clean: détecter les fails, les afficher et s'arrêter.
 - [ ] Réseau social à voir : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost), [mastodon](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mastodon), [matrix](https://nixos.wiki/wiki/Matrix), [gotosocial](https://search.nixos.org/options?channel=24.11&from=0&size=50&sort=relevance&type=packages&query=services.gotosocial), [zulip](https://zulip.com/self-hosting/)...
 
 ### Fait
