@@ -227,6 +227,9 @@ Available recipes:
   - Ecosystème [Borg](https://github.com/borgbackup/borg) + [Borgmatic](https://github.com/borgmatic-collective/borgmatic) + [BorgWeb](https://github.com/borgbackup/borgweb) (plus maintenu ?) + [BorgWarehouse](https://github.com/ravinou/borgwarehouse) (bien mais pas intégré à nix) + [Vorta](https://vorta.borgbase.com/).
   - Ecosystème [Restic](https://github.com/kopia/kopia), bon module nix, plus simple, plus "CLI", plus de connexions que Borg, moins performant.
   - [Kopia](https://github.com/kopia/kopia) : très prometteur mais pas encore de module officiel pour NixOS.
+- [ ] Optimisations réseau :
+  - Domaines locaux des machines -> 127.0.0.1 (shunt dnsmasq + adguard)
+  - Homepage GW -> accès aux services globaux installés sur le réseau hors GW
 
 ### Planifié (secondaire)
 
