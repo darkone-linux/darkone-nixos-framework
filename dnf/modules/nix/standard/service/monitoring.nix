@@ -145,8 +145,8 @@ in
         server = {
           http_addr = "127.0.0.1";
           http_port = port.grafana;
-          domain = "grafana";
-          root_url = "http://grafana/";
+          domain = cfg.domainName;
+          root_url = "http://" + cfg.domainName + "/";
           serve_from_sub_path = false;
         };
         #security = {
@@ -157,8 +157,19 @@ in
           type = "sqlite3";
           path = "/var/lib/grafana/grafana.db";
         };
-        analytics.reporting_enabled = false;
-        analytics.check_for_updates = false;
+        analytics = {
+          reporting_enabled = false;
+          check_for_updates = false;
+          feedback_links_enabled = false;
+          check_for_plugin_updates = false;
+        };
+        plugins = {
+          allow_loading_unsigned_plugins = false;
+          plugin_catalog_url = null;
+        };
+        news = {
+          news_feed_enabled = false;
+        };
         auth.disable_login_form = true;
         "auth.anonymous".enabled = true;
       };
