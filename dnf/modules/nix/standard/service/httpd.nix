@@ -87,7 +87,7 @@ in
                 };
                 defaultVirtualHost = mkOption {
                   type = types.bool;
-                  default = host.hostname == (mkDomainName name srv.domainName);
+                  default = false;
                   description = "Default nginx virtualhost";
                 };
                 proxyPort = mkOption {

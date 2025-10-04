@@ -40,7 +40,7 @@ in
       lib.mkIf (!cfg.isClient) {
         enable = true;
         cache.dataPath = cfg.dataPath;
-        cache.maxSize = "100G";
+        cache.maxSize = "20G";
         cache.hostName = "${host.hostname}";
         upstream.caches = [ "https://cache.nixos.org" ];
       }
