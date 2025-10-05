@@ -230,6 +230,7 @@ Available recipes:
 - [ ] Optimisations réseau :
   - Domaines locaux des machines -> 127.0.0.1 (shunt dnsmasq + adguard)
   - Homepage GW -> accès aux services globaux installés sur le réseau hors GW
+- [ ] Réseau distribué avec [Headscale](https://github.com/juanfont/headscale) + [WireGuard](https://www.wireguard.com/)
 
 ### Planifié (secondaire)
 
