@@ -5,6 +5,7 @@
   config,
   pkgs,
   host,
+  network,
   ...
 }:
 let
@@ -59,6 +60,10 @@ in
       enable = true;
       package = pkgs.nextcloud31;
       hostName = mkDomain cfg.domainName;
+      maxUploadSize = "16G";
+
+      # TODO: true
+      https = false;
 
       # Configuration de base
       config = {
@@ -83,15 +88,35 @@ in
       configureRedis = true;
 
       # Applications par défaut
-      extraApps = {
-        inherit (config.services.nextcloud.package.packages.apps)
-          contacts
+      extraApps = with config.services.nextcloud.package.packages.apps; {
+
+        # List of apps we want to install and are already packaged in
+        # https://github.com/NixOS/nixpkgs/blob/master/pkgs/servers/nextcloud/packages/nextcloud-apps.json
+        inherit
           calendar
-          tasks
+          contacts
+          cospend
+          deck
+          files_mindmap
+          groupfolders
+          maps
+          music
           notes
-          memories
+          tasks
+          #cookbook
+          #files_markdown
+          #memories
+          #unroundedcorners
           ;
+        passwords = pkgs.fetchNextcloudApp {
+          url = "https://git.mdns.eu/api/v4/projects/45/packages/generic/passwords/2025.10.0/passwords.tar.gz";
+          sha256 = "sha256-3vTlJKOKiLVc9edPMRW+A/K2pXHYV+uY/in8ccYU6PE=";
+          license = "gpl3";
+        };
       };
+
+      # Apps config
+      autoUpdateApps.enable = true;
 
       # Paramètres supplémentaires
       settings = {
@@ -100,7 +125,7 @@ in
           (mkDomain cfg.domainName)
           "localhost"
         ];
-        default_phone_region = "FR";
+        default_phone_region = lib.toUpper (builtins.substring 0 2 network.locale);
       };
     };
 
