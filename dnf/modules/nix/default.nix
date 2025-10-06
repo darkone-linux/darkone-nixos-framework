@@ -42,6 +42,7 @@
     ./standard/service/ncps.nix
     ./standard/service/netdata.nix
     ./standard/service/nextcloud.nix
+    ./standard/service/owncloud.nix
     ./standard/service/printing.nix
     ./standard/system/core.nix
     ./standard/system/documentation.nix

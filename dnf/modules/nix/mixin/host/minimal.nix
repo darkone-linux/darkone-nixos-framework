@@ -39,6 +39,11 @@ in
       default = builtins.hasAttr "nextcloud" host.services;
       description = "Enable pre-configured nextcloud service";
     };
+    darkone.host.minimal.enableOwncloud = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "owncloud" host.services;
+      description = "Enable pre-configured owncloud service";
+    };
     darkone.host.minimal.enableNetdata = lib.mkOption {
       type = lib.types.bool;
       default = builtins.hasAttr "netdata" host.services;
@@ -80,6 +85,7 @@ in
       forgejo.enable = cfg.enableForgejo;
       immich.enable = cfg.enableImmich;
       nextcloud.enable = cfg.enableNextcloud;
+      owncloud.enable = cfg.enableOwncloud;
       netdata.enable = cfg.enableNetdata;
       monitoring.enable = cfg.enableMonitoring;
     };
