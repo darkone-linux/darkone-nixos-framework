@@ -12,67 +12,68 @@
   host,
   ...
 }:
+with lib;
 let
   cfg = config.darkone.host.minimal;
 in
 {
   options = {
-    darkone.host.minimal.enable = lib.mkEnableOption "Minimal host configuration";
-    darkone.host.minimal.secure = lib.mkEnableOption "Prefer more secure options (disable mutable users...)";
-    darkone.host.minimal.enableHomepage = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "homepage" host.services;
+    darkone.host.minimal.enable = mkEnableOption "Minimal host configuration";
+    darkone.host.minimal.secure = mkEnableOption "Prefer more secure options (disable mutable users...)";
+    darkone.host.minimal.enableHomepage = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "homepage" ] host;
       description = "Enable the auto-configured homepage service";
     };
-    darkone.host.minimal.enableForgejo = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "forgejo" host.services;
+    darkone.host.minimal.enableForgejo = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "forgejo" ] host;
       description = "Enable pre-configured forgejo git forge service";
     };
-    darkone.host.minimal.enableImmich = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "immich" host.services;
+    darkone.host.minimal.enableImmich = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "immich" ] host;
       description = "Enable pre-configured immich service";
     };
-    darkone.host.minimal.enableNextcloud = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "nextcloud" host.services;
+    darkone.host.minimal.enableNextcloud = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "nextcloud" ] host;
       description = "Enable pre-configured nextcloud service";
     };
-    darkone.host.minimal.enableNetdata = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "netdata" host.services;
+    darkone.host.minimal.enableNetdata = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "netdata" ] host;
       description = "Enable pre-configured Netdata service";
     };
-    darkone.host.minimal.enableMonitoring = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "monitoring" host.services;
+    darkone.host.minimal.enableMonitoring = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "monitoring" ] host;
       description = "Enable pre-configured monitoring service (prometheus, grafana)";
     };
   };
 
-  config = lib.mkIf cfg.enable {
+  config = mkIf cfg.enable {
 
     # Darkone main modules
     darkone.system = {
       hardware.enable = true; # firmwares
-      core.enableFirewall = lib.mkDefault true;
-      i18n.enable = lib.mkDefault true;
+      core.enableFirewall = mkDefault true;
+      i18n.enable = mkDefault true;
     };
 
     # Minimum console features
     darkone.console = {
-      packages.enable = lib.mkDefault true;
-      zsh.enable = lib.mkDefault true;
-      zsh.enableForRoot = lib.mkDefault true;
+      packages.enable = mkDefault true;
+      zsh.enable = mkDefault true;
+      zsh.enableForRoot = mkDefault true;
     };
 
     # No password for sudoers
-    security.sudo.wheelNeedsPassword = lib.mkDefault false;
+    security.sudo.wheelNeedsPassword = mkDefault false;
 
     # Can manage users with useradd, usermod...
     # Note: sops module force mutable users.
-    users.mutableUsers = lib.mkDefault (!cfg.secure);
+    users.mutableUsers = mkDefault (!cfg.secure);
 
     # Enabled services
     darkone.service = {

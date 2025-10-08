@@ -1,6 +1,10 @@
 {
   description = "NixOS Darkone Framework";
 
+  #----------------------------------------------------------------------------
+  # CACHING
+  #----------------------------------------------------------------------------
+
   nixConfig = {
     extra-trusted-substituters = [
       "https://cache.garnix.io"
@@ -10,6 +14,10 @@
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
     ];
   };
+
+  #----------------------------------------------------------------------------
+  # FLAKE INPUTS
+  #----------------------------------------------------------------------------
 
   inputs = {
 
@@ -25,6 +33,8 @@
     sops-nix.url = "github:Mic92/sops-nix";
     sops-nix.inputs.nixpkgs.follows = "nixpkgs";
 
+    impermanence.url = "github:nix-community/impermanence";
+
     raspberry-pi-nix = {
       url = "github:nix-community/raspberry-pi-nix?ref=v0.4.1";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -35,6 +45,10 @@
     };
   };
 
+  #----------------------------------------------------------------------------
+  # FLAKE OUTPUTS
+  #----------------------------------------------------------------------------
+
   outputs =
     {
       self,
@@ -44,9 +58,14 @@
       raspberry-pi-nix,
       nixos-hardware,
       sops-nix,
+      impermanence,
       ...
     }:
     let
+
+      #------------------------------------------------------------------------
+      # LET
+      #------------------------------------------------------------------------
 
       # Support for multiple architectures
       supportedSystems = [
@@ -82,6 +101,7 @@
       users = import ./var/generated/users.nix;
       network = import ./var/generated/network.nix;
 
+      # Home manager context creations
       mkHome = login: {
         name = login;
         value = {
@@ -118,6 +138,7 @@
       };
       nodeSpecialArgs = builtins.listToAttrs (map mkNodeSpecialArgs hosts);
 
+      # Host creation
       mkHost = host: {
         name = host.hostname;
         value = host.colmena // {
@@ -127,6 +148,7 @@
             ./usr/modules/nix
             "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
             sops-nix.nixosModules.sops
+            impermanence.nixosModules.impermanence
             { _module.args.dnfLib = mkDnfLib (getHostArch host); }
             home-manager.nixosModules.home-manager
             {
@@ -203,6 +225,10 @@
       # Exposer la lib directement
       lib = forAllSystems mkDnfLib;
 
+      #------------------------------------------------------------------------
+      # HOSTS MANAGEMENT WITH COLMENA
+      #------------------------------------------------------------------------
+
       colmena = {
         meta = {
           description = "Darkone Framework Network";
@@ -220,6 +246,10 @@
       }
       // builtins.listToAttrs (map mkHost hosts);
 
+      #------------------------------------------------------------------------
+      # ISO IMAGE
+      #------------------------------------------------------------------------
+
       # Iso image for first install DNF system
       # nix build .#nixosConfigurations.iso.config.system.build.isoImage
       nixosConfigurations = builtins.listToAttrs (
@@ -230,18 +260,45 @@
             inherit system;
             specialArgs = mkCommonNodeArgs system // {
               host = {
-                hostname = "new-dnf";
+                hostname = "new-dnf-host-installer";
                 name = "New Darkone NixOS Framework";
                 profile = "minimal";
-                users = [ "nix" ];
+                users = [ ];
                 groups = [ ];
                 arch = system;
               };
             };
             modules = [
               "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+              ./dnf/modules/nix
               sops-nix.nixosModules.sops
+              impermanence.nixosModules.impermanence
+              { _module.args.dnfLib = mkDnfLib system; }
               home-manager.nixosModules.home-manager
+              {
+                home-manager = {
+                  useGlobalPkgs = true;
+                  useUserPackages = true;
+                  backupFileExtension = "bkp";
+                  users.nixos.imports = [
+                    ./dnf/modules/home
+                    (import ./dnf/homes/nix-admin)
+                  ];
+                  extraSpecialArgs = {
+                    inherit network;
+                    users = {
+                      nixos = {
+                        uid = 1000;
+                        email = "nixos@dnf.lan";
+                        name = "DNF Install User";
+                        profile = "dnf/homes/nix-admin";
+                      };
+                    };
+                    inherit system;
+                    pkgs-stable = nixpkgsStableFor.system;
+                  };
+                };
+              }
               ./dnf/hosts/iso.nix
               { nixpkgs.pkgs = nixpkgsFor.${system}; }
               { _module.args.dnfLib = mkDnfLib system; }
@@ -250,10 +307,18 @@
         }) supportedSystems
       );
 
+      #------------------------------------------------------------------------
+      # DEV SHELL
+      #------------------------------------------------------------------------
+
       # Dev env for all supported architectures
       devShells = forAllSystems (system: {
         default = mkDevShell system;
       });
+
+      #------------------------------------------------------------------------
+      # DNF MODULES
+      #------------------------------------------------------------------------
 
       # Darkone modules
       nixosModules = {

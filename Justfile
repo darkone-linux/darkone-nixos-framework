@@ -13,6 +13,7 @@ sopsYamlFile := secretsDir + '/.sops.yaml'
 sopsInfraTargetDir := '/etc/sops/age'
 sopsInfraTargetFile := sopsInfraTargetDir + '/infra.key'
 generatedConfigFile := workDir + '/var/generated/config.yaml'
+nix := 'nix --extra-experimental-features "nix-command flakes"'
 
 alias c := clean
 alias f := fix
@@ -103,7 +104,7 @@ check:
 # Check the main flake
 [group('check')]
 check-flake:
-	nix --extra-experimental-features "nix-command flakes" flake check --all-systems
+	{{nix}} flake check --all-systems
 
 # Check with statix
 [group('check')]
@@ -168,7 +169,7 @@ _gen what targetFile:
 [group('dev')]
 develop:
 	@echo Lauching nix develop with zsh...
-	nix --extra-experimental-features "nix-command flakes" develop -c zsh
+	{{nix}} develop -c zsh
 
 # Copy pub key to the node (nix user must exists)
 [group('install')]
@@ -376,6 +377,11 @@ push:
 [group('install')]
 format-dnf-shell:
 	nix-shell -p parted btrfs-progs nixos-install
+
+# Build iso image
+[group('install')]
+build-iso:
+	{{nix}} build .#nixosConfigurations.iso.config.system.build.isoImage
 
 # Format and install DNF on an usb key (danger)
 [confirm('This command is dangerous. Are you sure? (y/N)')]

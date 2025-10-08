@@ -73,7 +73,7 @@ in
     # Bootloader (enabled by default, but not with RPI dependencies)
     boot = lib.mkIf cfg.enableSystemdBoot {
       loader = {
-        timeout = 3;
+        timeout = lib.mkDefault 3;
         systemd-boot = {
           enable = true;
           configurationLimit = lib.mkOverride 1337 10; # Less than mkDefault

@@ -87,6 +87,9 @@ in
       # Cache Redis
       configureRedis = true;
 
+      # Déverrouillage du app store
+      appstoreEnable = true;
+
       # Applications par défaut
       extraApps = with config.services.nextcloud.package.packages.apps; {
 
