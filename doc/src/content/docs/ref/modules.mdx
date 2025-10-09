@@ -932,54 +932,54 @@ Recommanded filesystems:
 ```nix
 # Fichiers communs
 fileSystems."/persist" = {
-device = "/dev/disk/by-label/persist";
-fsType = "btrfs";
-options = [
-"subvol=persist"
-"compress=zstd:1" # Niveau 1 = bon compromis vitesse/ratio
-"noatime"
-"space_cache=v2"
-];
-neededForBoot = true;
+  device = "/dev/disk/by-label/persist";
+  fsType = "btrfs";
+  options = [
+    "subvol=persist"
+    "compress=zstd:1" # Niveau 1 = bon compromis vitesse/ratio
+    "noatime"
+    "space_cache=v2"
+  ];
+  neededForBoot = true;
 };
 
 # Bases de données : subvolume séparé sans compression
 fileSystems."/persist/databases" = {
-device = "/dev/disk/by-label/persist";
-fsType = "btrfs";
-options = [
-"subvol=databases"
-"nodatacow"  # Désactive COW pour performance DB
-"noatime"
-];
-depends = [ "/persist" ];
+  device = "/dev/disk/by-label/persist";
+  fsType = "btrfs";
+  options = [
+    "subvol=databases"
+    "nodatacow"  # Désactive COW pour performance DB
+    "noatime"
+  ];
+  depends = [ "/persist" ];
 };
 
 # Pour /etc/nixos
 fileSystems."/etc/nixos" = {
-device = "/persist/etc/nixos";
-options = [ "bind" ];
-depends = [ "/persist" ];
+  device = "/persist/etc/nixos";
+  options = [ "bind" ];
+  depends = [ "/persist" ];
 };
 
 # Stockage de médias sur disques séparés
 fileSystems."/persist/medias" = {
-device = "/dev/disk/by-label/medias";
-fsType = "ext4";
-options = [
-"noatime"        # Pas besoin de mettre à jour atime
-"data=writeback" # Performance maximale (safe pour Borg)
-];
+  device = "/dev/disk/by-label/medias";
+  fsType = "ext4";
+  options = [
+    "noatime"        # Pas besoin de mettre à jour atime
+    "data=writeback" # Performance maximale (safe pour Borg)
+  ];
 };
 
 # Backup local (disque externe par exemple)
 fileSystems."/persist/backup/local" = {
-device = "/dev/disk/by-label/usb-disk";
-fsType = "ext4";
-options = [
-"noatime"        # Pas besoin de mettre à jour atime
-"data=writeback" # Performance maximale (safe pour Borg)
-];
+  device = "/dev/disk/by-label/usb-disk";
+  fsType = "ext4";
+  options = [
+    "noatime"        # Pas besoin de mettre à jour atime
+    "data=writeback" # Performance maximale (safe pour Borg)
+  ];
 };
 ```
 

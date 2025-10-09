@@ -15,7 +15,7 @@ class MdxParser
     public static function extractFirstComment(string $fileContent): ?string
     {
         preg_match('/^(#.+?)\n[^#].*$/s', $fileContent, $matches);
-        return array_key_exists(1, $matches) ? preg_replace('/^# */m', '', $matches[1]) : null;
+        return array_key_exists(1, $matches) ? preg_replace('/^# ?/m', '', $matches[1]) : null;
     }
 
     public static function extractModulePath(string $filePath, array $category): string

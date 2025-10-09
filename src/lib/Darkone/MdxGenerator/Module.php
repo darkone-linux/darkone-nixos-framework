@@ -86,7 +86,7 @@ sidebar:
             $options .= "\n";
             $codeValue = empty($option['example']) ? $option['default'] : $option['example'];
             $codeValue = str_ends_with(strtolower($option['type']), 'str')
-                ? '"' . trim($codeValue, '"') . '"'
+                ? '"' . trim((string) $codeValue, '"') . '"'
                 : $codeValue;
             $code .= $prefix . $option['name'] . ' = ' . $codeValue . ';' . "\n";
         }
