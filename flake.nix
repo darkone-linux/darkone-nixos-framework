@@ -153,6 +153,7 @@
             home-manager.nixosModules.home-manager
             {
               home-manager = {
+
                 # Use global packages from nixpkgs
                 useGlobalPkgs = true;
 

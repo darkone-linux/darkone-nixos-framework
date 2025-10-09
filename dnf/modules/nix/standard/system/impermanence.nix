@@ -160,15 +160,24 @@ in
       persistDirs = mkOption {
         type = types.listOf (types.either types.str (types.attrsOf types.anything));
         default = [
-          "Documents"
-          "Downloads"
-          "Music"
-          "Pictures"
-          "Videos"
+          (lib.baseNameOf xdg.userDirs.desktop)
+          (lib.baseNameOf xdg.userDirs.documents)
+          (lib.baseNameOf xdg.userDirs.music)
+          (lib.baseNameOf xdg.userDirs.pictures)
+          (lib.baseNameOf xdg.userDirs.videos)
+          (lib.baseNameOf xdg.userDirs.download)
           ".ssh"
           ".gnupg"
           {
             directory = ".local/share";
+            mode = "0700";
+          }
+          {
+            directory = ".config";
+            mode = "0700";
+          }
+          {
+            directory = ".thunderbird";
             mode = "0700";
           }
           {
@@ -181,7 +190,7 @@ in
 
       persistFiles = mkOption {
         type = types.listOf types.str;
-        default = [ ".bashrc" ];
+        default = [ ".zshrc" ];
         description = "Default files to persist for all users";
       };
 
@@ -204,6 +213,13 @@ in
   # Impermanence DNF config
   config = mkIf cfg.enable {
 
+    # User dirs only in english
+    xdg.userDirs = {
+      enable = true;
+      createDirectories = true;
+      locale = "C"; # ou "en_US"
+    };
+
     # etc + persistance
     environment.persistence = {
 
@@ -211,6 +227,7 @@ in
       "${cfg.persistRootDir}" = {
         hideMounts = true;
         directories = [
+          "/var/lib" # TODO: each app need to add its folder + remove this
           "/var/log"
           "/etc/nixos"
         ]
@@ -250,11 +267,10 @@ in
         hideMounts = true;
         directories = cfg.extraMediaPersistDirs;
       };
-
-      # Backup locations (ext4 or xfs)
-
     }
     // mapAttrs' (
+
+      # Backup locations (ext4 or xfs)
       location: locConfig:
       nameValuePair "${cfg.persistRootDir}/backup/${location}" {
         hideMounts = true;

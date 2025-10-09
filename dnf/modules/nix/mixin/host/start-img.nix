@@ -14,20 +14,17 @@ in
     darkone.host.start-img.enable = lib.mkEnableOption "Start minimal iso image";
   };
 
-  # TODO: Clean minimal image (broken zsh, etc.)
   config = lib.mkIf cfg.enable {
 
     # Enable an image depending on requested format
+    # Based on minimal configuration by default
     darkone.host =
       if imgFormat == "vbox" then
         { vm.enableVirtualbox = true; }
       else if imgFormat == "xen" then
         { vm.enableXen = true; }
       else
-        {
-          # Based on minimal configuration by default
-          minimal.enable = lib.mkDefault true;
-        };
+        { minimal.enable = lib.mkDefault true; };
 
     boot = {
       initrd = {
@@ -49,7 +46,7 @@ in
     nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
 
     # Avoid the stateVersion warning.
-    # State based on the system nixos release.
+    # State based on the current nixos system release.
     system.stateVersion = config.system.nixos.release;
   };
 }
