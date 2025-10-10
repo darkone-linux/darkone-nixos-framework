@@ -18,8 +18,11 @@ generatedConfigFile := workDir + '/var/generated/config.yaml'
 nix := 'nix --extra-experimental-features "nix-command flakes"'
 
 alias c := clean
-alias f := fix
-alias g := generate
+alias d := develop
+alias e := enter
+alias a := apply-force
+alias al := apply-local
+alias av := apply-verbose
 
 # Justfile help
 _default:
@@ -27,7 +30,7 @@ _default:
 
 # Framework installation on local machine (builder / admin)
 [group('install')]
-install-admin-host:
+configure-admin-host:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	if [ `whoami` != "nix" ]; then
@@ -202,7 +205,10 @@ copy-hw host:
 	if [ $? -eq 0 ]; then
 		echo "-> A hardware configuration exists, extracting..."
 		mkdir -p usr/machines/{{host}}
-		scp nix@{{host}}:/etc/nixos/hardware-configuration.nix usr/machines/{{host}}/default.nix
+		if [ ! -f ./usr/machines/{{host}}/default.nix ]; then
+			cp ./dnf/hosts/templates/usr-machines-default.nix ./usr/machines/{{host}}/default.nix
+		fi
+		scp nix@{{host}}:/etc/nixos/hardware-configuration.nix usr/machines/{{host}}/hardware-configuration.nix
 	else
 		echo "-> ERR: no hardware configuration found on {{host}}"
 	fi
@@ -222,9 +228,39 @@ push-key host:
 	ssh nix@{{host}} 'sudo chown -R root {{sopsInfraTargetDir}}'
 	ssh nix@{{host}} 'sudo chmod 600 {{sopsInfraTargetFile}}'
 
+# New host: format with nixos-everywhere + disko
+[group('install')]
+install host user='nix' ip='auto' do='install':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	echo "-> Preparation..."
+	if [ "{{ip}}" == "auto" ]; then
+		TARGET_HOST="{{host}}"
+	else
+		TARGET_HOST="{{ip}}"
+	fi
+	if [ ! -f ./usr/machines/{{host}}/default.nix ]; then
+		cp ./dnf/hosts/templates/usr-machines-default.nix ./usr/machines/{{host}}/default.nix
+	fi
+	if [ ! -f ./usr/machines/{{host}}/hardware-configuration.nix ]; then
+		echo "{ }" > ./usr/machines/{{host}}/hardware-configuration.nix
+	fi
+	echo "-> Launching installation ({{do}})..."
+	if [ "{{do}}" == "test" ]; then
+		{{nix}} run github:nix-community/nixos-anywhere -- --flake .#{{host}} --vm-test
+	elif [ "{{do}}" == "install" ] ;then
+		{{nix}} run github:nix-community/nixos-anywhere -- \
+			--flake .#{{host}} \
+			-i ~/.ssh/id_ed25519 \
+			--generate-hardware-config nixos-generate-config ./usr/machines/{{host}}/hardware-configuration.nix \
+			--target-host {{user}}@$TARGET_HOST
+	else
+		echo 'ERR: unkown action "{{do}}"'
+	fi;
+
 # New host: ssh cp id, extr. hw, clean, commit, apply
 [group('install')]
-install host:
+configure host:
 	set -euo pipefail
 	@echo "-> Copying ssh identity..."
 	@just copy-id {{host}}

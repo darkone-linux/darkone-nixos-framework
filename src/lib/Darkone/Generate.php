@@ -118,6 +118,7 @@ class Generate
         foreach ($this->config->getHosts() as $host) {
             $disko = $host->getDisko();
             if (empty($disko['profile'])) {
+                $stream .= $host->getHostname() . " {}\n";
                 continue;
             }
             $fileContent = '{lib,...}:{imports=[' . $disko['profile'] . '];';

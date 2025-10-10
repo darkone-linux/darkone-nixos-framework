@@ -43,6 +43,9 @@
     nixos-hardware = {
       url = "github:NixOS/nixos-hardware/master";
     };
+
+    disko.url = "github:nix-community/disko/latest";
+    disko.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   #----------------------------------------------------------------------------
@@ -59,6 +62,7 @@
       nixos-hardware,
       sops-nix,
       impermanence,
+      disko,
       ...
     }:
     let
@@ -149,6 +153,8 @@
             "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
             sops-nix.nixosModules.sops
             impermanence.nixosModules.impermanence
+            disko.nixosModules.disko
+            ./var/generated/disko/${host.hostname}.nix
             { _module.args.dnfLib = mkDnfLib (getHostArch host); }
             home-manager.nixosModules.home-manager
             {
@@ -186,6 +192,14 @@
           ++ nixpkgs.lib.optional (builtins.pathExists ./usr/machines/${host.hostname}) ./usr/machines/${host.hostname};
         };
       };
+
+      # Disko script
+  #     mkDiskoScript = host: {
+  #         name = host.hostname;
+  # value = self.nixosConfigurations.${host.hostname}.config.system.build.diskoScript;
+  #       name = "${host.hostname}".config.system.build.diskoScript;
+  #       value = ./var/generated/disko/${host.hostname}.nix;
+  #     };
 
       # Multi-arch devshells
       mkDevShell =
@@ -248,65 +262,101 @@
       // builtins.listToAttrs (map mkHost hosts);
 
       #------------------------------------------------------------------------
+      # PACKAGES (exposer les diskoScripts pour nixos-anywhere)
+      #------------------------------------------------------------------------
+
+      # packages = forAllSystems (
+      #   system:
+      #   let
+
+      #     # Filtrer les hosts pour ce système
+      #     hostsForSystem = builtins.filter (host: (getHostArch host) == system) hosts;
+
+      #     # Créer un nixosSystem minimal pour chaque host juste pour disko
+      #     mkDiskoScript = host: {
+      #       name = "disko-${host.hostname}";
+      #       value =
+      #         (nixpkgs.lib.nixosSystem {
+      #           system = getHostArch host;
+      #           specialArgs = nodeSpecialArgs.${host.hostname};
+      #           modules = [
+      #             "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+      #             disko.nixosModules.disko
+      #             ./var/generated/disko/${host.hostname}.nix
+      #             {
+      #               nixpkgs.pkgs = nixpkgsFor.${system};
+      #             }
+      #           ];
+      #         }).config.system.build.diskoScript;
+      #     };
+      #   in
+      #   builtins.listToAttrs (map mkDiskoScript hostsForSystem)
+      # );
+
+      #------------------------------------------------------------------------
       # ISO IMAGE
       #------------------------------------------------------------------------
 
       # Iso image for first install DNF system
       # nix build .#nixosConfigurations.iso.config.system.build.isoImage
-      nixosConfigurations = builtins.listToAttrs (
-        map (system: {
-          name =
-            if system == "x86_64-linux" then "iso" else "iso-${builtins.replaceStrings [ "-" ] [ "_" ] system}";
-          value = nixpkgs.lib.nixosSystem {
-            inherit system;
-            specialArgs = mkCommonNodeArgs system // {
-              host = {
-                hostname = "new-dnf-host-installer";
-                name = "New Darkone NixOS Framework";
-                profile = "minimal";
-                users = [ ];
-                groups = [ ];
-                arch = system;
-              };
-            };
-            modules = [
-              "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
-              ./dnf/modules/nix
-              sops-nix.nixosModules.sops
-              impermanence.nixosModules.impermanence
-              { _module.args.dnfLib = mkDnfLib system; }
-              home-manager.nixosModules.home-manager
-              {
-                home-manager = {
-                  useGlobalPkgs = true;
-                  useUserPackages = true;
-                  backupFileExtension = "bkp";
-                  users.nixos.imports = [
-                    ./dnf/modules/home
-                    (import ./dnf/homes/nix-admin)
-                  ];
-                  extraSpecialArgs = {
-                    inherit network;
-                    users = {
-                      nixos = {
-                        uid = 1000;
-                        email = "nixos@dnf.lan";
-                        name = "DNF Install User";
-                        profile = "dnf/homes/nix-admin";
-                      };
-                    };
-                    inherit system;
-                    pkgs-stable = nixpkgsStableFor.system;
-                  };
+      nixosConfigurations =
+        builtins.listToAttrs (
+          map (system: {
+            name =
+              if system == "x86_64-linux" then "iso" else "iso-${builtins.replaceStrings [ "-" ] [ "_" ] system}";
+            value = nixpkgs.lib.nixosSystem {
+              inherit system;
+              specialArgs = mkCommonNodeArgs system // {
+                host = {
+                  hostname = "new-dnf-host-installer";
+                  name = "New Darkone NixOS Framework";
+                  profile = "minimal";
+                  users = [ ];
+                  groups = [ ];
+                  arch = system;
                 };
-              }
-              ./dnf/hosts/iso.nix
-              { nixpkgs.pkgs = nixpkgsFor.${system}; }
-              { _module.args.dnfLib = mkDnfLib system; }
-            ];
-          };
-        }) supportedSystems
-      );
+              };
+              modules = [
+                "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+                ./dnf/modules/nix
+                sops-nix.nixosModules.sops
+                impermanence.nixosModules.impermanence
+                disko.nixosModules.disko
+                { _module.args.dnfLib = mkDnfLib system; }
+                home-manager.nixosModules.home-manager
+                {
+                  home-manager = {
+                    useGlobalPkgs = true;
+                    useUserPackages = true;
+                    backupFileExtension = "bkp";
+                    users.nixos.imports = [
+                      ./dnf/modules/home
+                      (import ./dnf/homes/nix-admin)
+                    ];
+                    extraSpecialArgs = {
+                      inherit network;
+                      users = {
+                        nixos = {
+                          uid = 1000;
+                          email = "nixos@dnf.lan";
+                          name = "DNF Install User";
+                          profile = "dnf/homes/nix-admin";
+                        };
+                      };
+                      inherit system;
+                      pkgs-stable = nixpkgsStableFor.system;
+                    };
+                  };
+                }
+                ./dnf/hosts/iso.nix
+                { nixpkgs.pkgs = nixpkgsFor.${system}; }
+                { _module.args.dnfLib = mkDnfLib system; }
+              ];
+            };
+          }) supportedSystems
+        );
+#        // builtins.listToAttrs (map mkDiskoScript hosts);
+
 
       #------------------------------------------------------------------------
       # DEV SHELL
