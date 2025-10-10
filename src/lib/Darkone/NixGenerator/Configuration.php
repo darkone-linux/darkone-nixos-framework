@@ -16,6 +16,8 @@ class Configuration extends NixAttrSet
 
     public const REGEX_HOSTNAME = '/^[a-zA-Z][a-zA-Z0-9_-]{1,59}$/';
     public const REGEX_LOGIN = '/^[a-zA-Z][a-zA-Z0-9_-]{1,59}$/';
+    public const REGEX_IDENTIFIER = '/^[a-z][a-zA-Z0-9-]{0,62}[a-zA-Z0-9]$/';
+    public const REGEX_DEVICE = '#^/dev(/[a-zA-Z0-9]+){1,3}$#';
     public const REGEX_NAME = '/^.{3,128}$/';
     public const REGEX_IPV4 = '/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/';
 
@@ -172,7 +174,8 @@ class Configuration extends NixAttrSet
                 ->registerAliases($this->extraNetwork, $host['aliases'] ?? [])
                 ->registerInterfaces($this->extraNetwork, $host['interfaces'] ?? [])
                 ->registerServices($this->extraNetwork, $host['services'] ?? [])
-                ->setIp($this->extraNetwork->getHostIp($host['hostname']));
+                ->setIp($this->extraNetwork->getHostIp($host['hostname']))
+                ->setDisko($host['disko'] ?? []);
         }, $staticHosts);
     }
 
@@ -225,6 +228,7 @@ class Configuration extends NixAttrSet
                 'users' => $rangeHostGroup['users'] ?? [],
                 'groups' => $rangeHostGroup['groups'] ?? [],
                 'tags' => $rangeHostGroup['tags'] ?? [],
+                'disko' => $rangeHostGroup['disko'] ?? [],
             ];
         }
 
@@ -258,6 +262,7 @@ class Configuration extends NixAttrSet
                 'users' => $listHostGroup['users'] ?? [],
                 'groups' => $listHostGroup['groups'] ?? [],
                 'tags' => $listHostGroup['tags'] ?? [],
+                'disko' => $listHostGroup['disko'] ?? [],
             ]);
         }
         $this->loadStaticHosts($hosts);
@@ -285,6 +290,7 @@ class Configuration extends NixAttrSet
         self::assert(self::TYPE_STRING, $host['name'] ?? null, 'A name (description) is required for "' . $host['hostname'] . '"');
         self::assert(self::TYPE_STRING, $host['profile'] ?? null, 'A host profile is required for "' . $host['hostname'] . '"');
         self::assert(self::TYPE_ARRAY, $host['users'] ?? [], 'Bad users list type for "' . $host['hostname'] . '"', null, self::TYPE_STRING);
+        self::assert(self::TYPE_ARRAY, $host['disko'] ?? [], 'Bad disko params');
         self::assert(self::TYPE_BOOL, $host['local'] ?? false, 'Bad local key type for "' . $host['hostname'] . '"');
     }
 

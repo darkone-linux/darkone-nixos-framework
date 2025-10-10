@@ -14,5 +14,6 @@ try {
     );
     echo $generator->generate($_SERVER['argv'][1] ?? '?');
 } catch (NixException $e) {
-    exit("ERR: " . $e->getMessage());
+    echo "ERR: " . $e->getMessage() . PHP_EOL;
+    die(1);
 }

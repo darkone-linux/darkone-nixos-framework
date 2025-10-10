@@ -8,6 +8,9 @@ use Darkone\NixGenerator\NixNetwork;
 
 class Host
 {
+    private const DISKO_TPL_DIR_DNF = NIX_PROJECT_ROOT . '/dnf/hosts/disko';
+    private const DISKO_TPL_DIR_USR = NIX_PROJECT_ROOT . '/usr/hosts/disko';
+
     private string $hostname;
     private string $name;
     private string $profile;
@@ -34,6 +37,11 @@ class Host
      * Activated services
      */
     private array $services = [];
+
+    /**
+     * Disko configuration for host creation
+     */
+    private array $disko = [];
 
     /**
      * @throws NixException
@@ -202,5 +210,49 @@ class Host
     {
         $this->arch = $arch;
         return $this;
+    }
+
+    /**
+     * @throws NixException
+     */
+    public function setDisko(array $diskoConfig): Host
+    {
+        if (empty($diskoConfig)) {
+            return $this;
+        }
+
+        $config = $diskoConfig;
+        if (!isset($config['profile'])) {
+            throw new NixException('Disko profile name for host "' . $this->getHostname() . '" is required');
+        }
+        Configuration::assert(Configuration::TYPE_STRING, $config['profile'], 'Bad disko profile name', Configuration::REGEX_IDENTIFIER);
+        if (file_exists($file = self::DISKO_TPL_DIR_DNF . '/' . $config['profile'] . '.nix')) {
+            $diskoConfig['profile'] = './../../../dnf/hosts/disko/' . $config['profile'] . '.nix';
+        } elseif (file_exists($file = self::DISKO_TPL_DIR_USR . '/' . $config['profile'] . '.nix')) {
+            $diskoConfig['profile'] = './../../../usr/hosts/disko/' . $config['profile'] . '.nix';
+        } else {
+            throw new NixException('Unknown disko profile "' . $config['profile'] . '.nix" (not in dnf/hosts/disko or usr/hosts/disko)');
+        }
+        unset($config['profile']);
+
+        if (isset($config['devices']) && is_array($config['devices'])) {
+            foreach ($config['devices'] as $name => $device) {
+                Configuration::assert(Configuration::TYPE_STRING, $name, 'bad disko device identifier', Configuration::REGEX_IDENTIFIER);
+                Configuration::assert(Configuration::TYPE_STRING, $device, 'bad disko device path', Configuration::REGEX_DEVICE);
+            }
+            unset($config['devices']);
+        }
+
+        if (!empty($config)) {
+            throw new NixException('Unknown disko parameters ' . json_encode($config));
+        }
+
+        $this->disko = $diskoConfig;
+        return $this;
+    }
+
+    public function getDisko(): array
+    {
+        return $this->disko;
     }
 }

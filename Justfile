@@ -1,6 +1,8 @@
 # Darkone framework just file
 # darkone@darkone.yt
 
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
 workDir := source_directory()
 dnfDir := home_directory() + '/dnf'
 secretsDir := workDir + '/usr/secrets'
@@ -136,7 +138,8 @@ generate: \
 	(_gen-default "usr/modules/home") \
 	(_gen "users" "var/generated/users.nix") \
 	(_gen "hosts" "var/generated/hosts.nix") \
-	(_gen "network" "var/generated/network.nix")
+	(_gen "network" "var/generated/network.nix") \
+	(_gen-disko "var/generated/disko")
 
 # Generator of default.nix files
 _gen-default dir:
@@ -164,6 +167,14 @@ _gen what targetFile:
 	echo >> "{{targetFile}}"
 	php ./src/generate.php "{{what}}" >> "{{targetFile}}"
 	nixfmt -s "{{targetFile}}"
+
+# Generate var/generated/disko/*.nix files
+_gen-disko targetDir:
+	#!/usr/bin/env bash
+	echo "-> generating disko files in {{targetDir}}..."
+	rm -f "{{targetDir}}/*.nix"
+	mkdir -p "{{targetDir}}"
+	php ./src/generate.php "disko" | awk '{file="{{targetDir}}/" $1 ".nix"; $1=""; sub(/^ /,"# Generated file, do not edit\n\n"); print > file}'
 
 # Launch a "nix develop" with zsh (dev env)
 [group('dev')]
@@ -214,6 +225,7 @@ push-key host:
 # New host: ssh cp id, extr. hw, clean, commit, apply
 [group('install')]
 install host:
+	set -euo pipefail
 	@echo "-> Copying ssh identity..."
 	@just copy-id {{host}}
 	@echo "-> Extracting hardware information..."

@@ -36,6 +36,7 @@ class Generate
                 'hosts' => $this->generateHosts(),
                 'users' => $this->generateUsers(),
                 'network' => $this->generateNetworkConfig(),
+                'disko' => $this->generateDisko(),
                 'doc' => $this->generateDoc()
             };
         } catch (UnhandledMatchError) {
@@ -105,6 +106,27 @@ class Generate
     private function generateNetworkConfig(): string
     {
         return (string) NixBuilder::arrayToNix($this->config->getNetworkConfig());
+    }
+
+    /**
+     * Generate and write host disko profiles
+     * @throws NixException
+     */
+    private function generateDisko(): string
+    {
+        $stream = '';
+        foreach ($this->config->getHosts() as $host) {
+            $disko = $host->getDisko();
+            if (empty($disko['profile'])) {
+                continue;
+            }
+            $fileContent = '{lib,...}:{imports=[' . $disko['profile'] . '];';
+            foreach ($disko['devices'] ?? [] as $name => $device) {
+                $fileContent .= 'disko.devices.disk.' . $name . '.device=lib.mkForce "' . $device . '";';
+            }
+            $stream .= $host->getHostname() . ' ' . $fileContent . "}\n";
+        }
+        return $stream;
     }
 
     private function generateDoc(): string
