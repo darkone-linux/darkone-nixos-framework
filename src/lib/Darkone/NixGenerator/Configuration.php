@@ -18,6 +18,7 @@ class Configuration extends NixAttrSet
     public const REGEX_LOGIN = '/^[a-zA-Z][a-zA-Z0-9_-]{1,59}$/';
     public const REGEX_IDENTIFIER = '/^[a-z][a-zA-Z0-9-]{0,62}[a-zA-Z0-9]$/';
     public const REGEX_DEVICE = '#^/dev(/[a-zA-Z0-9]+){1,3}$#';
+    public const REGEX_MAC_ADDRESS = '[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}';
     public const REGEX_NAME = '/^.{3,128}$/';
     public const REGEX_IPV4 = '/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/';
 

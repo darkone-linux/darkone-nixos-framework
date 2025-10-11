@@ -15,7 +15,6 @@ let
   cfg = config.darkone.service.dnsmasq;
   inherit (network) domain;
   inherit (network) extraDnsmasqSettings;
-  inherit (network) extraNetworking;
   inherit (network) gateway;
   wanInterface = network.gateway.wan.interface;
   lanInterface = "lan0"; # bridge for internal interfaces
@@ -99,7 +98,7 @@ in
       };
 
       # /etc/hosts + avoid additional loopback entries in 127.0.0.2
-      hosts = (extraNetworking.hosts or { }) // {
+      hosts = {
         "127.0.0.2" = lib.mkForce [ ];
       };
     };

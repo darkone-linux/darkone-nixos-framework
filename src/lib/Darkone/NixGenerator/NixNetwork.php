@@ -37,39 +37,24 @@ class NixNetwork
                 'dhcp-host' => array_values($this->macAddresses),
                 'dhcp-option' => $this->dhcpOption,
                 'dhcp-range' => $this->dhcpRange,
-            ],
-            'extraNetworking' => [
-                'hosts' => $this->buildHostsWithAliases(),
+                'cname' => $this->buildCnames(),
             ],
         ];
     }
 
-    private function buildHostsWithAliases(): array
+    private function buildCnames(): array
     {
-        $config = [];
-        natsort($this->hosts);
-
-        foreach ($this->hosts as $host => $ip) {
-            if (is_null($ip)) {
-                continue;
+        $cnames = [];
+        foreach ($this->aliases as $host => $aliases) {
+            $hostCnames = [];
+            foreach ($aliases as $alias) {
+                $hostCnames[] = $alias . ',' . $host;
             }
-            $config[$ip] = array_merge([$host], $this->aliases[$host] ?? []);
-
-            // Add domain to the name. NOTE: this is the work of expand-hosts...
-            //foreach ($config[$ip] as $host) {
-            //    $config[$ip][] = $host . '.' . $this->config['domain'];
-            //}
-
-            // Domain -> gateway
-            if ($ip == $this->config['gateway']['lan']['ip']) {
-                $config[$ip][] = $this->config['domain'];
-            }
-
-            $config[$ip] = array_unique($config[$ip]);
-            sort($config[$ip]);
+            sort($hostCnames);
+            $cnames = array_merge($cnames, $hostCnames);
         }
 
-        return $config;
+        return $cnames;
     }
 
     /**
@@ -77,11 +62,38 @@ class NixNetwork
      */
     public function registerMacAddress(string $mac, string $ip, string $host): NixNetwork
     {
-        if (isset($this->macAddresses[$mac])) {
-            throw new NixException('Mac address ' . $mac . ' already declared');
-        }
+        static $macAddresses = [];
+
         if (!empty($mac)) {
-            $this->macAddresses[$mac] = $mac . ',' . $ip . ',' . $host . ',infinite';
+
+            // Filter + checks
+            $mac = trim(strtolower($mac));
+            if (!preg_match('/^' . Configuration::REGEX_MAC_ADDRESS . '(,' . Configuration::REGEX_MAC_ADDRESS . ')*$/', $mac)) {
+                throw new NixException('Bad mac address syntax for "' . $mac . '"');
+            }
+
+            // Duplicates detection
+            if (in_array($mac, $macAddresses)) {
+                throw new NixException('Mac address ' . $mac . ' already declared');
+            }
+            $macAddresses[] = $mac;
+
+            // In case of we have this :
+            // interfaces:
+            // - mac: xxx
+            //   ip: "192.168.1.3"
+            // - mac: yyy
+            //   ip: "192.168.1.3" <- the same
+            if (isset($this->macAddresses[$ip])) {
+                $record = explode(',', $this->macAddresses[$ip]);
+                $registeredHost = $record[count($record) - 2];
+                if ($host !== $registeredHost) {
+                    throw new NixException('Cannot register a mac address ' . $mac . ' with different host names: ' . $host . ' vs ' . $registeredHost);
+                }
+                $this->macAddresses[$ip] = $mac . ',' . $this->macAddresses[$ip];
+            } else {
+                $this->macAddresses[$ip] = $mac . ',' . $ip . ',' . $host . ',infinite';
+            }
         }
 
         return $this;
