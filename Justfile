@@ -175,8 +175,8 @@ _gen what targetFile:
 _gen-disko targetDir:
 	#!/usr/bin/env bash
 	echo "-> generating disko files in {{targetDir}}..."
-	rm -f "{{targetDir}}/*.nix"
-	mkdir -p "{{targetDir}}"
+	rm -f {{targetDir}}/*.nix
+	mkdir -p {{targetDir}}
 	php ./src/generate.php "disko" | awk '{file="{{targetDir}}/" $1 ".nix"; $1=""; sub(/^ /,"# Generated file, do not edit\n\n"); print > file}'
 
 # Launch a "nix develop" with zsh (dev env)
@@ -189,6 +189,7 @@ develop:
 [group('install')]
 copy-id host:
 	#!/usr/bin/env bash
+	ssh-keygen -R {{host}}
 	ssh-copy-id -f nix@{{host}}
 	ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@{{host}} 'echo "OK, it works! You can type \"just install {{host}}\" and apply to {{host}}"'
 
@@ -201,17 +202,8 @@ enter host:
 [group('install')]
 copy-hw host:
 	#!/usr/bin/env bash
-	ssh nix@{{host}} 'test -f /etc/nixos/hardware-configuration.nix'
-	if [ $? -eq 0 ]; then
-		echo "-> A hardware configuration exists, extracting..."
-		mkdir -p usr/machines/{{host}}
-		if [ ! -f ./usr/machines/{{host}}/default.nix ]; then
-			cp ./dnf/hosts/templates/usr-machines-default.nix ./usr/machines/{{host}}/default.nix
-		fi
-		scp nix@{{host}}:/etc/nixos/hardware-configuration.nix usr/machines/{{host}}/hardware-configuration.nix
-	else
-		echo "-> ERR: no hardware configuration found on {{host}}"
-	fi
+	mkdir -p usr/machines/{{host}}
+	ssh nix@{{host}} "sudo nixos-generate-config --show-hardware-config" > usr/machines/{{host}}/hardware-configuration.nix
 
 # Push the infrastructure key to the host
 [group('install')]
@@ -240,23 +232,31 @@ install host user='nix' ip='auto' do='install':
 		TARGET_HOST="{{ip}}"
 	fi
 	if [ ! -f ./usr/machines/{{host}}/default.nix ]; then
+	  mkdir -p ./usr/machines/{{host}}
 		cp ./dnf/hosts/templates/usr-machines-default.nix ./usr/machines/{{host}}/default.nix
 	fi
 	if [ ! -f ./usr/machines/{{host}}/hardware-configuration.nix ]; then
 		echo "{ }" > ./usr/machines/{{host}}/hardware-configuration.nix
 	fi
+	just clean
 	echo "-> Launching installation ({{do}})..."
 	if [ "{{do}}" == "test" ]; then
-		{{nix}} run github:nix-community/nixos-anywhere -- --flake .#{{host}} --vm-test
+		{{nix}} run github:nix-community/nixos-anywhere -- --flake ./var/generated/disko#{{host}} --vm-test
 	elif [ "{{do}}" == "install" ] ;then
 		{{nix}} run github:nix-community/nixos-anywhere -- \
-			--flake .#{{host}} \
+			--flake ./var/generated/disko#{{host}} \
 			-i ~/.ssh/id_ed25519 \
 			--generate-hardware-config nixos-generate-config ./usr/machines/{{host}}/hardware-configuration.nix \
 			--target-host {{user}}@$TARGET_HOST
 	else
 		echo 'ERR: unkown action "{{do}}"'
 	fi;
+	echo "-> Now you can test nix@{{host}} and run 'just configure {{host}}'"
+
+# Get a mac address
+_info host:
+	echo "-> You can register the mac address in usr/config.yaml:"
+	ssh nix@{{host}} "ip -o link show up | grep -v 'lo:' | head -n 1 | sed 's/^.* \([0-9a-f:]*\) brd .*$/\1/'"
 
 # New host: ssh cp id, extr. hw, clean, commit, apply
 [group('install')]
@@ -272,7 +272,8 @@ configure host:
 	@just clean
 	@echo "-> If not error occurs, do not forget to commit and apply:"
 	@echo "git add . && git commit -m 'Installing new host {{host}}'"
-	@echo "just apply-force {{host}}"
+	@echo "just apply-verbose {{host}}"
+	@just _info {{host}}
 
 # Update the default DNF password
 [group('install')]

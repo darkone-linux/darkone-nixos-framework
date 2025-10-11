@@ -26,19 +26,27 @@
             };
 
             # Persistant data (impermanence)
-            system = {
+            persist = {
               size = "100%";
               content = {
                 type = "btrfs";
-                extraArgs = [ "-f" ];
+                extraArgs = [ "-f" ]; # Force overwrite
                 subvolumes = {
-                  "@system" = {
-                    mountpoint = "/";
+                  "@persist" = {
+                    mountpoint = "/persist";
                     mountOptions = [
-                      "subvol=system"
+                      "subvol=persist"
                       "compress=zstd:1"
                       "noatime"
                       "space_cache=v2"
+                    ];
+                  };
+                  "@databases" = {
+                    mountpoint = "/persist/databases";
+                    mountOptions = [
+                      "subvol=databases"
+                      "nodatacow"
+                      "noatime"
                     ];
                   };
                   "@nix" = {
@@ -55,6 +63,18 @@
             };
           };
         };
+      };
+    };
+
+    # Système racine sur tmpfs
+    nodev = {
+      "/" = {
+        fsType = "tmpfs";
+        mountOptions = [
+          "defaults"
+          "size=4G"
+          "mode=755"
+        ];
       };
     };
   };

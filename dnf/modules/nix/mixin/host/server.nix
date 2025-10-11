@@ -30,8 +30,8 @@ in
     # Load minimal configuration
     darkone.host.minimal.enable = lib.mkForce true;
 
-    # Darkone modules
-    darkone.system.documentation.enable = lib.mkDefault false;
+    # Darkone modules (very low priority)
+    darkone.system.documentation.enable = lib.mkOverride 2000 false;
 
     # Default apps
     environment.systemPackages = map lib.lowPrio [

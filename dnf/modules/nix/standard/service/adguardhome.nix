@@ -106,6 +106,9 @@ in
           # Forward to dnsmasq if needed!
           use_private_ptr_resolvers = true;
 
+          # Cache must be disabled to not disturb dnsmasq configuration changes
+          cache_enabled = false;
+
           # Retrieve client ips from dnsmasq (Active EDNS Client Subnet)
           # Note: deactivated -> dnsmasq forward external queries to adguard
           #ecs = true;

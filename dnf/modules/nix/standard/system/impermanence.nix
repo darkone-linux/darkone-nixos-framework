@@ -67,6 +67,14 @@
 with lib;
 let
   cfg = config.darkone.system.impermanence;
+  userDirs = {
+    desktop = "Desktop";
+    documents = "Documents";
+    music = "Music";
+    pictures = "Pictures";
+    videos = "Videos";
+    download = "Downloads";
+  };
 in
 {
   options.darkone.system.impermanence = {
@@ -160,12 +168,12 @@ in
       persistDirs = mkOption {
         type = types.listOf (types.either types.str (types.attrsOf types.anything));
         default = [
-          (lib.baseNameOf xdg.userDirs.desktop)
-          (lib.baseNameOf xdg.userDirs.documents)
-          (lib.baseNameOf xdg.userDirs.music)
-          (lib.baseNameOf xdg.userDirs.pictures)
-          (lib.baseNameOf xdg.userDirs.videos)
-          (lib.baseNameOf xdg.userDirs.download)
+          userDirs.desktop
+          userDirs.documents
+          userDirs.music
+          userDirs.pictures
+          userDirs.videos
+          userDirs.download
           ".ssh"
           ".gnupg"
           {
@@ -212,13 +220,6 @@ in
 
   # Impermanence DNF config
   config = mkIf cfg.enable {
-
-    # User dirs only in english
-    xdg.userDirs = {
-      enable = true;
-      createDirectories = true;
-      locale = "C"; # ou "en_US"
-    };
 
     # etc + persistance
     environment.persistence = {

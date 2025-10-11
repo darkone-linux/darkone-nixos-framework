@@ -76,6 +76,7 @@ in
         timeout = lib.mkDefault 3;
         systemd-boot = {
           enable = true;
+          editor = false;
           configurationLimit = lib.mkOverride 1337 10; # Less than mkDefault
         };
         efi.canTouchEfiVariables = true;

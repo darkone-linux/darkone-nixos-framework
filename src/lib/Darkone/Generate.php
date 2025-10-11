@@ -115,19 +115,29 @@ class Generate
     private function generateDisko(): string
     {
         $stream = '';
+        $flake = 'flake {nixConfig.extra-substituters=["http://gateway:8501"];inputs={nixpkgs.url="github:NixOS/nixpkgs/nixpkgs-unstable";'
+            . 'disko.url="github:nix-community/disko";'
+            . 'disko.inputs.nixpkgs.follows="nixpkgs";};'
+            . 'outputs={nixpkgs,disko,...}:{nixosConfigurations={';
         foreach ($this->config->getHosts() as $host) {
             $disko = $host->getDisko();
             if (empty($disko['profile'])) {
-                $stream .= $host->getHostname() . " {}\n";
                 continue;
             }
-            $fileContent = '{lib,...}:{imports=[' . $disko['profile'] . '];';
+            $fileContent = '{lib,...}:{imports=[' . $disko['profile'] . ' ./../../../dnf/hosts/install.nix];';
             foreach ($disko['devices'] ?? [] as $name => $device) {
                 $fileContent .= 'disko.devices.disk.' . $name . '.device=lib.mkForce "' . $device . '";';
             }
-            $stream .= $host->getHostname() . ' ' . $fileContent . "}\n";
+            $fileContent .= 'networking.hostName="' . $host->getHostname() . '";';
+            $stream .= 'install-' . $host->getHostname() . ' ' . $fileContent . "}\n";
+            $machineConfig = '/../../../usr/machines/' . $host->getHostname();
+            $flake .= $host->getHostname() . '=nixpkgs.lib.nixosSystem{system="'
+            . ($host->getArch() ?: 'x86_64-linux') . '";modules=[disko.nixosModules.disko ./install-' . $host->getHostname() . '.nix'
+            . (file_exists(__DIR__ . $machineConfig . '/default.nix') ? ' .' . $machineConfig : '')
+            . '];};';
         }
-        return $stream;
+
+        return $stream . $flake . "};};}\n";
     }
 
     private function generateDoc(): string
