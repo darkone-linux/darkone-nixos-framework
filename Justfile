@@ -28,6 +28,20 @@ alias av := apply-verbose
 _default:
 	@just --list
 
+# Check if we are an infra admin host
+_check_infra_admin:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	if [ `whoami` != "nix" ] ;then
+		echo "Please execute this command with the 'nix' user."
+		exit 1
+	fi
+	if [ ! -f {{sopsInfraKeyFile}} ] ;then
+		echo "Infra private key not found, you must do that from the admin host."
+		echo "If you are on the admin host, type 'just install-admin-host' before."
+		exit 1
+	fi
+
 # Framework installation on local machine (builder / admin)
 [group('install')]
 configure-admin-host:
@@ -190,7 +204,7 @@ develop:
 copy-id host:
 	#!/usr/bin/env bash
 	ssh-keygen -R {{host}}
-	ssh-copy-id -f nix@{{host}}
+	ssh-copy-id -o StrictHostKeyChecking=no -f nix@{{host}}
 	ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@{{host}} 'echo "OK, it works! You can type \"just install {{host}}\" and apply to {{host}}"'
 
 # Interactive shell to the host
@@ -209,11 +223,8 @@ copy-hw host:
 [group('install')]
 push-key host:
 	#!/usr/bin/env bash
-	if [ ! -f {{sopsInfraKeyFile}} ] ;then
-		echo "Infra private key not found, you must do that from the admin host."
-		echo "If you are on the admin host, type 'just install-admin-host' before."
-		exit 1
-	fi
+	set -euo pipefail
+	just _check_infra_admin
 	ssh nix@{{host}} 'sudo mkdir -p {{sopsInfraTargetDir}}'
 	ssh nix@{{host}} 'sudo chown -R nix {{sopsInfraTargetDir}}'
 	scp {{sopsInfraKeyFile}} nix@{{host}}:{{sopsInfraTargetFile}}
@@ -225,6 +236,7 @@ push-key host:
 install host user='nix' ip='auto' do='install':
 	#!/usr/bin/env bash
 	set -euo pipefail
+	just _check_infra_admin
 	echo "-> Preparation..."
 	if [ "{{ip}}" == "auto" ]; then
 		TARGET_HOST="{{host}}"
@@ -239,6 +251,9 @@ install host user='nix' ip='auto' do='install':
 		echo "{ }" > ./usr/machines/{{host}}/hardware-configuration.nix
 	fi
 	just clean
+	echo "-> We need to add, commit and build..."
+	git add . && git commit -m "New host {{host}} dnf installation"
+	just apply-local push
 	echo "-> Launching installation ({{do}})..."
 	if [ "{{do}}" == "test" ]; then
 		{{nix}} run github:nix-community/nixos-anywhere -- --flake ./var/generated/disko#{{host}} --vm-test
@@ -261,7 +276,7 @@ _info host:
 # New host: ssh cp id, extr. hw, clean, commit, apply
 [group('install')]
 configure host:
-	set -euo pipefail
+	@just _check_infra_admin
 	@echo "-> Copying ssh identity..."
 	@just copy-id {{host}}
 	@echo "-> Extracting hardware information..."
@@ -274,6 +289,23 @@ configure host:
 	@echo "git add . && git commit -m 'Installing new host {{host}}'"
 	@echo "just apply-verbose {{host}}"
 	@just _info {{host}}
+
+# New host: full installation (install, configure, apply)
+[group('install')]
+full-install host user='nix' ip='auto' do='install':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	just install {{host}} {{user}} {{ip}} {{do}}
+	echo "-> Waiting for reboot..."
+	until ping -c1 -W1 {{host}} >/dev/null 2>&1; do sleep 1; done; echo "Oh, {{host}} is up, waiting 2s and continue... :)"
+	sleep 2
+	just configure {{host}}
+	echo "-> We need to add and commit (amend)..."
+	git add . && git commit --amend --no-edit
+	just apply-verbose {{host}}
+	echo "-> Last reboot..."
+	colmena exec --on "{{host}}" "sudo systemctl reboot"
+	echo "-> Done"
 
 # Update the default DNF password
 [group('install')]

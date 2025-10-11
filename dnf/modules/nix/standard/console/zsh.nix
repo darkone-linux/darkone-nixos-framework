@@ -82,7 +82,7 @@ in
     # TODO: faire qqchose de plus propre pour le home de root
     home-manager = lib.mkIf cfg.enableForRoot {
       users.root = {
-        home.stateVersion = "25.05";
+        home.stateVersion = config.system.nixos.release;
         programs.zsh = {
           enable = true;
           autocd = true;
