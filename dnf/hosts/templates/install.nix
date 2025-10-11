@@ -9,15 +9,15 @@
   nixpkgs.config.allowUnfree = true;
   users.users.nix = {
     uid = 65000;
-    initialPassword = "nixos";
     isNormalUser = true;
     extraGroups = [ "wheel" ];
+    openssh.authorizedKeys.keys = [ "{{nixPubKey}}" ];
   };
   security.sudo.wheelNeedsPassword = false;
   environment.systemPackages = with pkgs; [ vim ];
   nix.settings = {
-    substituters = [ "http://gateway:8501" ];
+    substituters = [ "http://{{gateway}}:8501" ];
   };
   services.openssh.enable = true;
-  system.stateVersion = "25.11";
+  system.stateVersion = "{{currentStateVersion}}";
 }

@@ -64,8 +64,11 @@
     let
 
       #------------------------------------------------------------------------
-      # LET
+      # OUTPUT LET
       #------------------------------------------------------------------------
+
+      # Unstable state version for new hosts / homes installations
+      unstableStateVersion = "25.11";
 
       # Support for multiple architectures
       supportedSystems = [
@@ -110,11 +113,11 @@
             (import ./${users.${login}.profile})
           ];
 
-          # Home profiles loading
+          # Home profiles loading - TODO: stateVersion must be fixed for each user at creation
           home = {
             username = login;
             homeDirectory = nixpkgs.lib.mkDefault "/home/${login}";
-            stateVersion = "25.05";
+            stateVersion = nixpkgs.lib.mkDefault "${unstableStateVersion}";
           };
         };
       };

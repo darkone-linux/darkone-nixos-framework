@@ -115,6 +115,22 @@ class Generate
     private function generateDisko(): string
     {
         $stream = '';
+
+        // Installation minimal configuration, only if in a host with a nix user
+        if (trim(`whoami`) == 'nix' && file_exists('/home/nix/.ssh/id_ed25519.pub')) {
+            $installTpl = trim(preg_replace(["/ *#[^\n]*\n/", "/ *\n */"], ['', ''], file_get_contents(NIX_PROJECT_ROOT . '/dnf/hosts/templates/install.nix')));
+            preg_match('/^.*unstableStateVersion *= *"([0-9][0-9]\.[0-9][0-9])".*$/m', file_get_contents(NIX_PROJECT_ROOT . '/flake.nix'), $flakeMatches);
+            if (!isset($flakeMatches[1])) {
+                throw new NixException("Unable to find current unstable state version");
+            }
+            $stream = 'configuration ' . str_replace(['{{nixPubKey}}', '{{gateway}}', '{{currentStateVersion}}'], [
+                trim(file_get_contents('/home/nix/.ssh/id_ed25519.pub')),
+                $this->config->getNetworkConfig()['gateway']['hostname'],
+                $flakeMatches[1]
+            ], $installTpl) . "\n";
+        }
+
+        // Disko install configuration + flake
         $flake = 'flake {nixConfig.extra-substituters=["http://gateway:8501"];inputs={nixpkgs.url="github:NixOS/nixpkgs/nixpkgs-unstable";'
             . 'disko.url="github:nix-community/disko";'
             . 'disko.inputs.nixpkgs.follows="nixpkgs";};'
@@ -124,7 +140,7 @@ class Generate
             if (empty($disko['profile'])) {
                 continue;
             }
-            $fileContent = '{lib,...}:{imports=[' . $disko['profile'] . ' ./../../../dnf/hosts/install.nix];';
+            $fileContent = '{lib,...}:{imports=[' . $disko['profile'] . ' ./configuration.nix];';
             foreach ($disko['devices'] ?? [] as $name => $device) {
                 $fileContent .= 'disko.devices.disk.' . $name . '.device=lib.mkForce "' . $device . '";';
             }
