@@ -252,7 +252,7 @@ install host user='nix' ip='auto' do='install':
 	fi
 	just clean
 	echo "-> We need to add, commit and build..."
-	git add . && git commit -m "New host {{host}} dnf installation"
+	git add . && git commit -m "New host {{host}} dnf installation" || true
 	just apply-local push
 	echo "-> Launching installation ({{do}})..."
 	if [ "{{do}}" == "test" ]; then

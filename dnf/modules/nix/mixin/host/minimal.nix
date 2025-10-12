@@ -50,6 +50,11 @@ in
       default = attrsets.hasAttrByPath [ "services" "monitoring" ] host;
       description = "Enable pre-configured monitoring service (prometheus, grafana)";
     };
+    darkone.host.minimal.enableVaultwarden = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "vaultwarden" ] host;
+      description = "Enable pre-configured Vaultwarden service";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -83,6 +88,7 @@ in
       nextcloud.enable = cfg.enableNextcloud;
       netdata.enable = cfg.enableNetdata;
       monitoring.enable = cfg.enableMonitoring;
+      vaultwarden.enable = cfg.enableVaultwarden;
     };
   };
 }

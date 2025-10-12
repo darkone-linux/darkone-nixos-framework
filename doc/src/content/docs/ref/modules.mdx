@@ -84,6 +84,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableNextcloud** `bool` Enable pre-configured nextcloud service
 * **enableNetdata** `bool` Enable pre-configured Netdata service
 * **enableMonitoring** `bool` Enable pre-configured monitoring service (prometheus, grafana)
+* **enableVaultwarden** `bool` Enable pre-configured Vaultwarden service
 ```nix
 darkone.host.minimal = {
   enable = false;
@@ -94,6 +95,7 @@ darkone.host.minimal = {
   enableNextcloud = attrsets.hasAttrByPath [ "services" "nextcloud" ] host;
   enableNetdata = attrsets.hasAttrByPath [ "services" "netdata" ] host;
   enableMonitoring = attrsets.hasAttrByPath [ "services" "monitoring" ] host;
+  enableVaultwarden = attrsets.hasAttrByPath [ "services" "vaultwarden" ] host;
 }
 
 ```
@@ -825,6 +827,24 @@ darkone.service.printing = {
   enableScanners = true;
   enableHpPrinters = true;
   enableManualInstall = true;
+}
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.vaultwarden
+
+A full-configured vaultwarden server (wip).
+
+* **enable** `bool` Enable local Vaultwarden service
+* **domainName** `str` Domain name for the Vaultwarden service
+* **appName** `str` Default title for Vaultwarden server
+```nix
+darkone.service.vaultwarden = {
+  enable = false;
+  domainName = "vaultwarden";
+  appName = "Unofficial Bitwarden compatible server";
 }
 
 ```

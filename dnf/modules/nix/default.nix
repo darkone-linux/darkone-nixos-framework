@@ -43,6 +43,7 @@
     ./standard/service/netdata.nix
     ./standard/service/nextcloud.nix
     ./standard/service/printing.nix
+    ./standard/service/vaultwarden.nix
     ./standard/system/core.nix
     ./standard/system/documentation.nix
     ./standard/system/hardware.nix
