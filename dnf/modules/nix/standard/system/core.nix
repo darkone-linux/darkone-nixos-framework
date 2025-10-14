@@ -98,6 +98,9 @@ in
     # Users are not mutable from sops installation (use config.yaml + just)
     users.mutableUsers = false;
 
+    # The specific user "nix" is declared in config.yaml and have this key on each host
+    users.users.nix.openssh.authorizedKeys.keyFiles = [ ./../../../../../usr/secrets/nix.pub ];
+
     # Nerd fond for gnome terminal and default monospace
     fonts.packages = with pkgs; [ nerd-fonts.jetbrains-mono ];
     fonts.fontconfig.enable = true;

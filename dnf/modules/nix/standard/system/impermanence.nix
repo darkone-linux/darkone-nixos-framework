@@ -1,80 +1,33 @@
 # Impermanance management module (used by others).
 #
 # :::caution[DNF impermanence rules]
-# - `/persist` contains regular files (btrfs+zstd)
+# - `/persist/home` contains files from homes (btrfs+zstd)
+# - `/persist/system` contains system and other files (btrfs+zstd)
 # - `/persist/databases` contains database files (btrfs+nocow)
 # - `/persist/medias` contains images, videos and big files (ext4 or btrfs+nocow)
 # - `/persist/backup/<location>` contains backup files (ext4/xfs)
 # :::
-#
-# Recommanded filesystems:
-#
-# ```nix
-# # Fichiers communs
-# fileSystems."/persist" = {
-#   device = "/dev/disk/by-label/persist";
-#   fsType = "btrfs";
-#   options = [
-#     "subvol=persist"
-#     "compress=zstd:1" # Niveau 1 = bon compromis vitesse/ratio
-#     "noatime"
-#     "space_cache=v2"
-#   ];
-#   neededForBoot = true;
-# };
-#
-# # Bases de données : subvolume séparé sans compression
-# fileSystems."/persist/databases" = {
-#   device = "/dev/disk/by-label/persist";
-#   fsType = "btrfs";
-#   options = [
-#     "subvol=databases"
-#     "nodatacow"  # Désactive COW pour performance DB
-#     "noatime"
-#   ];
-#   depends = [ "/persist" ];
-# };
-#
-# # Pour /etc/nixos
-# fileSystems."/etc/nixos" = {
-#   device = "/persist/etc/nixos";
-#   options = [ "bind" ];
-#   depends = [ "/persist" ];
-# };
-#
-# # Stockage de médias sur disques séparés
-# fileSystems."/persist/medias" = {
-#   device = "/dev/disk/by-label/medias";
-#   fsType = "ext4";
-#   options = [
-#     "noatime"        # Pas besoin de mettre à jour atime
-#     "data=writeback" # Performance maximale (safe pour Borg)
-#   ];
-# };
-#
-# # Backup local (disque externe par exemple)
-# fileSystems."/persist/backup/local" = {
-#   device = "/dev/disk/by-label/usb-disk";
-#   fsType = "ext4";
-#   options = [
-#     "noatime"        # Pas besoin de mettre à jour atime
-#     "data=writeback" # Performance maximale (safe pour Borg)
-#   ];
-# };
-# ```
 
-{ lib, config, ... }:
+{
+  lib,
+  config,
+  host,
+  ...
+}:
 with lib;
 let
   cfg = config.darkone.system.impermanence;
-  userDirs = {
-    desktop = "Desktop";
-    documents = "Documents";
-    music = "Music";
-    pictures = "Pictures";
-    videos = "Videos";
-    download = "Downloads";
-  };
+
+  # TODO: xdg.userDirs...
+  # userDirs = {
+  #   desktop = "Desktop";
+  #   documents = "Documents";
+  #   music = "Music";
+  #   pictures = "Pictures";
+  #   videos = "Videos";
+  #   download = "Downloads";
+  # };
+
 in
 {
   options.darkone.system.impermanence = {
@@ -82,14 +35,7 @@ in
     # Enable impermanence module
     enable = mkEnableOption "Enable impermanence DNF mechanism";
 
-    # The persist root directory
-    persistRootDir = mkOption {
-      type = types.str;
-      default = "/persist";
-      description = "Root directory for persistent data";
-    };
-
-    # Additional dirs in /persist
+    # Additional dirs in /persist/system
     extraPersistDirs = mkOption {
       type = types.listOf types.str;
       default = [ ];
@@ -164,73 +110,87 @@ in
     };
 
     # Users configuration
-    users = {
-      persistDirs = mkOption {
-        type = types.listOf (types.either types.str (types.attrsOf types.anything));
-        default = [
-          userDirs.desktop
-          userDirs.documents
-          userDirs.music
-          userDirs.pictures
-          userDirs.videos
-          userDirs.download
-          ".ssh"
-          ".gnupg"
-          {
-            directory = ".local/share";
-            mode = "0700";
-          }
-          {
-            directory = ".config";
-            mode = "0700";
-          }
-          {
-            directory = ".thunderbird";
-            mode = "0700";
-          }
-          {
-            directory = ".cache";
-            mode = "0700";
-          }
-        ];
-        description = "Default directories to persist for all users";
-      };
+    usersPersistDirs = mkOption {
+      type = types.listOf (types.either types.str (types.attrsOf types.str));
+      default = [
 
-      persistFiles = mkOption {
-        type = types.listOf types.str;
-        default = [ ".zshrc" ];
-        description = "Default files to persist for all users";
-      };
+        # TODO: from xdg.userDirs...
+        # userDirs.desktop
+        # userDirs.documents
+        # userDirs.music
+        # userDirs.pictures
+        # userDirs.videos
+        # userDirs.download
 
-      extraUserConfig = mkOption {
-        type = types.attrsOf (types.attrsOf types.anything);
-        default = { };
-        example = {
-          alice = {
-            directories = [
-              "Projects"
-              ".config/Code"
-            ];
-          };
-        };
-        description = "Extra persistence configuration per user";
-      };
+        # TMP, TODO: subfolders that depends on each app
+        # /!\ ACTIVATE .config is a BAD IDEA, .config contains impermanence activation services for home manager /!\
+        #".config/<xxx>"
+
+        ".ssh"
+        ".gnupg"
+        ".local/share"
+        ".local/state/nix"
+      ];
+      example = [
+        ".ssh"
+        ".gnupg"
+        ".local/share"
+        ".local/state/nix"
+        "Desktop"
+        "Documents"
+        "Music"
+        "Pictures"
+        "Videos"
+        "Downloads"
+        {
+          directory = ".local/share/Steam";
+          method = "symlink";
+        }
+      ];
+      description = "Default directories to persist for all users";
+    };
+
+    usersPersistFiles = mkOption {
+      type = types.listOf types.str;
+      default = [ ]; # [ ".zshrc" ];
+      description = "Default files to persist for all users";
     };
   };
 
   # Impermanence DNF config
   config = mkIf cfg.enable {
 
+    # Required filesystems for boot
+    fileSystems = {
+      "/nix".neededForBoot = true;
+      "/boot".neededForBoot = true;
+      "/persist/home".neededForBoot = true;
+      "/persist/system".neededForBoot = true;
+      "/persist/medias".neededForBoot = true;
+      "/persist/databases".neededForBoot = true;
+    };
+
+    # Lastlog service access to its db
+    systemd.tmpfiles.rules = [
+      "d /var/lib/lastlog 0775 root utmp -"
+      "d /persist/home 0775 root users -"
+    ];
+
+    # Home manager allowOther
+    programs.fuse.userAllowOther = true;
+
     # etc + persistance
     environment.persistence = {
 
-      # Persist root dir (btrfs+zstd)
-      "${cfg.persistRootDir}" = {
+      # Persist common dir for various data (btrfs+zstd) /persist/system
+      "/persist/system" = {
         hideMounts = true;
         directories = [
-          "/var/lib" # TODO: each app need to add its folder + remove this
           "/var/log"
-          "/etc/nixos"
+          "/etc/sops/age"
+          "/var/lib/nixos"
+          "/var/lib/systemd"
+          "/var/lib/lastlog"
         ]
         ++ cfg.extraPersistDirs;
         files = [
@@ -241,43 +201,39 @@ in
           "/etc/ssh/ssh_host_rsa_key.pub"
         ]
         ++ cfg.extraPersistFiles;
-
-        # Users
-        users = mapAttrs (
-          name: _user:
-          let
-            baseConfig = {
-              directories = cfg.users.persistDirs;
-              files = cfg.users.persistFiles;
-            };
-            extraConfig = cfg.users.extraUserConfig.${name} or { };
-          in
-          recursiveUpdate baseConfig extraConfig
-        ) (filterAttrs (_name: user: user.isNormalUser) config.users.users);
       };
 
-      # Databases persist dir (btrfs+nocow)
-      "${cfg.persistRootDir}/databases" = {
+      # Medias persist dir (btrfs nocompress or ext4 or xfs)  /persist/medias
+      "/persist/medias" = {
+        hideMounts = true;
+        directories = cfg.extraMediaPersistDirs;
+      };
+
+      # Databases persist dir (btrfs+nocow) /persist/databases
+      "/persist/databases" = {
         hideMounts = true;
         directories = cfg.extraDbPersistDirs;
         files = cfg.extraDbPersistFiles;
       };
-
-      # Medias persist dir (ext4 or xfs)
-      "${cfg.persistRootDir}/medias" = {
-        hideMounts = true;
-        directories = cfg.extraMediaPersistDirs;
-      };
     }
     // mapAttrs' (
 
-      # Backup locations (ext4 or xfs)
+      # Backup locations (ext4 or xfs) /persist/backup
       location: locConfig:
-      nameValuePair "${cfg.persistRootDir}/backup/${location}" {
+      nameValuePair "/persist/backup/${location}" {
         hideMounts = true;
         inherit (locConfig) directories;
         inherit (locConfig) files;
       }
     ) cfg.backupLocations;
+
+    # Users home directories (home manager)
+    home-manager.users = genAttrs host.users (name: {
+      home.persistence."/persist/home/${name}" = {
+        directories = cfg.usersPersistDirs;
+        files = cfg.usersPersistFiles;
+        allowOther = true;
+      };
+    });
   };
 }

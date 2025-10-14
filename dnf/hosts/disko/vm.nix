@@ -1,4 +1,4 @@
-# Virtual machine disko
+# Simple virtual machine, BTRFS
 
 {
   disko.devices = {
@@ -25,14 +25,13 @@
               };
             };
 
-            # Persistant data (impermanence)
             system = {
               size = "100%";
               content = {
                 type = "btrfs";
                 extraArgs = [ "-f" ];
                 subvolumes = {
-                  "@system" = {
+                  "/system" = {
                     mountpoint = "/";
                     mountOptions = [
                       "subvol=system"
@@ -41,7 +40,7 @@
                       "space_cache=v2"
                     ];
                   };
-                  "@nix" = {
+                  "/nix" = {
                     mountpoint = "/nix";
                     mountOptions = [
                       "compress=no"
@@ -49,7 +48,7 @@
                       "space_cache=v2"
                     ];
                   };
-                  "@snapshots" = { };
+                  "/snapshots" = { };
                 };
               };
             };

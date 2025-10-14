@@ -1,5 +1,6 @@
-# Disko configuration for impermanence setup
-# Usage: sudo nix run github:nix-community/disko -- --mode disko ./disko-config.nix
+# Full NAS with 3 nvme disks, RAID0, BTRFS + EXT4 (WIP)
+#
+# TODO: VMI
 #
 # /dev/nvme0n1 (8TB)
 # ├── /boot (EFI, 1GB, vfat)

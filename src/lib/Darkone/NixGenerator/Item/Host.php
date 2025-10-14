@@ -226,10 +226,10 @@ class Host
             throw new NixException('Disko profile name for host "' . $this->getHostname() . '" is required');
         }
         Configuration::assert(Configuration::TYPE_STRING, $config['profile'], 'Bad disko profile name', Configuration::REGEX_IDENTIFIER);
-        if (file_exists($file = self::DISKO_TPL_DIR_DNF . '/' . $config['profile'] . '.nix')) {
-            $diskoConfig['profile'] = './../../../dnf/hosts/disko/' . $config['profile'] . '.nix';
-        } elseif (file_exists($file = self::DISKO_TPL_DIR_USR . '/' . $config['profile'] . '.nix')) {
-            $diskoConfig['profile'] = './../../../usr/hosts/disko/' . $config['profile'] . '.nix';
+        if (file_exists(self::DISKO_TPL_DIR_DNF . '/' . $config['profile'] . '.nix')) {
+            $diskoConfig['profile'] = 'dnf/hosts/disko/' . $config['profile'] . '.nix';
+        } elseif (file_exists(self::DISKO_TPL_DIR_USR . '/' . $config['profile'] . '.nix')) {
+            $diskoConfig['profile'] = 'usr/hosts/disko/' . $config['profile'] . '.nix';
         } else {
             throw new NixException('Unknown disko profile "' . $config['profile'] . '.nix" (not in dnf/hosts/disko or usr/hosts/disko)');
         }

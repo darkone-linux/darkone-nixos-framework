@@ -12,7 +12,10 @@ try {
         __DIR__ . '/../usr/config.yaml',
         __DIR__ . '/../var/generated/config.yaml'
     );
-    echo $generator->generate($_SERVER['argv'][1] ?? '?');
+    echo $generator->generate(
+        $_SERVER['argv'][1] ?? '?',
+        ($_SERVER['argv'][2] ?? '') == 'debug'
+    );
 } catch (NixException $e) {
     echo "ERR: " . $e->getMessage() . PHP_EOL;
     die(1);

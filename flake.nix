@@ -35,6 +35,9 @@
 
     impermanence.url = "github:nix-community/impermanence";
 
+    disko.url = "github:nix-community/disko";
+    disko.inputs.nixpkgs.follows = "nixpkgs";
+
     raspberry-pi-nix = {
       url = "github:nix-community/raspberry-pi-nix?ref=v0.4.1";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -59,6 +62,7 @@
       nixos-hardware,
       sops-nix,
       impermanence,
+      disko,
       ...
     }:
     let
@@ -110,6 +114,7 @@
         value = {
           imports = [
             ./dnf/modules/home
+            impermanence.homeManagerModules.impermanence
             (import ./${users.${login}.profile})
           ];
 
@@ -152,6 +157,7 @@
             "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
             sops-nix.nixosModules.sops
             impermanence.nixosModules.impermanence
+            disko.nixosModules.disko
             { _module.args.dnfLib = mkDnfLib (getHostArch host); }
             home-manager.nixosModules.home-manager
             {
