@@ -13,6 +13,7 @@
 }:
 let
   cfg = config.darkone.system.sops;
+  inherit (config.sops) age;
 in
 {
   options = {
@@ -20,6 +21,10 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+
+    # Sops key file persistance
+    darkone.system.impermanence.extraPersistFiles = [ age.keyFile ];
+
     sops = {
       defaultSopsFile = ./../../../../../usr/secrets/secrets.yaml;
       age = {

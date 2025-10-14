@@ -31,24 +31,37 @@
                 type = "btrfs";
                 extraArgs = [ "-f" ];
                 subvolumes = {
-                  "/system" = {
+
+                  # System partition
+                  "@system" = {
                     mountpoint = "/";
                     mountOptions = [
-                      "subvol=system"
                       "compress=zstd:1"
                       "noatime"
-                      "space_cache=v2"
                     ];
                   };
-                  "/nix" = {
+
+                  # Nix store
+                  "@nix" = {
                     mountpoint = "/nix";
                     mountOptions = [
-                      "compress=no"
+                      "compress=zstd:1"
                       "noatime"
-                      "space_cache=v2"
                     ];
                   };
-                  "/snapshots" = { };
+
+                  # Home files from home directories (little files, compressed, snapshotted)
+                  "@home" = {
+                    mountpoint = "/home";
+                    mountOptions = [
+                      "compress=zstd:1"
+                      "noatime"
+                    ];
+                  };
+
+                  # Snapshots (not mounted)
+                  "@snapshots-home" = { };
+                  "@snapshots-system" = { };
                 };
               };
             };

@@ -16,6 +16,7 @@ sopsInfraTargetDir := '/etc/sops/age'
 sopsInfraTargetFile := sopsInfraTargetDir + '/infra.key'
 generatedConfigFile := workDir + '/var/generated/config.yaml'
 nix := 'nix --extra-experimental-features "nix-command flakes"'
+logPrefix := '[ {{CYAN}}DNF{{NORMAL}} ] '
 
 alias c := clean
 alias d := develop
@@ -28,18 +29,42 @@ alias av := apply-verbose
 _default:
 	@just --list
 
+# Log
+_log msg context="":
+	#!/usr/bin/env bash
+	if [ "{{context}}" == "" ] ;then
+		echo "[ {{BOLD + CYAN}}DNF{{NORMAL}} ] {{msg}}"
+	else
+		echo "[ {{BOLD + CYAN}}DNF{{NORMAL}} ] {{BOLD + MAGENTA}}{{context}}{{NORMAL}} • {{msg}}"
+	fi
+
+# Error
+_err msg:
+	@echo "[ {{BOLD + CYAN}}DNF{{NORMAL}} ] {{BOLD + RED}}ERR{{NORMAL}} {{msg}}" >&2
+
+# Warn
+_warn msg:
+	@echo "[ {{BOLD + CYAN}}DNF{{NORMAL}} ] {{BOLD + YELLOW}}WRN{{NORMAL}} {{msg}}" >&2
+
+# Done
+_done:
+	@just _log "{{GREEN}}Done{{NORMAL}}"
+
+# Fail
+_fail msg:
+	@just _err "{{msg}}"
+	@exit 1
+
 # Check if we are an infra admin host
 _check_infra_admin:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	if [ "${USER:-}" != "nix" ] ;then
-		echo "Please execute this command with the 'nix' user."
-		exit 1
+		just _fail "Please execute this command with the 'nix' user."
 	fi
 	if [ ! -f {{sopsInfraKeyFile}} ] ;then
-		echo "Infra private key not found, you must do that from the admin host."
-		echo "If you are on the admin host, type 'just install-admin-host' before."
-		exit 1
+		just _err "Infra private key not found, you must do that from the admin host."
+		just _fail "If you are on the admin host, type 'just install-admin-host' before."
 	fi
 
 # Framework installation on local machine (builder / admin)
@@ -48,49 +73,51 @@ configure-admin-host:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	if [ "${USER:-}" != "nix" ]; then
-		echo "Only nix user can install and manage DNF configuration."
-		exit 1
+		just _fail "Only nix user can install and manage DNF configuration."
 	fi
 	if [ ! -f "$HOME/.ssh/id_ed25519" ] ;then
-		echo "-> Creating nix ssh keys..."
+		just _log "Creating nix keys..." "SSH"
 		ssh-keygen -t ed25519 -N ""
 	else
-		echo "-> Maintenance ssh key already exists."
+		just _log "Maintenance key already exists." "SSH"
 	fi
-	if [ ! -f "$HOME/.ssh/id_ed25519.pub" ] ;then
-		echo "-> [ERR] Nix user public key not found!" >&2
-		exit 1
+	if [ ! -f "{{secretsDir}}/nix.pub" ] ;then
+		if [ ! -f "$HOME/.ssh/id_ed25519.pub" ] ;then
+			just _fail "Nix user public key not found!" "SSH"
+		else
+			cp "$HOME/.ssh/id_ed25519.pub" "{{secretsDir}}/nix.pub"
+		fi
 	else
-		cp "$HOME/.ssh/id_ed25519.pub" "{{secretsDir}}/nix.pub"
+		just _log "Public key {{secretsDir}}/nix.pub already exists." "SSH"
 	fi
 	if [ ! -d ./src/vendor ] ;then
-		echo "-> Building generator..."
+		just _log "Building generator..." "GEN"
 		cd ./src && composer install --no-dev && cd ..
 	else
-		echo "-> Generator is ok."
+		just _log "Generator is ok." "GEN"
 	fi
 	if [ ! -f {{secretsGitIgnore}} ] ;then
-		echo "-> [SOPS] Creating usr/secrets directory + gitignore..."
+		just _log "Creating usr/secrets directory + gitignore..." "SOPS"
 		mkdir -p {{secretsDir}}
 		echo '*.key' > {{secretsGitIgnore}}
 	else
-		echo "-> [SOPS] usr/secrets/.gitignore file already exists."
+		just _log "usr/secrets/.gitignore file already exists." "SOPS"
 	fi
 	if [ ! -f {{sopsAdminKeyFile}} ] ;then
-		echo "-> [SOPS] Admin key file creation from ssh private key..."
+		just _log "Admin key file creation from ssh private key..." "SOPS"
 		mkdir -p {{sopsAdminKeyDir}}
 		ssh-to-age -private-key -i "$HOME/.ssh/id_ed25519" > {{sopsAdminKeyFile}}
 	else
-		echo "-> [SOPS] Admin key file already exists."
+		just _log "Admin key file already exists." "SOPS"
 	fi
 	if [ ! -f {{sopsInfraKeyFile}} ] ;then
-		echo "-> [SOPS] Infra private key file generation..."
+		just _log "Infra private key file generation..." "SOPS"
 		age-keygen -o {{sopsInfraKeyFile}}
 	else
-		echo "-> [SOPS] Infra key file already exists."
+		just _log "Infra key file already exists." "SOPS"
 	fi
 	if [ ! -f {{sopsYamlFile}} ] ;then
-		echo "-> [SOPS] .sops.yaml file generation..."
+		just _log "[SOPS] .sops.yaml file generation..."
 		INF_PUB_KEY=$(age-keygen -y {{sopsInfraKeyFile}})
 		ADM_PUB_KEY=$(age-keygen -y {{sopsAdminKeyFile}})
 		[ -f {{sopsYamlFile}} ] || echo "{}" > {{sopsYamlFile}}
@@ -104,16 +131,16 @@ configure-admin-host:
 		echo "      - *nix" >> {{sopsYamlFile}}
 		echo "      - *infra" >> {{sopsYamlFile}}
 	else
-		echo "-> [SOPS] .sops.yaml file already exists."
+		just _log ".sops.yaml file already exists." "SOPS"
 	fi
 	if [ ! -f {{sopsSecretsFile}} ] ;then
-		echo "-> [SOPS] We need a default password..."
+		just _log "We need a default password..." "SOPS"
 		just passwd-default
 		just push-key localhost
 	else
-		echo "-> [SOPS] Default secret file already exists."
+		just _log "Default secret file already exists." "SOPS"
 	fi
-	echo "-> Done"
+	just _done
 
 # format: fix + check + generate + format
 [group('dev')]
@@ -123,7 +150,7 @@ clean: fix check generate format
 [group('check')]
 check:
 	#!/usr/bin/env bash
-	echo "-> Checking nix files with deadnix..."
+	just _log "Full checking..." "DEADNIX"
 	find . -name "*.nix" -exec deadnix -eq {} \;
 
 # Check the main flake
@@ -135,21 +162,21 @@ check-flake:
 [group('check')]
 check-statix:
 	#!/usr/bin/env bash
-	echo "-> Checking with statix..."
+	just _log "Checking nix configuration..." "STATIX"
 	statix check .
 
 # Recursive nixfmt on all nix files
 [group('dev')]
 format:
 	#!/usr/bin/env bash
-	echo "-> Formatting nix files with nixfmt..."
+	just _log "Full formatting..." "NIXFMT"
 	find . -name "*.nix" -exec nixfmt -s {} \;
 
 # Fix with statix
 [group('dev')]
 fix:
 	#!/usr/bin/env bash
-	echo "-> Fixing source code with statix..."
+	just _log "Full fixing..." "STATIX"
 	statix fix .
 
 # Update the nix generated files
@@ -168,9 +195,9 @@ generate: \
 _gen-default dir:
 	#!/usr/bin/env bash
 	if [ ! -d "{{dir}}" ] ;then
-		echo "-> Skipping unknown directory {{dir}}..."
+		just _log "Skipping unknown directory {{dir}}..."
 	else
-		echo "-> generating {{dir}} default.nix..."
+		just _log "{{dir}} ➜ default.nix..." "GENERATOR"
 		cd {{dir}}
 		echo "# DO NOT EDIT, this is a generated file." > default.nix
 		echo >> default.nix
@@ -183,33 +210,37 @@ _gen-default dir:
 # Generate var/generated/*.nix files
 _gen what:
 	#!/usr/bin/env bash
-	echo "-> generating {{what}}..."
+	just _log "{{what}} file(s)..." "GENERATOR"
 	php ./src/generate.php "{{what}}"
 
 # Launch a "nix develop" with zsh (dev env)
 [group('dev')]
 develop:
-	@echo Lauching nix develop with zsh...
+	@just _log "Lauching nix develop with zsh..."
 	{{nix}} develop -c zsh
 
 # Copy pub key to the node (nix user must exists)
 [group('install')]
 copy-id host:
 	#!/usr/bin/env bash
-	echo "-> TODO: no more copy id..."
-	#ssh-keygen -R {{host}}
-	#ssh-copy-id -o StrictHostKeyChecking=no -f nix@{{host}}
-	#ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@{{host}} 'echo "OK, it works! You can type \"just install {{host}}\" and apply to {{host}}"'
+	just _log "Copying id to {{host}}..." "SSH"
+	ssh-keygen -R {{host}}
+	ssh-copy-id -o StrictHostKeyChecking=no -f nix@{{host}}
+	just _log "Cleaning authorized_keys..." "SSH"
+	ssh nix@{{host}} "sort -u -o ~/.ssh/authorized_keys ~/.ssh/authorized_keys"
+	ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@{{host}} 'echo "OK, it works! You can type \"just install {{host}}\" and apply to {{host}}"'
 
 # Interactive shell to the host
 [group('manage')]
 enter host:
+	@just _log "Entering {{host}}..." "SSH"
 	ssh nix@{{host}}
 
 # Extract hardware config from host
 [group('install')]
 copy-hw host:
 	#!/usr/bin/env bash
+	just _log "Extracting hardware information..."
 	mkdir -p usr/machines/{{host}}
 	ssh nix@{{host}} "sudo nixos-generate-config --no-filesystems --show-hardware-config" > usr/machines/{{host}}/hardware-configuration.nix
 
@@ -219,6 +250,7 @@ push-key host:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	just _check_infra_admin
+	just _log "Pushing infra key file..." "SOPS"
 	ssh nix@{{host}} 'sudo mkdir -p {{sopsInfraTargetDir}}'
 	ssh nix@{{host}} 'sudo chown -R nix {{sopsInfraTargetDir}}'
 	scp {{sopsInfraKeyFile}} nix@{{host}}:{{sopsInfraTargetFile}}
@@ -233,16 +265,16 @@ install host user='nix' ip='auto' do='install':
 	set -euo pipefail
 	just _check_infra_admin
 	just clean
-	echo "-> Preparation..."
+	just _log "Preparation..."
 	if [ ! -f "./var/generated/disko/install-{{host}}.nix" ]; then
-		echo "-> [ERR] Host installation script not found." >&2
-		echo "-> [ERR] Are you sure the host {{host}} exists" >&2
-		echo "-> [ERR] and have a disko config in usr/config.yaml?" >&2
+		just _log "[ERR] Host installation script not found." >&2
+		just _log "[ERR] Are you sure the host {{host}} exists" >&2
+		just _log "[ERR] and have a disko config in usr/config.yaml?" >&2
 		exit 1
 	fi
 	DISKO_TPL=$(cat var/generated/disko/install-{{host}}.nix  | grep DISKO_PROFILE | cut -d' ' -f3)
 	if [ ! -f $DISKO_TPL ] ;then
-		echo "-> [ERR] Host disko template '$DISKO_TPL' not found." >&2
+		just _log "[ERR] Host disko template '$DISKO_TPL' not found." >&2
 		exit 1
 	fi
 	mkdir -p ./usr/machines/{{host}}
@@ -256,10 +288,10 @@ install host user='nix' ip='auto' do='install':
 	else
 		TARGET_HOST="{{ip}}"
 	fi
-	echo "-> We need to add, commit and build..."
-	git add . && git commit -m "New host {{host}} dnf installation" || true
+	just _log "We need to add, commit and build..."
+	git add . && (git diff --cached --quiet || git commit -m "New host {{host}} dnf installation") && git reset
 	just apply-local push
-	echo "-> Launching installation ({{do}})..."
+	just _log "Launching installation ({{do}})..."
 	if [ "{{do}}" == "test" ]; then
 		{{nix}} run github:nix-community/nixos-anywhere -- --flake ./var/generated/disko#{{host}} --vm-test
 	elif [ "{{do}}" == "install" ] ;then
@@ -271,46 +303,44 @@ install host user='nix' ip='auto' do='install':
 	else
 		echo 'ERR: unkown action "{{do}}"'
 	fi;
-	echo "-> Now you can test nix@{{host}} and run 'just configure {{host}}'"
+	just _log "Now you can test nix@{{host}} and run 'just configure {{host}}'"
 
 # Get a mac address
 _info host:
-	echo "-> You can register the mac address in usr/config.yaml:"
+	@just _log "You can register the mac address in usr/config.yaml:"
 	ssh nix@{{host}} "ip -o link show up | grep -v 'lo:' | head -n 1 | sed 's/^.* \([0-9a-f:]*\) brd .*$/\1/'"
 
 # New host: ssh cp id, extr. hw, clean, commit, apply
 [group('install')]
 configure host:
 	@just _check_infra_admin
-	@echo "-> Copying ssh identity..."
 	@just copy-id {{host}}
-	@echo "-> Extracting hardware information..."
 	@just copy-hw {{host}}
-	@echo "-> Pushing infra key file..."
 	@just push-key {{host}}
-	@echo "-> Clean and commiting before apply..."
 	@just clean
-	@echo "-> If not error occurs, do not forget to commit and apply:"
-	@echo "git add . && git commit -m 'Installing new host {{host}}'"
-	@echo "just apply-verbose {{host}}"
+	@just _log "If not error occurs, do not forget to commit and apply:"
+	@just _log "git add . && git commit -m 'Installing new host {{host}}'"
+	@just _log "just apply-verbose {{host}}"
 	@just _info {{host}}
 
 # New host: full installation (install, configure, apply)
 [group('install')]
-full-install host user='nix' ip='auto' do='install':
+full-install host user='nix' ip='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	just install {{host}} {{user}} {{ip}} {{do}}
-	echo "-> Waiting for reboot..."
+	just install {{host}} {{user}} {{ip}}
+	just _log "Waiting for reboot..."
 	until ping -c1 -W1 {{host}} >/dev/null 2>&1; do sleep 1; done; echo "Oh, {{host}} is up, waiting 2s and continue... :)"
 	sleep 2
 	just configure {{host}}
-	echo "-> We need to add and commit (amend)..."
-	git add . && git commit --amend --no-edit || true
+	just _log "Let's do that automatically..."
+	just _log "Adding and committing (amend)..." "GIT"
+	git add . && (git diff --cached --quiet || git commit --amend --no-edit) && git reset
 	just apply-verbose {{host}}
-	echo "-> Last reboot..."
-	colmena exec --on "{{host}}" "sudo systemctl reboot"
-	echo "-> Done. Don't forget to comment or remove disko config in usr/config.yaml."
+	just _log "Last reboot..."
+	colmena exec --on "{{host}}" "nohup bash -c 'sleep 1; systemctl reboot' >/dev/null 2>&1 &"
+	just _done
+	just _log "Don't forget to comment or remove disko config in usr/config.yaml."
 
 # Update the default DNF password
 [group('install')]
@@ -325,9 +355,9 @@ passwd-default:
 	read -s PASSWORD_CONFIRM
 	echo
 	if [ "$PASSWORD" != "$PASSWORD_CONFIRM" ]; then
-		echo "Error: not corresponding."
-		exit 1
+		just _fail "Error: not corresponding."
 	fi
+	just _log "Updating default password..." "SOPS"
 	if [ -f {{sopsSecretsFile}} ] ;then
 		sops -d -i {{sopsSecretsFile}}
 	else
@@ -341,7 +371,7 @@ passwd-default:
 		echo "{}" >> {{generatedConfigFile}}
 	fi
 	yq -y --arg pw "$BCRYPT_HASH" '.network.default."password-hash" = $pw' {{generatedConfigFile}} | sponge {{generatedConfigFile}}
-	echo "Password updated, dont forget to deploy"
+	just _log "Password updated, dont forget to deploy" "SOPS"
 
 # Update a user password
 [group('install')]
@@ -360,74 +390,82 @@ passwd user:
 	read -s PASSWORD_CONFIRM
 	echo
 	if [ "$PASSWORD" != "$PASSWORD_CONFIRM" ]; then
-		echo "Error: not corresponding."
-		exit 1
+		just _fail "Error: not corresponding."
 	fi
+	just _log "Updating {{user}} password..." "SOPS"
 	HASH=$(mkpasswd -m sha-512 "$PASSWORD")
 	sops -d -i {{sopsSecretsFile}}
 	yq -y --arg pw "$HASH" '.user.{{user}}."password-hash" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
 	sops -e -i {{sopsSecretsFile}}
-	echo "Password updated for {{user}}"
-	echo "Now deploy with 'just apply @user-{{user}}'"
+	just _log "OK, password updated for {{user}}" "SOPS"
+	just _log "Now deploy with 'just apply @user-{{user}}'" "SOPS"
 
 # Apply configuration using colmena
 [group('apply')]
 apply on what='switch':
+	@just _log "Applying nix configuration on {{on}} ({{what}})..."
 	colmena apply --eval-node-limit 3 --evaluator streaming --on "{{on}}" {{what}}
 
 # Apply with build-on-target + force repl. unk profiles
 [group('apply')]
 apply-force on what='switch':
+	@just _log "Applying (force) nix configuration on {{on}} ({{what}})..."
 	colmena apply --eval-node-limit 3 --evaluator streaming --build-on-target --force-replace-unknown-profiles --on "{{on}}" {{what}}
 
 # Apply force with verbose options
 [group('apply')]
 apply-verbose on what='switch':
+	@just _log "Applying (verbose) nix configuration on {{on}} ({{what}})..."
 	colmena apply --eval-node-limit 3 --evaluator streaming --build-on-target --force-replace-unknown-profiles --verbose --show-trace --on "{{on}}" {{what}}
 
 # Multi-reboot (using colmena)
 [group('manage')]
 [confirm]
 reboot on:
-	colmena exec --on "{{on}}" "sudo systemctl reboot"
+	@just _log "Rebooting {{on}}..."
+	colmena exec --on "{{on}}" "nohup bash -c 'sleep 1; sudo systemctl reboot' >/dev/null 2>&1 &"
 
 # Multi-alt (using colmena)
 [group('manage')]
 [confirm]
 halt on:
-	colmena exec --on "{{on}}" "sudo systemctl poweroff"
+	@just _log "Halting {{on}}..."
+	colmena exec --on "{{on}}" "nohup bash -c 'sleep 1; sudo systemctl poweroff' >/dev/null 2>&1 &"
 
 # Remove zshrc bkp to avoid error when replacing zshrc
 [group('manage')]
 fix-zsh on:
+	@just _log "Fixing ZSH on {{on}}..."
 	colmena exec --on "{{on}}" "rm -f .zshrc.bkp"
 
 # Multi garbage collector (using colmena)
 [group('manage')]
 gc on:
+	@just _log "Garbage collecting on {{on}}..."
 	colmena exec --on "{{on}}" "sudo nix-collect-garbage -d && sudo /run/current-system/bin/switch-to-configuration boot"
 
 # Multi-reinstall bootloader (using colmena)
 [group('manage')]
 fix-boot on:
+	@just _log "Fixing boot of {{on}}..."
 	colmena exec --on "{{on}}" "sudo NIXOS_INSTALL_BOOTLOADER=1 /nix/var/nix/profiles/system/bin/switch-to-configuration boot"
 
 # Apply the local host configuration
 [group('apply')]
 apply-local what='switch':
+	@just _log "Applying locally ({{what}})..."
 	colmena apply-local --sudo {{what}}
 
 # Pull common files from DNF repository
 [group('dev')]
 pull:
 	#!/usr/bin/env bash
+	just _log "Pulling changes from DNF main project..."
 	if [[ `git status -s` != '' ]] ;then
-		echo "ERR: please commit your changes before."
-		exit 1
+		just _fail "Please commit your changes before."
 	fi
 	if [ ! -d "{{dnfDir}}" ] ;then
-		echo "ERR: {{dnfDir}} do not exists."
-		exit 1
+		just _fail "{{dnfDir}} do not exists."
 	fi
 	cd {{dnfDir}} && \
 		git pull --rebase --force && \
@@ -445,9 +483,9 @@ pull:
 [group('dev')]
 push:
 	#!/usr/bin/env bash
+	just _log "Pushing changes to DNF main project..."
 	if [ ! -d "{{dnfDir}}" ] ;then
-		echo "ERR: {{dnfDir}} do not exists."
-		exit 1
+		just _fail "{{dnfDir}} do not exists."
 	fi
 	rsync -av --delete \
 		--exclude 'usr' \
@@ -459,22 +497,23 @@ push:
 		--exclude doc/darkone-linux.github.io \
 		--delete {{workDir}}/ {{dnfDir}}/
 
-# Nix shell with tools to create usb keys
+# Build iso image
+[group('install')]
+build-iso:
+	@just _log "Building local DNF ISO image..."
+	{{nix}} build .#nixosConfigurations.iso.config.system.build.isoImage
+
+# Nix shell with tools to create usb keys (deprecated)
 [group('install')]
 format-dnf-shell:
 	nix-shell -p parted btrfs-progs nixos-install
 
-# Build iso image
-[group('install')]
-build-iso:
-	{{nix}} build .#nixosConfigurations.iso.config.system.build.isoImage
-
-# Format and install DNF on an usb key (danger)
+# Format and install DNF on an usb key (deprecated)
 [confirm('This command is dangerous. Are you sure? (y/N)')]
 [group('install')]
 format-dnf-on host dev:
 	#!/usr/bin/env bash
-	echo "-> checking..."
+	just _log "checking..."
 	if [ `whoami` != 'root' ] ;then
 	echo "Only root can perform this operation."
 		exit 1
@@ -503,9 +542,9 @@ format-dnf-on host dev:
 		echo "nixos-generate-config is required"
 		exit 1
 	fi
-	echo "-> Preparing..."
+	just _log "Preparing..."
 	umount -R /mnt
-	echo "-> Start installation of {{host}} in {{dev}}..."
+	just _log "Start installation of {{host}} in {{dev}}..."
 	DISK={{dev}}
 	OPTS=defaults,x-mount.mkdir,noatime,nodiratime,ssd,compress=zstd:3
 	parted $DISK -- mklabel gpt && \

@@ -8,6 +8,8 @@
 # - `/persist/backup/<location>` contains backup files (ext4/xfs)
 # :::
 
+# TODO: clarifier
+
 {
   lib,
   config,
@@ -187,7 +189,6 @@ in
         hideMounts = true;
         directories = [
           "/var/log"
-          "/etc/sops/age"
           "/var/lib/nixos"
           "/var/lib/systemd"
           "/var/lib/lastlog"

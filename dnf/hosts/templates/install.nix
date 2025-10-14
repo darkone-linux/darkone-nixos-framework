@@ -1,5 +1,7 @@
 # Standalone machine used to install a new host
 
+# TODO: Instable avec impermanence, transfert infra.key impossible, génération des pwd utilisateurs aléatoire...
+
 {
   pkgs,
   lib,
@@ -36,7 +38,6 @@ in
     hideMounts = true;
     directories = [
       "/var/log"
-      "/etc/sops/age"
       "/var/lib/nixos"
       "/var/lib/systemd"
       "/var/lib/lastlog"
@@ -47,6 +48,7 @@ in
       "/etc/ssh/ssh_host_ed25519_key.pub"
       "/etc/ssh/ssh_host_rsa_key"
       "/etc/ssh/ssh_host_rsa_key.pub"
+      "/etc/sops/age/infra.key"
     ];
   };
   environment.persistence."/persist" = lib.mkIf hasImpermanence {
