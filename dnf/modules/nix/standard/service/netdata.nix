@@ -27,13 +27,14 @@ in
   config = lib.mkIf cfg.enable {
 
     # httpd + dnsmasq + homepage registration
-    darkone.service.httpd = {
+    darkone.system.service = {
       enable = true;
       service.netdata = {
         enable = true;
         inherit (cfg) domainName;
         displayName = "Netdata";
         description = "Outil de supervision";
+        persist.dirs = [ "/var/lib/netdata" ];
         nginx.proxyPort = 19999;
       };
     };

@@ -9,7 +9,6 @@
   config,
   host,
   network,
-  pkgs,
   ...
 }:
 let
@@ -54,7 +53,7 @@ in
   config = lib.mkIf cfg.enable {
 
     # httpd + dnsmasq + homepage registration
-    darkone.service.httpd = {
+    darkone.system.service = {
       enable = true;
       service.homepage = {
         enable = true;
@@ -73,18 +72,6 @@ in
       enable = true;
       openFirewall = true;
       listenPort = 8082;
-
-      # Fix to non bugged release
-      # nix-prefetch-url --unpack https://github.com/gethomepage/homepage/archive/refs/tags/v1.4.6.tar.gz
-      package = pkgs.homepage-dashboard.overrideAttrs (_old: {
-        version = "1.4.6";
-        src = pkgs.fetchFromGitHub {
-          owner = "gethomepage";
-          repo = "homepage";
-          rev = "v1.4.6"; # tag ou commit précis
-          sha256 = "19fqlx5h5h539r9cniaxarf6s2xycm0i1yi5x02y926cy57xq3ms";
-        };
-      });
 
       # https://gethomepage.dev/latest/configs/settings/
       settings = {
@@ -153,7 +140,7 @@ in
                   "Nix Options" = [
                     {
                       abbr = "NO";
-                      href = "https://search.nixos.org/options";
+                      href = "https://search.nixos.org/options?channel=unstable";
                     }
                   ];
                 }
@@ -161,7 +148,7 @@ in
                   "Nix Packages" = [
                     {
                       abbr = "NP";
-                      href = "https://search.nixos.org/packages";
+                      href = "https://search.nixos.org/packages?channel=unstable";
                     }
                   ];
                 }

@@ -133,7 +133,7 @@ in
       settings = {
         inherit domain;
 
-        interface = lanInterface;
+        interface = [ lanInterface ];
         bind-interfaces = true;
         dhcp-authoritative = true;
         no-dhcp-interface = "lo";
@@ -141,6 +141,9 @@ in
         # Les requêtes pour ces domaines ne sont traitées qu'à partir de /etc/hosts ou de DHCP.
         # Elles ne sont pas transmises aux serveurs amont.
         local = "/${domain}/";
+
+        # Register the IP of gateway
+        address = [ "/${gateway.hostname}/${gateway.lan.ip}" ];
 
         # Utiliser un port DNS différent si adguardhome est activé.
         port = if config.darkone.service.adguardhome.enable then 5353 else 53;

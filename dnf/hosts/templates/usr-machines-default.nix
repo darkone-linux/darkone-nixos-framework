@@ -4,6 +4,7 @@
 {
   imports = [
     (modulesPath + "/installer/scan/not-detected.nix")
+    ./generated-configuration.nix
     ./hardware-configuration.nix
     ./disko.nix
   ];

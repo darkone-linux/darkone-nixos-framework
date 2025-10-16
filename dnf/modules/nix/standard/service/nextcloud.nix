@@ -42,13 +42,21 @@ in
   config = lib.mkIf cfg.enable {
 
     # httpd + dnsmasq + homepage registration
-    darkone.service.httpd = {
+    darkone.system.service = {
       enable = true;
       service.nextcloud = {
         enable = true;
         domainName = mkDomain cfg.domainName;
         displayName = "Nextcloud";
         description = "Cloud personnel local";
+        persist = {
+          dirs = [ "/var/lib/nextcloud/data" ];
+          dbDirs = [ "/var/lib/postgresql" ];
+          varDirs = [
+            "/var/lib/nextcloud/store-apps"
+            "/var/lib/redis-nextcloud"
+          ];
+        };
         nginx.manageVirtualHost = false;
       };
     };

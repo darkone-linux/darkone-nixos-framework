@@ -38,7 +38,7 @@ in
     #--------------------------------------------------------------------------
 
     # httpd + dnsmasq + homepage registration
-    darkone.service.httpd = {
+    darkone.system.service = {
       enable = true;
       service.monitoring = {
         enable = true;
@@ -46,6 +46,14 @@ in
         displayName = "Monitoring";
         description = "Visualisation des ressources système et réseau";
         icon = "grafana";
+        persist = {
+          dbFiles = [ "/var/lib/grafana/grafana.db" ];
+          varDirs = [
+            "/var/lib/prometheus2"
+            "/var/lib/grafana/plugins"
+            "/var/lib/grafana/data"
+          ];
+        };
         nginx.manageVirtualHost = false;
       };
     };

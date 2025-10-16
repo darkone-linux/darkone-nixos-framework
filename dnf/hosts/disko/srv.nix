@@ -1,23 +1,25 @@
-# Full NAS with 3 nvme disks, RAID0, BTRFS + EXT4 (WIP)
-#
-# TODO: VMI
+# Full server with 3 nvme disks, RAID0, BTRFS + EXT4
 #
 # /dev/nvme0n1 (8TB)
 # ├── /boot (EFI, 1GB, vfat)
-# ├── BTRFS (reste ~3.97TB)
-# ├   ├── subvol=@persist      → /persist (compress=zstd:1)
-# ├   ├── subvol=@databases    → /persist/databases (nodatacow)
-# ├   ├── subvol=@nix          → /nix (compress=no)
-# ├   └── subvol=@snapshots    → /persist/.snapshots
+# ├── BTRFS (reste ~7.97TB)
+# ├   ├── subvol=@system    → /              (compress=zstd:1)
+# ├   ├── subvol=@nix       → /nix           (compress=no)
+# ├   ├── subvol=@home      → /home          (compress=zstd:1)
+# ├   ├── subvol=@databases → /mnt/databases (nodatacow,compress=no)
+# ├   ├── subvol=@snapshots-home
+# ├   ├── subvol=@snapshots-system
+# ├   └── subvol=@snapshots-databases
 # └── swap (32GB, chiffré)
 #
 # /dev/nvme1n1 + /dev/nvme2n1 (8TB + 8TB RAID0)
-# └── ext4 → /persist/medias (noatime, writeback)
+# └── ext4 → /mnt/medias (noatime, writeback)
 #
 # /dev/sda (20TB USB)
-# └── ext4 → /persist/backup/local (noatime, automount)
+# └── ext4 → /mnt/backup (noatime, automount)
 #
-# tmpfs → / (8GB)
+# Do not remove:
+# NEEDEDFORBOOT:/boot;/nix;/home;/mnt/databases;/mnt/medias
 #
 
 {
@@ -27,7 +29,7 @@
       # NVME1 - Main disk
       main = {
         type = "disk";
-        device = "/dev/sda";
+        device = "/dev/nvme0n1";
         content = {
           type = "gpt";
           partitions = {
@@ -47,45 +49,61 @@
               };
             };
 
-            # Persistant data (impermanence)
-            persist = {
+            # Main disk
+            system = {
               size = "100%";
-              end = "-2G";
+              end = "-32";
               content = {
                 type = "btrfs";
                 extraArgs = [ "-f" ]; # Force overwrite
                 subvolumes = {
-                  "@persist" = {
-                    mountpoint = "/persist";
+
+                  # Root partition
+                  "@system" = {
+                    mountpoint = "/";
                     mountOptions = [
-                      "subvol=persist"
                       "compress=zstd:1"
                       "noatime"
-                      "space_cache=v2"
                     ];
                   };
+
+                  # Nix store
+                  "@nix" = {
+                    mountpoint = "/nix";
+                    mountOptions = [
+                      "compress=zstd:1"
+                      "noatime"
+                    ];
+                  };
+
+                  # Files from home directories (little files, compressed, snapshotted)
+                  "@home" = {
+                    mountpoint = "/home";
+                    mountOptions = [
+                      "compress=zstd:1"
+                      "noatime"
+                    ];
+                  };
+
+                  # Databases files (nodatacow, not compressed)
                   "@databases" = {
-                    mountpoint = "/persist/databases";
+                    mountpoint = "/mnt/databases";
                     mountOptions = [
                       "subvol=databases"
                       "nodatacow"
                       "noatime"
                     ];
                   };
-                  "@nix" = {
-                    mountpoint = "/nix";
-                    mountOptions = [
-                      "compress=no"
-                      "noatime"
-                      "space_cache=v2"
-                    ];
-                  };
-                  "@snapshots" = { };
+
+                  # Snapshots (not mounted)
+                  "@snapshots-home" = { };
+                  "@snapshots-system" = { };
+                  "@snapshots-databases" = { };
                 };
               };
             };
             swap = {
-              size = "2G";
+              size = "32G";
               content = {
                 type = "swap";
                 randomEncryption = false;
@@ -98,7 +116,7 @@
       # NVME2 - RAID0
       media1 = {
         type = "disk";
-        device = "/dev/sdb";
+        device = "/dev/nvme1n1";
         content = {
           type = "gpt";
           partitions = {
@@ -116,7 +134,7 @@
       # NVME3 - RAID0
       media2 = {
         type = "disk";
-        device = "/dev/sdc";
+        device = "/dev/nvme2n1";
         content = {
           type = "gpt";
           partitions = {
@@ -134,7 +152,7 @@
       # Disque USB externe (hot-pluggable)
       backup = {
         type = "disk";
-        device = "/dev/sdd";
+        device = "/dev/sda";
         content = {
           type = "gpt";
           partitions = {
@@ -143,7 +161,7 @@
               content = {
                 type = "filesystem";
                 format = "ext4";
-                mountpoint = "/persist/backup/local";
+                mountpoint = "/mnt/backup";
                 mountOptions = [
                   "noatime"
                   "data=writeback"
@@ -158,18 +176,6 @@
       };
     };
 
-    # Système racine sur tmpfs
-    nodev = {
-      "/" = {
-        fsType = "tmpfs";
-        mountOptions = [
-          "defaults"
-          "size=4G"
-          "mode=755"
-        ];
-      };
-    };
-
     # RAID0
     mdadm = {
       medias = {
@@ -178,7 +184,7 @@
         content = {
           type = "filesystem";
           format = "ext4";
-          mountpoint = "/persist/medias";
+          mountpoint = "/mnt/medias";
         };
       };
     };

@@ -33,13 +33,30 @@ in
   config = lib.mkIf cfg.enable {
 
     # httpd + dnsmasq + homepage registration
-    darkone.service.httpd = {
+    darkone.system.service = {
       enable = true;
       service.immich = {
         enable = true;
         inherit (cfg) domainName;
         displayName = "Immich";
         description = "Gestionnaire de photos intelligent";
+        persist = {
+          dirs = [
+            "/var/lib/immich/profile"
+            "/var/lib/immich/backups"
+          ];
+          dbDirs = [ "/var/lib/postgresql" ];
+          mediaDirs = [ "/var/lib/immich/library" ];
+          varDirs = [
+            "/var/lib/immich/encoded-video"
+            "/var/lib/immich/thumbs"
+            "/var/lib/immich/upload"
+            "/var/lib/immich/.cache"
+            "/var/lib/immich/.config"
+            "/var/lib/cache/immich"
+            (lib.mkIf cfg.enableRedis "/var/lib/redis-immich")
+          ];
+        };
         nginx = {
           extraConfig = ''
             # Increase upload size for photos/videos

@@ -33,8 +33,6 @@
     sops-nix.url = "github:Mic92/sops-nix";
     sops-nix.inputs.nixpkgs.follows = "nixpkgs";
 
-    impermanence.url = "github:nix-community/impermanence";
-
     disko.url = "github:nix-community/disko";
     disko.inputs.nixpkgs.follows = "nixpkgs";
 
@@ -61,7 +59,6 @@
       raspberry-pi-nix,
       nixos-hardware,
       sops-nix,
-      impermanence,
       disko,
       ...
     }:
@@ -114,7 +111,6 @@
         value = {
           imports = [
             ./dnf/modules/home
-            impermanence.homeManagerModules.impermanence
             (import ./${users.${login}.profile})
           ];
 
@@ -132,7 +128,6 @@
         inherit users;
         inherit network;
         inherit system;
-        imgFormat = nixpkgs.lib.mkDefault "iso";
         pkgs-stable = nixpkgsStableFor.${system};
       };
 
@@ -156,7 +151,6 @@
             ./usr/modules/nix
             "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
             sops-nix.nixosModules.sops
-            impermanence.nixosModules.impermanence
             disko.nixosModules.disko
             { _module.args.dnfLib = mkDnfLib (getHostArch host); }
             home-manager.nixosModules.home-manager
@@ -265,13 +259,13 @@
       # nix build .#nixosConfigurations.iso.config.system.build.isoImage
       nixosConfigurations = builtins.listToAttrs (
         map (system: {
-          name =
-            if system == "x86_64-linux" then "iso" else "iso-${builtins.replaceStrings [ "-" ] [ "_" ] system}";
+          name = "iso-${system}";
           value = nixpkgs.lib.nixosSystem {
             inherit system;
-            specialArgs = mkCommonNodeArgs system // {
+            specialArgs = {
+              imgFormat = nixpkgs.lib.mkDefault "iso";
               host = {
-                hostname = "new-dnf-host-installer";
+                hostname = "new-dnf-host";
                 name = "New Darkone NixOS Framework";
                 profile = "minimal";
                 users = [ ];
@@ -280,39 +274,9 @@
               };
             };
             modules = [
-              "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
-              ./dnf/modules/nix
-              sops-nix.nixosModules.sops
-              impermanence.nixosModules.impermanence
-              { _module.args.dnfLib = mkDnfLib system; }
-              home-manager.nixosModules.home-manager
-              {
-                home-manager = {
-                  useGlobalPkgs = true;
-                  useUserPackages = true;
-                  backupFileExtension = "bkp";
-                  users.nixos.imports = [
-                    ./dnf/modules/home
-                    (import ./dnf/homes/nix-admin)
-                  ];
-                  extraSpecialArgs = {
-                    inherit network;
-                    users = {
-                      nixos = {
-                        uid = 1000;
-                        email = "nixos@dnf.lan";
-                        name = "DNF Install User";
-                        profile = "dnf/homes/nix-admin";
-                      };
-                    };
-                    inherit system;
-                    pkgs-stable = nixpkgsStableFor.system;
-                  };
-                };
-              }
-              ./dnf/hosts/iso.nix
+              #"${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
               { nixpkgs.pkgs = nixpkgsFor.${system}; }
-              { _module.args.dnfLib = mkDnfLib system; }
+              ./dnf/hosts/iso.nix
             ];
           };
         }) supportedSystems

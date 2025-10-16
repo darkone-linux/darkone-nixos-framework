@@ -30,13 +30,18 @@ in
   config = lib.mkIf cfg.enable {
 
     # httpd + dnsmasq + homepage registration
-    darkone.service.httpd = {
+    darkone.system.service = {
       enable = true;
       service.forgejo = {
         enable = true;
         inherit (cfg) domainName;
         displayName = "Forgejo";
         description = "Forge GIT locale";
+        persist.dirs = [
+          "/var/lib/forgejo/custom"
+          "/var/lib/forgejo/data"
+          "/var/lib/forgejo/repositories"
+        ];
         nginx.proxyPort = srv.HTTP_PORT;
       };
     };

@@ -1,4 +1,4 @@
-# Pre-configured lldap configuration for users and groups.
+# Pre-configured lldap configuration for users and groups (wip).
 #
 # :::caution[Work in progress user management]
 # This module does not yet allow for the management of system users and groups.

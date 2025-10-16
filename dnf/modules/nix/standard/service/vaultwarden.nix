@@ -29,13 +29,22 @@ in
   config = lib.mkIf cfg.enable {
 
     # httpd + dnsmasq + homepage registration
-    darkone.service.httpd = {
+    darkone.system.service = {
       enable = true;
       service.vaultwarden = {
         enable = true;
         inherit (cfg) domainName;
         displayName = "Vaultwarden";
         description = "Vaultwarden local server";
+        persist = {
+          files = [
+            "rsa_key.pem"
+            "rsa_key.pub.pem"
+          ];
+          dirs = [ "/var/lib/vaultwarden/attachments" ];
+          dbDirs = [ "/var/lib/vaultwarden/db.sqlite3" ];
+          varDirs = [ "/var/lib/vaultwarden/icon_cache" ];
+        };
         nginx.manageVirtualHost = false;
       };
     };
@@ -89,7 +98,7 @@ in
         #SMTP_FROM_NAME = "${network.domain} Vaultwarden server";
       };
 
-      # TODO: for impermanence
+      # TODO: local backup strategy
       #backupDir = "/persist/backup/vaultwarden";
     };
   };

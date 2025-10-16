@@ -36,6 +36,8 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+
+    # Main ncps service
     services.ncps =
       lib.mkIf (!cfg.isClient) {
         enable = true;

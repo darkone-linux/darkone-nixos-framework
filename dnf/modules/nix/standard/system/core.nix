@@ -72,6 +72,10 @@ in
 
     # Bootloader (enabled by default, but not with RPI dependencies)
     boot = lib.mkIf cfg.enableSystemdBoot {
+
+      # Last linux kernel
+      kernelPackages = pkgs.linuxPackages_latest;
+
       loader = {
         timeout = lib.mkDefault 3;
         systemd-boot = {

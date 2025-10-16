@@ -1,6 +1,6 @@
 # DNF sops, passwords and secrets management
 #
-# :::caution[Essential module]
+# :::danger[Critical module]
 # This module is enabled by default in core module.
 # It is recommended to keep it enabled and configure it (`just passwd*` commands).
 # :::
@@ -13,7 +13,6 @@
 }:
 let
   cfg = config.darkone.system.sops;
-  inherit (config.sops) age;
 in
 {
   options = {
@@ -22,17 +21,17 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # Sops key file persistance
-    darkone.system.impermanence.extraPersistFiles = [ age.keyFile ];
-
     sops = {
+
+      # Sops configuration
       defaultSopsFile = ./../../../../../usr/secrets/secrets.yaml;
       age = {
         sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
         keyFile = "/etc/sops/age/infra.key";
-        generateKey = false;
+        generateKey = false; # Key generated manually
       };
 
+      # The common default password
       secrets = {
         default-password = {
           mode = "0440";
@@ -43,23 +42,26 @@ in
           inherit (config.users.users.nobody) group;
         };
       }
-      // builtins.listToAttrs (
-        map (login: {
-          name = "user/" + login + "/password-hash";
-          value = {
-            #mode = "0440";
-            neededForUsers = true;
-            #owner = config.users.users.${login}.name;
-            #inherit (config.users.users.nobody) group;
-          };
-        }) host.users
-      );
+      //
+
+        # Users passwords
+        builtins.listToAttrs (
+          map (login: {
+            name = "user/" + login + "/password-hash";
+            value = {
+              #mode = "0440";
+              neededForUsers = true;
+              #owner = config.users.users.${login}.name;
+              #inherit (config.users.users.nobody) group;
+            };
+          }) host.users
+        );
+
       #// lib.genAttrs host.users (login: {
       #  mode = "0440";
       #  owner = config.users.users.${login}.name;
       #  inherit (config.users.users.nobody) group;
       #});
-
     };
   };
 }

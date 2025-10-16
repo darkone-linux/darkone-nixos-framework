@@ -272,17 +272,17 @@ install host user='nix' ip='auto' do='install':
 		just _log "[ERR] and have a disko config in usr/config.yaml?" >&2
 		exit 1
 	fi
-	DISKO_TPL=$(cat var/generated/disko/install-{{host}}.nix  | grep DISKO_PROFILE | cut -d' ' -f3)
-	if [ ! -f $DISKO_TPL ] ;then
-		just _log "[ERR] Host disko template '$DISKO_TPL' not found." >&2
-		exit 1
-	fi
-	mkdir -p ./usr/machines/{{host}}
-	cp $DISKO_TPL ./usr/machines/{{host}}/disko.nix
+	#DISKO_TPL=$(cat var/generated/disko/install-{{host}}.nix | grep DISKO_PROFILE | cut -d' ' -f3)
+	#if [ ! -f $DISKO_TPL ] ;then
+	#	just _log "[ERR] Host disko template '$DISKO_TPL' not found." >&2
+	#	exit 1
+	#fi
+	#mkdir -p ./usr/machines/{{host}}
+	#cp $DISKO_TPL ./usr/machines/{{host}}/disko.nix
 	echo "{ }" > ./usr/machines/{{host}}/hardware-configuration.nix
-	if [ ! -f ./usr/machines/{{host}}/default.nix ]; then
-		cp ./dnf/hosts/templates/usr-machines-default.nix ./usr/machines/{{host}}/default.nix
-	fi
+	#if [ ! -f ./usr/machines/{{host}}/default.nix ]; then
+	#	cp ./dnf/hosts/templates/usr-machines-default.nix ./usr/machines/{{host}}/default.nix
+	#fi
 	if [ "{{ip}}" == "auto" ]; then
 		TARGET_HOST="{{host}}"
 	else
@@ -497,11 +497,11 @@ push:
 		--exclude doc/darkone-linux.github.io \
 		--delete {{workDir}}/ {{dnfDir}}/
 
-# Build iso image
+# Build DNF iso image
 [group('install')]
-build-iso:
+build-iso arch="x86_64-linux":
 	@just _log "Building local DNF ISO image..."
-	{{nix}} build .#nixosConfigurations.iso.config.system.build.isoImage
+	{{nix}} build .#nixosConfigurations.iso-{{arch}}.config.system.build.isoImage
 
 # Nix shell with tools to create usb keys (deprecated)
 [group('install')]

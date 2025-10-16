@@ -135,18 +135,6 @@ darkone.host.server = {
 
 <hr/>
 
-### &#x1F4E6; darkone.host.start-img
-
-Start image generator for new hosts (for iso image only).
-
-* **enable** `bool` Start minimal iso image
-```nix
-darkone.host.start-img.enable = false;
-
-```
-
-<hr/>
-
 ### &#x1F4E6; darkone.host.vm
 
 Virtual machines guest tools.
@@ -631,44 +619,18 @@ darkone.service.homepage = {
 
 ### &#x1F48E; darkone.service.httpd
 
-Httpd (nginx) server with PHP84.
+Nginx httpd simple server with PHP84 (WIP)
 
 * **enable** `bool` Enable httpd (nginx)
 * **enableUserDir** `bool` Enable user dir configuration
 * **enablePhp** `bool` Enable PHP 8.4 with useful modules
 * **enableVarWww** `bool` Enable http root on /var/www
-* **enable** `bool` Enable service proxy
-* **service** `bool` Display a link on homepage
-* **domainName** `str` Domain name for the service
-* **displayName** `str` Display name in homepage
-* **description** `str` Service description for homepage
-* **icon** `str` Icon name for homepage (https://dashboardicons.com/)
-* **manageVirtualHost** `bool` Whether to create nginx virtualHost configuration (false for services that manage their own)
-* **defaultVirtualHost** `bool` Default nginx virtualhost
-* **proxyPort** `?` Service internal port
-* **extraConfig** `lines` Extra nginx virtualHost configuration
-* **locations** `str` Proxy pass URL
-* **proxyWebsockets** `bool` Enable WebSocket support
-* **extraConfig** `lines` Extra location configuration
 ```nix
 darkone.service.httpd = {
   enable = false;
   enableUserDir = false;
   enablePhp = false;
   enableVarWww = false;
-  enable = false;
-  service = true;
-  domainName = "name";
-  displayName = "name";
-  description = "name";
-  icon = "name";
-  manageVirtualHost = true;
-  defaultVirtualHost = false;
-  proxyPort = null;
-  extraConfig = ;
-  locations = "";
-  proxyWebsockets = false;
-  extraConfig = "";
 }
 
 ```
@@ -697,7 +659,7 @@ darkone.service.immich = {
 
 ### &#x1F48E; darkone.service.lldap
 
-Pre-configured lldap configuration for users and groups.
+Pre-configured lldap configuration for users and groups (wip).
 
 :::caution[Work in progress user management]
 This module does not yet allow for the management of system users and groups.
@@ -936,40 +898,60 @@ darkone.system.i18n = {
 
 <hr/>
 
-### &#x1F48E; darkone.system.impermanence
+### &#x1F48E; darkone.system.service
 
-Impermanance management module (used by others).
+DNF Service registration and configuration.
 
-:::caution[DNF impermanence rules]
-- `/persist/home` contains files from homes (btrfs+zstd)
-- `/persist/system` contains system and other files (btrfs+zstd)
-- `/persist/databases` contains database files (btrfs+nocow)
-- `/persist/medias` contains images, videos and big files (ext4 or btrfs+nocow)
-- `/persist/backup/<location>` contains backup files (ext4/xfs)
+:::caution[Special internal module]
+This module is used to register and configure DNF modules:
+- Reverse proxy (nginx)
+- Homepage registration
+- DNS entry
+- folders and files to backup
 :::
 
-* **enable** `bool` Enable impermanence DNF mechanism
-* **extraPersistDirs** `?` Extra regular persistant dirs
-* **extraPersistFiles** `?` Extra regular persistant files
-* **extraDbPersistDirs** `?` Extra database persistant dirs
-* **extraDbPersistFiles** `?` Extra database persistant files
-* **extraMediaPersistDirs** `?` Extra media persistant dirs
-* **backupLocations** `?` Directories to persist in this backup location
-* **files** `?` Files to persist in this backup location
-* **usersPersistDirs** `?` Default directories to persist for all users
-* **usersPersistFiles** `?` Default files to persist for all users
+* **enable** `bool` Enable DNF service manager to register a new service
+* **enable** `bool` Enable service proxy
+* **service** `str` Domain name for the service
+* **displayOnHomepage** `bool` Display a link on homepage
+* **displayName** `str` Display name in homepage
+* **description** `str` Service description for homepage
+* **icon** `str` Icon name for homepage (https://dashboardicons.com/)
+* **dirs** `?` Service persistant dirs
+* **files** `?` Service persistant files
+* **dbDirs** `?` Service persistant dirs with database(s)
+* **dbFiles** `?` Service database file(s)
+* **varDirs** `?` Variable secondary files (log, cache, etc.)
+* **mediaDirs** `?` Service media dirs (pictures, videos, big files)
+* **manageVirtualHost** `bool` Whether to create nginx virtualHost configuration (false for services that manage their own)
+* **defaultVirtualHost** `bool` Default nginx virtualhost
+* **proxyPort** `?` Service internal port
+* **extraConfig** `lines` Extra nginx virtualHost configuration
+* **locations** `str` Proxy pass URL
+* **proxyWebsockets** `bool` Enable WebSocket support
+* **extraConfig** `lines` Extra location configuration
 ```nix
-darkone.system.impermanence = {
+darkone.system.service = {
   enable = false;
-  extraPersistDirs = [ ];
-  extraPersistFiles = [ ];
-  extraDbPersistDirs = [ ];
-  extraDbPersistFiles = [ ];
-  extraMediaPersistDirs = [ ];
-  backupLocations = [ ];
+  enable = false;
+  service = "name";
+  displayOnHomepage = true;
+  displayName = "name";
+  description = "name";
+  icon = "name";
+  dirs = [ ];
   files = [ ];
-  usersPersistDirs = ;
-  usersPersistFiles = [ ]; # [ ".zshrc" ];
+  dbDirs = [ ];
+  dbFiles = [ ];
+  varDirs = [ ];
+  mediaDirs = [ ];
+  manageVirtualHost = true;
+  defaultVirtualHost = false;
+  proxyPort = null;
+  extraConfig = ;
+  locations = "";
+  proxyWebsockets = false;
+  extraConfig = "";
 }
 
 ```
@@ -980,7 +962,7 @@ darkone.system.impermanence = {
 
 DNF sops, passwords and secrets management
 
-:::caution[Essential module]
+:::danger[Critical module]
 This module is enabled by default in core module.
 It is recommended to keep it enabled and configure it (`just passwd*` commands).
 :::

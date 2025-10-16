@@ -8,7 +8,6 @@
     ./mixin/host/minimal.nix
     ./mixin/host/portable.nix
     ./mixin/host/server.nix
-    ./mixin/host/start-img.nix
     ./mixin/host/vm.nix
     ./mixin/profile/advanced.nix
     ./mixin/profile/children.nix
@@ -48,7 +47,7 @@
     ./standard/system/documentation.nix
     ./standard/system/hardware.nix
     ./standard/system/i18n.nix
-    ./standard/system/impermanence.nix
+    ./standard/system/service.nix
     ./standard/system/sops.nix
     ./standard/user/build.nix
   ];
