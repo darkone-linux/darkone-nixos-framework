@@ -2,15 +2,15 @@
 #
 # /dev/nvme0n1 (8TB)
 # ├── /boot (EFI, 1GB, vfat)
-# ├── BTRFS (reste ~7.97TB)
+# ├── BTRFS (~7.97TB)
 # ├   ├── subvol=@system    → /              (compress=zstd:1)
-# ├   ├── subvol=@nix       → /nix           (compress=no)
+# ├   ├── subvol=@nix       → /nix           (compress=zstd:1)
 # ├   ├── subvol=@home      → /home          (compress=zstd:1)
 # ├   ├── subvol=@databases → /mnt/databases (nodatacow,compress=no)
 # ├   ├── subvol=@snapshots-home
 # ├   ├── subvol=@snapshots-system
 # ├   └── subvol=@snapshots-databases
-# └── swap (32GB, chiffré)
+# └── swap (32GB)
 #
 # /dev/nvme1n1 + /dev/nvme2n1 (8TB + 8TB RAID0)
 # └── ext4 → /mnt/medias (noatime, writeback)
@@ -89,7 +89,6 @@
                   "@databases" = {
                     mountpoint = "/mnt/databases";
                     mountOptions = [
-                      "subvol=databases"
                       "nodatacow"
                       "noatime"
                     ];
@@ -149,7 +148,7 @@
         };
       };
 
-      # Disque USB externe (hot-pluggable)
+      # External USB disk (hot-pluggable)
       backup = {
         type = "disk";
         device = "/dev/sda";
@@ -165,9 +164,9 @@
                 mountOptions = [
                   "noatime"
                   "data=writeback"
-                  "noauto" # Ne pas monter automatiquement au boot
-                  "x-systemd.automount" # Montage à la demande
-                  "x-systemd.idle-timeout=300" # Démonte après 5min d'inactivité
+                  "noauto" # Do not auto-mount at boot
+                  "x-systemd.automount" # On-demand mount
+                  "x-systemd.idle-timeout=300" # Auto unmount after 5 min idle
                 ];
               };
             };

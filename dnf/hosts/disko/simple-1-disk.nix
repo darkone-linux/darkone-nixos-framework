@@ -1,4 +1,4 @@
-# Simple virtual machine, BTRFS
+# Simple machine with 1 disk, BTRFS
 
 {
   disko.devices = {
@@ -12,7 +12,7 @@
 
             # EFI
             boot = {
-              size = "500M";
+              size = "1G";
               type = "EF00";
               content = {
                 type = "filesystem";
