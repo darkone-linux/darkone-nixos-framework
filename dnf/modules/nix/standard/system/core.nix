@@ -119,8 +119,10 @@ in
         }
       ];
       extraOptions = "--term xterm-256color";
-      extraConfig = "font-size=14";
+      extraConfig = "font-size=18";
+      useXkbConfig = true;
     };
+    services.xserver.xkb.layout = lib.mkIf cfg.enableKmscon "fr";
 
     # To manage nodes, openssh must be activated
     services.openssh.enable = true;

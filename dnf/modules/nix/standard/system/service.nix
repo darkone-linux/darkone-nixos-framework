@@ -251,6 +251,7 @@ in
     }) enabledServices;
 
     # Open HTTP port only for lan interface(s)
+    # TODO: simplify + adapt to headscale
     networking.firewall.interfaces = mkIf config.services.dnsmasq.enable (
       lib.listToAttrs (
         map (iface: {
