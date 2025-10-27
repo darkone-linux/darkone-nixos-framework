@@ -1,360 +1,82 @@
 # Darkone NixOS Framework
 
-> [!NOTE]
-> A [documentation](https://darkone-linux.github.io) is available.
+- Go to [the documentation](https://darkone-linux.github.io) or [french readme](README.fr.md).
 
-Une infrastructure réseau déclarative complète&nbsp;:
+## A multi-user, multi-host, ready-to-use NixOS configuration
 
-- Structure cohérente et modulaire.
-- Outils préconfigurés et fonctionnels.
-- Organisation pensée pour la scalabilité.
-
-## Fonctionnalités
-
-- **Multi-hosts et multi-users**, déploiements avec [colmena](https://github.com/zhaofengli/colmena) et [just](https://github.com/casey/just).
-- **Profils de hosts** pour serveurs, conteneurs et machines de travail.
-- **Profils de users** proposant des confs types pour de nombreux utilisateurs.
-- **Modules complets** et 100% fonctionnels avec un simple `.enable = true`.
-- **Modules "mixin"** qui activent et configurent plusieurs modules en même temps.
-- **Architecture extensible**, scalable, cohérente, personnalisable.
-- **Gestion des paramètres** utilisateur avec [home manager](https://github.com/nix-community/home-manager) + profils de homes.
-- **Configuration transversale** pour assurer la cohérence du réseau.
-- **Multi-réseaux**, possibilité de déclarer plusieurs réseaux en une configuration.
-- **[Homepage](https://github.com/gethomepage/homepage) automatique** en fonction des services activés.
-- **Sécurisation facile et fiable** avec [sops](https://github.com/Mic92/sops-nix).
-
-## Organisation
-
-A la racine :
-
-- `dnf` -> modules, users, hosts (framework)
-- `usr` -> Projet local (en écriture)
-- `var` -> Fichiers générés et logs
-- `src` -> Fichiers source du générateur
-- `doc` -> Documentation du projet
-
-La [structure complète est documentée ici](https://darkone-linux.github.io/doc/introduction/#structure).
+- Simplified [high-level configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml).
+- Consistent and modular [structure](https://darkone-linux.github.io/doc/introduction/#structure).
+- Ready-to-use [modules, profiles and tools](https://darkone-linux.github.io/ref/modules/).
+- Organization designed for scalability.
 
 > [!NOTE]
-> Cette structure peut être clonée pour chaque configuration et les parties communes synchronisées dans un dépôt "upstream" commun.
+> This project is under development.
+> If you'd like to be informed about upcoming stable versions, 
+> please let me know on [GitHub](https://github.com/darkone-linux/darkone-nixos-framework) 
+> or by subscribing to my [YouTube channel](https://www.youtube.com/@DarkoneLinux) (FR).
+> Thank you!
 
-## Le générateur
+## Main features
 
-```shell
-# Lancer le générateur
-just generate
+- **[Multi-hosts and multi-users](https://darkone-linux.github.io/doc/specifications/#the-generator)**, deployed with [colmena](https://github.com/zhaofengli/colmena) and [just](https://github.com/casey/just).
+- **[Host profiles](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop)** for servers, containers, and workstations.
+- **[User profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/homes)** providing common configurations for various users.
+- **[High-level modules](https://darkone-linux.github.io/ref/modules)** 100% functional with a simple `.enable = true`.
+- **[Extensible](https://darkone-linux.github.io/doc/introduction/#structure)**, scalable, consistent, customizable architecture.
+- **User profiles management** with [home manager](https://github.com/nix-community/home-manager) + [home profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/homes).
+- **[Automatic homepage](https://darkone-linux.github.io/ref/modules/#-darkoneservicehomepage)** with [Homepage](https://github.com/gethomepage/homepage), based on activated services.
+- **[Cross-configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml)** to ensure network consistency.
+- **Easy and reliable security**, a single password to unlock, with [sops](https://github.com/Mic92/sops-nix).
+- **No-conf DNS, DHCP, reverse-proxy, firewall** and all network plumbing.
+- **Instant installation** of new hosts with [disko](https://github.com/nix-community/disko) and [nixos-anywhere](https://github.com/nix-community/nixos-anywhere).
 
-# Génération + formattages + checks
-just clean
+## Just commands
+
 ```
-
-![Darkone NixOS Framework Generator](doc/src/assets/arch.webp)
-
-Son rôle est de générer une configuration statique pure à partir d'une définition de machines (hosts), utilisateurs et groupes en provenance de diverses sources (déclarations statiques, ldap, etc. configurées dans `usr/config.yaml`). La configuration nix générée est intégrée au dépôt afin d'être fixée et utilisée par le flake.
-
-## Exemples
-
-Un poste bureautique complet :
-
-```nix
-# usr/modules/nix/host/admin-laptop.nix
-{ lib, config, ... }:
-let
-  cfg = config.darkone.host.admin-laptop;
-in
-{
-  options = {
-    darkone.host.admin-laptop.enable = lib.mkEnableOption "An admin laptop";
-  };
-
-  config = lib.mkIf cfg.enable {
-
-    # Darkone modules
-    darkone = {
-
-      # Based on laptop framework profile
-      host.laptop.enable = true;
-
-      # Advanced user (developper / admin)
-      theme.advanced.enable = true;
-
-      # Nix administration features
-      admin.nix.enable = true;
-    };
-
-    # Host specific state version
-    system.stateVersion = "25.05";
-  };
-}
-```
-
-On déclare des machines correspondantes dans `usr/config.yaml` :
-
-```yaml
-hosts:
-    static:
-        - hostname: "darkone-laptop"
-          name: "A PC"
-          profile: admin-laptop
-          users: [ "darkone", "john" ]
-```
-
-- Il existe aussi des profils de hosts pré-configurés dans `dnf/modules/nix/host`.
-- Les utilisateurs liés au host sont déclarés via `users` et/ou `groups`.
-- Utilisateurs et groupes peuvent être déclarés dans la configuration ou dans LDAP.
-
-> [!NOTE]
-> On peut créer un nouveau poste informatique depuis l'iso d'installation.
->
-> ```sh
-> # Création de l'iso d'installation
-> nix build .#start-img-iso
-> ```
->
-> Création du poste et mises à jour :
->
-> ```sh
-> # Mettre à jour la passerelle pour enregistrer le poste sur le DNS
-> just apply gateway
->
-> # Echange les clés, récupère la conf hardware, génère la conf et applique
-> just install pc01
->
-> # On peut ensuite mettre à jour à tout moment
-> just apply pc01
-> ```
-
-### Créer une passerelle complète
-
-Elle contient un serveur DHCP + DNS auto-configurés avec tous les postes déclarés dans la conf.
-
-```yaml
-# usr/config.yaml
-network:
-  domain: "arthur.lan"
-  locale: "fr_FR.UTF-8"
-  timezone: "America/Miquelon"
-  gateway:
-    hostname: "gateway" # required (if a gateway exists)
-    wan:
-      interface: "enp1s0" # required
-    lan:
-      interfaces: ["enp2s0", "wlo1", "wlp0s20f0u1"] # required
-      ip: "192.168.1.1"
-      prefixLength: 24
-      dhcp-range:
-        - "192.168.1.200,192.168.1.230,24h"
-
-hosts:
-    static:
-        - hostname: "gateway"
-          name: "Local Gateway"
-          profile: local-gateway
-          groups: [ "nix-admin" ]
-```
-
-Déploiement :
-
-```sh
-just apply gateway
-```
-
-## Justfile
-
-```shell
-❯ just
 Available recipes:
-    [apply]
-    apply on what='switch'         # Apply configuration using colmena
-    apply-force on what='switch'   # Apply with build-on-target + force repl. unk profiles
-    apply-local what='switch'      # Apply the local host configuration
-    apply-verbose on what='switch' # Apply force with verbose options
+  [apply]
+  apply on what='switch'                         # Apply configuration using colmena
+  apply-force on what='switch'                   # Apply with build-on-target + force repl. unk profiles [alias: a]
+  apply-local what='switch'                      # Apply the local host configuration [alias: al]
+  apply-verbose on what='switch'                 # Apply force with verbose options [alias: av]
 
-    [check]
-    check                          # Recursive deadnix on nix files
-    check-flake                    # Check the main flake
-    check-statix                   # Check with statix
+  [check]
+  check                                          # Recursive deadnix on nix files
+  check-flake                                    # Check the main flake
+  check-statix                                   # Check with statix
 
-    [dev]
-    clean                          # format: fix + check + generate + format [alias: c]
-    develop                        # Launch a "nix develop" with zsh (dev env)
-    fix                            # Fix with statix [alias: f]
-    format                         # Recursive nixfmt on all nix files
-    generate                       # Update the nix generated files [alias: g]
-    pull                           # Pull common files from DNF repository
-    push                           # Push common files to DNF repository
+  [dev]
+  clean                                          # format: fix + check + generate + format [alias: c]
+  develop                                        # Launch a "nix develop" with zsh (dev env) [alias: d]
+  fix                                            # Fix with statix
+  format                                         # Recursive nixfmt on all nix files
+  generate                                       # Update the nix generated files
+  pull                                           # Pull common files from DNF repository
+  push                                           # Push common files to DNF repository
 
-    [install]
-    copy-hw host                   # Extract hardware config from host
-    copy-id host                   # Copy pub key to the node (nix user must exists)
-    format-dnf-on host dev         # Format and install DNF on an usb key (danger)
-    format-dnf-shell               # Nix shell with tools to create usb keys
-    install host                   # New host: ssh cp id, extr. hw, clean, commit, apply
-    install-admin-host             # Framework installation on local machine (builder / admin)
-    passwd user                    # Update a user password
-    passwd-default                 # Update the default DNF password
-    push-key host                  # Push the infrastructure key to the host
+  [install]
+  build-iso arch="x86_64-linux"                  # Build DNF iso image
+  configure host                                 # New host: ssh cp id, extr. hw, clean, commit, apply
+  configure-admin-host                           # Framework installation on local machine (builder / admin)
+  copy-hw host                                   # Extract hardware config from host
+  copy-id host                                   # Copy pub key to the node (nix user must exists)
+  format-dnf-on host dev                         # Format and install DNF on an usb key (deprecated)
+  format-dnf-shell                               # Nix shell with tools to create usb keys (deprecated)
+  full-install host user='nix' ip='auto'         # New host: full installation (install, configure, apply)
+  install host user='nix' ip='auto' do='install' # New host: format with nixos-everywhere + disko
+  passwd user                                    # Update a user password
+  passwd-default                                 # Update the default DNF password
+  push-key host                                  # Push the infrastructure key to the host
 
-    [manage]
-    enter host                     # Interactive shell to the host
-    fix-boot on                    # Multi-reinstall bootloader (using colmena)
-    fix-zsh on                     # Remove zshrc bkp to avoid error when replacing zshrc
-    gc on                          # Multi garbage collector (using colmena)
-    halt on                        # Multi-alt (using colmena)
-    reboot on                      # Multi-reboot (using colmena)
+  [manage]
+  enter host                                     # Interactive shell to the host [alias: e]
+  fix-boot on                                    # Multi-reinstall bootloader (using colmena)
+  fix-zsh on                                     # Remove zshrc bkp to avoid error when replacing zshrc
+  gc on                                          # Multi garbage collector (using colmena)
+  halt on                                        # Multi-alt (using colmena)
+  reboot on                                      # Multi-reboot (using colmena)
 ```
 
-## A faire (todo)
+## The future architecture
 
-### En cours
-
-- [ ] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + configuration multi-postes.
-- [ ] Services distribués (aujourd'hui les services réseau sont sur la passerelle).
-
-### Planifié (prioritaire)
-
-- [ ] just clean: détecter les fails, les afficher et s'arrêter.
-- [ ] Serveurs et postes "externes" (administrable mais ne faisant pas partie du LAN).
-- [ ] Configuration pour réseau extérieur (https, dns, vpn...).
-- [ ] Accès externe au réseau : fqdn + lets encrypt + sécurité.
-- [ ] Partages Samba pour windows + linux.
-- [ ] Stratégie de synchronisation avec syncthing.
-- [ ] SSO avec [Authelia](https://github.com/authelia/authelia) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.authelia)) 
-  - Intégration du module Authelia (cf. mes notes, fichier `PAM`).
-  - Gestion auto `secrets/users_database.yml` de authelia (via module ?).
-  - Conf auto pour nginx, immich, nextcloud...
-- [ ] Stratégie de sauvegarde, plusieurs options :
-  - Ecosystème [Borg](https://github.com/borgbackup/borg) + [Borgmatic](https://github.com/borgmatic-collective/borgmatic) + [BorgWeb](https://github.com/borgbackup/borgweb) (plus maintenu ?) + [BorgWarehouse](https://github.com/ravinou/borgwarehouse) (bien mais pas intégré à nix) + [Vorta](https://vorta.borgbase.com/).
-  - Ecosystème [Restic](https://github.com/kopia/kopia), bon module nix, plus simple, plus "CLI", plus de connexions que Borg, moins performant.
-  - [Kopia](https://github.com/kopia/kopia) : très prometteur mais pas encore de module officiel pour NixOS.
-- [ ] Optimisations réseau :
-  - Domaines locaux des machines -> 127.0.0.1 (shunt dnsmasq + adguard)
-  - Homepage GW -> accès aux services globaux installés sur le réseau hors GW
-- [ ] Réseau distribué avec [Headscale](https://github.com/juanfont/headscale) + [WireGuard](https://www.wireguard.com/)
-
-### Planifié (secondaire)
-
-- [ ] Intégration de [nixvim](https://nix-community.github.io/nixvim/).
-- [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
-- [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
-- [ ] Attributions d'emails automatiques par réseaux.
-- [ ] Serveur de mails.
-- [ ] Générateur / gestionnaire d'UIDs (pour les grands réseaux).
-- [ ] Réseau social à voir : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost), [mastodon](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mastodon), [matrix](https://nixos.wiki/wiki/Matrix), [gotosocial](https://search.nixos.org/options?channel=24.11&from=0&size=50&sort=relevance&type=packages&query=services.gotosocial), [zulip](https://zulip.com/self-hosting/)...
-
-### Fait
-
-- [x] Architecture modulaire.
-- [x] Configuration colmena.
-- [x] Configuration transversale générale.
-- [x] Déploiements avec Just (build regular + apply colmena).
-- [x] Générateur de configuration nix statique.
-- [x] Modules système de base (hardware, i18n, doc, network, performances).
-- [x] Modules console de base (zsh, git, shell).
-- [x] Modules graphic de base (gnome, jeux de paquetages).
-- [x] Hosts préconfigurés : minimal, serveur, desktop, laptop.
-- [x] [Justfile](https://github.com/casey/just) pour checker et fixer les sources.
-- [x] Postes types (bureautique, développeur, administrateur, enfant).
-- [x] Builder d'[ISOs d'installation](https://github.com/nix-community/nixos-generators) pour les machines à intégrer.
-- [x] Multi-réseaux.
-- [x] Fixer les UIDs (des users).
-- [x] Normaliser les données générées en séparant hosts et users.
-- [x] Configuration multi-architecture (x86_64 & aarch64).
-- [x] Passerelle type (dhcp, dns, ap, firewall, adguard, AD, VPN).
-- [x] Documentation FR et EN.
-- [x] [Nix Cache Proxy Server](https://github.com/kalbasit/ncps).
-- [x] Homepage automatique en fonction des services activés.
-- [x] Générateur automatique de documentation à partir des sources.
-- [x] Sécurisation avec [fail2ban](https://github.com/fail2ban/fail2ban) ([module](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.fail2ban)).
-- [x] Gestion des mots de passe avec [sops](https://github.com/Mic92/sops-nix).
-- [x] Passerelle : ajouter [adguard home](https://wiki.nixos.org/wiki/Adguard_Home).
-
-### En pause
-
-- [ ] Création de noeuds avec [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) + [disko](https://github.com/nix-community/disko).
-- [ ] Gestion centralisée des utilisateurs avec [lldap](https://github.com/lldap/lldap).
-
-## Idées en cours d'étude
-
-> [!CAUTION]
-> Pas encore fonctionnel.
-
-### Installation K8S préconfigurée
-
-Master (déclaration qui fonctionne sans autre configuration) :
-
-```nix
-{
-  # Host k8s-master
-  darkone.k8s.master = {
-    enable = true;
-    modules = {
-      nextcloud.enable = true;
-      forgejo.enable = true;
-    };
-  };
-}
-```
-
-Slave (connu et autorisé par master car déclaré dans la même conf nix) :
-
-```nix
-{
-  # Host k8s-slave-01
-  darkone.k8s.slave = {
-    enable = true;
-    master.hostname = "k8s-master";
-  };
-}
-```
-
-Master avec options :
-
-```nix
-{
-  # Host k8s-master
-  darkone.k8s.master = {
-    enable = true;
-    modules = {
-      nextcloud.enable = true;
-      forgejo.enable = true;
-    };
-    preemtibleSlaves = {
-      hosts = [ "k8s-node-01" "k8s-node-02" ];
-      xen.hypervisors = [
-        {
-          dom0 = "xenserver-01";
-          vmTemplate = "k8s-node";
-          minStatic = 3;
-          maxPreemptible = 20;
-        }
-      ];
-    };
-  };
-}
-```
-
-### Commandes d'introspection
-
-```shell
-# Host list with resume for each
-just host
-
-# Host details : settings, activated modules, user list...
-just host my-pc
-
-# User list with resume (name, mail, host count)
-just user
-
-# User details : content, feature list, host list...
-just user darkone
-```
-
-> [!WARNING]
-> Après de nombreuses heures d'utilisation, il apparaît que Colmena et Deploy-rs ne répondent pas
-> à une gestion de postes NixOS à large échelle. Je vais remplacer la configuration colmena actuelle
-> par un équivalent non-nix, certainement [salt](https://github.com/saltstack/salt), pour administrer de nombreux postes en parallèle.
-> Enfin, je ferai également en sorte de pouvoir builder et switcher chaque poste indépendemment au
-> besoin, plutôt qu'être tributaire de la machine maître.
->
-> ![Archi prévisionnelle avec Salt](doc/src/assets/new-network-architecture-black-tr.png)
+![New network architecture](doc/src/assets/reseau-darkone-2.png)
