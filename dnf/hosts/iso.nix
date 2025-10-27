@@ -22,6 +22,10 @@
         "http://gateway:8501"
         "https://cache.nixos.org"
       ];
+      experimental-features = [
+        "nix-command"
+        "flakes"
+      ];
     };
     networking.useDHCP = lib.mkDefault true;
     services.openssh.enable = true;
