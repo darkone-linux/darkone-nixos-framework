@@ -3,39 +3,38 @@
   home.packages = with pkgs; [
 
     # Outils CLI
-    asciidoc-full
-    asciidoctor
-    aspellDicts.fr
-    ccrypt
-    duf
+    #asciidoc-full
+    #asciidoctor
+    #aspellDicts.fr
+    #ccrypt
+    #duf
     htop
-    presenterm
-    ranger
-    zellij
+    #presenterm
+    #ranger
+    #zellij
 
     # Développement, administration
-    gparted
-    #jetbrains.idea-ultimate # Compilation fail
-    nodejs_23
-    python3Full
-    vscode
+    #gparted
+    #nodejs-slim
+    #python3Full
+    #vscode
 
     # Réseau
     #nettools
-    filezilla
-    nmap
+    #filezilla
+    #nmap
 
     # Productivité, multimédia
-    evince
-    geeqie
-    gimp
-    inkscape
-    super-productivity
-    yed
+    #evince
+    #geeqie
+    #gimp
+    #inkscape
+    #super-productivity
+    #yed
 
     # Tweak
-    powerline
-    powerline-fonts
+    #powerline
+    #powerline-fonts
 
     # TODO
     #gpsd
@@ -47,8 +46,9 @@
     #whatsapp-for-linux
   ];
 
-  services.easyeffects = {
-    enable = true;
-    preset = "easyeffects-fw16";
-  };
+  # Audio effects
+  #services.easyeffects = {
+  #  enable = true;
+  #  preset = "easyeffects-fw16";
+  #};
 }

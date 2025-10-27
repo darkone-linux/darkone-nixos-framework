@@ -21,25 +21,22 @@ in
       # Nix administration features
       admin.nix.enable = true;
 
-      # Hp printers
-      service.printing.enableHpPrinters = true;
+      # Printers
+      #service.printing.enableHpPrinters = true;
 
       # No email software
       graphic.office.enableEmail = false;
 
       # Virtualbox
-      graphic.virtualbox.enable = true;
+      #graphic.virtualbox.enable = true;
 
       # Music creation
-      graphic.music.enable = true;
+      #graphic.music.enable = true;
 
       # Gnome options
-      graphic.gnome.enableDashToDock = true;
+      #graphic.gnome.enableDashToDock = true;
       #graphic.gnome.enableGsConnect = true;
       #graphic.gnome.enableCaffeine = true;
-
-      # I'm the master, not a node
-      host.isNode = false;
     };
 
     # Host specific state version
