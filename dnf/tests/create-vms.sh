@@ -3,7 +3,7 @@ set -euo pipefail
 
 # TODO: auto find this:
 ISO_PATH="/nix/store/pa0sfka23gn1inlhbm26nyv7f0507p0g-nixos-minimal-25.11.20251015.544961d-x86_64-linux.iso/iso/nixos-minimal-25.11.20251015.544961d-x86_64-linux.iso"
-BRIDGE_IF="wlp3s0"
+BRIDGE_IF="enp2s0"
 
 GW_NAME="dnf-test-gateway"
 HS_NAME="dnf-test-headscale"
