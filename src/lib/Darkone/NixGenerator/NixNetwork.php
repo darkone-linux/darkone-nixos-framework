@@ -48,7 +48,8 @@ class NixNetwork
         foreach ($this->aliases as $host => $aliases) {
             $hostCnames = [];
             foreach ($aliases as $alias) {
-                $hostCnames[] = $alias . ',' . $host;
+                $hostCnames[] = $alias . ',' . $host . '.' . $this->config['domain'];
+                $hostCnames[] = $alias . '.' . $this->config['domain'] . ',' . $host . '.' . $this->config['domain'];
             }
             sort($hostCnames);
             $cnames = array_merge($cnames, $hostCnames);

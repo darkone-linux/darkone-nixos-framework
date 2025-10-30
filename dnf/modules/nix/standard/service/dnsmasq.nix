@@ -173,11 +173,11 @@ in
         # Dnsmasq récupère ses serveurs DNS amont à partir des fichiers "server"
         # au lieu de /etc/resolv.conf ou tout autre fichier.
         no-resolv = config.darkone.service.adguardhome.enable;
-        server =
-          if config.darkone.service.adguardhome.enable then
-            [ ("127.0.0.1#" + (toString config.services.adguardhome.settings.dns.port)) ]
-          else
-            config.networking.nameservers;
+        #server =
+        #  if config.darkone.service.adguardhome.enable then
+        #    [ ("127.0.0.1#" + (toString config.services.adguardhome.settings.dns.port)) ]
+        #  else
+        #    config.networking.nameservers;
 
         # Force dnsmasq à inclure l’IP réelle du client dans les requêtes DNS transmises en upstream
         #edns-packet-max = 1232;

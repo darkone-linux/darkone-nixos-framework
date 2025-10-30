@@ -12,6 +12,7 @@
   lib,
   config,
   host,
+  network,
   ...
 }:
 with lib;
@@ -20,6 +21,9 @@ let
 
   # Full list of registered services
   enabledServices = filterAttrs (_: v: v.enable) config.darkone.system.service.service;
+
+  # If not a gateway, open HTTP
+  isGateway = host.hostname == network.gateway.hostname;
 
   # Service parameter makers
   mkDomainName =
@@ -250,17 +254,25 @@ in
       };
     }) enabledServices;
 
-    # Open HTTP port only for lan interface(s)
-    # TODO: simplify + adapt to headscale
-    networking.firewall.interfaces = mkIf config.services.dnsmasq.enable (
-      lib.listToAttrs (
-        map (iface: {
-          name = iface;
-          value = {
-            allowedTCPPorts = [ 80 ];
-          };
-        }) config.services.dnsmasq.settings.interface
-      )
-    );
+    # Open right ports
+    # TODO: HTTPS
+    networking.firewall = {
+
+      # Open HTTP on all interfaces if not the gateway
+      allowedTCPPorts = lib.mkIf (!isGateway) [ 80 ];
+
+      # Open HTTP port only for lan interface(s)
+      # TODO: simplify + adapt to headscale
+      interfaces = mkIf (isGateway && config.services.dnsmasq.enable) (
+        lib.listToAttrs (
+          map (iface: {
+            name = iface;
+            value = {
+              allowedTCPPorts = [ 80 ];
+            };
+          }) config.services.dnsmasq.settings.interface
+        )
+      );
+    };
   };
 }
