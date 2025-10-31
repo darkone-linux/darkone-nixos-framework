@@ -898,7 +898,7 @@ darkone.system.i18n = {
 
 <hr/>
 
-### &#x1F48E; darkone.system.service
+### &#x1F48E; darkone.system.services
 
 DNF Service registration and configuration.
 
@@ -910,7 +910,7 @@ This module is used to register and configure DNF modules:
 - folders and files to backup
 :::
 
-* **enable** `bool` Enable DNF service manager to register a new service
+* **enable** `bool` Enable DNF services manager to register a new service
 * **enable** `bool` Enable service proxy
 * **service** `str` Domain name for the service
 * **displayOnHomepage** `bool` Display a link on homepage
@@ -931,7 +931,7 @@ This module is used to register and configure DNF modules:
 * **proxyWebsockets** `bool` Enable WebSocket support
 * **extraConfig** `lines` Extra location configuration
 ```nix
-darkone.system.service = {
+darkone.system.services = {
   enable = false;
   enable = false;
   service = "name";

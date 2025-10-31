@@ -23,6 +23,9 @@ class NixNetwork
     // Hosts with ips
     private array $hosts = [];
 
+    // Shared services informations
+    private array $services = [];
+
     // Other options
     private array $dhcpOption = [];
     private array $dhcpRange = [];
@@ -39,6 +42,7 @@ class NixNetwork
                 'dhcp-range' => $this->dhcpRange,
                 'cname' => $this->buildCnames(),
             ],
+            'sharedServices' => $this->services,
         ];
     }
 
@@ -142,6 +146,37 @@ class NixNetwork
     /**
      * @throws NixException
      */
+    public function registerSharedServices(string $host, array $services): NixNetwork
+    {
+        static $serviceDomains = [];
+
+        if (empty($services)) {
+            return $this;
+        }
+
+        foreach ($services as $serviceKey => $service) {
+            if (!empty($service['domain'])) {
+                if (in_array($service['domain'], $serviceDomains)) {
+                    throw new NixException('Service domain conflict: "' . $service['domain'] . '"');
+                }
+                $serviceDomains[] = $service['domain'];
+            }
+            $this->services[] = array_filter([
+                'host' => $host,
+                'service' => $serviceKey,
+                'domainName' => $service['domain'] ?? null,
+                'displayName' => $service['title'] ?? null,
+                'description' => $service['description'] ?? null,
+                'icon' => $service['icon'] ?? null,
+            ]);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @throws NixException
+     */
     public function registerNetworkConfig(array $cfg): NixNetwork
     {
         $gwStaticIp = $cfg['gateway']['lan']['ip'] ?? self::DEFAULT_LAN_IP;
@@ -172,6 +207,7 @@ class NixNetwork
         foreach ($cfg['extraHosts'] ?? [] as $hostname => $hostCfg) {
             $this->registerAliases($hostname, $hostCfg['aliases'] ?? []);
             $this->registerHost($hostname, $hostCfg['interfaces'][0]['ip'] ?? null);
+            $this->registerSharedServices($hostname, $hostCfg['services'] ?? []);
             foreach ($hostCfg['interfaces'] ?? [] as $interface) {
                 $this->registerMacAddress($interface['mac'] ?? '', $interface['ip'], $hostname);
             }

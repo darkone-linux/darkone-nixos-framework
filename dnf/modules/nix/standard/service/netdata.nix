@@ -24,35 +24,43 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable {
-
-    # httpd + dnsmasq + homepage registration
-    darkone.system.service = {
-      enable = true;
-      service.netdata = {
-        enable = true;
+  config = lib.mkMerge [
+    {
+      # Darkone service: httpd + dnsmasq + homepage registration
+      darkone.system.services.service.netdata = {
         inherit (cfg) domainName;
         displayName = "Netdata";
         description = "Outil de supervision";
         persist.dirs = [ "/var/lib/netdata" ];
         nginx.proxyPort = 19999;
       };
-    };
+    }
 
-    #networking.firewall.allowedTCPPorts = [ 19999 ];
-    services.netdata = {
-      enable = true;
-      config = {
-        global = {
-          "memory mode" = "ram";
-          "debug log" = "none";
-          "access log" = "none";
-          "error log" = "syslog";
+    (lib.mkIf cfg.enable {
+
+      # Darkone service: enable
+      darkone.system.services = {
+        enable = true;
+        service.netdata = {
+          enable = true;
         };
       };
-    };
 
-    nixpkgs.config.allowUnfree = true;
-    services.netdata.package = pkgs.netdata.override { withCloudUi = true; };
-  };
+      #networking.firewall.allowedTCPPorts = [ 19999 ];
+      services.netdata = {
+        enable = true;
+        config = {
+          global = {
+            "memory mode" = "ram";
+            "debug log" = "none";
+            "access log" = "none";
+            "error log" = "syslog";
+          };
+        };
+      };
+
+      nixpkgs.config.allowUnfree = true;
+      services.netdata.package = pkgs.netdata.override { withCloudUi = true; };
+    })
+  ];
 }

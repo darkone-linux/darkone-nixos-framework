@@ -47,7 +47,7 @@
     ./standard/system/documentation.nix
     ./standard/system/hardware.nix
     ./standard/system/i18n.nix
-    ./standard/system/service.nix
+    ./standard/system/services.nix
     ./standard/system/sops.nix
     ./standard/user/build.nix
   ];

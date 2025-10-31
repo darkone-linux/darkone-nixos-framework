@@ -75,6 +75,7 @@ class Host
         foreach ($services as $name => $params) {
             $extraNetwork->registerAliases($this->getHostname(), [$this->populateService($name, $params)]);
         }
+        $extraNetwork->registerSharedServices($this->getHostname(), $this->services);
 
         return $this;
     }

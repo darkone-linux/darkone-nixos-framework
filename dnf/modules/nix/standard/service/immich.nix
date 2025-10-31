@@ -30,13 +30,10 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable {
-
-    # httpd + dnsmasq + homepage registration
-    darkone.system.service = {
-      enable = true;
-      service.immich = {
-        enable = true;
+  config = lib.mkMerge [
+    {
+      # Darkone service: httpd + dnsmasq + homepage registration
+      darkone.system.services.service.immich = {
         inherit (cfg) domainName;
         displayName = "Immich";
         description = "Gestionnaire de photos intelligent";
@@ -94,84 +91,95 @@ in
           };
         };
       };
-    };
+    }
 
-    # Redis for caching (optional but recommended)
-    services.redis.servers.immich = lib.mkIf cfg.enableRedis {
-      enable = true;
-      port = 6379;
-      bind = "127.0.0.1";
-      requirePass = null; # Local access only
-      settings = {
+    (lib.mkIf cfg.enable {
 
-        # Optimizations for immich caching
-        maxmemory = "256mb";
-        maxmemory-policy = "allkeys-lru";
-
-        # Persistence settings
-        save = "900 1 300 10 60 10000";
-
-        # Performance settings
-        tcp-keepalive = 60;
-        timeout = 300;
-      };
-    };
-
-    # Main immich service configuration
-    services.immich = {
-      enable = true;
-      port = 2283;
-      host = "localhost";
-      openFirewall = false;
-
-      # Redis configuration
-      redis = lib.mkIf cfg.enableRedis {
-        host = "127.0.0.1";
-        inherit (config.services.redis.servers.immich) port;
-      };
-
-      # Machine learning configuration
-      machine-learning = lib.mkIf cfg.enableMachineLearning {
+      # Darkone service: enable
+      darkone.system.services = {
         enable = true;
-
-        # Additional ML settings can be configured here
-        environment = {
-
-          # Optimize for CPU if no GPU available
-          TRANSFORMERS_CACHE = "/var/lib/immich/cache/transformers";
-          TORCH_HOME = "/var/lib/immich/cache/torch";
-
-          # Machine learning fix
-          # https://discourse.nixos.org/t/immich-machine-learning-not-working/69208
-          HF_XET_CACHE = "/var/cache/immich/huggingface-xet";
+        service.immich = {
+          enable = true;
         };
       };
-    };
 
-    # Machine learning fix
-    # https://discourse.nixos.org/t/immich-machine-learning-not-working/69208
-    users.users.immich = {
-      home = "/var/lib/immich";
-      createHome = true;
-    };
+      # Redis for caching (optional but recommended)
+      services.redis.servers.immich = lib.mkIf cfg.enableRedis {
+        enable = true;
+        port = 6379;
+        bind = "127.0.0.1";
+        requirePass = null; # Local access only
+        settings = {
 
-    # System packages needed for immich functionality
-    environment.systemPackages = with pkgs; [
-      imagemagick
-      libraw
-      ffmpeg-full
-      postgresql
-      redis
-    ];
+          # Optimizations for immich caching
+          maxmemory = "256mb";
+          maxmemory-policy = "allkeys-lru";
 
-    # Permet l'accès à /home (si les images sont dans des homes directories)
-    systemd.services = {
-      immich-server.serviceConfig = {
-        ProtectHome = lib.mkForce false;
+          # Persistence settings
+          save = "900 1 300 10 60 10000";
+
+          # Performance settings
+          tcp-keepalive = 60;
+          timeout = 300;
+        };
       };
-      immich-microservices.serviceConfig = {
-        ProtectHome = lib.mkForce false;
+
+      # Main immich service configuration
+      services.immich = {
+        enable = true;
+        port = 2283;
+        host = "localhost";
+        openFirewall = false;
+
+        # Redis configuration
+        redis = lib.mkIf cfg.enableRedis {
+          host = "127.0.0.1";
+          inherit (config.services.redis.servers.immich) port;
+        };
+
+        # Machine learning configuration
+        machine-learning = lib.mkIf cfg.enableMachineLearning {
+          enable = true;
+
+          # Additional ML settings can be configured here
+          environment = {
+
+            # Optimize for CPU if no GPU available
+            TRANSFORMERS_CACHE = "/var/lib/immich/cache/transformers";
+            TORCH_HOME = "/var/lib/immich/cache/torch";
+
+            # Machine learning fix
+            # https://discourse.nixos.org/t/immich-machine-learning-not-working/69208
+            HF_XET_CACHE = "/var/cache/immich/huggingface-xet";
+          };
+        };
       };
-    };
-  };
+
+      # Machine learning fix
+      # https://discourse.nixos.org/t/immich-machine-learning-not-working/69208
+      users.users.immich = {
+        home = "/var/lib/immich";
+        createHome = true;
+      };
+
+      # System packages needed for immich functionality
+      environment.systemPackages = with pkgs; [
+        imagemagick
+        libraw
+        ffmpeg-full
+        postgresql
+        redis
+      ];
+
+      # Permet l'accès à /home (si les images sont dans des homes directories)
+      systemd.services = {
+        immich-server.serviceConfig = {
+          ProtectHome = lib.mkForce false;
+        };
+        immich-microservices.serviceConfig = {
+          ProtectHome = lib.mkForce false;
+        };
+      };
+    })
+  ];
 }

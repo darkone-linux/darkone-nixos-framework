@@ -17,10 +17,11 @@
 }:
 with lib;
 let
-  cfg = config.darkone.system.service;
+  cfg = config.darkone.system.services;
 
-  # Full list of registered services
-  enabledServices = filterAttrs (_: v: v.enable) config.darkone.system.service.service;
+  # Full list of registered services in current host
+  allServices = config.darkone.system.services.service;
+  enabledServices = filterAttrs (_: v: v.enable) config.darkone.system.services.service;
 
   # If not a gateway, open HTTP
   isGateway = host.hostname == network.gateway.hostname;
@@ -53,14 +54,18 @@ let
       else
         defaultIcon
     );
+
+  # Shared services parameters
+  mkSrvValue =
+    srv: key: if builtins.hasAttr "${key}" srv then srv.${key} else allServices.${srv.service}.${key};
 in
 {
   options = {
-    darkone.system.service.enable = mkEnableOption "Enable DNF service manager to register a new service";
+    darkone.system.services.enable = mkEnableOption "Enable DNF services manager to register a new service";
 
     # Service registration options
     # TODO: implementation for "persist" files and dirs
-    darkone.system.service.service = mkOption {
+    darkone.system.services.service = mkOption {
       type = types.attrsOf (
         types.submodule (
           { name, ... }:
@@ -245,14 +250,34 @@ in
       ) enabledServices
     );
 
+    # == WIP ==
+
     # Add services to homepage
-    darkone.service.homepage.appServices = mapAttrsToList (name: srv: {
-      ${(mkDisplayName name srv.displayName)} = mkIf srv.displayOnHomepage {
-        description = mkDescription name srv.description;
-        href = "http://${(mkDomainName name srv.domainName)}";
-        icon = mkIcon name srv.icon;
-      };
-    }) enabledServices;
+    darkone.service.homepage.appServices =
+      mkIf (!isGateway) (
+        mapAttrsToList (name: srv: {
+          ${(mkDisplayName name srv.displayName)} = mkIf srv.displayOnHomepage {
+            description = mkDescription name srv.description;
+            href = "http://${(mkDomainName name srv.domainName)}";
+            icon = mkIcon name srv.icon;
+          };
+        }) enabledServices
+      )
+      // mkIf isGateway (
+        map
+          (srv: {
+            ${(mkSrvValue srv "displayName")} = {
+              description = (mkSrvValue srv "description") + " (" + srv.host + ")";
+              href = "http://${(mkSrvValue srv "domainName")}";
+              icon = mkSrvValue srv "icon";
+            };
+          })
+          (
+            builtins.filter (
+              srv: (hasAttr srv.service allServices) && allServices.${srv.service}.displayOnHomepage
+            ) network.sharedServices
+          )
+      );
 
     # Open right ports
     # TODO: HTTPS

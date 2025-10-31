@@ -39,13 +39,10 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable {
-
-    # httpd + dnsmasq + homepage registration
-    darkone.system.service = {
-      enable = true;
-      service.nextcloud = {
-        enable = true;
+  config = lib.mkMerge [
+    {
+      # Darkone service: httpd + dnsmasq + homepage registration
+      darkone.system.services.service.nextcloud = {
         domainName = mkDomain cfg.domainName;
         displayName = "Nextcloud";
         description = "Cloud personnel local";
@@ -59,89 +56,100 @@ in
         };
         nginx.manageVirtualHost = false;
       };
-    };
+    }
 
-    # Initial admin password
-    environment.etc."nextcloud-admin-pass".text = "changeme";
+    (lib.mkIf cfg.enable {
 
-    services.nextcloud = {
-      enable = true;
-      package = pkgs.nextcloud31;
-      hostName = mkDomain cfg.domainName;
-      maxUploadSize = "16G";
-
-      # TODO: true
-      https = false;
-
-      # Configuration de base
-      config = {
-        adminuser = cfg.adminUser;
-        adminpassFile = "/etc/nextcloud-admin-pass";
-        dbtype = "pgsql";
-      };
-
-      # Base de données PostgreSQL
-      database.createLocally = true;
-
-      # Configuration PHP et cache
-      phpOptions = {
-        "opcache.interned_strings_buffer" = "16";
-        "opcache.max_accelerated_files" = "10000";
-        "opcache.memory_consumption" = "128";
-        "opcache.revalidate_freq" = "1";
-        "opcache.fast_shutdown" = "1";
-      };
-
-      # Cache Redis
-      configureRedis = true;
-
-      # Déverrouillage du app store
-      appstoreEnable = true;
-
-      # Applications par défaut
-      extraApps = with config.services.nextcloud.package.packages.apps; {
-
-        # List of apps we want to install and are already packaged in
-        # https://github.com/NixOS/nixpkgs/blob/master/pkgs/servers/nextcloud/packages/nextcloud-apps.json
-        inherit
-          calendar
-          contacts
-          cospend
-          deck
-          files_mindmap
-          groupfolders
-          maps
-          music
-          notes
-          tasks
-          #cookbook
-          #files_markdown
-          #memories
-          #unroundedcorners
-          ;
-        passwords = pkgs.fetchNextcloudApp {
-          url = "https://git.mdns.eu/api/v4/projects/45/packages/generic/passwords/2025.10.0/passwords.tar.gz";
-          sha256 = "sha256-3vTlJKOKiLVc9edPMRW+A/K2pXHYV+uY/in8ccYU6PE=";
-          license = "gpl3";
+      # Darkone service: enable
+      darkone.system.services = {
+        enable = true;
+        service.nextcloud = {
+          enable = true;
         };
       };
 
-      # Apps config
-      autoUpdateApps.enable = true;
+      # Initial admin password
+      environment.etc."nextcloud-admin-pass".text = "changeme";
 
-      # Paramètres supplémentaires
-      settings = {
-        overwriteprotocol = "http";
-        trusted_domains = [
-          (mkDomain cfg.domainName)
-          "localhost"
-        ];
-        default_phone_region = lib.toUpper (builtins.substring 0 2 network.locale);
+      services.nextcloud = {
+        enable = true;
+        package = pkgs.nextcloud31;
+        hostName = mkDomain cfg.domainName;
+        maxUploadSize = "16G";
+
+        # TODO: true
+        https = false;
+
+        # Configuration de base
+        config = {
+          adminuser = cfg.adminUser;
+          adminpassFile = "/etc/nextcloud-admin-pass";
+          dbtype = "pgsql";
+        };
+
+        # Base de données PostgreSQL
+        database.createLocally = true;
+
+        # Configuration PHP et cache
+        phpOptions = {
+          "opcache.interned_strings_buffer" = "16";
+          "opcache.max_accelerated_files" = "10000";
+          "opcache.memory_consumption" = "128";
+          "opcache.revalidate_freq" = "1";
+          "opcache.fast_shutdown" = "1";
+        };
+
+        # Cache Redis
+        configureRedis = true;
+
+        # Déverrouillage du app store
+        appstoreEnable = true;
+
+        # Applications par défaut
+        extraApps = with config.services.nextcloud.package.packages.apps; {
+
+          # List of apps we want to install and are already packaged in
+          # https://github.com/NixOS/nixpkgs/blob/master/pkgs/servers/nextcloud/packages/nextcloud-apps.json
+          inherit
+            calendar
+            contacts
+            cospend
+            deck
+            files_mindmap
+            groupfolders
+            maps
+            music
+            notes
+            tasks
+            #cookbook
+            #files_markdown
+            #memories
+            #unroundedcorners
+            ;
+          passwords = pkgs.fetchNextcloudApp {
+            url = "https://git.mdns.eu/api/v4/projects/45/packages/generic/passwords/2025.10.0/passwords.tar.gz";
+            sha256 = "sha256-3vTlJKOKiLVc9edPMRW+A/K2pXHYV+uY/in8ccYU6PE=";
+            license = "gpl3";
+          };
+        };
+
+        # Apps config
+        autoUpdateApps.enable = true;
+
+        # Paramètres supplémentaires
+        settings = {
+          overwriteprotocol = "http";
+          trusted_domains = [
+            (mkDomain cfg.domainName)
+            "localhost"
+          ];
+          default_phone_region = lib.toUpper (builtins.substring 0 2 network.locale);
+        };
       };
-    };
 
-    # Assurer que PostgreSQL et Redis sont activés
-    services.postgresql.enable = lib.mkDefault true;
-    services.redis.servers.nextcloud.enable = lib.mkDefault true;
-  };
+      # Assurer que PostgreSQL et Redis sont activés
+      services.postgresql.enable = lib.mkDefault true;
+      services.redis.servers.nextcloud.enable = lib.mkDefault true;
+    })
+  ];
 }
