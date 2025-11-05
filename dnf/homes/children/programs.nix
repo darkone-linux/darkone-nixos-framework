@@ -6,7 +6,7 @@
     avogadro2
     celestia
     chessx
-    gcompris
+    #gcompris # TODO: fail
     geogebra6
     gnome-maps
     kdePackages.blinken # Entrainement de la mémoire

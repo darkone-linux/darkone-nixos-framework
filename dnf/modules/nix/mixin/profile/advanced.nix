@@ -8,6 +8,7 @@
 { lib, config, ... }:
 let
   cfg = config.darkone.profile.advanced;
+  inherit (config.darkone.graphic) gnome;
 in
 {
   options = {
@@ -34,10 +35,8 @@ in
       # Daemons
       service.httpd.enable = lib.mkDefault false;
 
-      # Graphical
-      graphic.gnome = lib.mkIf config.darkone.graphic.gnome.enable {
-        enableTechnicalFeatures = lib.mkDefault true;
-      };
+      # Graphical tools
+      graphic.gnome.enableTechnicalFeatures = lib.mkDefault gnome.enable;
     };
 
     # Additional tools
@@ -46,6 +45,8 @@ in
       less.enable = lib.mkDefault true;
       htop.enable = lib.mkDefault true;
       bat.enable = lib.mkDefault true;
+      vscode.enable = lib.mkDefault gnome.enable;
+      direnv.enable = lib.mkDefault gnome.enable; # usefull for vscode plugins
     };
   };
 }

@@ -65,7 +65,6 @@ in
         bindkey "^E" end-of-line
         bindkey "^D" delete-char
         bindkey "^R" history-incremental-search-backward
-        bindkey "^H" backward-word
         bindkey "^J" down-line-or-history
         bindkey "^K" up-line-or-history
         bindkey "^L" forward-word

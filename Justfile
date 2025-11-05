@@ -497,6 +497,13 @@ push:
 		--exclude doc/darkone-linux.github.io \
 		--delete {{workDir}}/ {{dnfDir}}/
 
+# just clean + git amend + apply-local test
+[group('dev')]
+cat:
+	just clean
+	git add . && git commit --amend --no-edit
+	just apply-local test
+
 # Build DNF iso image
 [group('install')]
 build-iso arch="x86_64-linux":

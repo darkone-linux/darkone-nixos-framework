@@ -250,8 +250,6 @@ in
       ) enabledServices
     );
 
-    # == WIP ==
-
     # Add services to homepage
     darkone.service.homepage.appServices =
       mkIf (!isGateway) (

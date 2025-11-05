@@ -12,23 +12,19 @@ in
 {
   programs.git = {
     enable = true;
-    userName = "${user.name}";
-    userEmail =
-      if (builtins.hasAttr "email" user) then
-        "${user.email}"
-      else
-        "${config.home.username}@${network.domain}";
-    aliases = {
-      amend = "!git add . && git commit --amend --no-edit";
-      pf = "!git push --force";
-    };
-    ignores = [
-      "*~"
-      "*.swp"
-      ".vscode"
-      ".idea"
-    ];
-    extraConfig = {
+    settings = {
+      user = {
+        name = "${user.name}";
+        email =
+          if (builtins.hasAttr "email" user) then
+            "${user.email}"
+          else
+            "${config.home.username}@${network.domain}";
+      };
+      alias = {
+        amend = "!git add . && git commit --amend --no-edit";
+        pf = "!git push --force";
+      };
       core = {
         editor = "vim";
         whitespace = "fix,-indent-with-non-tab,trailing-space,cr-at-eol";
@@ -47,6 +43,12 @@ in
       init.defaultBranch = "main";
       color.ui = true;
     };
+    ignores = [
+      "*~"
+      "*.swp"
+      ".vscode"
+      ".idea"
+    ];
 
     # Undefined but required from 02/2025
     signing.format = "ssh";

@@ -45,6 +45,7 @@
     ./standard/service/vaultwarden.nix
     ./standard/system/core.nix
     ./standard/system/documentation.nix
+    ./standard/system/flatpak.nix
     ./standard/system/hardware.nix
     ./standard/system/i18n.nix
     ./standard/system/services.nix

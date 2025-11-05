@@ -73,7 +73,7 @@ in
 
       services.nextcloud = {
         enable = true;
-        package = pkgs.nextcloud31;
+        package = pkgs.nextcloud32;
         hostName = mkDomain cfg.domainName;
         maxUploadSize = "16G";
 
@@ -103,34 +103,24 @@ in
         configureRedis = true;
 
         # Déverrouillage du app store
-        appstoreEnable = true;
+        #appstoreEnable = true;
 
         # Applications par défaut
         extraApps = with config.services.nextcloud.package.packages.apps; {
 
           # List of apps we want to install and are already packaged in
-          # https://github.com/NixOS/nixpkgs/blob/master/pkgs/servers/nextcloud/packages/nextcloud-apps.json
+          # https://github.com/NixOS/nixpkgs/blob/master/pkgs/servers/nextcloud/packages/32.json
           inherit
             calendar
             contacts
             cospend
             deck
-            files_mindmap
             groupfolders
-            maps
+            memories
             music
             notes
-            tasks
-            #cookbook
-            #files_markdown
-            #memories
-            #unroundedcorners
+            spreed
             ;
-          passwords = pkgs.fetchNextcloudApp {
-            url = "https://git.mdns.eu/api/v4/projects/45/packages/generic/passwords/2025.10.0/passwords.tar.gz";
-            sha256 = "sha256-3vTlJKOKiLVc9edPMRW+A/K2pXHYV+uY/in8ccYU6PE=";
-            license = "gpl3";
-          };
         };
 
         # Apps config

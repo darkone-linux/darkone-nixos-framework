@@ -3,7 +3,7 @@
 { pkgs, ... }:
 {
   home.packages = with pkgs; [
-    gcompris
+    #gcompris # TODO: fail
     leocad
     tuxpaint
   ];

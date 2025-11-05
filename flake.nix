@@ -41,9 +41,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nixos-hardware = {
-      url = "github:NixOS/nixos-hardware/master";
-    };
+    nixos-hardware.url = "github:NixOS/nixos-hardware/master";
+
+    nix-flatpak.url = "github:gmodena/nix-flatpak";
   };
 
   #----------------------------------------------------------------------------
@@ -58,6 +58,7 @@
       home-manager,
       raspberry-pi-nix,
       nixos-hardware,
+      nix-flatpak,
       sops-nix,
       disko,
       ...
@@ -152,6 +153,7 @@
             "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
             sops-nix.nixosModules.sops
             disko.nixosModules.disko
+            nix-flatpak.nixosModules.nix-flatpak
             { _module.args.dnfLib = mkDnfLib (getHostArch host); }
             home-manager.nixosModules.home-manager
             {

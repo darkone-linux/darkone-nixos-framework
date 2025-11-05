@@ -105,10 +105,10 @@ in
       (lib.mkIf (!cfg.enableMoreGnomeApps) gnome-font-viewer)
       (lib.mkIf (!cfg.enableMoreGnomeApps) gnome-logs)
       (lib.mkIf (!cfg.enableMoreGnomeApps) gnome-maps)
-      (lib.mkIf (!cfg.enableMoreGnomeApps) gnome-music)
       (lib.mkIf (!cfg.enableMoreGnomeApps) gnome-weather)
-      (lib.mkIf (!cfg.enableMoreGnomeApps) simple-scan)
       (lib.mkIf (!cfg.enableMoreGnomeApps) totem) # Movie player
+      (lib.mkIf (!config.darkone.graphic.music.enable) gnome-music)
+      (lib.mkIf (!config.darkone.service.printing.enableScanners) simple-scan)
       epiphany
       geary
       gnome-backgrounds
@@ -140,7 +140,6 @@ in
       (lib.mkIf cfg.enableMoreGnomeApps iotas) # Simple note taking with mobile-first design and Nextcloud sync
       (lib.mkIf cfg.enableMoreGnomeApps mousai) # Identify any songs in seconds
       (lib.mkIf cfg.enableMoreGnomeApps pika-backup) # Simple backups based on borg
-      (lib.mkIf cfg.enableMoreGnomeApps resources) # Monitor your system resources and processes
       (lib.mkIf cfg.enableMoreGnomeApps tuba) # Browse the Fediverse
       (lib.mkIf cfg.enableTechnicalFeatures apostrophe) # Distraction free Markdown editor
       (lib.mkIf cfg.enableTechnicalFeatures bustle) # Graphical D-Bus message analyser and profiler
@@ -151,6 +150,7 @@ in
       (lib.mkIf cfg.enableTechnicalFeatures forge-sparks) # Get Git forges notifications
       (lib.mkIf cfg.enableTechnicalFeatures impression) # Create bootable drives
       (lib.mkIf cfg.enableTechnicalFeatures lorem) # Generate placeholder text
+      (lib.mkIf cfg.enableTechnicalFeatures resources) # Monitor your system resources and processes
       (lib.mkIf cfg.enableTechnicalFeatures sysprof) # System-wide profiler
       (lib.mkIf cfg.enableTechnicalFeatures textpieces) # Swiss knife of text processing
       bibata-cursors
@@ -205,8 +205,8 @@ in
               "org/gnome/desktop/peripherals/keyboard" = {
                 numlock-state = true;
               };
-              "org/gnome/desktop/lockdown" = {
-                disable-user-switching = true;
+              "org/gnome/desktop/screensaver" = {
+                logout-enabled = true;
               };
               "org/gnome/shell" = {
                 disable-user-extensions = false;
@@ -219,6 +219,8 @@ in
                 ++ (if cfg.enableDashToDock then [ "dash-to-dock@micxgx.gmail.com" ] else [ ]);
                 favorite-apps = [
                   "org.gnome.Console.desktop"
+                  "com.brave.Browser.desktop"
+                  "chromium-browser.desktop"
                   "firefox.desktop"
                   "org.gnome.TextEditor.desktop"
                   "obsidian.desktop"

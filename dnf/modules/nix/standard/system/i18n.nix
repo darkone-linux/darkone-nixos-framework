@@ -34,7 +34,16 @@ in
   config = lib.mkIf cfg.enable {
 
     # Configure console keymap
-    console.keyMap = lib.toLower (builtins.substring 3 2 cfg.locale);
+    console = {
+      keyMap = lib.toLower (builtins.substring 3 2 cfg.locale);
+      #useXkbConfig = true;
+    };
+    #services.xserver.xkb = {
+    #  layout = config.console.keyMap;
+    #  model = "pc104"; # TODO: auto
+    #  variant = "oss"; # TODO: auto
+    #  options = "terminate:ctrl_alt_bksp"
+    #};
 
     # Set your time zone.
     time.timeZone = cfg.timeZone;

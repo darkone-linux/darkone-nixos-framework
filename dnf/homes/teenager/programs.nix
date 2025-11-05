@@ -24,7 +24,7 @@
     labplot
     lenmus
     leocad
-    lmms # Erreur de compilation avec pyliblo3 + overide python 312 ne fonctionne pas
+    #lmms # Erreur de compilation avec pyliblo3 + overide python 312 ne fonctionne pas
     maxima # math
     mixxx
     muse-sounds-manager

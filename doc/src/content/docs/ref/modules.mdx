@@ -422,11 +422,21 @@ darkone.graphic.imagery = {
 Music creation packages and modules.
 
 * **enable** `bool` Music creation module
-* **enablePro** `bool` Music creation softwares for pros (wip)
+* **enablePro** `bool` Hard tools for professionals (rose, ardour...)
+* **enableFun** `bool` Fun audio tools (mixxx...)
+* **enableCli** `bool` Command line audio tools (mpd, ncmpcpp...)
+* **enableDev** `bool` Audio software for developers (lilypond...)
+* **enableScore** `bool` Score softwares (musescore...)
+* **enableBeginner** `bool` Creation tools for beginners (lmms, hydrogen...)
 ```nix
 darkone.graphic.music = {
   enable = false;
   enablePro = false;
+  enableFun = false;
+  enableCli = false;
+  enableDev = false;
+  enableScore = false;
+  enableBeginner = true;
 }
 
 ```
@@ -451,14 +461,20 @@ Common tools for office desktop.
 
 * **enable** `bool` Default useful packages
 * **enableLibreOffice** `bool` Office packages (libreoffice)
-* **enableInternet** `bool` Internet packages (firefox)
+* **enableFirefox** `bool` Enable firefox
+* **enableChromium** `bool` Enable chromium
+* **enableBrave** `bool` Enable Brave Browser
 * **enableEmail** `bool` Email management packages (thunderbird)
+* **huntspellLang** `str` Huntspell Lang (https://mynixos.com/nixpkgs/packages/hunspellDicts)
 ```nix
 darkone.graphic.office = {
   enable = false;
   enableLibreOffice = true;
-  enableInternet = true;
+  enableFirefox = false;
+  enableChromium = false;
+  enableBrave = true;
   enableEmail = true;
+  huntspellLang = "en-us";
 }
 
 ```
@@ -780,15 +796,15 @@ Printers and scanners.
 * **enable** `bool` Default useful packages
 * **loadAll** `bool` Full printers and scanners
 * **enableScanners** `bool` Enable scanners
-* **enableHpPrinters** `bool` HP printers
-* **enableManualInstall** `bool` Manual installation
+* **enableHpPrinters** `bool` HP printers only
+* **enableManualInstall** `bool` Manual drivers installation
 ```nix
 darkone.service.printing = {
   enable = false;
-  loadAll = true;
-  enableScanners = true;
-  enableHpPrinters = true;
-  enableManualInstall = true;
+  loadAll = false;
+  enableScanners = false;
+  enableHpPrinters = false;
+  enableManualInstall = false;
 }
 
 ```
@@ -853,6 +869,18 @@ Documentation (man) for developers and admins.
 * **enable** `bool` Enable useful technical documentation (man, nixos)
 ```nix
 darkone.system.documentation.enable = false;
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.system.flatpak
+
+Flatpak software management.
+
+* **packages** `?` List of packages to install
+```nix
+darkone.system.flatpak.packages = [ ];
 
 ```
 

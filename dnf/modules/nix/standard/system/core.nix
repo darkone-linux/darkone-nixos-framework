@@ -119,10 +119,15 @@ in
         }
       ];
       extraOptions = "--term xterm-256color";
-      extraConfig = "font-size=18";
-      useXkbConfig = true;
+      extraConfig = ''
+        font-size=18
+        xkb-layout=fr
+        xkb-variant=oss
+        xkb-model=pc104
+      '';
+      useXkbConfig = false;
     };
-    services.xserver.xkb.layout = lib.mkIf cfg.enableKmscon "fr";
+    #security.loginDefs.settings.ERASECHAR = "0x08";
 
     # To manage nodes, openssh must be activated
     services.openssh.enable = true;

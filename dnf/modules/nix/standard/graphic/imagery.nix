@@ -1,5 +1,6 @@
 # Image processing softwares (gimp, geeqie, pinta + blender, inkscape, krita...).
 
+# TODO: home-manager module
 {
   lib,
   config,

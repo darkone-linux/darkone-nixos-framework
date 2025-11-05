@@ -1,5 +1,6 @@
 # Video creation tools.
 
+# TODO: home-manager module
 {
   lib,
   config,

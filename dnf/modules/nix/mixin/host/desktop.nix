@@ -30,14 +30,15 @@ in
     darkone.graphic = {
       gnome = {
         enable = lib.mkDefault true;
-        enableMoreGnomeApps = lib.mkDefault true;
+        enableMoreGnomeApps = lib.mkDefault false;
       };
       obsidian.enable = lib.mkDefault true;
       office = {
         enable = lib.mkDefault true;
-        enableEmail = lib.mkDefault true;
+        enableEmail = lib.mkDefault false;
         enableLibreOffice = lib.mkDefault true;
-        enableInternet = lib.mkDefault true;
+        enableFirefox = lib.mkDefault false;
+        enableBrave = lib.mkDefault true;
       };
     };
   };

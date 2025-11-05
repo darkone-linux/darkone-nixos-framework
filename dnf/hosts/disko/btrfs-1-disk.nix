@@ -5,7 +5,7 @@
     disk = {
       main = {
         type = "disk";
-        device = "/dev/sda";
+        device = "/dev/nvme0n1";
         content = {
           type = "gpt";
           partitions = {
@@ -45,8 +45,9 @@
                   "@nix" = {
                     mountpoint = "/nix";
                     mountOptions = [
-                      "compress=zstd:1"
+                      "compress=zstd:3" # More compression, only for fast CPUs
                       "noatime"
+                      "metadata_ratio=3" # More space for metadata (lot of little files)
                     ];
                   };
 
@@ -57,6 +58,11 @@
                       "compress=zstd:1"
                       "noatime"
                     ];
+                  };
+
+                  "@swap" = {
+                    mountpoint = "/.swapfile";
+                    swap.swapfile.size = "1G";
                   };
 
                   # Snapshots (not mounted)

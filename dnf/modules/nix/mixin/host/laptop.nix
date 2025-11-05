@@ -20,7 +20,7 @@ in
     darkone.host.desktop.enable = lib.mkDefault true;
 
     # Several printing drivers
-    darkone.service.printing.loadAll = lib.mkDefault false;
+    darkone.service.printing.loadAll = lib.mkDefault true;
 
     # Sensors management (WIP)
     boot.kernelModules = [ "coretemp" ];

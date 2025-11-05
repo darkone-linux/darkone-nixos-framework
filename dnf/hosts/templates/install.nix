@@ -2,6 +2,8 @@
 
 { pkgs, ... }:
 {
+  console.keyMap = "fr"; # TODO: auto
+  boot.initrd.systemd.enable = true; # To set the console keyMap before asking luks password
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.systemd-boot.editor = false;
