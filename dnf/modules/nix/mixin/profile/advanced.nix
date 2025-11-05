@@ -45,7 +45,7 @@ in
       less.enable = lib.mkDefault true;
       htop.enable = lib.mkDefault true;
       bat.enable = lib.mkDefault true;
-      vscode.enable = lib.mkDefault gnome.enable;
+      #vscode.enable = lib.mkDefault gnome.enable; # TODO: vscode module + declarative conf
       direnv.enable = lib.mkDefault gnome.enable; # usefull for vscode plugins
     };
   };

@@ -10,15 +10,11 @@ let
 in
 {
   options = {
-    darkone.home.zed = {
-      enable = lib.mkEnableOption "Preconfigured ZED editor";
-    };
+    darkone.home.zed.enable = lib.mkEnableOption "Preconfigured ZED editor";
+    darkone.home.zed.enableAssistant = lib.mkEnableOption "Enable AI Assistant";
   };
 
   config = lib.mkIf cfg.enable {
-
-    # Dependencies
-    programs.alacritty.enable = true;
 
     # Editor
     programs.zed-editor = {
@@ -38,7 +34,9 @@ in
 
       # Zed options -> json config
       userSettings = {
-        assistant = {
+
+        # AI Assistant (wip)
+        assistant = lib.mkIf cfg.enableAssistant {
           enabled = true;
           version = "2";
           default_open_ai_model = null;
@@ -82,9 +80,6 @@ in
               activate_script = "default";
             };
           };
-          env = {
-            TERM = "alacritty";
-          };
           font_family = "JetBrainsMono Nerd Font Mono";
           font_features = null;
           font_size = 16;
@@ -110,8 +105,6 @@ in
             };
           };
         };
-
-        #vim_mode = true;
 
         ## tell zed to use direnv and direnv can use a flake.nix environment.
         load_direnv = "shell_hook";

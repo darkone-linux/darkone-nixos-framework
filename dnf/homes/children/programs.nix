@@ -1,11 +1,13 @@
 # Children profile programs
 
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 {
+  darkone.home.games.enableChildren = lib.mkDefault osConfig.darkone.graphic.gnome.enable;
+
   home.packages = with pkgs; [
     avogadro2
     celestia
-    chessx
+
     #gcompris # TODO: fail
     geogebra6
     gnome-maps
@@ -17,10 +19,9 @@
     kdePackages.parley # Vocabulaire
     klavaro
     lenmus
-    leocad
+
     solfege
-    superTuxKart
-    tuxpaint
+
     verbiste
     wike
   ];

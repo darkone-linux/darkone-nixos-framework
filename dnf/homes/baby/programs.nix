@@ -1,10 +1,6 @@
 # Baby profile programs
 
-{ pkgs, ... }:
+{ lib, osConfig, ... }:
 {
-  home.packages = with pkgs; [
-    #gcompris # TODO: fail
-    leocad
-    tuxpaint
-  ];
+  darkone.home.games.enableBaby = lib.mkDefault osConfig.darkone.graphic.gnome.enable;
 }

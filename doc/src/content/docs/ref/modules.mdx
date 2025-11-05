@@ -344,31 +344,6 @@ darkone.graphic.education = {
 
 <hr/>
 
-### &#x1F48E; darkone.graphic.games
-
-Several graphical game packages.
-
-:::note
-These programs are installed for all user profiles.
-Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
-:::
-
-* **enable** `bool` Enable game packages (please select age group)
-* **enableBaby** `bool` Games for babies (&lt;=6 yo)
-* **enableChildren** `bool` Games for children (6-12 yo)
-* **enableTeenager** `bool` Games for teenagers and adults (&gt;=12 yo)
-```nix
-darkone.graphic.games = {
-  enable = false;
-  enableBaby = false;
-  enableChildren = false;
-  enableTeenager = false;
-}
-
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.graphic.gnome
 
 Pre-configured gnome environment with dependences.
@@ -1027,11 +1002,35 @@ darkone.user.build.enable = true;
 **A home manager module** works with [home manager](https://github.com/nix-community/home-manager) profiles.
 :::
 
+### &#x1F3E0; darkone.home.games
+
+Several graphical game packages.
+
+* **enableBaby** `bool` Games for babies (&lt;=6 yo)
+* **enableChildren** `bool` Games for children (6-12 yo)
+* **enableTeenager** `bool` Games for teenagers and adults (&gt;=12 yo)
+* **enable3D** `bool` More 3D Games
+```nix
+darkone.home.games = {
+  enableBaby = false;
+  enableChildren = false;
+  enableTeenager = false;
+  enable3D = false;
+}
+
+```
+
+<hr/>
+
 ### &#x1F3E0; darkone.home.zed
 
 * **enable** `bool` Preconfigured ZED editor
+* **enableAssistant** `bool` Enable AI Assistant
 ```nix
-darkone.home.zed.enable = false;
+darkone.home.zed = {
+  enable = false;
+  enableAssistant = false;
+}
 
 ```
 

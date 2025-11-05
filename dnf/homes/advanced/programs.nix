@@ -1,6 +1,9 @@
 # Useful programs for advanced users (computer scientists)
 
-{ pkgs, ... }:
+{ osConfig, pkgs, ... }:
+let
+  gnomeEnabled = osConfig.darkone.graphic.gnome.enable;
+in
 {
   home.packages = with pkgs; [
     bat
@@ -11,7 +14,6 @@
     duf
     gawk
     htop
-    iw
     jq
     lsof
     microfetch
@@ -22,7 +24,9 @@
     rename
     rsync
     strace
-    wirelesstools # ifrename iwconfig iwevent iwgetid iwlist iwpriv iwspy
     zellij
   ];
+
+  # Zed editor
+  darkone.home.zed.enable = gnomeEnabled;
 }

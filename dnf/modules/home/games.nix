@@ -1,0 +1,37 @@
+# Several graphical game packages.
+
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
+
+let
+  cfg = config.darkone.home.games;
+in
+{
+  options = {
+    darkone.home.games.enableBaby = lib.mkEnableOption "Games for babies (<=6 yo)";
+    darkone.home.games.enableChildren = lib.mkEnableOption "Games for children (6-12 yo)";
+    darkone.home.games.enableTeenager = lib.mkEnableOption "Games for teenagers and adults (>=12 yo)";
+    darkone.home.games.enable3D = lib.mkEnableOption "More 3D Games";
+  };
+
+  config = lib.mkIf (cfg.enableBaby || cfg.enableChildren || cfg.enableTeenager) {
+
+    # Packages
+    home.packages = with pkgs; [
+      (lib.mkIf (cfg.enableChildren || cfg.enableTeenager) chessx)
+      (lib.mkIf (cfg.enableChildren || cfg.enableTeenager) endless-sky) # Sandbox-style space exploration game
+      (lib.mkIf (cfg.enableChildren || cfg.enableTeenager) lenmus) # LenMus Phonascus is a program for learning music
+      (lib.mkIf (cfg.enableChildren || cfg.enableTeenager) leocad) # Virt lego
+      (lib.mkIf (cfg.enableChildren || cfg.enableTeenager) cuyo) # Tetris like
+      (lib.mkIf (cfg.enableChildren || cfg.enableTeenager) superTuxKart)
+      (lib.mkIf (cfg.enable3D && (cfg.enableChildren || cfg.enableTeenager)) veloren) # Minecraft like
+      (lib.mkIf (cfg.enableBaby || cfg.enableChildren) rili) # train game
+      (lib.mkIf (cfg.enableBaby || cfg.enableChildren) tuxpaint)
+      (lib.mkIf cfg.enableChildren pingus)
+    ];
+  };
+}

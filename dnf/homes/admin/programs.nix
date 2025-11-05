@@ -8,12 +8,14 @@
     gnupg
     inetutils
     iptraf-ng
+    iw
     nettools
     nmap
     ntp
     ntpstat
     pinentry-curses
     tcpdump
+    wirelesstools # ifrename iwconfig iwevent iwgetid iwlist iwpriv iwspy
   ];
 
   #  programs.gpg.enable = true;

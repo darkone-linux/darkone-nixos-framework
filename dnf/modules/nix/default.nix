@@ -19,7 +19,6 @@
     ./standard/console/pandoc.nix
     ./standard/console/zsh.nix
     ./standard/graphic/education.nix
-    ./standard/graphic/games.nix
     ./standard/graphic/gnome.nix
     ./standard/graphic/imagery.nix
     ./standard/graphic/music.nix

@@ -1,18 +1,21 @@
 # Teenager profile programs
 
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 {
+  darkone.home.games.enableTeenager = lib.mkDefault osConfig.darkone.graphic.gnome.enable;
+
   home.packages = with pkgs; [
     #scilab-bin # math (ERR)
     avogadro2 # molecules
     celestia
     chessx
+    cuyo
     geogebra6 # math
     gnome-graphs
     gnome-maps
     inkscape
     kdePackages.blinken # Entrainement de la mémoire
-    kdePackages.cantor
+    kdePackages.cantor # Math
     kdePackages.kalgebra # Outil mathématique
     kdePackages.kalzium # Tableau périodique
     kdePackages.kbruch # Exercices fractions
@@ -21,9 +24,8 @@
     kdePackages.kturtle # LOGO
     kdePackages.parley # Vocabulaire
     klavaro
-    labplot
-    lenmus
-    leocad
+    labplot # data visualization
+
     #lmms # Erreur de compilation avec pyliblo3 + overide python 312 ne fonctionne pas
     maxima # math
     mixxx
@@ -35,9 +37,7 @@
     solfege
     soundfont-fluid
     super-productivity
-    superTuxKart
-    tuxpaint
-    veloren
+
     verbiste
     wike
   ];

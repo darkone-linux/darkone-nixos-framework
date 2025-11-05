@@ -22,7 +22,6 @@ in
         enable = lib.mkDefault true;
         enableBaby = lib.mkDefault true;
       };
-      games.enable = lib.mkDefault true;
     };
   };
 }
