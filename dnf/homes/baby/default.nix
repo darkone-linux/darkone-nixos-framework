@@ -1,8 +1,8 @@
-# Features for babies (education)
+# Baby home profile
 
 {
   imports = [
     ./../minimal
-    ./programs.nix
+    ./features.nix
   ];
 }

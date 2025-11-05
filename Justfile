@@ -395,7 +395,7 @@ passwd user:
 	just _log "Updating {{user}} password..." "SOPS"
 	HASH=$(mkpasswd -m sha-512 "$PASSWORD")
 	sops -d -i {{sopsSecretsFile}}
-	yq -y --arg pw "$HASH" '.user.{{user}}."password-hash" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
+	yq -y --arg pw "$HASH" '.user."{{user}}"."password-hash" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
 	sops -e -i {{sopsSecretsFile}}
 	just _log "OK, password updated for {{user}}" "SOPS"
 	just _log "Now deploy with 'just apply @user-{{user}}'" "SOPS"

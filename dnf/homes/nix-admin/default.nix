@@ -1,3 +1,8 @@
 # Darkone Network administrator
 
-{ imports = [ ./../admin ]; }
+{
+  imports = [
+    ./../admin
+    ./features.nix
+  ];
+}

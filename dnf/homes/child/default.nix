@@ -1,8 +1,8 @@
-# Student home profile
+# Child home profile
 
 {
   imports = [
-    ./../advanced
+    ./../minimal
     ./features.nix
   ];
 }

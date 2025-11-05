@@ -6,4 +6,4 @@
   config,
   ...
 }:
-{ shell = lib.mkIf config.programs.zsh.enable pkgs.zsh; } // import ./minimal.nix { inherit pkgs; }
+{ shell = lib.mkIf config.programs.zsh.enable pkgs.zsh; } // import ./normal.nix { inherit pkgs lib config; }

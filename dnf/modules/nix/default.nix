@@ -10,21 +10,12 @@
     ./mixin/host/server.nix
     ./mixin/host/vm.nix
     ./mixin/profile/advanced.nix
-    ./mixin/profile/children.nix
-    ./mixin/profile/office.nix
-    ./mixin/profile/teenager.nix
     ./standard/admin/nix.nix
     ./standard/console/git.nix
-    ./standard/console/packages.nix
     ./standard/console/pandoc.nix
     ./standard/console/zsh.nix
-    ./standard/graphic/education.nix
     ./standard/graphic/gnome.nix
-    ./standard/graphic/imagery.nix
-    ./standard/graphic/music.nix
     ./standard/graphic/obsidian.nix
-    ./standard/graphic/office.nix
-    ./standard/graphic/video.nix
     ./standard/graphic/virt-manager.nix
     ./standard/graphic/virtualbox.nix
     ./standard/service/adguardhome.nix

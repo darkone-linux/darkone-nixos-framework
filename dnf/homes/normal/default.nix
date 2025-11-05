@@ -1,3 +1,8 @@
 # Normal user with graphic environment
 
-{ imports = [ ./../minimal ]; }
+{
+  imports = [
+    ./../minimal
+    ./features.nix
+  ];
+}

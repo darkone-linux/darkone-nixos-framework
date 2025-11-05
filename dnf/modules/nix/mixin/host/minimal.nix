@@ -68,7 +68,6 @@ in
 
     # Minimum console features
     darkone.console = {
-      packages.enable = mkDefault true;
       zsh.enable = mkDefault true;
       zsh.enableForRoot = mkDefault true;
     };

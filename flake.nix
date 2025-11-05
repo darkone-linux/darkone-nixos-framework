@@ -111,6 +111,7 @@
         name = login;
         value = {
           imports = [
+            nix-flatpak.homeManagerModules.nix-flatpak
             ./dnf/modules/home
             (import ./${users.${login}.profile})
           ];

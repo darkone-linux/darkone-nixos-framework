@@ -3,6 +3,6 @@
 {
   imports = [
     ./../advanced
-    ./programs.nix
+    ./features.nix
   ];
 }

@@ -28,18 +28,8 @@ in
 
     # Graphical applications
     darkone.graphic = {
-      gnome = {
-        enable = lib.mkDefault true;
-        enableMoreGnomeApps = lib.mkDefault false;
-      };
+      gnome.enable = lib.mkDefault true;
       obsidian.enable = lib.mkDefault true;
-      office = {
-        enable = lib.mkDefault true;
-        enableEmail = lib.mkDefault false;
-        enableLibreOffice = lib.mkDefault true;
-        enableFirefox = lib.mkDefault false;
-        enableBrave = lib.mkDefault true;
-      };
     };
   };
 }

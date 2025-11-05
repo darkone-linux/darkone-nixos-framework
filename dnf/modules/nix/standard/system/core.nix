@@ -65,6 +65,11 @@ in
       default = false;
       description = "Enable nerd font for TTY";
     };
+    darkone.system.core.enableFlatpak = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Enable flatpak DNF configuration";
+    };
   };
 
   # Core module for DNF machines
@@ -167,5 +172,8 @@ in
       enable = true;
       isClient = true;
     };
+
+    # Flatpak configuration for DNF
+    darkone.system.flatpak.enable = cfg.enableFlatpak;
   };
 }

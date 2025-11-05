@@ -168,57 +168,6 @@ darkone.profile.advanced.enable = false;
 
 <hr/>
 
-### &#x1F4E6; darkone.profile.children
-
-Features for childs and babies.
-
-:::note[Host profile vs Home profile]
-This module enables features for all users of the system.
-Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
-:::
-
-* **enable** `bool` Children softwares
-```nix
-darkone.profile.children.enable = false;
-
-```
-
-<hr/>
-
-### &#x1F4E6; darkone.profile.office
-
-Graphic environment with office softwares.
-
-:::note[Host profile vs Home profile]
-This module enables features for all users of the system.
-Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
-:::
-
-* **enable** `bool` Graphic environment with office softwares
-```nix
-darkone.profile.office.enable = false;
-
-```
-
-<hr/>
-
-### &#x1F4E6; darkone.profile.teenager
-
-Features for teenagers.
-
-:::note[Host profile vs Home profile]
-This module enables features for all users of the system.
-Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
-:::
-
-* **enable** `bool` Teenager softwares
-```nix
-darkone.profile.teenager.enable = false;
-
-```
-
-<hr/>
-
 
 
 ## Standard modules
@@ -258,22 +207,6 @@ A pre-configured git environment.
 * **enable** `bool` Pre-configured git environment
 ```nix
 darkone.console.git.enable = false;
-
-```
-
-<hr/>
-
-### &#x1F48E; darkone.console.packages
-
-Some useful console only softwares.
-
-* **enable** `bool` Vim, less, zip, unzip, tree, wget...
-* **enableAdditional** `bool` Findutils, fzf, git, htop, neofetch, ranger...
-```nix
-darkone.console.packages = {
-  enable = false;
-  enableAdditional = false;
-}
 
 ```
 
@@ -319,31 +252,6 @@ darkone.console.zsh = {
 
 <hr/>
 
-### &#x1F48E; darkone.graphic.education
-
-Graphical education packages.
-
-:::note
-These programs are enabled for all user profiles.
-Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
-:::
-
-* **enable** `bool` Default useful packages
-* **enableBaby** `bool` Software for babies (&lt;=6 yo)
-* **enableChildren** `bool` Software for children (6-12 yo)
-* **enableTeenager** `bool` Software for teenagers and adults (&gt;=12 yo)
-```nix
-darkone.graphic.education = {
-  enable = false;
-  enableBaby = false;
-  enableChildren = false;
-  enableTeenager = false;
-}
-
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.graphic.gnome
 
 Pre-configured gnome environment with dependences.
@@ -354,9 +262,6 @@ Pre-configured gnome environment with dependences.
 * **enableCaffeine** `bool` Disable auto-suspend
 * **enableGsConnect** `bool` Communication with devices
 * **enableSuspend** `bool` Enable suspend, sleep, hybernate features (usefull for laptops)
-* **enableMoreGnomeApps** `bool` More gnome apps for regular users (music, calendar, maps, contacts...)
-* **enableTechnicalFeatures** `bool` Gnome apps for techniciens (binary, collision, apostrophe...)
-* **enableGames** `bool` Enable gnome games
 * **xkbVariant** `str` Keyboard variant. Layout is extracted from console keymap.
 ```nix
 darkone.graphic.gnome = {
@@ -366,52 +271,7 @@ darkone.graphic.gnome = {
   enableCaffeine = false;
   enableGsConnect = false;
   enableSuspend = false;
-  enableMoreGnomeApps = false;
-  enableTechnicalFeatures = false;
-  enableGames = false;
   xkbVariant = "";
-}
-
-```
-
-<hr/>
-
-### &#x1F48E; darkone.graphic.imagery
-
-Image processing softwares (gimp, geeqie, pinta + blender, inkscape, krita...).
-
-* **enable** `bool` Imagery creation
-* **enablePro** `bool` Additional image processing software for professionals
-```nix
-darkone.graphic.imagery = {
-  enable = false;
-  enablePro = false;
-}
-
-```
-
-<hr/>
-
-### &#x1F48E; darkone.graphic.music
-
-Music creation packages and modules.
-
-* **enable** `bool` Music creation module
-* **enablePro** `bool` Hard tools for professionals (rose, ardour...)
-* **enableFun** `bool` Fun audio tools (mixxx...)
-* **enableCli** `bool` Command line audio tools (mpd, ncmpcpp...)
-* **enableDev** `bool` Audio software for developers (lilypond...)
-* **enableScore** `bool` Score softwares (musescore...)
-* **enableBeginner** `bool` Creation tools for beginners (lmms, hydrogen...)
-```nix
-darkone.graphic.music = {
-  enable = false;
-  enablePro = false;
-  enableFun = false;
-  enableCli = false;
-  enableDev = false;
-  enableScore = false;
-  enableBeginner = true;
 }
 
 ```
@@ -425,48 +285,6 @@ Preconfigured obsidian installation.
 * **enable** `bool` Default useful packages
 ```nix
 darkone.graphic.obsidian.enable = false;
-
-```
-
-<hr/>
-
-### &#x1F48E; darkone.graphic.office
-
-Common tools for office desktop.
-
-* **enable** `bool` Default useful packages
-* **enableLibreOffice** `bool` Office packages (libreoffice)
-* **enableFirefox** `bool` Enable firefox
-* **enableChromium** `bool` Enable chromium
-* **enableBrave** `bool` Enable Brave Browser
-* **enableEmail** `bool` Email management packages (thunderbird)
-* **huntspellLang** `str` Huntspell Lang (https://mynixos.com/nixpkgs/packages/hunspellDicts)
-```nix
-darkone.graphic.office = {
-  enable = false;
-  enableLibreOffice = true;
-  enableFirefox = false;
-  enableChromium = false;
-  enableBrave = true;
-  enableEmail = true;
-  huntspellLang = "en-us";
-}
-
-```
-
-<hr/>
-
-### &#x1F48E; darkone.graphic.video
-
-Video creation tools.
-
-* **enable** `bool` Video creation (kdenlive...)
-* **enablePro** `bool` Video softwares for professionals
-```nix
-darkone.graphic.video = {
-  enable = false;
-  enablePro = false;
-}
 
 ```
 
@@ -821,6 +639,7 @@ It is required for the proper functioning of every NixOS computer on the local n
 * **enableGatewayClient** `bool` Configuration optimized for local gateway (ncps client...)
 * **enableBoost** `bool` Enable overclocking, corectl
 * **enableKmscon** `bool` Enable nerd font for TTY
+* **enableFlatpak** `bool` Enable flatpak DNF configuration
 ```nix
 darkone.system.core = {
   enable = true;
@@ -831,6 +650,7 @@ darkone.system.core = {
   enableGatewayClient = true;
   enableBoost = false;
   enableKmscon = false;
+  enableFlatpak = true;
 }
 
 ```
@@ -853,9 +673,13 @@ darkone.system.documentation.enable = false;
 
 Flatpak software management.
 
+* **enable** `bool` DNF Flatpak packages
 * **packages** `?` List of packages to install
 ```nix
-darkone.system.flatpak.packages = [ ];
+darkone.system.flatpak = {
+  enable = false;
+  packages = [ ];
+}
 
 ```
 
@@ -1002,20 +826,174 @@ darkone.user.build.enable = true;
 **A home manager module** works with [home manager](https://github.com/nix-community/home-manager) profiles.
 :::
 
+### &#x1F3E0; darkone.home.advanced
+
+Home profile for advanced users (computer scientists, developers, admins).
+
+* **enable** `bool` Enable advanced user features
+* **enableTools** `bool` Various tools for advanced users
+* **enableAdmin** `bool` Enable administrator features (network, os tools)
+* **enableNixAdmin** `bool` Enable nix administration features
+* **enableDeveloper** `bool` Enable tools for developer
+```nix
+darkone.home.advanced = {
+  enable = false;
+  enableTools = false;
+  enableAdmin = false;
+  enableNixAdmin = false;
+  enableDeveloper = true;
+}
+
+```
+
+<hr/>
+
+### &#x1F3E0; darkone.home.education
+
+Several graphical education packages.
+
+* **enableBaby** `bool` Education software for babies (&lt;=6 yo)
+* **enableChild** `bool` Education software for children (6-12 yo)
+* **enableStudent** `bool` Education software for teenagers and adults (&gt;=12 yo)
+* **enableMath** `bool` Math tools and apps
+* **enableMusic** `bool` Music tools and apps
+* **enableScience** `bool` Scientific tools and apps
+* **enableDraw** `bool` Draw tools and apps
+* **enableLang** `bool` Lang tools and apps
+* **enableMisc** `bool` Misc tools and apps (general, training...)
+* **enableComputer** `bool` Computing tools and apps (klavaro, etc.)
+```nix
+darkone.home.education = {
+  enableBaby = false;
+  enableChild = false;
+  enableStudent = false;
+  enableMath = true;
+  enableMusic = true;
+  enableScience = true;
+  enableDraw = true;
+  enableLang = true;
+  enableMisc = true;
+  enableComputer = true;
+}
+
+```
+
+<hr/>
+
 ### &#x1F3E0; darkone.home.games
 
 Several graphical game packages.
 
 * **enableBaby** `bool` Games for babies (&lt;=6 yo)
-* **enableChildren** `bool` Games for children (6-12 yo)
+* **enableChild** `bool` Games for children (6-12 yo)
 * **enableTeenager** `bool` Games for teenagers and adults (&gt;=12 yo)
 * **enable3D** `bool` More 3D Games
 ```nix
 darkone.home.games = {
   enableBaby = false;
-  enableChildren = false;
+  enableChild = false;
   enableTeenager = false;
   enable3D = false;
+}
+
+```
+
+<hr/>
+
+### &#x1F3E0; darkone.home.imagery
+
+Image processing softwares (gimp, geeqie, pinta + blender, inkscape, krita...).
+
+* **enable** `bool` Imagery creation
+* **enablePro** `bool` Additional image processing software for professionals
+* **enableBeginner** `bool` Additional image processing software for beginners
+* **enable3D** `bool` 3D softwares
+* **enableCAD** `bool` CAD softwares
+```nix
+darkone.home.imagery = {
+  enable = false;
+  enablePro = false;
+  enableBeginner = false;
+  enable3D = false;
+  enableCAD = false;
+}
+
+```
+
+<hr/>
+
+### &#x1F3E0; darkone.home.music
+
+Graphical music and sound creation apps.
+
+* **enable** `bool` Music creation home module
+* **enablePro** `bool` Hard tools for professionals (rose, ardour...)
+* **enableFun** `bool` Fun audio tools (mixxx...)
+* **enableCli** `bool` Command line audio tools (mpd, ncmpcpp...)
+* **enableDev** `bool` Audio software for developers (lilypond...)
+* **enableScore** `bool` Score softwares (musescore...)
+* **enableBeginner** `bool` Creation tools for beginners (lmms, hydrogen...)
+```nix
+darkone.home.music = {
+  enable = false;
+  enablePro = false;
+  enableFun = false;
+  enableCli = false;
+  enableDev = false;
+  enableScore = false;
+  enableBeginner = false;
+}
+
+```
+
+<hr/>
+
+### &#x1F3E0; darkone.home.office
+
+Common tools for office desktop.
+
+* **enable** `bool` Default useful packages
+* **enableTools** `bool` Little (gnome) tools (iotas, dialect, etc.)
+* **enableProductivity** `bool` Productivity apps (time management, projects, etc.)
+* **enableCalendarContacts** `bool` Gnome calendar, contacts and related apps
+* **enableCommunication** `bool` Communication tools
+* **enableLibreOffice** `bool` Office packages (libreoffice)
+* **enableFirefox** `bool` Enable firefox
+* **enableChromium** `bool` Enable chromium
+* **enableBrave** `bool` Enable Brave Browser
+* **enableEmail** `bool` Email management packages (thunderbird)
+* **huntspellLang** `str` Huntspell Lang (https://mynixos.com/nixpkgs/packages/hunspellDicts)
+```nix
+darkone.home.office = {
+  enable = false;
+  enableTools = true;
+  enableProductivity = false;
+  enableCalendarContacts = false;
+  enableCommunication = false;
+  enableLibreOffice = true;
+  enableFirefox = false;
+  enableChromium = false;
+  enableBrave = true;
+  enableEmail = false;
+  huntspellLang = "en-us";
+}
+
+```
+
+<hr/>
+
+### &#x1F3E0; darkone.home.video
+
+Video tools and apps.
+
+* **enable** `bool` Video creation and tools home module
+* **enableTools** `bool` Video tools for professionals
+* **enableCreation** `bool` Video creation tools (kdenlive...)
+```nix
+darkone.home.video = {
+  enable = false;
+  enableTools = false;
+  enableCreation = false;
 }
 
 ```

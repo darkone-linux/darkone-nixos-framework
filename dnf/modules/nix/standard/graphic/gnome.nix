@@ -18,9 +18,6 @@ in
     darkone.graphic.gnome.enableCaffeine = lib.mkEnableOption "Disable auto-suspend";
     darkone.graphic.gnome.enableGsConnect = lib.mkEnableOption "Communication with devices";
     darkone.graphic.gnome.enableSuspend = lib.mkEnableOption "Enable suspend, sleep, hybernate features (usefull for laptops)";
-    darkone.graphic.gnome.enableMoreGnomeApps = lib.mkEnableOption "More gnome apps for regular users (music, calendar, maps, contacts...)";
-    darkone.graphic.gnome.enableTechnicalFeatures = lib.mkEnableOption "Gnome apps for techniciens (binary, collision, apostrophe...)";
-    darkone.graphic.gnome.enableGames = lib.mkEnableOption "Enable gnome games";
     darkone.graphic.gnome.xkbVariant = lib.mkOption {
       type = lib.types.str;
       default = "";
@@ -98,17 +95,17 @@ in
 
     # Suppression des paquets gnome inutiles
     environment.gnome.excludePackages = with pkgs; [
-      (lib.mkIf (!cfg.enableGames) atomix)
-      (lib.mkIf (!cfg.enableMoreGnomeApps) dialect) # Translation app
-      (lib.mkIf (!cfg.enableMoreGnomeApps) gnome-calendar)
-      (lib.mkIf (!cfg.enableMoreGnomeApps) gnome-contacts)
-      (lib.mkIf (!cfg.enableMoreGnomeApps) gnome-font-viewer)
-      (lib.mkIf (!cfg.enableMoreGnomeApps) gnome-logs)
-      (lib.mkIf (!cfg.enableMoreGnomeApps) gnome-maps)
-      (lib.mkIf (!cfg.enableMoreGnomeApps) gnome-weather)
-      (lib.mkIf (!cfg.enableMoreGnomeApps) totem) # Movie player
-      (lib.mkIf (!config.darkone.graphic.music.enable) gnome-music)
-      (lib.mkIf (!config.darkone.service.printing.enableScanners) simple-scan)
+      atomix
+      dialect
+      gnome-calendar
+      gnome-contacts
+      gnome-font-viewer
+      gnome-logs
+      gnome-maps
+      gnome-weather
+      totem
+      simple-scan
+      gnome-music
       epiphany
       geary
       gnome-backgrounds
@@ -127,32 +124,9 @@ in
 
     # Gnome packages
     environment.systemPackages = with pkgs; [
-      #gnomeExtensions.blur-my-shell
-      #rofi-wayland # TODO: module for rofi
       (lib.mkIf cfg.enableCaffeine gnomeExtensions.caffeine)
       (lib.mkIf cfg.enableDashToDock gnomeExtensions.dash-to-dock)
-      (lib.mkIf cfg.enableGames chess-clock)
-      (lib.mkIf cfg.enableGames gnome-mahjongg)
       (lib.mkIf cfg.enableGsConnect gnomeExtensions.gsconnect)
-      (lib.mkIf cfg.enableMoreGnomeApps authenticator) # Two-factor authentication code generator
-      (lib.mkIf cfg.enableMoreGnomeApps gnome-decoder) # Scan and generate QR codes
-      (lib.mkIf cfg.enableMoreGnomeApps gnome-secrets)
-      (lib.mkIf cfg.enableMoreGnomeApps iotas) # Simple note taking with mobile-first design and Nextcloud sync
-      (lib.mkIf cfg.enableMoreGnomeApps mousai) # Identify any songs in seconds
-      (lib.mkIf cfg.enableMoreGnomeApps pika-backup) # Simple backups based on borg
-      (lib.mkIf cfg.enableMoreGnomeApps tuba) # Browse the Fediverse
-      (lib.mkIf cfg.enableTechnicalFeatures apostrophe) # Distraction free Markdown editor
-      (lib.mkIf cfg.enableTechnicalFeatures bustle) # Graphical D-Bus message analyser and profiler
-      (lib.mkIf cfg.enableTechnicalFeatures collision) # Check hashes for your files
-      (lib.mkIf cfg.enableTechnicalFeatures commit) # Commit message editor
-      (lib.mkIf cfg.enableTechnicalFeatures dconf-editor) # GSettings editor
-      (lib.mkIf cfg.enableTechnicalFeatures eyedropper) # Pick and format colors
-      (lib.mkIf cfg.enableTechnicalFeatures forge-sparks) # Get Git forges notifications
-      (lib.mkIf cfg.enableTechnicalFeatures impression) # Create bootable drives
-      (lib.mkIf cfg.enableTechnicalFeatures lorem) # Generate placeholder text
-      (lib.mkIf cfg.enableTechnicalFeatures resources) # Monitor your system resources and processes
-      (lib.mkIf cfg.enableTechnicalFeatures sysprof) # System-wide profiler
-      (lib.mkIf cfg.enableTechnicalFeatures textpieces) # Swiss knife of text processing
       bibata-cursors
       gnomeExtensions.appindicator
       papirus-icon-theme

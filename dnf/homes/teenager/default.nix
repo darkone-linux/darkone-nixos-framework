@@ -1,8 +1,8 @@
-# Features for teenagers
+# Teenagers home profile
 
 {
   imports = [
     ./../minimal
-    ./programs.nix
+    ./features.nix
   ];
 }

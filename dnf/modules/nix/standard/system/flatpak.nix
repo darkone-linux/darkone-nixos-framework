@@ -6,6 +6,7 @@ let
 in
 {
   options = {
+    darkone.system.flatpak.enable = lib.mkEnableOption "DNF Flatpak packages";
     darkone.system.flatpak.packages = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
@@ -15,7 +16,7 @@ in
   };
 
   # Enable and install flatpak if needed
-  config = lib.mkIf (cfg.packages != [ ]) {
+  config = lib.mkIf cfg.enable {
     services.flatpak = {
       enable = true;
       uninstallUnmanaged = true;

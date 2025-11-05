@@ -29,10 +29,9 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # ZSH additional packages
+    # ZSH additional packages (-vim)
     environment.systemPackages = with pkgs; [
       eza
-      vim
       zsh
       zsh-powerlevel10k
       zsh-forgit

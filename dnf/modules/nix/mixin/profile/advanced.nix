@@ -5,6 +5,7 @@
 # Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
 # :::
 
+# TODO: home-manager module
 { lib, config, ... }:
 let
   cfg = config.darkone.profile.advanced;
@@ -28,24 +29,16 @@ in
         git.enable = lib.mkDefault true;
         pandoc.enable = lib.mkDefault false;
         zsh.enable = lib.mkDefault true;
-        packages.enable = lib.mkDefault true;
-        packages.enableAdditional = lib.mkDefault true;
       };
 
       # Daemons
       service.httpd.enable = lib.mkDefault false;
-
-      # Graphical tools
-      graphic.gnome.enableTechnicalFeatures = lib.mkDefault gnome.enable;
     };
 
     # Additional tools
     programs = {
       iotop.enable = lib.mkDefault true;
       less.enable = lib.mkDefault true;
-      htop.enable = lib.mkDefault true;
-      bat.enable = lib.mkDefault true;
-      #vscode.enable = lib.mkDefault gnome.enable; # TODO: vscode module + declarative conf
       direnv.enable = lib.mkDefault gnome.enable; # usefull for vscode plugins
     };
   };
