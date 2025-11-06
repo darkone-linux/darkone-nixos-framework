@@ -137,6 +137,12 @@ in
           inherit (config.services.redis.servers.immich) port;
         };
 
+        # Database fix
+        database = {
+          enableVectors = false;
+          enableVectorChord = true;
+        };
+
         # Machine learning configuration
         machine-learning = lib.mkIf cfg.enableMachineLearning {
           enable = true;
@@ -167,7 +173,6 @@ in
         imagemagick
         libraw
         ffmpeg-full
-        postgresql
         redis
       ];
 

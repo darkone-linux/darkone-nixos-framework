@@ -1,16 +1,48 @@
 # Gnome tweaks for home manager.
 
-{ lib, config, ... }:
+{
+  lib,
+  pkgs,
+  config,
+  ...
+}:
 
 let
   cfg = config.darkone.home.gnome;
 in
 {
   options = {
+    darkone.home.gnome.enable = lib.mkEnableOption "Enable gnome settings for home manager";
     darkone.home.gnome.hideTechnicalIcons = lib.mkEnableOption "Hide some icons for beginners / children / babies";
   };
 
-  config = lib.mkIf cfg.hideTechnicalIcons {
+  config = lib.mkIf cfg.enable {
+
+    # Gnome general settings (no effect?)
+    gtk = {
+      colorScheme = "dark";
+      cursorTheme = {
+        package = pkgs.bibata-cursors;
+        name = "Bibata-Modern-Classic";
+        size = 48;
+      };
+      gtk3 = {
+        enable = true;
+        bookmarks = [ "file:///home/${config.home.username}/Documents" ];
+        colorScheme = "dark";
+        cursorTheme = {
+          package = pkgs.bibata-cursors;
+          name = "Bibata-Modern-Classic";
+          size = 48;
+        };
+        iconTheme = {
+          package = pkgs.papirus-icon-theme;
+          name = "Papirus-Dark";
+        };
+      };
+    };
+
+    # Hide icons
     xdg.desktopEntries = lib.mkIf cfg.hideTechnicalIcons {
       "xterm" = {
         name = "XTerm";

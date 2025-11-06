@@ -68,7 +68,7 @@ in
     darkone.system.core.enableFlatpak = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Enable flatpak DNF configuration";
+      description = "Enable flatpak DNF configuration (only for graphic environments)";
     };
   };
 
@@ -174,6 +174,6 @@ in
     };
 
     # Flatpak configuration for DNF
-    darkone.system.flatpak.enable = cfg.enableFlatpak;
+    darkone.system.flatpak.enable = cfg.enableFlatpak && config.darkone.graphic.gnome.enable;
   };
 }

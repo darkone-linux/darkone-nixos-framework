@@ -82,6 +82,18 @@ in
 
   config = mkIf cfg.enable {
 
+    # Configurations
+    #home.sessionVariables = {
+    #  SAL_USE_VCLPLUGIN = "gtk3";
+    #};
+    # gtk = {
+    #   enable = true;
+    #   theme = {
+    #     name = "Adwaita-dark";
+    #     package = pkgs.gnome-themes-extra;
+    #   };
+    # };
+
     # Packages
     home.packages = with pkgs; [
       (mkIf (cfg.enableTools && cfg.enableCommunication) tuba) # Browse the Fediverse
