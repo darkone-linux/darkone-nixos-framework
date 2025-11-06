@@ -278,18 +278,6 @@ darkone.graphic.gnome = {
 
 <hr/>
 
-### &#x1F48E; darkone.graphic.obsidian
-
-Preconfigured obsidian installation.
-
-* **enable** `bool` Default useful packages
-```nix
-darkone.graphic.obsidian.enable = false;
-
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.graphic.virt-manager
 
 Virt manager + viewer with spice, win-virtio and ovmf.
@@ -835,6 +823,7 @@ Home profile for advanced users (computer scientists, developers, admins).
 * **enableAdmin** `bool` Enable administrator features (network, os tools)
 * **enableNixAdmin** `bool` Enable nix administration features
 * **enableDeveloper** `bool` Enable tools for developer
+* **enableEssentials** `bool` Frequently used tools
 ```nix
 darkone.home.advanced = {
   enable = false;
@@ -842,6 +831,7 @@ darkone.home.advanced = {
   enableAdmin = false;
   enableNixAdmin = false;
   enableDeveloper = true;
+  enableEssentials = true;
 }
 
 ```
@@ -900,6 +890,18 @@ darkone.home.games = {
 
 <hr/>
 
+### &#x1F3E0; darkone.home.gnome
+
+Gnome tweaks for home manager.
+
+* **hideTechnicalIcons** `bool` Hide some icons for beginners / children / babies
+```nix
+darkone.home.gnome.hideTechnicalIcons = false;
+
+```
+
+<hr/>
+
 ### &#x1F3E0; darkone.home.imagery
 
 Image processing softwares (gimp, geeqie, pinta + blender, inkscape, krita...).
@@ -953,6 +955,7 @@ darkone.home.music = {
 Common tools for office desktop.
 
 * **enable** `bool` Default useful packages
+* **enableEssentials** `bool` Essential tools
 * **enableTools** `bool` Little (gnome) tools (iotas, dialect, etc.)
 * **enableProductivity** `bool` Productivity apps (time management, projects, etc.)
 * **enableCalendarContacts** `bool` Gnome calendar, contacts and related apps
@@ -962,19 +965,22 @@ Common tools for office desktop.
 * **enableChromium** `bool` Enable chromium
 * **enableBrave** `bool` Enable Brave Browser
 * **enableEmail** `bool` Email management packages (thunderbird)
+* **enableObsidian** `bool` Obsidian application
 * **huntspellLang** `str` Huntspell Lang (https://mynixos.com/nixpkgs/packages/hunspellDicts)
 ```nix
 darkone.home.office = {
   enable = false;
-  enableTools = true;
+  enableEssentials = true;
+  enableTools = false;
   enableProductivity = false;
   enableCalendarContacts = false;
   enableCommunication = false;
   enableLibreOffice = true;
-  enableFirefox = false;
+  enableFirefox = true;
   enableChromium = false;
-  enableBrave = true;
-  enableEmail = false;
+  enableBrave = false;
+  enableEmail = true;
+  enableObsidian = true;
   huntspellLang = "en-us";
 }
 
