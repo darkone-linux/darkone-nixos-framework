@@ -28,6 +28,11 @@ in
       default = true;
       description = "Enable tools for developer";
     };
+    darkone.home.advanced.enableEssentials = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Frequently used tools";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -37,7 +42,6 @@ in
     #============================================================================
 
     home.sessionVariables = {
-      #SOPS_AGE_KEY_FILE = lib.mkIf cfg.enableNixAdmin "/etc/nixos/usr/secrets/infra.key"; TODO: not possible
       SOPS_AGE_KEY_FILE = "/etc/nixos/usr/secrets/infra.key";
       MANPAGER = "sh -c 'col -bx | bat -l man -p'"; # bat
       MANROFFOPT = "-c"; # bat
@@ -66,6 +70,7 @@ in
       (lib.mkIf (graphic && cfg.enableTools && cfg.enableNixAdmin) bustle) # Graphical D-Bus message analyser and profiler
       (lib.mkIf (graphic && cfg.enableTools) apostrophe) # Distraction free Markdown editor
       (lib.mkIf (graphic && cfg.enableTools) collision) # Check hashes for your files
+      (lib.mkIf (graphic && cfg.enableTools) gnome-connections) # VNC / RDP Client
       (lib.mkIf (graphic && cfg.enableTools) gnome-logs)
       (lib.mkIf (graphic && cfg.enableTools) resources) # Monitor your system resources and processes
       (lib.mkIf (graphic && cfg.enableTools) textpieces) # Swiss knife of text processing
@@ -88,24 +93,25 @@ in
       (lib.mkIf cfg.enableAdmin strace)
       (lib.mkIf cfg.enableAdmin tcpdump)
       (lib.mkIf cfg.enableAdmin wirelesstools) # ifrename iwconfig iwevent iwgetid iwlist iwpriv iwspy
-      duf
-      gawk
-      htop
-      jq
-      less
-      microfetch
-      neofetch
-      nodejs_24 # CoC, required for vim
-      presenterm
-      pv
-      ranger
-      rename
-      rsync
-      tree
-      unzip
-      wget
-      zellij
-      zip
+      (lib.mkIf cfg.enableEssentials cpufetch)
+      (lib.mkIf cfg.enableEssentials duf)
+      (lib.mkIf cfg.enableEssentials fastfetch)
+      (lib.mkIf cfg.enableEssentials gawk)
+      (lib.mkIf cfg.enableEssentials htop)
+      (lib.mkIf cfg.enableEssentials jq)
+      (lib.mkIf cfg.enableEssentials less)
+      (lib.mkIf cfg.enableEssentials nodejs_24) # CoC, required for vim
+      (lib.mkIf cfg.enableEssentials rename)
+      (lib.mkIf cfg.enableEssentials rsync)
+      (lib.mkIf cfg.enableEssentials tree)
+      (lib.mkIf cfg.enableEssentials unzip)
+      (lib.mkIf cfg.enableEssentials wget)
+      (lib.mkIf cfg.enableEssentials zip)
+      (lib.mkIf cfg.enableTools microfetch)
+      (lib.mkIf cfg.enableTools presenterm)
+      (lib.mkIf cfg.enableTools pv)
+      (lib.mkIf cfg.enableTools ranger)
+      (lib.mkIf cfg.enableTools zellij)
     ];
 
     #============================================================================

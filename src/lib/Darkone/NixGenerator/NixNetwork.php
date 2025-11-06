@@ -33,6 +33,9 @@ class NixNetwork
     // Updated configuration
     private array $config = [];
 
+    // NCPS service provider
+    private ?string $substituter = null;
+
     public function buildExtraNetworkConfig(): array
     {
         return [
@@ -43,6 +46,7 @@ class NixNetwork
                 'cname' => $this->buildCnames(),
             ],
             'sharedServices' => $this->services,
+            'local-substituter' => $this->substituter,
         ];
     }
 
@@ -160,6 +164,12 @@ class NixNetwork
                     throw new NixException('Service domain conflict: "' . $service['domain'] . '"');
                 }
                 $serviceDomains[] = $service['domain'];
+            }
+            if ($serviceKey == 'ncps') {
+                if (!is_null($this->substituter)) {
+                    throw new NixException('Cannot have more than 1 ncps provider (' . $host . ' vs ' . $this->substituter . ').');
+                }
+                $this->substituter = $host;
             }
             $this->services[] = array_filter([
                 'host' => $host,

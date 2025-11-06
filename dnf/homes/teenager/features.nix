@@ -21,11 +21,8 @@ in
   };
   darkone.home.office = {
     enable = lib.mkDefault graphic;
-    enableTools = lib.mkDefault false;
-    enableLibreOffice = lib.mkDefault graphic;
-    enableBrave = lib.mkDefault graphic;
-    enableFirefox = lib.mkDefault false;
-    enableChromium = lib.mkDefault false;
+    enableTools = lib.mkDefault true;
+    enableLibreOffice = lib.mkDefault true;
     enableEmail = lib.mkDefault false;
   };
   darkone.home.imagery = {

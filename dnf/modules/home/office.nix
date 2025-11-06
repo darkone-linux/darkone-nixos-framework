@@ -3,105 +3,229 @@
 {
   lib,
   config,
-  osConfig,
+  network,
+  inputs,
   pkgs,
   ...
 }:
+with lib;
 let
   cfg = config.darkone.home.office;
+  hasGateway = attrsets.hasAttrByPath [ "gateway" "hostname" ] network;
+  lang = toLower (builtins.substring 0 2 network.locale);
 in
 {
   options = {
-    darkone.home.office.enable = lib.mkEnableOption "Default useful packages";
-
-    darkone.home.office.enableTools = lib.mkOption {
-      type = lib.types.bool;
+    darkone.home.office.enable = mkEnableOption "Default useful packages";
+    darkone.home.office.enableEssentials = mkOption {
+      type = types.bool;
       default = true;
+      description = "Essential tools";
+    };
+    darkone.home.office.enableTools = mkOption {
+      type = types.bool;
+      default = false;
       description = "Little (gnome) tools (iotas, dialect, etc.)";
     };
-    darkone.home.office.enableProductivity = lib.mkOption {
-      type = lib.types.bool;
+    darkone.home.office.enableProductivity = mkOption {
+      type = types.bool;
       default = false;
       description = "Productivity apps (time management, projects, etc.)";
     };
-    darkone.home.office.enableCalendarContacts = lib.mkOption {
-      type = lib.types.bool;
+    darkone.home.office.enableCalendarContacts = mkOption {
+      type = types.bool;
       default = false;
       description = "Gnome calendar, contacts and related apps";
     };
-    darkone.home.office.enableCommunication = lib.mkOption {
-      type = lib.types.bool;
+    darkone.home.office.enableCommunication = mkOption {
+      type = types.bool;
       default = false;
       description = "Communication tools";
     };
-    darkone.home.office.enableLibreOffice = lib.mkOption {
-      type = lib.types.bool;
+    darkone.home.office.enableLibreOffice = mkOption {
+      type = types.bool;
       default = true;
       description = "Office packages (libreoffice)";
     };
-    darkone.home.office.enableFirefox = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
+    darkone.home.office.enableFirefox = mkOption {
+      type = types.bool;
+      default = true;
       description = "Enable firefox";
     };
-    darkone.home.office.enableChromium = lib.mkOption {
-      type = lib.types.bool;
+    darkone.home.office.enableChromium = mkOption {
+      type = types.bool;
       default = false;
       description = "Enable chromium";
     };
-    darkone.home.office.enableBrave = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
+    darkone.home.office.enableBrave = mkOption {
+      type = types.bool;
+      default = false;
       description = "Enable Brave Browser";
     };
-    darkone.home.office.enableEmail = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
+    darkone.home.office.enableEmail = mkOption {
+      type = types.bool;
+      default = true;
       description = "Email management packages (thunderbird)";
     };
-    darkone.home.office.huntspellLang = lib.mkOption {
-      type = lib.types.str;
+    darkone.home.office.enableObsidian = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Obsidian application";
+    };
+    darkone.home.office.huntspellLang = mkOption {
+      type = types.str;
       default = "fr-moderne";
       example = "en-us";
       description = "Huntspell Lang (https://mynixos.com/nixpkgs/packages/hunspellDicts)";
     };
   };
 
-  config = lib.mkIf cfg.enable {
+  config = mkIf cfg.enable {
 
     # Packages
     home.packages = with pkgs; [
-      (lib.mkIf (cfg.enableTools && cfg.enableCommunication) tuba) # Browse the Fediverse
-      (lib.mkIf cfg.enableCalendarContacts gnome-calendar)
-      (lib.mkIf cfg.enableCalendarContacts gnome-contacts)
-      (lib.mkIf cfg.enableEmail thunderbird)
-      (lib.mkIf cfg.enableLibreOffice hunspell)
-      (lib.mkIf cfg.enableLibreOffice hunspellDicts.${cfg.huntspellLang})
-      (lib.mkIf cfg.enableLibreOffice libreoffice-fresh)
-      (lib.mkIf cfg.enableProductivity super-productivity) # Time processing
-      (lib.mkIf cfg.enableTools authenticator) # Two-factor authentication code generator
-      (lib.mkIf cfg.enableTools dialect) # translate
-      (lib.mkIf cfg.enableTools evince) # Reader
-      (lib.mkIf cfg.enableTools gnome-decoder) # Scan and generate QR codes
-      (lib.mkIf cfg.enableTools gnome-font-viewer)
-      (lib.mkIf cfg.enableTools gnome-maps)
-      (lib.mkIf cfg.enableTools gnome-secrets)
-      (lib.mkIf cfg.enableTools gnome-weather)
-      (lib.mkIf cfg.enableTools iotas) # Simple note taking with mobile-first design and Nextcloud sync
-      (lib.mkIf cfg.enableTools pika-backup) # Simple backups based on borg -> Security ?
-      (lib.mkIf cfg.enableTools simple-scan)
+      (mkIf (cfg.enableTools && cfg.enableCommunication) tuba) # Browse the Fediverse
+      (mkIf cfg.enableCalendarContacts gnome-calendar)
+      (mkIf cfg.enableCalendarContacts gnome-contacts)
+      (mkIf cfg.enableEmail thunderbird)
+      (mkIf cfg.enableEssentials evince) # Reader
+      (mkIf cfg.enableEssentials gnome-calculator)
+      (mkIf cfg.enableLibreOffice hunspell)
+      (mkIf cfg.enableLibreOffice hunspellDicts.${cfg.huntspellLang})
+      (mkIf cfg.enableLibreOffice libreoffice-fresh)
+      (mkIf cfg.enableProductivity super-productivity) # Time processing
+      (mkIf cfg.enableTools authenticator) # Two-factor authentication code generator
+      (mkIf cfg.enableTools dialect) # translate
+      (mkIf cfg.enableTools gnome-characters)
+      (mkIf cfg.enableTools gnome-decoder) # Scan and generate QR codes
+      (mkIf cfg.enableTools gnome-font-viewer)
+      (mkIf cfg.enableTools gnome-maps)
+      (mkIf cfg.enableTools gnome-secrets)
+      (mkIf cfg.enableTools gnome-weather)
+      (mkIf cfg.enableTools iotas) # Simple note taking with mobile-first design and Nextcloud sync
+      (mkIf cfg.enableTools pika-backup) # Simple backups based on borg -> Security ?
+      (mkIf cfg.enableTools simple-scan)
+      (mkIf cfg.enableTools snapshot) # Webcam
+      (mkIf cfg.enableObsidian obsidian)
+      (mkIf cfg.enableCommunication zoom-us)
     ];
 
     # Browsers
     # TODO: https://nix-community.github.io/home-manager/options.xhtml#opt-programs.firefox.languagePacks
     # TODO: https://nix-community.github.io/home-manager/options.xhtml#opt-programs.chromium.dictionaries
 
-    programs.firefox = {
-      enable = cfg.enableFirefox;
-      enableGnomeExtensions = osConfig.services.desktopManager.gnome.enable;
+    programs.firefox = mkIf cfg.enableFirefox {
+      enable = true;
+      package = pkgs.firefox-esr;
+      languagePacks = [ "${lang}" ];
+      profiles = {
+        default = {
+          id = 0;
+          name = "default";
+          isDefault = true;
+          settings = {
+            "browser.startup.homepage" = mkIf hasGateway "http://${network.gateway.hostname}";
+            "browser.search.defaultenginename" = "google";
+            "browser.search.order.1" = "google";
+            "browser.aboutConfig.showWarning" = false;
+            "browser.compactmode.show" = true;
+            #"extensions.bitwarden.enable" = true; -> TODO: install bitwarden
+
+            # Firefox 75+ remembers the last workspace it was opened on as part of its session management.
+            # This is annoying, because I can have a blank workspace, click Firefox from the launcher, and
+            # then have Firefox open on some other workspace.
+            "widget.disable-workspace-management" = true;
+          };
+          search = {
+            force = true;
+            default = "google";
+            order = [
+              "google"
+              "duckduckgo"
+              "nix-options"
+              "nix-packages"
+            ];
+            engines = {
+              nix-options = {
+                name = "Nix Options";
+                urls = [
+                  {
+                    template = "https://search.nixos.org/options";
+                    params = [
+                      {
+                        name = "channel";
+                        value = "unstable";
+                      }
+                      {
+                        name = "query";
+                        value = "{searchTerms}";
+                      }
+                    ];
+                  }
+                ];
+                icon = "${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
+                definedAliases = [ "@no" ];
+              };
+              nix-packages = {
+                name = "Nix Packages";
+                urls = [
+                  {
+                    template = "https://search.nixos.org/packages";
+                    params = [
+                      {
+                        name = "channel";
+                        value = "unstable";
+                      }
+                      {
+                        name = "query";
+                        value = "{searchTerms}";
+                      }
+                    ];
+                  }
+                ];
+                icon = "${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
+                definedAliases = [ "@np" ];
+              };
+              google.metaData.alias = "@g";
+            };
+          };
+          extensions = {
+            force = true;
+            packages = with inputs.firefox-addons.packages.${pkgs.system}; [
+              #bitwarden
+              #darkreader
+              browserpass
+              ublock-origin
+            ];
+            settings."uBlock0@raymondhill.net".settings = {
+              selectedFilterLists = [
+                "ublock-filters"
+                "ublock-badware"
+                "ublock-privacy"
+                "ublock-unbreak"
+                "ublock-quick-fixes"
+              ];
+            };
+          };
+        };
+      };
+      policies = {
+        DisableTelemetry = true;
+        DisableFirefoxStudies = true;
+        PasswordManagerEnabled = false;
+        DontCheckDefaultBrowser = true;
+        DisablePocket = true;
+        SearchBar = "unified";
+        #ExtensionSettings = {
+        #  "bitwarden@bitwarden.com" = { installation_mode = "force_installed"; };
+        #};
+      };
     };
     programs.chromium.enable = cfg.enableChromium;
-    services.flatpak.packages = lib.mkIf cfg.enableBrave [ "com.brave.Browser" ];
+    services.flatpak.packages = mkIf cfg.enableBrave [ "com.brave.Browser" ];
+
+    # TODO: replace by bitwarden / vaultwarden?
+    programs.browserpass.enable = cfg.enableBrave || cfg.enableFirefox || cfg.enableChromium;
 
     # TODO: Thunderbird profile
     #programs.thunderbird.enable = cfg.enableEmail;

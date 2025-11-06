@@ -41,6 +41,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    firefox-addons = {
+      url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
     nix-flatpak.url = "github:gmodena/nix-flatpak";
@@ -62,7 +67,7 @@
       sops-nix,
       disko,
       ...
-    }:
+    }@inputs:
     let
 
       #------------------------------------------------------------------------
@@ -129,7 +134,6 @@
       mkCommonNodeArgs = system: {
         inherit users;
         inherit network;
-        inherit system;
         pkgs-stable = nixpkgsStableFor.${system};
       };
 
@@ -177,7 +181,7 @@
                   inherit network;
                   inherit host;
                   inherit users;
-                  system = getHostArch host;
+                  inherit inputs;
                   pkgs-stable = nixpkgsStableFor.${getHostArch host};
                 };
               };
@@ -264,7 +268,7 @@
         map (system: {
           name = "iso-${system}";
           value = nixpkgs.lib.nixosSystem {
-            inherit system;
+            #inherit system;
             specialArgs = {
               imgFormat = nixpkgs.lib.mkDefault "iso";
               host = {

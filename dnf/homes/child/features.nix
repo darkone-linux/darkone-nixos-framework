@@ -14,8 +14,10 @@ in
   };
   darkone.home.office = {
     enable = lib.mkDefault graphic;
+    enableEssentials = lib.mkDefault false;
+    enableObsidian = lib.mkDefault false;
     enableTools = lib.mkDefault false;
-    enableLibreOffice = lib.mkDefault graphic;
+    enableLibreOffice = lib.mkDefault true;
     enableBrave = lib.mkDefault false;
     enableFirefox = lib.mkDefault false;
     enableChromium = lib.mkDefault false;

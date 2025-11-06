@@ -26,10 +26,7 @@ in
       printing.enable = lib.mkDefault true;
     };
 
-    # Graphical applications
-    darkone.graphic = {
-      gnome.enable = lib.mkDefault true;
-      obsidian.enable = lib.mkDefault true;
-    };
+    # Enable gnome
+    darkone.graphic.gnome.enable = lib.mkDefault true;
   };
 }

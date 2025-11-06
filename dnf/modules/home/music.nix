@@ -30,6 +30,7 @@ in
     home.packages = with pkgs; [
       #(lib.mkIf cfg.enableBeginner lmms) # Compilation failed
       (lib.mkIf (cfg.enableDev || cfg.enableCli) lilypond-with-fonts)
+      (lib.mkIf cfg.enableBeginner decibels)
       (lib.mkIf cfg.enableBeginner hydrogen)
       (lib.mkIf cfg.enableCli mpg123)
       (lib.mkIf cfg.enableCli ncmpcpp)

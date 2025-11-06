@@ -15,7 +15,6 @@
     ./standard/console/pandoc.nix
     ./standard/console/zsh.nix
     ./standard/graphic/gnome.nix
-    ./standard/graphic/obsidian.nix
     ./standard/graphic/virt-manager.nix
     ./standard/graphic/virtualbox.nix
     ./standard/service/adguardhome.nix

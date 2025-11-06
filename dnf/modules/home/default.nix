@@ -5,6 +5,7 @@
     ./advanced.nix
     ./education.nix
     ./games.nix
+    ./gnome.nix
     ./imagery.nix
     ./music.nix
     ./office.nix

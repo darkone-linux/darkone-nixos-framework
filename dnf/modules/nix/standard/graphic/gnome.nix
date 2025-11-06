@@ -97,27 +97,34 @@ in
     environment.gnome.excludePackages = with pkgs; [
       atomix
       dialect
+      decibels
+      epiphany
+      evince
+      geary
+      gnome-backgrounds
       gnome-calendar
+      gnome-characters
+      gnome-clocks
+      gnome-calculator
+      gnome-connections
       gnome-contacts
       gnome-font-viewer
       gnome-logs
       gnome-maps
-      gnome-weather
-      totem
-      simple-scan
       gnome-music
-      epiphany
-      geary
-      gnome-backgrounds
-      gnome-clocks
       gnome-packagekit
+      gnome-secrets
       gnome-software
       gnome-tour
       gnome-user-docs
+      gnome-weather
       hitori
       iagno
       loupe
+      simple-scan
+      snapshot
       tali
+      totem
       xterm
       yelp
     ];
@@ -196,6 +203,7 @@ in
                   "com.brave.Browser.desktop"
                   "chromium-browser.desktop"
                   "firefox.desktop"
+                  "firefox-esr.desktop"
                   "org.gnome.TextEditor.desktop"
                   "obsidian.desktop"
                   "code.desktop"
