@@ -40,14 +40,14 @@ gateway and all machines on the local network.
 * **enableFail2ban** `bool` Enable fail2ban service
 * **enableAdguardhome** `bool` Enable pre-configured Aguard Home service
 * **enableNcps** `bool` Enable the proxy cache for packages
-* **enableLldap** `bool` Enable pre-configured lldap service (additional users &amp; groups)
+* **enableSSO** `bool` Enable SSO service (LLDAP + Authelia + OIDC)
 ```nix
 darkone.host.gateway = {
   enable = false;
   enableFail2ban = true;
   enableAdguardhome = builtins.hasAttr "adguardhome" host.services;
   enableNcps = builtins.hasAttr "ncps" host.services;
-  enableLldap = builtins.hasAttr "lldap" host.services;
+  enableSSO = builtins.hasAttr "sso" host.services;
 }
 
 ```
@@ -316,7 +316,7 @@ It uses the [DNF dnsmasq module](/ref/modules/#-darkoneservicednsmasq) as upstre
 :::
 
 * **enable** `bool` Enable local adguardhome service
-* **domainName** `str` Domain name for Adguard Home, registered in nginx &amp; hosts
+* **domainName** `str` Domain name for Adguard Home, registered in global network
 ```nix
 darkone.service.adguardhome = {
   enable = false;
@@ -361,7 +361,7 @@ darkone.service.dnsmasq.enable = false;
 A full-configured forgejo git forge.
 
 * **enable** `bool` Enable local forgejo service
-* **domainName** `str` Domain name for the forge, registered in forgejo, nginx &amp; hosts
+* **domainName** `str` Domain name for the forge, registered in network configuration
 * **appName** `str` Default title for the local GIT forge
 ```nix
 darkone.service.forgejo = {
@@ -394,7 +394,7 @@ Dynamically configured homepage dashboard for your local network.
 For each DNF service enabled, an entry is automatically added to the homepage configuration.
 :::
 
-* **enable** `bool` Enable homepage dashboard + nginx + host
+* **enable** `bool` Enable homepage dashboard + httpd + host
 * **domainName** `str` Domain name for homepage (default is hostname)
 * **adminServices** `?` Services to add in Administration section
 * **appServices** `?` Services to add in Applications section
@@ -439,7 +439,7 @@ darkone.service.httpd = {
 Immich (photo management) full-configured service.
 
 * **enable** `bool` Enable local immich service
-* **domainName** `str` Domain name for immich, registered in nginx &amp; hosts
+* **domainName** `str` Domain name for immich, registered in local network
 * **enableMachineLearning** `bool` Enable machine learning features (face recognition, object detection)
 * **enableRedis** `bool` Enable Redis for caching (recommended for performance)
 ```nix
@@ -448,29 +448,6 @@ darkone.service.immich = {
   domainName = "immich";
   enableMachineLearning = false;
   enableRedis = false;
-}
-
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.lldap
-
-Pre-configured lldap configuration for users and groups (wip).
-
-:::caution[Work in progress user management]
-This module does not yet allow for the management of system users and groups.
-This feature is currently under consideration.
-:::
-
-* **enable** `bool` Enable local lldap service
-* **openLdapPort** `bool` Open the lldap port (default is 3890)
-* **domainName** `str` Domain name for lldap, registered in forgejo, nginx &amp; hosts
-```nix
-darkone.service.lldap = {
-  enable = false;
-  openLdapPort = false;
-  domainName = "users";
 }
 
 ```
@@ -487,7 +464,7 @@ to monitor the operating system, network activity, resources, and performance.
 :::
 
 * **enable** `bool` Enable monitoring with prometheus, grafana and node exporter
-* **domainName** `str` Domain name for monitoring, registered in nginx &amp; hosts
+* **domainName** `str` Domain name for monitoring, registered in local network
 * **retentionTime** `str` Durée de rétention des métriques Prometheus
 ```nix
 darkone.service.monitoring = {
@@ -539,7 +516,7 @@ to use the “pro” version, so it is better to use the “monitoring” module
 :::
 
 * **enable** `bool` Enable netdata application
-* **domainName** `str` Domain name for netdata, registered in nginx &amp; hosts
+* **domainName** `str` Domain name for netdata, registered in local network
 ```nix
 darkone.service.netdata = {
   enable = false;
@@ -555,7 +532,7 @@ darkone.service.netdata = {
 Nextcloud full-configured service.
 
 * **enable** `bool` Enable local nextcloud service
-* **domainName** `str` Domain name for nextcloud, registered in nextcloud, nginx &amp; hosts
+* **domainName** `str` Domain name for nextcloud, registered in network configuration
 * **adminUser** `str` Admin username for Nextcloud
 * **adminPassword** `str` Admin password for Nextcloud (change this!)
 ```nix
@@ -586,6 +563,24 @@ darkone.service.printing = {
   enableScanners = false;
   enableHpPrinters = false;
   enableManualInstall = false;
+}
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.sso
+
+DNF SSO with Authelia and LLDAP. (WIP)
+
+* **enable** `bool` Enable local SSO with Authelia and LLDAP
+* **authDomainName** `str` Domain name for authentication (SSO), registered in network configuration
+* **usersDomainName** `str` Domain name for user management (SSO), registered in network configuration
+```nix
+darkone.service.sso = {
+  enable = false;
+  authDomainName = "auth";
+  usersDomainName = "users";
 }
 
 ```
@@ -719,7 +714,7 @@ DNF Service registration and configuration.
 
 :::caution[Special internal module]
 This module is used to register and configure DNF modules:
-- Reverse proxy (nginx)
+- Reverse proxy (caddy)
 - Homepage registration
 - DNS entry
 - folders and files to backup
@@ -738,13 +733,10 @@ This module is used to register and configure DNF modules:
 * **dbFiles** `?` Service database file(s)
 * **varDirs** `?` Variable secondary files (log, cache, etc.)
 * **mediaDirs** `?` Service media dirs (pictures, videos, big files)
-* **manageVirtualHost** `bool` Whether to create nginx virtualHost configuration (false for services that manage their own)
-* **defaultVirtualHost** `bool` Default nginx virtualhost
-* **proxyPort** `?` Service internal port
-* **extraConfig** `lines` Extra nginx virtualHost configuration
-* **locations** `str` Proxy pass URL
-* **proxyWebsockets** `bool` Enable WebSocket support
-* **extraConfig** `lines` Extra location configuration
+* **enable** `bool` Whether to create virtualHost configuration (false for services that manage their own)
+* **defaultService** `bool` Is the default service
+* **servicePort** `?` Service internal port
+* **extraConfig** `lines` Extra caddy virtualHost configuration
 ```nix
 darkone.system.services = {
   enable = false;
@@ -760,12 +752,9 @@ darkone.system.services = {
   dbFiles = [ ];
   varDirs = [ ];
   mediaDirs = [ ];
-  manageVirtualHost = true;
-  defaultVirtualHost = false;
-  proxyPort = null;
-  extraConfig = ;
-  locations = "";
-  proxyWebsockets = false;
+  enable = true;
+  defaultService = false;
+  servicePort = null;
   extraConfig = "";
 }
 
