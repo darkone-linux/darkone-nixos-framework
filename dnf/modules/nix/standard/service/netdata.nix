@@ -20,7 +20,7 @@ in
     darkone.service.netdata.domainName = lib.mkOption {
       type = lib.types.str;
       default = "netdata";
-      description = "Domain name for netdata, registered in nginx & hosts";
+      description = "Domain name for netdata, registered in local network";
     };
   };
 
@@ -32,7 +32,7 @@ in
         displayName = "Netdata";
         description = "Outil de supervision";
         persist.dirs = [ "/var/lib/netdata" ];
-        nginx.proxyPort = 19999;
+        proxy.servicePort = 19999;
       };
     }
 
@@ -41,9 +41,7 @@ in
       # Darkone service: enable
       darkone.system.services = {
         enable = true;
-        service.netdata = {
-          enable = true;
-        };
+        service.netdata.enable = true;
       };
 
       #networking.firewall.allowedTCPPorts = [ 19999 ];

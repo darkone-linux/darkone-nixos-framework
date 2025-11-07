@@ -22,7 +22,7 @@ in
     darkone.service.adguardhome.domainName = lib.mkOption {
       type = lib.types.str;
       default = "adguardhome";
-      description = "Domain name for Adguard Home, registered in nginx & hosts";
+      description = "Domain name for Adguard Home, registered in global network";
     };
   };
 
@@ -34,7 +34,7 @@ in
         displayName = "AdGuard Home";
         description = "Bloqueur de publicités et de traqueurs";
         icon = "adguard-home";
-        nginx.proxyPort = agh.port;
+        proxy.servicePort = agh.port;
       };
     }
 
@@ -43,9 +43,7 @@ in
       # Darkone service: enable
       darkone.system.services = {
         enable = true;
-        service.adguardhome = {
-          enable = true;
-        };
+        service.adguardhome.enable = true;
       };
 
       # adguardhome Service
@@ -56,7 +54,7 @@ in
         # DHCP is managed by dnsmasq
         allowDHCP = false;
 
-        # Web interface default host + port (target for nginx)
+        # Web interface default host + port (target for reverse proxy)
         port = 3083;
         host = "127.0.0.1";
 

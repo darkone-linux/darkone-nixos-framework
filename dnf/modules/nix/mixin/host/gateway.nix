@@ -34,10 +34,10 @@ in
       default = builtins.hasAttr "ncps" host.services;
       description = "Enable the proxy cache for packages";
     };
-    darkone.host.gateway.enableLldap = lib.mkOption {
+    darkone.host.gateway.enableSSO = lib.mkOption {
       type = lib.types.bool;
-      default = builtins.hasAttr "lldap" host.services;
-      description = "Enable pre-configured lldap service (additional users & groups)";
+      default = builtins.hasAttr "sso" host.services;
+      description = "Enable SSO service (LLDAP + Authelia + OIDC)";
     };
   };
 
@@ -51,7 +51,7 @@ in
       dnsmasq.enable = true;
       adguardhome.enable = cfg.enableAdguardhome;
       ncps.enable = cfg.enableNcps;
-      lldap.enable = cfg.enableLldap;
+      sso.enable = cfg.enableSSO;
     };
 
     # Fail2ban

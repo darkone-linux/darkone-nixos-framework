@@ -20,7 +20,7 @@ let
 in
 {
   options = {
-    darkone.service.homepage.enable = lib.mkEnableOption "Enable homepage dashboard + nginx + host";
+    darkone.service.homepage.enable = lib.mkEnableOption "Enable homepage dashboard + httpd + host";
     darkone.service.homepage.domainName = lib.mkOption {
       type = lib.types.str;
       default = host.hostname;
@@ -58,15 +58,8 @@ in
         domainName = host.hostname;
         displayName = "Homepage";
         description = "Page d'accueil du réseau local";
-        nginx = {
-          proxyPort = hpd.listenPort;
-          defaultVirtualHost = true;
-          extraConfig = ''
-            add_header Cache-Control "no-cache, no-store, must-revalidate";
-            add_header Pragma "no-cache";
-            add_header Expires 0;
-          '';
-        };
+        proxy.servicePort = hpd.listenPort;
+        proxy.defaultService = true;
       };
     }
 
@@ -84,6 +77,7 @@ in
         enable = true;
         openFirewall = true;
         listenPort = 8082;
+        allowedHosts = host.hostname;
 
         # https://gethomepage.dev/latest/configs/settings/
         settings = {

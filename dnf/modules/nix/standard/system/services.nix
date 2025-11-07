@@ -2,7 +2,7 @@
 #
 # :::caution[Special internal module]
 # This module is used to register and configure DNF modules:
-# - Reverse proxy (nginx)
+# - Reverse proxy (caddy)
 # - Homepage registration
 # - DNS entry
 # - folders and files to backup
@@ -148,52 +148,26 @@ in
               };
 
               # Reverse proxy settings
-              nginx = {
-                manageVirtualHost = mkOption {
+              proxy = {
+                enable = mkOption {
                   type = types.bool;
                   default = true;
-                  description = "Whether to create nginx virtualHost configuration (false for services that manage their own)";
+                  description = "Whether to create virtualHost configuration (false for services that manage their own)";
                 };
-                defaultVirtualHost = mkOption {
+                defaultService = mkOption {
                   type = types.bool;
                   default = false;
-                  description = "Default nginx virtualhost";
+                  description = "Is the default service";
                 };
-                proxyPort = mkOption {
+                servicePort = mkOption {
                   type = types.nullOr types.port;
                   default = null;
                   description = "Service internal port";
                 };
                 extraConfig = mkOption {
                   type = types.lines;
-                  default = ''
-                    client_max_body_size 512M;
-                  '';
-                  description = "Extra nginx virtualHost configuration";
-                };
-                locations = mkOption {
-                  type = types.attrsOf (
-                    types.submodule {
-                      options = {
-                        proxyPass = mkOption {
-                          type = types.str;
-                          description = "Proxy pass URL";
-                        };
-                        proxyWebsockets = mkOption {
-                          type = types.bool;
-                          default = false;
-                          description = "Enable WebSocket support";
-                        };
-                        extraConfig = mkOption {
-                          type = types.lines;
-                          default = "";
-                          description = "Extra location configuration";
-                        };
-                      };
-                    }
-                  );
-                  default = { };
-                  description = "Additional nginx locations";
+                  default = "";
+                  description = "Extra caddy virtualHost configuration";
                 };
               };
             };
@@ -209,33 +183,38 @@ in
   config = mkIf cfg.enable {
 
     # Reverse proxy
-    services.nginx = {
+    services.caddy = {
       enable = mkForce true;
 
-      # Configure virtual hosts
+      # TMP
+      globalConfig = ''
+        auto_https off
+      '';
+
+      # Configure virtual hosts (TODO: https)
       virtualHosts = mkMerge (
         mapAttrsToList (
           name: srv:
-          mkIf srv.nginx.manageVirtualHost {
-            ${(mkDomainName name srv.domainName)} = {
-              default = srv.nginx.defaultVirtualHost;
-              inherit (srv.nginx) extraConfig;
-              locations = mkMerge [
-
-                # Default proxy location if proxyPort is set
-                (mkIf (srv.nginx.proxyPort != null) {
-                  "/" = {
-                    proxyPass = "http://localhost:${toString srv.nginx.proxyPort}";
-                  };
-                })
-
-                # Additional custom locations
-                (mapAttrs (_: loc: {
-                  inherit (loc) proxyPass;
-                  inherit (loc) proxyWebsockets;
-                  inherit (loc) extraConfig;
-                }) srv.nginx.locations)
-              ];
+          mkIf srv.proxy.enable {
+            "http://${(mkDomainName name srv.domainName)}" = mkIf (srv.proxy.servicePort != null) {
+              extraConfig = ''
+                reverse_proxy http://localhost:${toString srv.proxy.servicePort} {
+                    header_up X-Forwarded-Proto {scheme}
+                    header_up X-Forwarded-Host {host}
+                    header_up X-Forwarded-For {remote}
+                }
+                ${srv.proxy.extraConfig}
+              '';
+            };
+            ":80" = mkIf srv.proxy.defaultService {
+              extraConfig = ''
+                redir http://${(mkDomainName name srv.domainName)}
+              '';
+            };
+            ":443" = mkIf srv.proxy.defaultService {
+              extraConfig = ''
+                redir http://${(mkDomainName name srv.domainName)}
+              '';
             };
           }
         ) enabledServices

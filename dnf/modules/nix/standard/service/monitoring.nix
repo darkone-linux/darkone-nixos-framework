@@ -20,7 +20,7 @@ in
     darkone.service.monitoring.domainName = lib.mkOption {
       type = lib.types.str;
       default = "monitoring";
-      description = "Domain name for monitoring, registered in nginx & hosts";
+      description = "Domain name for monitoring, registered in local network";
     };
     darkone.service.monitoring.retentionTime = lib.mkOption {
       type = lib.types.str;
@@ -47,7 +47,8 @@ in
             "/var/lib/grafana/data"
           ];
         };
-        nginx.manageVirtualHost = false;
+        proxy.servicePort = port.grafana;
+        proxy.extraConfig = "redir / /d/rYdddlPWk/node-exporter-full?kiosk";
       };
     }
 
@@ -60,27 +61,7 @@ in
       # Darkone service: enable
       darkone.system.services = {
         enable = true;
-        service.monitoring = {
-          enable = true;
-        };
-      };
-
-      # Virtualhost for monitoring
-      services.nginx = {
-        enable = lib.mkForce true;
-        virtualHosts.${cfg.domainName} = {
-          extraConfig = ''
-            client_max_body_size 512M;
-          '';
-          locations."= /" = {
-            return = "302 /d/rYdddlPWk/node-exporter-full?kiosk";
-          };
-          locations."/" = {
-            proxyPass = "http://localhost:${toString port.grafana}/";
-            proxyWebsockets = true;
-            recommendedProxySettings = true;
-          };
-        };
+        service.monitoring.enable = true;
       };
 
       #--------------------------------------------------------------------------

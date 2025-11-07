@@ -21,6 +21,9 @@ in
 
   config = lib.mkIf cfg.enable {
 
+    # unix group for shared passwords
+    users.groups.sops = { };
+
     sops = {
 
       # Sops configuration
@@ -35,11 +38,11 @@ in
       secrets = {
         default-password = {
           mode = "0440";
-          inherit (config.users.users.nobody) group;
+          group = "sops";
         };
         default-password-hash = {
           mode = "0440";
-          inherit (config.users.users.nobody) group;
+          group = "sops";
         };
       }
       //

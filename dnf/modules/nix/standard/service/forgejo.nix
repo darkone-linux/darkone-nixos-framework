@@ -18,7 +18,7 @@ in
     darkone.service.forgejo.domainName = lib.mkOption {
       type = lib.types.str;
       default = "forgejo";
-      description = "Domain name for the forge, registered in forgejo, nginx & hosts";
+      description = "Domain name for the forge, registered in network configuration";
     };
     darkone.service.forgejo.appName = lib.mkOption {
       type = lib.types.str;
@@ -39,7 +39,7 @@ in
           "/var/lib/forgejo/data"
           "/var/lib/forgejo/repositories"
         ];
-        nginx.proxyPort = srv.HTTP_PORT;
+        proxy.servicePort = srv.HTTP_PORT;
       };
     }
 
@@ -48,9 +48,7 @@ in
       # Darkone service: enable
       darkone.system.services = {
         enable = true;
-        service.forgejo = {
-          enable = true;
-        };
+        service.forgejo.enable = true;
       };
 
       services.forgejo = {

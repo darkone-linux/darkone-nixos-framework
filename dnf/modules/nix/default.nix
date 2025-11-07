@@ -25,12 +25,12 @@
     ./standard/service/homepage.nix
     ./standard/service/httpd.nix
     ./standard/service/immich.nix
-    ./standard/service/lldap.nix
     ./standard/service/monitoring.nix
     ./standard/service/ncps.nix
     ./standard/service/netdata.nix
     ./standard/service/nextcloud.nix
     ./standard/service/printing.nix
+    ./standard/service/sso.nix
     ./standard/service/vaultwarden.nix
     ./standard/system/core.nix
     ./standard/system/documentation.nix

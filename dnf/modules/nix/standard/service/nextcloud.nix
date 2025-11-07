@@ -10,6 +10,7 @@
 }:
 let
   cfg = config.darkone.service.nextcloud;
+  port = 8089;
 
   # TODO: factoriser dans lib avec httpd
   mkDomain =
@@ -25,7 +26,7 @@ in
     darkone.service.nextcloud.domainName = lib.mkOption {
       type = lib.types.str;
       default = "nextcloud";
-      description = "Domain name for nextcloud, registered in nextcloud, nginx & hosts";
+      description = "Domain name for nextcloud, registered in network configuration";
     };
     darkone.service.nextcloud.adminUser = lib.mkOption {
       type = lib.types.str;
@@ -54,7 +55,7 @@ in
             "/var/lib/redis-nextcloud"
           ];
         };
-        nginx.manageVirtualHost = false;
+        proxy.servicePort = port;
       };
     }
 
@@ -63,14 +64,25 @@ in
       # Darkone service: enable
       darkone.system.services = {
         enable = true;
-        service.nextcloud = {
-          enable = true;
-        };
+        service.nextcloud.enable = true;
       };
 
       # Initial admin password
       environment.etc."nextcloud-admin-pass".text = "changeme";
 
+      # Internal nginx
+      services.nginx = {
+        virtualHosts."${mkDomain cfg.domainName}" = {
+          listen = [
+            {
+              addr = "127.0.0.1";
+              inherit port;
+            }
+          ];
+        };
+      };
+
+      # Nextcloud main service
       services.nextcloud = {
         enable = true;
         package = pkgs.nextcloud32;
@@ -85,6 +97,10 @@ in
           adminuser = cfg.adminUser;
           adminpassFile = "/etc/nextcloud-admin-pass";
           dbtype = "pgsql";
+          trustedProxies = [
+            "127.0.0.1"
+            "::1"
+          ];
         };
 
         # Base de données PostgreSQL

@@ -63,7 +63,7 @@ in
       # Firewall
       # 53 -> DNS
       # 67, 68 -> DHCP
-      # 80 -> homepage / nginx
+      # 80 -> homepage / caddy
       # 8501 -> packages proxy (ncps)
       firewall = {
         enable = true;
@@ -73,7 +73,7 @@ in
             22
             53
           ]
-          ++ lib.optional config.services.nginx.enable 80
+          ++ lib.optional config.services.caddy.enable 80
           ++ lib.optional config.darkone.service.ncps.enable 8501;
           allowedUDPPorts = [
             53
