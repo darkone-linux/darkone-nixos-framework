@@ -40,14 +40,16 @@ gateway and all machines on the local network.
 * **enableFail2ban** `bool` Enable fail2ban service
 * **enableAdguardhome** `bool` Enable pre-configured Aguard Home service
 * **enableNcps** `bool` Enable the proxy cache for packages
-* **enableSSO** `bool` Enable SSO service (LLDAP + Authelia + OIDC)
+* **enableAuth** `bool` Enable authentication service (Authelia SSO)
+* **enableUsers** `bool` Enable user management with LLDAP for DNF SSO
 ```nix
 darkone.host.gateway = {
   enable = false;
   enableFail2ban = true;
   enableAdguardhome = builtins.hasAttr "adguardhome" host.services;
   enableNcps = builtins.hasAttr "ncps" host.services;
-  enableSSO = builtins.hasAttr "sso" host.services;
+  enableAuth = builtins.hasAttr "auth" host.services;
+  enableUsers = builtins.hasAttr "users" host.services;
 }
 
 ```
@@ -339,6 +341,22 @@ darkone.service.audio.enable = false;
 
 <hr/>
 
+### &#x1F48E; darkone.service.auth
+
+DNF SSO with Authelia.
+
+* **enable** `bool` Enable local SSO with Authelia (and LLDAP)
+* **domainName** `str` Domain name for authentication (SSO), registered in network configuration
+```nix
+darkone.service.auth = {
+  enable = false;
+  domainName = "auth";
+}
+
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.service.dnsmasq
 
 Pre-configured dnsmasq for local gateway / router.
@@ -569,18 +587,16 @@ darkone.service.printing = {
 
 <hr/>
 
-### &#x1F48E; darkone.service.sso
+### &#x1F48E; darkone.service.users
 
-DNF SSO with Authelia and LLDAP. (WIP)
+LLDAP service for DNF SSO.
 
-* **enable** `bool` Enable local SSO with Authelia and LLDAP
-* **authDomainName** `str` Domain name for authentication (SSO), registered in network configuration
-* **usersDomainName** `str` Domain name for user management (SSO), registered in network configuration
+* **enable** `bool` Enable local user management with LLDAP (SSO)
+* **domainName** `str` Domain name for user management (SSO), registered in network configuration
 ```nix
-darkone.service.sso = {
+darkone.service.users = {
   enable = false;
-  authDomainName = "auth";
-  usersDomainName = "users";
+  domainName = "users";
 }
 
 ```
