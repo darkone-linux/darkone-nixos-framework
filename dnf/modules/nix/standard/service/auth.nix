@@ -1,4 +1,4 @@
-# DNF SSO with Authelia and LLDAP. (WIP)
+# DNF SSO with Authelia.
 
 {
   lib,
@@ -7,23 +7,17 @@
   ...
 }:
 let
-  cfg = config.darkone.service.sso;
+  cfg = config.darkone.service.auth;
   lldapSettings = config.services.lldap.settings;
-  lldapUserDn = "admin";
   autheliaPort = 9091;
 in
 {
   options = {
-    darkone.service.sso.enable = lib.mkEnableOption "Enable local SSO with Authelia and LLDAP";
-    darkone.service.sso.authDomainName = lib.mkOption {
+    darkone.service.auth.enable = lib.mkEnableOption "Enable local SSO with Authelia (and LLDAP)";
+    darkone.service.auth.domainName = lib.mkOption {
       type = lib.types.str;
       default = "auth";
       description = "Domain name for authentication (SSO), registered in network configuration";
-    };
-    darkone.service.sso.usersDomainName = lib.mkOption {
-      type = lib.types.str;
-      default = "users";
-      description = "Domain name for user management (SSO), registered in network configuration";
     };
   };
 
@@ -31,24 +25,16 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.auth = {
-        domainName = cfg.authDomainName;
+        inherit (cfg) domainName;
         displayName = "Authentification";
-        description = "Global authentication and users management";
+        description = "Global authentication for DNF services";
+        icon = "authelia";
         persist.dirs = [
           "/etc/authelia"
           "/var/lib/authelia-main"
         ];
         proxy.servicePort = autheliaPort;
         proxy.enable = false; # tmp
-      };
-
-      # Darkone service: httpd + dnsmasq + homepage registration
-      darkone.system.services.service.users = {
-        domainName = cfg.usersDomainName;
-        displayName = "User Management";
-        description = "SSO User Management";
-        persist.dirs = [ "/var/lib/lldap" ];
-        proxy.servicePort = lldapSettings.http_port; # Default is 17170
       };
     }
 
@@ -58,12 +44,10 @@ in
       darkone.system.services = {
         enable = true;
         service.auth.enable = true;
-        service.users.enable = true;
       };
 
-      #============================================================================
-      # AUTHELIA
-      #============================================================================
+      # Require users service
+      darkone.service.users.enable = true;
 
       # Access to default password (main instance)
       users.users.authelia-main = {
@@ -121,7 +105,7 @@ in
 
           authentication_backend.ldap = {
             implementation = "lldap";
-            address = "ldap://${cfg.usersDomainName}:${toString lldapSettings.ldap_port}";
+            address = "ldap://${cfg.domainName}:${toString lldapSettings.ldap_port}";
             base_dn = lldapSettings.ldap_base_dn;
             user = "uid=admin,ou=people,${lldapSettings.ldap_base_dn}"; # Bind user
             users_filter = "(&({username_attribute}={input})(objectClass=person))";
@@ -151,7 +135,7 @@ in
               {
                 name = "dnf_auth";
                 domain = "${network.domain}";
-                authelia_url = "https://${cfg.authDomainName}.${network.domain}";
+                authelia_url = "https://${cfg.domainName}.${network.domain}";
                 #default_redirection_url = "https://${network.domain}";
 
                 # The period of time the user can be inactive for before the session is destroyed
@@ -191,7 +175,7 @@ in
       services.caddy = {
         enable = true;
 
-        virtualHosts."${cfg.authDomainName}.arthur.lan" = {
+        virtualHosts."${cfg.domainName}.arthur.lan" = {
           extraConfig = ''
             tls /etc/authelia/certs/authelia.crt /etc/authelia/certs/authelia.key
             reverse_proxy 127.0.0.1:${toString autheliaPort}
@@ -218,43 +202,10 @@ in
         };
       };
 
-      #============================================================================
-      # LLDAP
-      #============================================================================
-
-      # Access to default password
-      users.users.lldap = {
-        isSystemUser = true;
-        group = "lldap";
-        extraGroups = [ "sops" ];
-      };
-      users.groups.lldap = { };
-
-      # Main service
-      services.lldap = {
-        enable = true;
-        settings = {
-          http_host = "localhost";
-          ldap_host = cfg.usersDomainName;
-          ldap_user_dn = lldapUserDn;
-          ldap_user_email = "${lldapUserDn}@${network.domain}";
-          ldap_user_pass_file = config.sops.secrets.default-password.path;
-          force_ldap_user_pass_reset = "always";
-          ldap_base_dn =
-            "dc=" + (lib.concatStringsSep ",dc=" (builtins.match "^([^.]+)\.([^.]+)$" "${network.domain}"));
-        };
-      };
-
-      #============================================================================
-      # NETWORKING
-      #============================================================================
-
+      # Networking (TMP)
       networking.firewall = {
         allowedTCPPorts = [ 443 ];
-        interfaces.lan0.allowedTCPPorts = [
-          autheliaPort
-          lldapSettings.ldap_port
-        ];
+        interfaces.lan0.allowedTCPPorts = [ autheliaPort ];
       };
     })
   ];

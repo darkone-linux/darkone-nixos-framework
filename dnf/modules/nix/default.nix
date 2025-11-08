@@ -19,6 +19,7 @@
     ./standard/graphic/virtualbox.nix
     ./standard/service/adguardhome.nix
     ./standard/service/audio.nix
+    ./standard/service/auth.nix
     ./standard/service/dnsmasq.nix
     ./standard/service/forgejo.nix
     ./standard/service/home-assistant.nix
@@ -30,7 +31,7 @@
     ./standard/service/netdata.nix
     ./standard/service/nextcloud.nix
     ./standard/service/printing.nix
-    ./standard/service/sso.nix
+    ./standard/service/users.nix
     ./standard/service/vaultwarden.nix
     ./standard/system/core.nix
     ./standard/system/documentation.nix
