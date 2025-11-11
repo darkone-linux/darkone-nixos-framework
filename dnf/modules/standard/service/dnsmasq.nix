@@ -73,12 +73,13 @@ in
         enable = true;
         allowPing = lib.mkDefault true;
         interfaces.${lanInterface} = {
-          allowedTCPPorts = [
-            22
-            53
-          ]
-          ++ lib.optional config.services.caddy.enable 80
-          ++ lib.optional config.darkone.service.ncps.enable 8501;
+          allowedTCPPorts =
+            [
+              22
+              53
+            ]
+            ++ lib.optional config.services.caddy.enable 80
+            ++ lib.optional config.darkone.service.ncps.enable 8501;
           allowedUDPPorts = [
             53
             67
@@ -186,8 +187,7 @@ in
         # Force dnsmasq à inclure l’IP réelle du client dans les requêtes DNS transmises en upstream
         #edns-packet-max = 1232;
         #add-subnet = "32,128";
-      }
-      // extraDnsmasqSettings;
+      } // extraDnsmasqSettings;
     };
   };
 }

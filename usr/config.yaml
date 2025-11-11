@@ -52,7 +52,7 @@ users:
     uid: 1000
     name: "Darkone Linux"
     email: "darkone@darkone.yt"
-    profile: "darkone"
+    profile: "nix-admin"
     groups: ["common", "admin"]
 
   # A regular user

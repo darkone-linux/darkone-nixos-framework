@@ -7,7 +7,7 @@
     uid = 1000;
     email = "darkone@darkone.yt";
     name = "Darkone Linux";
-    profile = "usr/homes/darkone";
+    profile = "dnf/home/profiles/nix-admin";
     groups = [
       "common"
       "admin"
@@ -16,13 +16,13 @@
   alice = {
     uid = 1001;
     name = "Alice";
-    profile = "dnf/homes/normal";
+    profile = "dnf/home/profiles/normal";
     groups = [ "common" ];
   };
   nix = {
     uid = 65000;
     name = "Nix Maintenance User";
-    profile = "dnf/homes/nix-admin";
+    profile = "dnf/home/profiles/nix-admin";
     groups = [ ];
   };
 }

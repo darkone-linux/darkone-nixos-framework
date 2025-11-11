@@ -30,17 +30,77 @@
       "option:domain-search,darkone.lan"
     ];
     dhcp-range = [ "192.168.1.100,192.168.1.230,24h" ];
-    cname = [
-      "adguardhome,gateway"
-      "forgejo,gateway"
-      "gateway,gateway"
-      "homepage,gateway"
-      "monitoring,gateway"
-      "ncps,gateway"
-      "passerelle,gateway"
-      "medias,my-laptop"
-      "nlt-home,my-laptop"
-      "nlt-nextcloud,my-laptop"
+    address = [
+      "/adguardhome.darkone.lan/192.168.1.1"
+      "/adguardhome/192.168.1.1"
+      "/forgejo.darkone.lan/192.168.1.1"
+      "/forgejo/192.168.1.1"
+      "/gateway.darkone.lan/192.168.1.1"
+      "/gateway.darkone.lan/192.168.1.1"
+      "/gateway/192.168.1.1"
+      "/gateway/192.168.1.1"
+      "/homepage.darkone.lan/192.168.1.1"
+      "/homepage/192.168.1.1"
+      "/kids-laptop.darkone.lan/192.168.1.20"
+      "/kids-laptop/192.168.1.20"
+      "/medias.darkone.lan/192.168.1.3"
+      "/medias/192.168.1.3"
+      "/monitoring.darkone.lan/192.168.1.1"
+      "/monitoring/192.168.1.1"
+      "/my-laptop.darkone.lan/192.168.1.3"
+      "/my-laptop/192.168.1.3"
+      "/ncps.darkone.lan/192.168.1.1"
+      "/ncps/192.168.1.1"
+      "/nlt-home.darkone.lan/192.168.1.3"
+      "/nlt-home/192.168.1.3"
+      "/nlt-nextcloud.darkone.lan/192.168.1.3"
+      "/nlt-nextcloud/192.168.1.3"
+      "/passerelle.darkone.lan/192.168.1.1"
+      "/passerelle/192.168.1.1"
     ];
   };
+  sharedServices = [
+    {
+      host = "gateway";
+      service = "homepage";
+    }
+    {
+      host = "gateway";
+      service = "ncps";
+    }
+    {
+      host = "gateway";
+      service = "forgejo";
+      displayName = "Our local forge";
+    }
+    {
+      host = "gateway";
+      service = "adguardhome";
+    }
+    {
+      host = "gateway";
+      service = "monitoring";
+    }
+    {
+      host = "my-laptop";
+      service = "homepage";
+      domainName = "nlt-home";
+    }
+    {
+      host = "my-laptop";
+      service = "immich";
+      domainName = "medias";
+      displayName = "Local pictures";
+      description = "Our pictures and videos";
+      icon = "google-photos";
+    }
+    {
+      host = "my-laptop";
+      service = "nextcloud";
+      domainName = "nlt-nextcloud";
+      displayName = "Our local cloud";
+      description = "A nextcloud instance";
+    }
+  ];
+  local-substituter = "gateway";
 }

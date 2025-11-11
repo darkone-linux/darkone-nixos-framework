@@ -191,13 +191,14 @@ in
               };
               "org/gnome/shell" = {
                 disable-user-extensions = false;
-                enabled-extensions = [
-                  "appindicatorsupport@rgcjonas.gmail.com"
-                  "blur-my-shell@aunetx"
-                ]
-                ++ (if cfg.enableCaffeine then [ "caffeine@patapon.info" ] else [ ])
-                ++ (if cfg.enableGsConnect then [ "gsconnect@andyholmes.github.io" ] else [ ])
-                ++ (if cfg.enableDashToDock then [ "dash-to-dock@micxgx.gmail.com" ] else [ ]);
+                enabled-extensions =
+                  [
+                    "appindicatorsupport@rgcjonas.gmail.com"
+                    "blur-my-shell@aunetx"
+                  ]
+                  ++ (if cfg.enableCaffeine then [ "caffeine@patapon.info" ] else [ ])
+                  ++ (if cfg.enableGsConnect then [ "gsconnect@andyholmes.github.io" ] else [ ])
+                  ++ (if cfg.enableDashToDock then [ "dash-to-dock@micxgx.gmail.com" ] else [ ]);
                 favorite-apps = [
                   "org.gnome.Console.desktop"
                   "com.brave.Browser.desktop"
