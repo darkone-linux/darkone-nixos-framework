@@ -117,7 +117,8 @@
         value = {
           imports = [
             nix-flatpak.homeManagerModules.nix-flatpak
-            ./dnf/modules/home
+            ./dnf/home/modules
+            ./usr/users/${login}
             (import ./${users.${login}.profile})
           ];
 
@@ -153,8 +154,8 @@
         value = host.colmena // {
           nixpkgs.system = getHostArch host;
           imports = [
-            ./dnf/modules/nix
-            ./usr/modules/nix
+            ./dnf/modules
+            ./usr/modules
             "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
             sops-nix.nixosModules.sops
             disko.nixosModules.disko
@@ -304,11 +305,11 @@
 
       # Darkone modules
       nixosModules = {
-        darkone = ./dnf/modules/nix;
+        darkone = ./dnf/modules;
         default = self.nixosModules.darkone;
       };
       homeManagerModules = {
-        darkone = ./dnf/modules/home;
+        darkone = ./dnf/home/modules;
       };
     }; # outputs
 }

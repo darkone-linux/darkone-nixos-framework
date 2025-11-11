@@ -182,10 +182,10 @@ fix:
 # Update the nix generated files
 [group('dev')]
 generate: \
-	(_gen-default "dnf/modules/nix") \
-	(_gen-default "usr/modules/nix") \
-	(_gen-default "dnf/modules/home") \
-	(_gen-default "usr/modules/home") \
+	(_gen-default "dnf/modules") \
+	(_gen-default "usr/modules") \
+	(_gen-default "dnf/home/modules") \
+	(_gen-default "usr/home/modules") \
 	(_gen "users") \
 	(_gen "hosts") \
 	(_gen "network") \
@@ -500,6 +500,8 @@ push:
 # just clean + git amend + apply-local test
 [group('dev')]
 cat:
+	#!/usr/bin/env bash
+	set -euo pipefail
 	just clean
 	git add . && git commit --amend --no-edit
 	just apply-local test

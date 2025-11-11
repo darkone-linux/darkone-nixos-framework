@@ -1,0 +1,46 @@
+# DO NOT EDIT, this is a generated file.
+
+{
+  imports = [
+    ./mixin/host/desktop.nix
+    ./mixin/host/gateway.nix
+    ./mixin/host/laptop.nix
+    ./mixin/host/minimal.nix
+    ./mixin/host/portable.nix
+    ./mixin/host/server.nix
+    ./mixin/host/vm.nix
+    ./mixin/profile/advanced.nix
+    ./standard/admin/nix.nix
+    ./standard/console/git.nix
+    ./standard/console/pandoc.nix
+    ./standard/console/zsh.nix
+    ./standard/graphic/gnome.nix
+    ./standard/graphic/virt-manager.nix
+    ./standard/graphic/virtualbox.nix
+    ./standard/service/adguardhome.nix
+    ./standard/service/audio.nix
+    ./standard/service/auth.nix
+    ./standard/service/dnsmasq.nix
+    ./standard/service/forgejo.nix
+    ./standard/service/home-assistant.nix
+    ./standard/service/homepage.nix
+    ./standard/service/httpd.nix
+    ./standard/service/immich.nix
+    ./standard/service/monitoring.nix
+    ./standard/service/ncps.nix
+    ./standard/service/netdata.nix
+    ./standard/service/nextcloud.nix
+    ./standard/service/printing.nix
+    ./standard/service/syncthing.nix
+    ./standard/service/users.nix
+    ./standard/service/vaultwarden.nix
+    ./standard/system/core.nix
+    ./standard/system/documentation.nix
+    ./standard/system/flatpak.nix
+    ./standard/system/hardware.nix
+    ./standard/system/i18n.nix
+    ./standard/system/services.nix
+    ./standard/system/sops.nix
+    ./standard/user/build.nix
+  ];
+}

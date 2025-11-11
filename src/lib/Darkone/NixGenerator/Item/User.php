@@ -8,7 +8,7 @@ class User
 {
     private static array $uids = [];
 
-    private const PROFILE_PATHS = ["usr/homes/%s", "dnf/homes/%s"];
+    private const PROFILE_PATHS = ["usr/home/profiles/%s", "dnf/home/profiles/%s"];
 
     private string $login;
     private int $uid;

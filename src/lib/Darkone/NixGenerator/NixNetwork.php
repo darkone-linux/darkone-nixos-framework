@@ -43,7 +43,10 @@ class NixNetwork
                 'dhcp-host' => array_values($this->macAddresses),
                 'dhcp-option' => $this->dhcpOption,
                 'dhcp-range' => $this->dhcpRange,
-                'cname' => $this->buildCnames(),
+                'address' => $this->buildAddresses(),
+
+                // Do not works with fqdn configuration of dnsmasq -> address
+                // 'cname' => $this->buildCnames(),
             ],
             'sharedServices' => $this->services,
             'local-substituter' => $this->substituter,
@@ -64,6 +67,30 @@ class NixNetwork
         }
 
         return $cnames;
+    }
+
+    private function buildAddresses(): array
+    {
+        $addresses = [];
+
+        // Main hosts
+        foreach ($this->hosts as $host => $ip) {
+            if (!empty($ip)) {
+                $addresses[] = '/' . $host . '/' . $ip;
+                $addresses[] = '/' . $host . '.' . $this->config['domain'] . '/' . $ip;
+            }
+        }
+
+        // Replace cnames
+        foreach ($this->aliases as $host => $aliases) {
+            foreach ($aliases as $alias) {
+                $addresses[] = '/' . $alias . '/' . $this->hosts[$host];
+                $addresses[] = '/' . $alias . '.' . $this->config['domain'] . '/' . $this->hosts[$host];
+            }
+        }
+        sort($addresses);
+
+        return $addresses;
     }
 
     /**
