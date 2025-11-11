@@ -147,31 +147,24 @@ network:
 users:
 
   # A nix administrator
-  nixos:
-    uid: 1000
-    name: "An admin user"
-    profile: "admin"
-    groups: ["admin"]
-
-  # A real user with its own profile "darkone"
   darkone:
-    uid: 1001
+    uid: 1000
     name: "Darkone Linux"
     email: "darkone@darkone.yt"
-    profile: "darkone"
-    groups: ["admin", "media", "common"]
+    profile: "nix-admin" # built-in profil for nix administrators
+    groups: ["admin", "common"]
 
   # A student with specific profile "student"
-  ethan:
+  alice:
     uid: 1002
     name: "Alice"
     profile: "student"
     groups: ["school"]
 
   # A child of my home network
-  esteban:
+  john:
     uid: 1003
-    name: "Esteban"
+    name: "John"
     profile: "teenager"
     groups: [ "kids", "common" ]
 ```
@@ -221,7 +214,7 @@ hosts:
   # Host groups by range (generated from min to max)
   range:
 
-    # 12 workstations based on the profile "workstation"
+    # 4 workstations based on the profile "workstation"
     - hostname: "pc%'02s"
       name: "Workstation %d"
       profile: "workstation"
@@ -248,7 +241,7 @@ hosts:
   # List of similar hosts (each item is a host)
   list:
 
-    # 3 similar hosts (for the default network)
+    # 2 similar hosts (for the default network)
     - hostname: "laptop-%s"
       name: "Laptop %s"
       profile: "home-laptop"
@@ -292,9 +285,6 @@ How to create your own host profile for your local network, based on "desktop" h
 
         # Activate all the necessary to have an office PC
         darkone.host.desktop.enable = true;
-
-        # Activate the "office" theme with related softwares
-        darkone.theme.office.enable = true;
       };
     }
     ```
