@@ -35,18 +35,17 @@ in
       };
 
       # The common default password
-      secrets =
-        {
-          default-password = {
-            mode = "0440";
-            group = "sops";
-          };
-          default-password-hash = {
-            mode = "0440";
-            group = "sops";
-          };
-        }
-        //
+      secrets = {
+        default-password = {
+          mode = "0440";
+          group = "sops";
+        };
+        default-password-hash = {
+          mode = "0440";
+          group = "sops";
+        };
+      }
+      //
 
         # Users passwords
         builtins.listToAttrs (

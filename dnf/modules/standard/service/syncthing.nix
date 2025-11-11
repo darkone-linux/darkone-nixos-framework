@@ -1,4 +1,9 @@
-# A full-configured syncthing git forge. (WIP)
+# The syncthing service for a device. (WIP)
+#
+# :::note
+# Enable the [home manager syncthing module](https://darkone-linux.github.io/ref/modules/#-darkonehomesyncthing)
+# to allow users to use syncthing with their account. 
+# :::
 
 {
   lib,

@@ -143,7 +143,8 @@
         value = {
           inherit host;
           inherit network;
-        } // mkCommonNodeArgs (getHostArch host);
+        }
+        // mkCommonNodeArgs (getHostArch host);
       };
       nodeSpecialArgs = builtins.listToAttrs (map mkNodeSpecialArgs hosts);
 
@@ -152,49 +153,48 @@
         name = host.hostname;
         value = host.colmena // {
           nixpkgs.system = getHostArch host;
-          imports =
-            [
-              ./dnf/modules
-              ./usr/modules
-              "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
-              sops-nix.nixosModules.sops
-              disko.nixosModules.disko
-              nix-flatpak.nixosModules.nix-flatpak
-              { _module.args.dnfLib = mkDnfLib (getHostArch host); }
-              home-manager.nixosModules.home-manager
-              {
-                home-manager = {
+          imports = [
+            ./dnf/modules
+            ./usr/modules
+            "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+            sops-nix.nixosModules.sops
+            disko.nixosModules.disko
+            nix-flatpak.nixosModules.nix-flatpak
+            { _module.args.dnfLib = mkDnfLib (getHostArch host); }
+            home-manager.nixosModules.home-manager
+            {
+              home-manager = {
 
-                  # Use global packages from nixpkgs
-                  useGlobalPkgs = true;
+                # Use global packages from nixpkgs
+                useGlobalPkgs = true;
 
-                  # Install in /etc/profiles instead of ~/nix-profiles.
-                  useUserPackages = true;
+                # Install in /etc/profiles instead of ~/nix-profiles.
+                useUserPackages = true;
 
-                  # Avoid error on replacing a file (.zshrc for example)
-                  # LIMITATION: if bkp file already exists -> fail
-                  backupFileExtension = "bkp";
+                # Avoid error on replacing a file (.zshrc for example)
+                # LIMITATION: if bkp file already exists -> fail
+                backupFileExtension = "bkp";
 
-                  # Load users profiles
-                  users = builtins.listToAttrs (map mkHome host.users);
+                # Load users profiles
+                users = builtins.listToAttrs (map mkHome host.users);
 
-                  extraSpecialArgs = {
-                    inherit network;
-                    inherit host;
-                    inherit users;
-                    inherit inputs;
-                    pkgs-stable = nixpkgsStableFor.${getHostArch host};
-                  };
+                extraSpecialArgs = {
+                  inherit network;
+                  inherit host;
+                  inherit users;
+                  inherit inputs;
+                  pkgs-stable = nixpkgsStableFor.${getHostArch host};
                 };
-              }
-            ]
-            ++ nixpkgs.lib.optional (
-              getHostArch host == "aarch64-linux"
-            ) raspberry-pi-nix.nixosModules.raspberry-pi
-            ++ nixpkgs.lib.optional (
-              getHostArch host == "aarch64-linux"
-            ) nixos-hardware.nixosModules.raspberry-pi-5
-            ++ nixpkgs.lib.optional (builtins.pathExists ./usr/machines/${host.hostname}) ./usr/machines/${host.hostname};
+              };
+            }
+          ]
+          ++ nixpkgs.lib.optional (
+            getHostArch host == "aarch64-linux"
+          ) raspberry-pi-nix.nixosModules.raspberry-pi
+          ++ nixpkgs.lib.optional (
+            getHostArch host == "aarch64-linux"
+          ) nixos-hardware.nixosModules.raspberry-pi-5
+          ++ nixpkgs.lib.optional (builtins.pathExists ./usr/machines/${host.hostname}) ./usr/machines/${host.hostname};
         };
       };
 
@@ -256,7 +256,8 @@
           replaceUnknownProfiles = true;
           targetUser = "nix";
         };
-      } // builtins.listToAttrs (map mkHost hosts);
+      }
+      // builtins.listToAttrs (map mkHost hosts);
 
       #------------------------------------------------------------------------
       # ISO IMAGE

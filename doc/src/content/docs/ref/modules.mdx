@@ -87,7 +87,6 @@ yaml file so that the service is visible across the entire network!**
 * **enableNetdata** `bool` Enable pre-configured Netdata service
 * **enableMonitoring** `bool` Enable pre-configured monitoring service (prometheus, grafana)
 * **enableVaultwarden** `bool` Enable pre-configured Vaultwarden service
-* **enableSyncthing** `bool` Enable a syncthing server
 ```nix
 darkone.host.minimal = {
   enable = false;
@@ -99,7 +98,6 @@ darkone.host.minimal = {
   enableNetdata = attrsets.hasAttrByPath [ "services" "netdata" ] host;
   enableMonitoring = attrsets.hasAttrByPath [ "services" "monitoring" ] host;
   enableVaultwarden = attrsets.hasAttrByPath [ "services" "vaultwarden" ] host;
-  enableSyncthing = attrsets.hasAttrByPath [ "services" "syncthing" ] host;
 }
 
 ```
@@ -423,7 +421,7 @@ For each DNF service enabled, an entry is automatically added to the homepage co
 ```nix
 darkone.service.homepage = {
   enable = false;
-  domainName = "home";
+  domainName = "host.hostname";
   adminServices = [ ];
   appServices = [ ];
   bookmarks = [ ];
@@ -583,26 +581,6 @@ darkone.service.printing = {
   enableScanners = false;
   enableHpPrinters = false;
   enableManualInstall = false;
-}
-
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.syncthing
-
-A full-configured syncthing git forge. (WIP)
-
-* **enable** `bool` Enable local syncthing service
-* **domainName** `str` Domain name for sync server, registered in network configuration
-* **ldapServerHost** `str` Users service (lldap)
-* **ldapServerPort** `str` Users service (lldap)
-```nix
-darkone.service.syncthing = {
-  enable = false;
-  domainName = "syncthing";
-  ldapServerHost = "${network.gateway.hostname}.${network.domain}";
-  ldapServerPort = "3890";
 }
 
 ```
@@ -1019,38 +997,18 @@ darkone.home.office = {
 
 <hr/>
 
-### &#x1F3E0; darkone.home.syncthing
-
-Home sync module. (WIP)
-
-* **enable** `bool` Enable local syncthing service
-* **enableTray** `bool` Enable syncthing tray app / icon
-```nix
-darkone.home.syncthing = {
-  enable = false;
-  enableTray = true;
-}
-
-```
-
-<hr/>
-
 ### &#x1F3E0; darkone.home.video
 
 Video tools and apps.
 
 * **enable** `bool` Video creation and tools home module
 * **enableTools** `bool` Video tools for professionals
-* **enableEditing** `bool` Video editing tools (kdenlive...)
-* **enableCreator** `bool` Video creator tools (obs...)
-* **enableUnfree** `bool` Unfree video apps (davinci...)
+* **enableCreation** `bool` Video creation tools (kdenlive...)
 ```nix
 darkone.home.video = {
   enable = false;
   enableTools = false;
-  enableEditing = false;
-  enableCreator = false;
-  enableUnfree = false;
+  enableCreation = false;
 }
 
 ```

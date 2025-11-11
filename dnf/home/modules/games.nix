@@ -31,7 +31,7 @@ in
       (lib.mkIf (cfg.enable3D && (cfg.enableChild || cfg.enableTeenager)) veloren) # Minecraft like
       (lib.mkIf (cfg.enableBaby || cfg.enableChild) rili) # train game
       (lib.mkIf (cfg.enableBaby || cfg.enableChild) tuxpaint)
-      (lib.mkIf cfg.enableChild pingus)
+      #(lib.mkIf cfg.enableChild pingus) # Bugged
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) atomix) # Atom puzzle
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) chess-clock)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-mahjongg)

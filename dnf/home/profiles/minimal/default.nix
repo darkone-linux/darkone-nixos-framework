@@ -1,3 +1,5 @@
+# The minimal configuration for all home manager profiles.
+
 { osConfig, ... }:
 {
   imports = [ ./zsh.nix ];
@@ -7,7 +9,4 @@
 
   # Gnome params if graphic env
   darkone.home.gnome.enable = osConfig.darkone.graphic.gnome.enable;
-
-  # Default stateVersion for new homes, TODO: auto
-  home.stateVersion = "25.05";
 }

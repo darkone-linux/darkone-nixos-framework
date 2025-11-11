@@ -15,21 +15,20 @@
 let
   mkUser = login: {
     name = login;
-    value =
-      {
-        isNormalUser = true;
-        inherit (users.${login}) uid;
-        description = "${users.${login}.name}";
-        hashedPasswordFile = config.sops.secrets."user/${login}/password-hash".path;
-      }
-      // import ./../../../../${users.${login}.profile}.nix {
-        inherit
-          pkgs
-          lib
-          config
-          login
-          ;
-      };
+    value = {
+      isNormalUser = true;
+      inherit (users.${login}) uid;
+      description = "${users.${login}.name}";
+      hashedPasswordFile = config.sops.secrets."user/${login}/password-hash".path;
+    }
+    // import ./../../../../${users.${login}.profile}.nix {
+      inherit
+        pkgs
+        lib
+        config
+        login
+        ;
+    };
   };
   cfg = config.darkone.user.build;
 in

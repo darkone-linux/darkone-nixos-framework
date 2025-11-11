@@ -59,6 +59,7 @@ A `just clean`:
 ```
 
 :::note[The generated files]
+- `var/generated/disko` Hosts to install
 - `var/generated/hosts.nix` The host collection
 - `var/generated/users.nix` The explicitly created user collection
 - `var/generated/network.nix` The network configuration
@@ -66,7 +67,7 @@ A `just clean`:
 
 ### The configuration file
 
-The `usr/config.yaml` file contains declarations of users, hosts, network config and providers. [The generator](#the-generator) reads this file to create a static pure nix configuration.
+The `usr/config.yaml` file contains declarations of users, hosts and network config. [The generator](#the-generator) reads this file to create a static pure nix configuration.
 
 :::note[Users - groups - hosts]
 You can link users and hosts either directly or through a group list, which is declared in the users and/or groups items.
@@ -163,9 +164,9 @@ users:
   # A student with specific profile "student"
   ethan:
     uid: 1002
-    name: "Ethan"
+    name: "Alice"
     profile: "student"
-    groups: ["sn", "tsn"]
+    groups: ["school"]
 
   # A child of my home network
   esteban:
@@ -184,8 +185,12 @@ users:
 # -> profile: the host profile related to this host
 # -> users: a list of existing user logins
 # -> groups: used to select related users
-# -> tags: added to colmena tags for deployment filtering.
-# -> local: true is only for the local (master) machine.
+# -> tags: added to colmena tags for deployment filtering
+# -> local: true is only for the local (master) machine
+# -> arch: the host architecture, default is x86_64-linux
+# -> disko: disks description for an auto-install with disko (only for install)
+# -> interfaces: list of ips + mac addresses (fixed adresses)
+# -> services: enabled DNF services on this hosts
 hosts:
 
   # Static hosts
@@ -197,7 +202,7 @@ hosts:
       arch: "aarch64-linux"
       profile: "gateway"
       groups: ["admin"]
-      aliases: ["gateway", "passerelle"]
+      aliases: ["gateway", "gw"]
 
     # A laptop
     - hostname: "my-laptop"
@@ -309,30 +314,31 @@ How to create your own host profile for your local network, based on "desktop" h
         - hostname: "my-pc"
           name: "A PC"
           profile: workstation
-          users: [ "darkone" "john" ]
+          users: [ "darkone", "john" ]
+          disko: # Disko profile
+            profile: "luks-btrfs-1-disk"
     ```
 
 </Steps>
 
 :::tip
-To install a new machine, the easiest way is to generate an image:
+To install a new machine :
+
+- configure the disko profile
+- load a [minimal nixos image](https://nixos.org/download/)
+- set a password for nixos with `passwd`
+- run `ip a` to get the ip address
 
 ```sh
-# A minimal ISO image
-nix build .#start-img-iso
-
-# A minimal VM image
-nix build .#start-img-vbox
+# New host full installation
+just full-install pc01 nixos 192.168.1.234
 ```
 
-Then, apply the new host:
+To update hosts:
 
 ```sh
-# Creation or update
+# Update the host pc01
 just apply pc01
-
-# With an IP if `pc01` is not in your DNS server
-just apply pc01 <ip-address>
 
 # Applying all hosts with the tag "desktop"
 just apply @desktop
@@ -344,30 +350,34 @@ just apply @user-darkone
 
 ### Create a user profile (example)
 
+:::note
+There are already [pre-made user profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/home/profiles), this operation is optional.
+:::
+
 Each user have a **profile declaration** in the nix configuration and a **home profile** used by home manager. For example:
 
-- `dnf/homes/admin.nix` contains the `users.users.` declaration.
-- `dnf/homes/admin/` contains home manager files for this profile.
+- `dnf/home/profiles/admin.nix` contains the nixos `users.users.` declaration.
+- `dnf/home/profiles/admin/` contains the home manager files for this profile.
 
 <Steps>
 
 1. User creation in the nix general configuration
 
     ```nix
-    # usr/homes/sn-user.nix
-    # A student for the network "sn"
+    # usr/home/profiles/sn-user.nix
+    # A student
     { pkgs, lib, config, ... }:
-    { initialPassword = "sn2025"; }
-    // import ./../../dnf/homes/student.nix { inherit pkgs lib config; }
+    { initialPassword = "changeme"; }
+    // import ./../../../dnf/home/profiles/student.nix { inherit pkgs lib config; }
     ```
 
 2. Home manager profile
 
     ```nix
-    # usr/homes/sn-user/default.nix
+    # usr/home/profiles/sn-user/default.nix
     { pkgs, ... }:
     {
-      imports = [ ./../../../dnf/homes/student ];
+      imports = [ ./../../../../dnf/home/profiles/student ];
       home.packages = with pkgs; [
         hunspell
         hunspellDicts.fr-moderne
@@ -380,33 +390,13 @@ Each user have a **profile declaration** in the nix configuration and a **home p
 
 </Steps>
 
+{/*
+
 ## Work in progress features
 
 :::caution
 These examples are not yet fully functional and may differ in the future stable version of the project.
 :::
-
-### LLDAP Users provider
-
-:::note
-[Light LDAP (lldap)](https://github.com/lldap/lldap) is a lightweight authentication server that provides an opinionated, simplified LDAP interface for authentication. It integrates with many backends, from KeyCloak to Authelia to Nextcloud and [more](https://github.com/lldap/lldap#compatible-services).
-:::
-
-```yaml
-# usr/config.yaml
-hostProvider:
-  lldap:
-
-    # Use nsswitch to login users, otherwise user configurations are
-    # generated in the nix configuration
-    nss: true
-    url: "ldap://localhost:3890"
-    bind:
-      user: "admin"
-      passwordFile: "lldap" # located in usr/secrets
-```
-
-{/*
 
 ### A full-featured gateway (example)
 
@@ -486,7 +476,7 @@ colmena apply --on gateway switch
 
 */}
 
-## In reflexion
+## Features in reflexion
 
 :::danger
 Not yet functional at this time.

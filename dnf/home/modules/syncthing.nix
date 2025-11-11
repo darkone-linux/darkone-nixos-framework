@@ -9,8 +9,8 @@
 }:
 let
   cfg = config.darkone.home.syncthing;
+  #isGateway = host.hostname == network.gateway.hostname;
 in
-#isGateway = host.hostname == network.gateway.hostname;
 {
   options = {
     darkone.home.syncthing.enable = lib.mkEnableOption "Enable local syncthing service";
