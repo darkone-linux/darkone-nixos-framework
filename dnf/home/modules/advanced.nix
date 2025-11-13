@@ -46,6 +46,7 @@ in
       MANPAGER = "sh -c 'col -bx | bat -l man -p'"; # bat
       MANROFFOPT = "-c"; # bat
       EDITOR = "vim";
+      VISUAL = "vim";
     };
 
     #============================================================================
@@ -119,7 +120,7 @@ in
     #============================================================================
 
     programs.fzf = {
-      enable = true;
+      enable = lib.mkDefault cfg.enableEssentials;
       enableZshIntegration = true;
       defaultCommand = "rg --files --hidden";
       defaultOptions = [
@@ -130,25 +131,25 @@ in
 
     # z command to replace cd
     programs.zoxide = {
-      enable = true;
+      enable = lib.mkDefault cfg.enableEssentials;
       enableZshIntegration = true;
     };
 
     # ls alternative
     programs.eza = {
-      enable = true;
+      enable = lib.mkDefault cfg.enableEssentials;
       enableZshIntegration = false;
     };
 
     # cat alternative + man pages
-    programs.bat.enable = true;
+    programs.bat.enable = lib.mkDefault cfg.enableEssentials;
 
     # rg command -> recursive grep
-    programs.ripgrep.enable = true;
+    programs.ripgrep.enable = lib.mkDefault cfg.enableEssentials;
 
     # Custom btop
     programs.btop = {
-      enable = true;
+      enable = lib.mkDefault cfg.enableEssentials;
       settings = {
         proc_per_core = true;
         update_ms = 1000;
@@ -156,7 +157,13 @@ in
     };
 
     # Zed editor
-    darkone.home.zed.enable = graphic;
+    darkone.home.zed.enable = lib.mkDefault graphic;
+
+    # Terminal file manager
+    programs.yazi = {
+      enable = lib.mkDefault cfg.enableTools;
+      enableZshIntegration = true;
+    };
 
     #============================================================================
     # GIT

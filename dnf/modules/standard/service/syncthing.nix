@@ -2,7 +2,7 @@
 #
 # :::note
 # Enable the [home manager syncthing module](https://darkone-linux.github.io/ref/modules/#-darkonehomesyncthing)
-# to allow users to use syncthing with their account. 
+# to allow users to use syncthing with their account.
 # :::
 
 {

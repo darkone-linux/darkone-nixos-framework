@@ -60,7 +60,7 @@ The configurations are also organized by category:
 <FileTree>
 - flake.nix Main flake
 - Justfile Project management with [just](/doc/user-manual/#just-commands)
-- dnf/ Darkone Nixos Framework files
+- dnf/ Darkone Nixos Framework (modules & common files)
   - modules/ [Framework modules](/ref/modules/)
     - standard Standard nix modules
       - system/ System / Hardware configurations
@@ -74,7 +74,8 @@ The configurations are also organized by category:
       - admin/ Nix administration settings
         - nix.nix Nix tools
         - …
-      - user/ User management (nixos)
+      - user/ User management (not home)
+        - nix.nix Nix special user (for deployments)
         - build.nix Users builder
         - …
     - mixin Mixin modules
@@ -104,7 +105,7 @@ The configurations are also organized by category:
       - minimal/ Easy environment
       - normal.nix
       - normal/ Non-technical user
-      - child.nix
+      - chile.nix
       - child/ Kids softwares and settings
       - …
 - **usr/** Writable zone for local network project

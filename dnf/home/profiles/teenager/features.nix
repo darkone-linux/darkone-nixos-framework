@@ -17,7 +17,10 @@ in
       enableLibreOffice = lib.mkDefault true;
       enableEmail = lib.mkDefault false;
     };
-    games.enableTeenager = lib.mkDefault graphic;
+    games = {
+      enableTeenager = lib.mkDefault graphic;
+      enableCli = true;
+    };
     education.enableStudent = lib.mkDefault graphic;
     music = {
       enable = lib.mkDefault true;

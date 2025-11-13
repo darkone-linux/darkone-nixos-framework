@@ -16,25 +16,41 @@ in
     darkone.home.games.enableChild = lib.mkEnableOption "Games for children (6-12 yo)";
     darkone.home.games.enableTeenager = lib.mkEnableOption "Games for teenagers and adults (>=12 yo)";
     darkone.home.games.enable3D = lib.mkEnableOption "More 3D Games";
+    darkone.home.games.enableCli = lib.mkEnableOption "Cli Games";
   };
 
   config = lib.mkIf (cfg.enableBaby || cfg.enableChild || cfg.enableTeenager) {
 
     # Packages
     home.packages = with pkgs; [
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) chessx)
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) endless-sky) # Sandbox-style space exploration game
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) lenmus) # LenMus Phonascus is a program for learning music
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) leocad) # Virt lego
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) cuyo) # Tetris like
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) superTuxKart)
+      #(lib.mkIf cfg.enableChild pingus) # Bugged
       (lib.mkIf (cfg.enable3D && (cfg.enableChild || cfg.enableTeenager)) veloren) # Minecraft like
       (lib.mkIf (cfg.enableBaby || cfg.enableChild) rili) # train game
       (lib.mkIf (cfg.enableBaby || cfg.enableChild) tuxpaint)
-      #(lib.mkIf cfg.enableChild pingus) # Bugged
+      (lib.mkIf (cfg.enableBaby || cfg.enableChild) kdePackages.ktuberling) # Constructor game
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) kdePackages.kpat) # Solitaire games
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) kdePackages.kbounce) # Bal game
+      #(lib.mkIf (cfg.enableChild || cfg.enableTeenager) kdePackages.kanagram)
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) kdePackages.picmi) # Logical game
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) atomix) # Atom puzzle
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) chess-clock)
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) chessx)
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) cuyo) # Tetris like
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) endless-sky) # Sandbox-style space exploration game
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-2048)
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-chess)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-mahjongg)
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-mines)
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-solanum) # Pomodoro timer
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-sudoku)
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) lenmus) # LenMus Phonascus is a program for learning music
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) leocad) # Virt lego
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) superTuxKart)
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) ltris) # Tetris
+      (lib.mkIf cfg.enableCli bsdgames)
+      (lib.mkIf cfg.enableCli chess-tui)
+      (lib.mkIf cfg.enableCli solitaire-tui)
+      (lib.mkIf cfg.enableCli tetris)
     ];
 
     # Unlock STK

@@ -55,9 +55,6 @@ in
       preset = "easyeffects-fw16";
     };
 
-    # Required for EasyEffects
-    #programs.dconf.enable = true;
-
     # Flatpak packages
     services.flatpak.packages = [
       (lib.mkIf cfg.enableDev "org.frescobaldi.Frescobaldi")

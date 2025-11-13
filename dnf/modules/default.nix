@@ -26,6 +26,7 @@
     ./standard/service/homepage.nix
     ./standard/service/httpd.nix
     ./standard/service/immich.nix
+    ./standard/service/mattermost.nix
     ./standard/service/monitoring.nix
     ./standard/service/ncps.nix
     ./standard/service/netdata.nix

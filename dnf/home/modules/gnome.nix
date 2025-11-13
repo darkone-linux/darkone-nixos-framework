@@ -1,11 +1,6 @@
 # Gnome tweaks for home manager.
 
-{
-  lib,
-  pkgs,
-  config,
-  ...
-}:
+{ lib, config, ... }:
 
 let
   cfg = config.darkone.home.gnome;
@@ -18,29 +13,41 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # Gnome general settings (no effect?)
-    gtk = {
-      colorScheme = "dark";
-      cursorTheme = {
-        package = pkgs.bibata-cursors;
-        name = "Bibata-Modern-Classic";
-        size = 48;
-      };
-      gtk3 = {
-        enable = true;
-        bookmarks = [ "file:///home/${config.home.username}/Documents" ];
-        colorScheme = "dark";
-        cursorTheme = {
-          package = pkgs.bibata-cursors;
-          name = "Bibata-Modern-Classic";
-          size = 48;
-        };
-        iconTheme = {
-          package = pkgs.papirus-icon-theme;
-          name = "Papirus-Dark";
-        };
-      };
-    };
+    # # Gnome general settings (no effect?)
+    # gtk = {
+    #   enable = true;
+    #   colorScheme = "dark";
+    #   cursorTheme = {
+    #     package = pkgs.bibata-cursors;
+    #     name = "Bibata-Modern-Classic";
+    #     size = 48;
+    #   };
+    #   gtk3 = {
+    #     bookmarks = [ "file:///home/${config.home.username}/Documents" ];
+    #     colorScheme = "dark";
+    #     cursorTheme = {
+    #       package = pkgs.bibata-cursors;
+    #       name = "Bibata-Modern-Classic";
+    #       size = 48;
+    #     };
+    #     iconTheme = {
+    #       package = pkgs.papirus-icon-theme;
+    #       name = "Papirus-Dark";
+    #     };
+    #   };
+    #   gtk4.extraConfig = {
+    #     gtk-application-prefer-dark-theme = 1;
+    #   };
+    # };
+    # # QT specific configuration
+    # qt = {
+    #   enable = true;
+    #   platformTheme.name = "gtk3";
+    #   style = {
+    #     name = "adwaita-dark";
+    #     package = pkgs.adwaita-qt;
+    #   };
+    # };
 
     # Hide icons
     xdg.desktopEntries = lib.mkIf cfg.hideTechnicalIcons {
