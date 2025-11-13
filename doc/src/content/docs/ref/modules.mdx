@@ -474,6 +474,24 @@ darkone.service.immich = {
 
 <hr/>
 
+### &#x1F48E; darkone.service.mattermost
+
+A mattermost server. (WIP)
+
+* **enable** `bool` Enable mattermost service
+* **domainName** `str` Domain name for mattermost, registered in network configuration
+* **appName** `str` Default title for mattermost service
+```nix
+darkone.service.mattermost = {
+  enable = false;
+  domainName = "mattermost";
+  appName = "Mattermost";
+}
+
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.service.monitoring
 
 Supervision module with prometheus, grafana and node exporter.
@@ -595,7 +613,7 @@ The syncthing service for a device. (WIP)
 
 :::note
 Enable the [home manager syncthing module](https://darkone-linux.github.io/ref/modules/#-darkonehomesyncthing)
-to allow users to use syncthing with their account. 
+to allow users to use syncthing with their account.
 :::
 
 * **enable** `bool` Enable local syncthing service
@@ -910,12 +928,14 @@ Several graphical game packages.
 * **enableChild** `bool` Games for children (6-12 yo)
 * **enableTeenager** `bool` Games for teenagers and adults (&gt;=12 yo)
 * **enable3D** `bool` More 3D Games
+* **enableCli** `bool` Cli Games
 ```nix
 darkone.home.games = {
   enableBaby = false;
   enableChild = false;
   enableTeenager = false;
   enable3D = false;
+  enableCli = false;
 }
 
 ```
