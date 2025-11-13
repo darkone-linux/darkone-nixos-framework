@@ -26,7 +26,7 @@ delete_vm() {
     fi
     if [ -d "${VM_PATH}/$VM" ]; then
         echo "→ Delete files: ${VM_PATH}/$VM"
-        rm -f "${VM_PATH}/$VM"
+        rm -rf "${VM_PATH}/$VM"
     else
         echo "→ VM '$VM' directory already deleted."
     fi

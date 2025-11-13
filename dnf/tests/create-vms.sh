@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # TODO: auto find this:
-ISO_PATH="/nix/store/pa0sfka23gn1inlhbm26nyv7f0507p0g-nixos-minimal-25.11.20251015.544961d-x86_64-linux.iso/iso/nixos-minimal-25.11.20251015.544961d-x86_64-linux.iso"
+ISO_FILE="latest-nixos-minimal-x86_64-linux.iso"
+ISO_HTTP="https://channels.nixos.org/nixos-unstable/latest-nixos-minimal-x86_64-linux.iso"
 BRIDGE_IF="enp2s0"
 
 GW_NAME="dnf-test-gateway"
@@ -10,6 +11,10 @@ HS_NAME="dnf-test-headscale"
 ND_NAME="dnf-test-node"
 
 DISK_SIZE=102400
+
+if [ ! -f $ISO_FILE ] ;then
+  wget $ISO_HTTP
+fi
 
 exists_natnetwork() {
     VBoxManage list natnetworks | grep -e "Name: *$1"
@@ -79,10 +84,10 @@ create_vm() {
         echo "→ IDE controller already configured."
     fi
 
-    if ! VBoxManage showvminfo "${VM_NAME}" | grep -q "${ISO_PATH}"; then
+    if ! VBoxManage showvminfo "${VM_NAME}" | grep -q "${ISO_FILE}"; then
         VBoxManage storageattach "${VM_NAME}" \
         --storagectl "IDE Controller" --port 0 --device 0 \
-        --type dvddrive --medium "${ISO_PATH}"
+        --type dvddrive --medium "${ISO_FILE}"
         echo "→ ISO attached to IDE Controller (PIIX4)."
     else
         echo "→ ISO already attached."
