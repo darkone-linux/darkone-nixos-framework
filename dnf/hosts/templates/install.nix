@@ -12,14 +12,19 @@
   users.users.nix = {
     uid = 65000;
     isNormalUser = true;
+    initialPassword = "NixOS!";
     extraGroups = [ "wheel" ];
     openssh.authorizedKeys.keyFiles = [ ./../../../usr/secrets/nix.pub ];
   };
   security.sudo.wheelNeedsPassword = false;
   environment.systemPackages = with pkgs; [ vim ];
-  nix.settings = {
-    substituters = [ "http://{{gateway}}:8501" ];
-  };
+  #nix.settings = {
+  #  substituters = [ "http://{{gateway}}:8501" ];
+  #};
   services.openssh.enable = true;
   system.stateVersion = "{{currentStateVersion}}";
+  networking.firewall = {
+    enable = true;
+    allowedTCPPorts = [ 22 ];
+  };
 }
