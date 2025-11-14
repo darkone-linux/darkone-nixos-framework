@@ -24,6 +24,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    nixpkgs.config.allowUnfree = true;
     hardware.enableAllFirmware = true;
     hardware.cpu.intel = lib.mkIf cfg.enableIntel { updateMicrocode = true; };
     hardware.cpu.amd = lib.mkIf cfg.enableAmd { updateMicrocode = true; };

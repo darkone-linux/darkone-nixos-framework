@@ -1,7 +1,14 @@
-# A mattermost server. (WIP)
+# A mattermost server.
+#
+# :::caution
+# This module works with Mattermost Team Edition but I do not plan
+# to maintain it because of the removal of the SSO functionality
+# from the open-source version.
+# :::
 
 {
   lib,
+  pkgs,
   config,
   network,
   ...
@@ -26,7 +33,6 @@ in
     };
   };
 
-  # TODO: mattermost configuration + matterbridge
   config = lib.mkMerge [
     {
       # Darkone service: httpd + dnsmasq + homepage registration

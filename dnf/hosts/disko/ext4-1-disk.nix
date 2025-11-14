@@ -13,7 +13,7 @@
 
             # EFI
             boot = {
-              size = "500M";
+              size = "512M";
               type = "EF00";
               content = {
                 type = "filesystem";

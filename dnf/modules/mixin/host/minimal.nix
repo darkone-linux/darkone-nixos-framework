@@ -60,6 +60,16 @@ in
       default = attrsets.hasAttrByPath [ "services" "syncthing" ] host;
       description = "Enable a syncthing server";
     };
+    darkone.host.minimal.enableMattermost = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "mattermost" ] host;
+      description = "Enable a mattermost server";
+    };
+    darkone.host.minimal.enableMatrix = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "matrix" ] host;
+      description = "Enable a matrix server";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -86,14 +96,16 @@ in
 
     # Enabled services
     darkone.service = {
-      homepage.enable = cfg.enableHomepage;
       forgejo.enable = cfg.enableForgejo;
+      homepage.enable = cfg.enableHomepage;
       immich.enable = cfg.enableImmich;
-      nextcloud.enable = cfg.enableNextcloud;
-      netdata.enable = cfg.enableNetdata;
+      matrix.enable = cfg.enableMatrix;
+      mattermost.enable = cfg.enableMattermost;
       monitoring.enable = cfg.enableMonitoring;
-      vaultwarden.enable = cfg.enableVaultwarden;
+      netdata.enable = cfg.enableNetdata;
+      nextcloud.enable = cfg.enableNextcloud;
       syncthing.enable = cfg.enableSyncthing;
+      vaultwarden.enable = cfg.enableVaultwarden;
     };
   };
 }

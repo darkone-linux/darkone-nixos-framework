@@ -13,7 +13,8 @@ in
   config = lib.mkIf cfg.enable {
 
     # Based on laptop configuration
-    darkone.host.laptop.enable = lib.mkForce true;
+    #darkone.host.laptop.enable = true;
+    darkone.host.minimal.enable = true;
 
     # More hardware drivers
     darkone.system.hardware = {
