@@ -234,9 +234,6 @@
 
     in
     {
-      # Exposer la lib directement
-      lib = forAllSystems mkDnfLib;
-
       #------------------------------------------------------------------------
       # HOSTS MANAGEMENT WITH COLMENA
       #------------------------------------------------------------------------
@@ -265,30 +262,47 @@
 
       # Iso image for first install DNF system
       # nix build .#nixosConfigurations.iso.config.system.build.isoImage
-      nixosConfigurations = builtins.listToAttrs (
-        map (system: {
-          name = "iso-${system}";
-          value = nixpkgs.lib.nixosSystem {
-            #inherit system;
-            specialArgs = {
-              imgFormat = nixpkgs.lib.mkDefault "iso";
-              host = {
-                hostname = "new-dnf-host";
-                name = "New Darkone NixOS Framework";
-                profile = "minimal";
-                users = [ ];
-                groups = [ ];
-                arch = system;
+      nixosConfigurations =
+        (builtins.listToAttrs (
+          map (system: {
+            name = "iso-${system}";
+            value = nixpkgs.lib.nixosSystem {
+              #inherit system;
+              specialArgs = {
+                imgFormat = nixpkgs.lib.mkDefault "iso";
+                host = {
+                  hostname = "new-dnf-host";
+                  name = "New Darkone NixOS Framework";
+                  profile = "minimal";
+                  users = [ ];
+                  groups = [ ];
+                  arch = system;
+                };
               };
+              modules = [
+                #"${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+                { nixpkgs.pkgs = nixpkgsFor.${system}; }
+                ./dnf/hosts/iso.nix
+              ];
             };
-            modules = [
-              #"${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
-              { nixpkgs.pkgs = nixpkgsFor.${system}; }
-              ./dnf/hosts/iso.nix
-            ];
-          };
-        }) supportedSystems
-      );
+          }) supportedSystems
+        ))
+        //
+          builtins.mapAttrs
+            (
+              name: node:
+              (nixpkgs.lib.nixosSystem {
+                inherit (node.nixpkgs) system;
+                specialArgs = nodeSpecialArgs.${name};
+                modules = node.imports;
+              })
+            )
+            (
+              removeAttrs self.colmena [
+                "meta"
+                "defaults"
+              ]
+            );
 
       #------------------------------------------------------------------------
       # DEV SHELL
@@ -300,7 +314,7 @@
       });
 
       #------------------------------------------------------------------------
-      # DNF MODULES
+      # DNF USEFUL OUTPUTS
       #------------------------------------------------------------------------
 
       # Darkone modules
@@ -311,5 +325,8 @@
       homeManagerModules = {
         darkone = ./dnf/home/modules;
       };
+
+      # DNF library for leaf flakes
+      lib = forAllSystems mkDnfLib;
     }; # outputs
 }
