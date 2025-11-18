@@ -90,6 +90,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableSyncthing** `bool` Enable a syncthing server
 * **enableMattermost** `bool` Enable a mattermost server
 * **enableMatrix** `bool` Enable a matrix server
+* **enableNfsHomeShares** `bool` Enable a DNF nfs home shares
 ```nix
 darkone.host.minimal = {
   enable = false;
@@ -104,6 +105,7 @@ darkone.host.minimal = {
   enableSyncthing = attrsets.hasAttrByPath [ "services" "syncthing" ] host;
   enableMattermost = attrsets.hasAttrByPath [ "services" "mattermost" ] host;
   enableMatrix = attrsets.hasAttrByPath [ "services" "matrix" ] host;
+  enableNfsHomeShares = attrsets.hasAttrByPath [ "services" "nfs" ] host;
 }
 
 ```
@@ -269,7 +271,6 @@ Pre-configured gnome environment with dependences.
 * **enableLightDM** `bool` Enable LightDM instead of GDM
 * **enableCaffeine** `bool` Disable auto-suspend
 * **enableGsConnect** `bool` Communication with devices
-* **enableSuspend** `bool` Enable suspend, sleep, hybernate features (usefull for laptops)
 * **xkbVariant** `str` Keyboard variant. Layout is extracted from console keymap.
 ```nix
 darkone.graphic.gnome = {
@@ -278,7 +279,6 @@ darkone.graphic.gnome = {
   enableLightDM = false;
   enableCaffeine = false;
   enableGsConnect = false;
-  enableSuspend = false;
   xkbVariant = "";
 }
 
@@ -613,6 +613,31 @@ darkone.service.nextcloud = {
 
 <hr/>
 
+### &#x1F48E; darkone.service.nfs
+
+NFS server + client for home shares.
+
+:::caution
+This module is auto-enabled if a nfs server is declared in the local network. It creates:
+
+- A share (/export/homes) on the server.
+- Mount dirs (/mnt/nfs/homes/[user]) on clients.
+
+The nfs home manager script links xdg directories to mount dirs.
+:::
+
+* **enable** `bool` Enable NFS DNF server (avoid enable manually)
+* **serverDomain** `str` NFS Server FQDN
+```nix
+darkone.service.nfs = {
+  enable = hasServer;
+  serverDomain = "nfs";
+}
+
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.service.printing
 
 Printers and scanners.
@@ -703,25 +728,27 @@ This module is enabled by default (required by DNF configuration).
 It is required for the proper functioning of every NixOS computer on the local network.
 :::
 
+* **enableBoost** `bool` Enable overclocking, corectl
+* **enableAutoSuspend** `bool` Enable automatic suspend (for laptops, ignored if disableSuspend is true)
+* **disableSuspend** `bool` Full suspend disable (for servers)
 * **enable** `bool` Darkone framework core system (activated by default)
 * **enableSystemdBoot** `bool` Enable the default boot loader
 * **enableFstrim** `bool` SSD optimisation with fstrim
 * **enableFirewall** `bool` Enable firewall (default true)
 * **enableSops** `bool` Enable sops dnf module (default true)
 * **enableGatewayClient** `bool` Configuration optimized for local gateway (ncps client...)
-* **enableBoost** `bool` Enable overclocking, corectl
-* **enableKmscon** `bool` Enable nerd font for TTY
 * **enableFlatpak** `bool` Enable flatpak DNF configuration (only for graphic environments)
 ```nix
 darkone.system.core = {
+  enableBoost = false;
+  enableAutoSuspend = false;
+  disableSuspend = false;
   enable = true;
   enableSystemdBoot = true;
   enableFstrim = true;
   enableFirewall = true;
   enableSops = true;
   enableGatewayClient = true;
-  enableBoost = false;
-  enableKmscon = false;
   enableFlatpak = true;
 }
 
@@ -1041,15 +1068,14 @@ Common tools for office desktop.
 * **enable** `bool` Default useful packages
 * **enableEssentials** `bool` Essential tools
 * **enableTools** `bool` Little (gnome) tools (iotas, dialect, etc.)
-* **enableProductivity** `bool` Productivity apps (time management, projects, etc.)
+* **enableProductivity** `bool` Productivity apps (obsidian, time management, projects, etc.)
 * **enableCalendarContacts** `bool` Gnome calendar, contacts and related apps
 * **enableCommunication** `bool` Communication tools
-* **enableLibreOffice** `bool` Office packages (libreoffice)
+* **enableOffice** `bool` Office packages (libreoffice)
 * **enableFirefox** `bool` Enable firefox
 * **enableChromium** `bool` Enable chromium
 * **enableBrave** `bool` Enable Brave Browser
 * **enableEmail** `bool` Email management packages (thunderbird)
-* **enableObsidian** `bool` Obsidian application
 * **huntspellLang** `str` Huntspell Lang (https://mynixos.com/nixpkgs/packages/hunspellDicts)
 ```nix
 darkone.home.office = {
@@ -1059,12 +1085,11 @@ darkone.home.office = {
   enableProductivity = false;
   enableCalendarContacts = false;
   enableCommunication = false;
-  enableLibreOffice = true;
+  enableOffice = true;
   enableFirefox = true;
   enableChromium = false;
   enableBrave = false;
   enableEmail = true;
-  enableObsidian = true;
   huntspellLang = "en-us";
 }
 

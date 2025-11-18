@@ -4,6 +4,7 @@
 
 let
   cfg = config.darkone.home.gnome;
+  #hasNFS = (nfsServerCount = lib.count (s: s.service == "nfs") osConfig.network.sharedServices) == 1;
 in
 {
   options = {
@@ -12,6 +13,8 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+
+    #TODO: gtk.gtk3.bookmarks = lib.optionals hasNFS [ "file:///home/${config.home.username}/Documents" ];
 
     # # Gnome general settings (no effect?)
     # gtk = {

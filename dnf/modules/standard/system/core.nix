@@ -55,21 +55,19 @@ in
       default = true;
       description = "Configuration optimized for local gateway (ncps client...)";
     };
-    darkone.system.core.enableBoost = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = "Enable overclocking, corectl";
-    };
-    darkone.system.core.enableKmscon = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = "Enable nerd font for TTY";
-    };
     darkone.system.core.enableFlatpak = lib.mkOption {
       type = lib.types.bool;
       default = true;
       description = "Enable flatpak DNF configuration (only for graphic environments)";
     };
+    darkone.system.core.enableKmscon = lib.mkEnableOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Enable nerd font for TTY";
+    };
+    darkone.system.core.enableBoost = lib.mkEnableOption "Enable overclocking, corectl";
+    darkone.system.core.enableAutoSuspend = lib.mkEnableOption "Enable automatic suspend (for laptops, ignored if disableSuspend is true)";
+    darkone.system.core.disableSuspend = lib.mkEnableOption "Full suspend disable (for servers)";
   };
 
   # Core module for DNF machines
@@ -165,10 +163,10 @@ in
     };
 
     # Enable performance mode and more boot power
-    powerManagement = lib.mkIf cfg.enableBoost {
-      cpuFreqGovernor = "performance";
-      powertop.enable = true;
-    };
+    powerManagement.cpuFreqGovernor = lib.mkIf cfg.enableBoost "performance";
+
+    # Disable powermanagement if disableSuspend but not boost
+    powerManagement.enable = (!cfg.disableSuspend) || cfg.enableBoost;
 
     # SSD optimisations
     services.fstrim = lib.mkIf cfg.enableFstrim {
@@ -184,5 +182,51 @@ in
 
     # Flatpak configuration for DNF
     darkone.system.flatpak.enable = cfg.enableFlatpak && config.darkone.graphic.gnome.enable;
+
+    # Disable suspend for servers
+    # TODO: wakeonlan from suspend?
+    systemd.targets = {
+      sleep.enable = !cfg.disableSuspend;
+      suspend.enable = !cfg.disableSuspend;
+      hibernate.enable = !cfg.disableSuspend;
+      hybrid-sleep.enable = !cfg.disableSuspend;
+    };
+    systemd.sleep = lib.mkIf cfg.disableSuspend {
+      extraConfig = ''
+        AllowSuspend=no
+        AllowHibernation=no
+        AllowHybridSleep=no
+        AllowSuspendThenHibernate=no
+      '';
+    };
+
+    # Suspend: by default do not sleep / suspend to manage hosts through the network
+    # https://www.freedesktop.org/software/systemd/man/latest/logind.conf.html
+    services.logind.settings.Login =
+      if cfg.enableAutoSuspend then
+        {
+          IdleAction = "suspend-then-hibernate";
+          IdleActionSec = "20min";
+          HibernateDelaySec = "2h";
+        }
+      else
+        {
+          IdleAction = "ignore";
+          IdleActionSec = "0";
+        };
+
+    # Authorize wheel members to halt & reboot
+    security.polkit.extraConfig = ''
+      polkit.addRule(function(action, subject) {
+        if (subject.isInGroup("wheel") &&
+            (
+              action.id == "org.freedesktop.login1.reboot-ignore-inhibitors" ||
+              action.id == "org.freedesktop.login1.power-off-ignore-inhibitors" ||
+              action.id == "org.freedesktop.login1.halt-ignore-inhibitors"
+            )) {
+          return polkit.Result.YES;
+        }
+      });
+    '';
   };
 }

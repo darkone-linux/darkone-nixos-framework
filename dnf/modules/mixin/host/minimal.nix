@@ -70,6 +70,11 @@ in
       default = attrsets.hasAttrByPath [ "services" "matrix" ] host;
       description = "Enable a matrix server";
     };
+    darkone.host.minimal.enableNfsHomeShares = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "nfs" ] host;
+      description = "Enable a DNF nfs home shares";
+    };
   };
 
   config = mkIf cfg.enable {

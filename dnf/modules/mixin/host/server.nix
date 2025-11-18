@@ -5,12 +5,7 @@
 # that we can hopefully still access it remotely. (cf. srvos)
 # :::
 
-{
-  lib,
-  config,
-  pkgs,
-  ...
-}:
+{ lib, config, ... }:
 let
   cfg = config.darkone.host.server;
   cfgLimit = 10;
@@ -28,18 +23,13 @@ in
   config = lib.mkIf cfg.enable {
 
     # Load minimal configuration
-    darkone.host.minimal.enable = lib.mkForce true;
+    darkone.host.minimal.enable = true;
+
+    # Do not suspend!
+    darkone.system.core.disableSuspend = lib.mkForce true;
 
     # Darkone modules (very low priority)
     darkone.system.documentation.enable = lib.mkOverride 2000 false;
-
-    # Default apps
-    environment.systemPackages = map lib.lowPrio [
-      pkgs.curl
-      pkgs.wget
-      pkgs.htop
-      pkgs.vim
-    ];
 
     # Restrict the number of boot entries to prevent full /boot partition.
     # Servers don't need too many generations.
@@ -86,12 +76,6 @@ in
         # This may be the case when the firmware does not support kexec.
         KExecWatchdogSec = "1m";
       };
-
-      # No sleep
-      sleep.extraConfig = ''
-        AllowSuspend=no
-        AllowHibernation=no
-      '';
     };
   };
 }

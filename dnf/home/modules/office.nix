@@ -30,7 +30,7 @@ in
     darkone.home.office.enableProductivity = mkOption {
       type = types.bool;
       default = false;
-      description = "Productivity apps (time management, projects, etc.)";
+      description = "Productivity apps (obsidian, time management, projects, etc.)";
     };
     darkone.home.office.enableCalendarContacts = mkOption {
       type = types.bool;
@@ -42,7 +42,7 @@ in
       default = false;
       description = "Communication tools";
     };
-    darkone.home.office.enableLibreOffice = mkOption {
+    darkone.home.office.enableOffice = mkOption {
       type = types.bool;
       default = true;
       description = "Office packages (libreoffice)";
@@ -66,11 +66,6 @@ in
       type = types.bool;
       default = true;
       description = "Email management packages (thunderbird)";
-    };
-    darkone.home.office.enableObsidian = mkOption {
-      type = types.bool;
-      default = true;
-      description = "Obsidian application";
     };
     darkone.home.office.huntspellLang = mkOption {
       type = types.str;
@@ -102,9 +97,9 @@ in
       (mkIf cfg.enableEmail thunderbird)
       (mkIf cfg.enableEssentials evince) # Reader
       (mkIf cfg.enableEssentials gnome-calculator)
-      (mkIf cfg.enableLibreOffice hunspell)
-      (mkIf cfg.enableLibreOffice hunspellDicts.${cfg.huntspellLang})
-      (mkIf cfg.enableLibreOffice libreoffice-fresh)
+      (mkIf cfg.enableOffice hunspell)
+      (mkIf cfg.enableOffice hunspellDicts.${cfg.huntspellLang})
+      (mkIf cfg.enableOffice libreoffice-fresh)
       (mkIf cfg.enableProductivity super-productivity) # Time processing
       (mkIf cfg.enableTools authenticator) # Two-factor authentication code generator
       (mkIf cfg.enableTools dialect) # translate
@@ -118,7 +113,7 @@ in
       (mkIf cfg.enableTools pika-backup) # Simple backups based on borg -> Security ?
       (mkIf cfg.enableTools simple-scan)
       (mkIf cfg.enableTools snapshot) # Webcam
-      (mkIf cfg.enableObsidian obsidian)
+      (mkIf cfg.enableProductivity obsidian)
       (mkIf cfg.enableCommunication zoom-us)
     ];
 

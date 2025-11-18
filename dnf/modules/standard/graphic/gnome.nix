@@ -17,7 +17,6 @@ in
     darkone.graphic.gnome.enableLightDM = lib.mkEnableOption "Enable LightDM instead of GDM";
     darkone.graphic.gnome.enableCaffeine = lib.mkEnableOption "Disable auto-suspend";
     darkone.graphic.gnome.enableGsConnect = lib.mkEnableOption "Communication with devices";
-    darkone.graphic.gnome.enableSuspend = lib.mkEnableOption "Enable suspend, sleep, hybernate features (usefull for laptops)";
     darkone.graphic.gnome.xkbVariant = lib.mkOption {
       type = lib.types.str;
       default = "";
@@ -71,6 +70,7 @@ in
     # GDM options if activated
     services.displayManager.gdm = lib.mkIf (!cfg.enableLightDM) {
       enable = true;
+      autoSuspend = config.darkone.system.core.enableAutoSuspend;
       settings = {
         greeter = {
 
@@ -79,15 +79,6 @@ in
           Exclude = "nix,bin,root,daemon,adm,lp,sync,shutdown,halt,mail,news,uucp,operator,nobody,nobody4,noaccess,postgres,pvm,nfsnobody,pcap";
         };
       };
-    };
-
-    # Disable the GNOME3/GDM auto-suspend feature that cannot be disabled in GUI!
-    # If no user is logged in, the machine will power down after 20 minutes.
-    systemd.targets = lib.mkIf cfg.enableSuspend {
-      sleep.enable = lib.mkDefault false;
-      suspend.enable = lib.mkDefault false;
-      hibernate.enable = lib.mkDefault false;
-      hybrid-sleep.enable = lib.mkDefault false;
     };
 
     # Enable networking with networkmanager

@@ -196,14 +196,14 @@ enter on:
 [confirm]
 reboot on:
 	@just _log "Rebooting {{on}}..."
-	colmena exec --on "{{on}}" "nohup bash -c 'sleep 1; sudo systemctl reboot' >/dev/null 2>&1 &"
+	colmena exec --on "{{on}}" "nohup bash -c 'sleep 1; sudo systemctl reboot -i' >/dev/null 2>&1 &"
 
 # Multi-alt (using colmena)
 [group('manage')]
 [confirm]
 halt on:
 	@just _log "Halting {{on}}..."
-	colmena exec --on "{{on}}" "nohup bash -c 'sleep 1; sudo systemctl poweroff' >/dev/null 2>&1 &"
+	colmena exec --on "{{on}}" "nohup bash -c 'sleep 1; sudo systemctl poweroff -i' >/dev/null 2>&1 &"
 
 # Remove zshrc bkp to avoid error when replacing zshrc
 [group('manage')]
@@ -386,7 +386,7 @@ install-key host:
 	  --mode disko \
 	  --root-mountpoint {{dnfInstallDir}} ./usr/machines/{{host}}/disko.nix
 	just _log "NixOS DNF installation..."
-	sudo nixos-install --flake '.#{{host}}' --root {{dnfInstallDir}}
+	sudo nixos-install --flake '.#{{host}}' --root {{dnfInstallDir}} --no-root-password
 	just _log "Unmounting new system..."
 	sudo umount -R {{dnfInstallDir}}
 	sudo rmdir {{dnfInstallDir}}

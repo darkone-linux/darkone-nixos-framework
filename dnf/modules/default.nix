@@ -32,6 +32,7 @@
     ./standard/service/ncps.nix
     ./standard/service/netdata.nix
     ./standard/service/nextcloud.nix
+    ./standard/service/nfs.nix
     ./standard/service/printing.nix
     ./standard/service/syncthing.nix
     ./standard/service/users.nix

@@ -121,14 +121,13 @@ class NixNetwork
             // - mac: yyy
             //   ip: "192.168.1.3" <- the same
             if (isset($this->macAddresses[$ip])) {
-                $record = explode(',', $this->macAddresses[$ip]);
-                $registeredHost = $record[count($record) - 2];
-                if ($host !== $registeredHost) {
-                    throw new NixException('Cannot register a mac address ' . $mac . ' with different host names: ' . $host . ' vs ' . $registeredHost);
-                }
-                $this->macAddresses[$ip] = $mac . ',' . $this->macAddresses[$ip];
+                throw new NixException('Ip address ' . $ip . ' conflict (mac: ' . $mac . ')');
             } else {
-                $this->macAddresses[$ip] = $mac . ',' . $ip . ',' . $host . ',infinite';
+
+                # Do not put the name of the host here !
+                # The name of the installed OS must be defined by the OS only.
+                # Very important for usb keys that contains an OS.
+                $this->macAddresses[$ip] = $mac . ',' . $ip;
             }
         }
 

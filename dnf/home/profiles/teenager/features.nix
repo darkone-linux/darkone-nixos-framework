@@ -14,7 +14,7 @@ in
     office = {
       enable = lib.mkDefault graphic;
       enableTools = lib.mkDefault true;
-      enableLibreOffice = lib.mkDefault true;
+      enableOffice = lib.mkDefault true;
       enableEmail = lib.mkDefault false;
     };
     games = {

@@ -26,16 +26,8 @@ in
     boot.kernelModules = [ "coretemp" ];
     environment.systemPackages = with pkgs; [ lm_sensors ];
 
-    # suspend, sleep, hibernates are deactivated by default, we force activation
-    systemd.targets = {
-      sleep.enable = true;
-      suspend.enable = true;
-      hibernate.enable = true;
-      hybrid-sleep.enable = false;
-    };
-    darkone.graphic.gnome = lib.mkIf config.darkone.graphic.gnome.enable {
-      enableSuspend = lib.mkDefault true;
-    };
+    # suspend, sleep, hibernates are deactivated by default: activation
+    darkone.system.core.enableAutoSuspend = lib.mkDefault true;
 
     # Temperature management daemon
     services.thermald.enable = true;
