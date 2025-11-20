@@ -16,15 +16,14 @@ in
 
     #TODO: gtk.gtk3.bookmarks = lib.optionals hasNFS [ "file:///home/${config.home.username}/Documents" ];
 
-    # # Gnome general settings (no effect?)
+    # Gnome general settings: NOT WORKING + Conflict with dconf (non-writable keys)
     # gtk = {
     #   enable = true;
-    #   colorScheme = "dark";
-    #   cursorTheme = {
-    #     package = pkgs.bibata-cursors;
-    #     name = "Bibata-Modern-Classic";
-    #     size = 48;
+    #   theme = {
+    #     name = "Adwaita-dark";
+    #     package = pkgs.gnome-themes-extra;
     #   };
+    #   colorScheme = "dark"; # non-writable key
     #   gtk3 = {
     #     bookmarks = [ "file:///home/${config.home.username}/Documents" ];
     #     colorScheme = "dark";
@@ -42,7 +41,8 @@ in
     #     gtk-application-prefer-dark-theme = 1;
     #   };
     # };
-    # # QT specific configuration
+
+    # QT specific configuration: NO EFFECT
     # qt = {
     #   enable = true;
     #   platformTheme.name = "gtk3";
@@ -50,6 +50,11 @@ in
     #     name = "adwaita-dark";
     #     package = pkgs.adwaita-qt;
     #   };
+    # };
+
+    # No effect...
+    # home.sessionVariables = {
+    #   QT_STYLE_OVERRIDE = "adwaita-dark";
     # };
 
     # Hide icons

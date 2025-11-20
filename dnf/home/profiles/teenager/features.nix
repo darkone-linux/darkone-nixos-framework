@@ -14,8 +14,9 @@ in
     office = {
       enable = lib.mkDefault graphic;
       enableTools = lib.mkDefault true;
-      enableOffice = lib.mkDefault true;
       enableEmail = lib.mkDefault false;
+      enableOffice = lib.mkDefault true;
+      enableProductivity = lib.mkDefault true;
     };
     games = {
       enableTeenager = lib.mkDefault graphic;
@@ -26,8 +27,9 @@ in
       enable = lib.mkDefault true;
       enableCli = lib.mkDefault true;
       enableFun = lib.mkDefault graphic;
+      enableTools = lib.mkDefault graphic;
       enableScore = lib.mkDefault graphic;
-      enableBeginner = lib.mkDefault graphic;
+      enableCreator = lib.mkDefault graphic;
     };
     imagery = {
       enable = true;

@@ -34,7 +34,7 @@ in
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) kdePackages.picmi) # Logical game
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) atomix) # Atom puzzle
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) chess-clock)
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) chessx)
+      #(lib.mkIf (cfg.enableChild || cfg.enableTeenager) chessx) # write in ~/Documents
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) cuyo) # Tetris like
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) endless-sky) # Sandbox-style space exploration game
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-2048)

@@ -77,18 +77,6 @@ in
 
   config = mkIf cfg.enable {
 
-    # Configurations
-    #home.sessionVariables = {
-    #  SAL_USE_VCLPLUGIN = "gtk3";
-    #};
-    # gtk = {
-    #   enable = true;
-    #   theme = {
-    #     name = "Adwaita-dark";
-    #     package = pkgs.gnome-themes-extra;
-    #   };
-    # };
-
     # Packages
     home.packages = with pkgs; [
       (mkIf (cfg.enableTools && cfg.enableCommunication) tuba) # Browse the Fediverse
@@ -99,7 +87,7 @@ in
       (mkIf cfg.enableEssentials gnome-calculator)
       (mkIf cfg.enableOffice hunspell)
       (mkIf cfg.enableOffice hunspellDicts.${cfg.huntspellLang})
-      (mkIf cfg.enableOffice libreoffice-fresh)
+      (mkIf cfg.enableOffice libreoffice-fresh) # Force visible icon theme
       (mkIf cfg.enableProductivity super-productivity) # Time processing
       (mkIf cfg.enableTools authenticator) # Two-factor authentication code generator
       (mkIf cfg.enableTools dialect) # translate
@@ -115,6 +103,17 @@ in
       (mkIf cfg.enableTools snapshot) # Webcam
       (mkIf cfg.enableProductivity obsidian)
       (mkIf cfg.enableCommunication zoom-us)
+    ];
+
+    # Hack to set Colibre icons instead of dark icon with light theme
+    home.file.".config/libreoffice/4/user/registrymodifications.init.xcu".text = ''
+      <?xml version="1.0" encoding="UTF-8"?>
+      <oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="SymbolStyle" oor:op="fuse"><value>colibre</value></prop></item>
+      </oor:items>
+    '';
+    systemd.user.tmpfiles.rules = [
+      "L ${config.home.homeDirectory}/.config/libreoffice/4/user/registrymodifications.xcu - - - - ${config.home.homeDirectory}/.config/libreoffice/4/user/registrymodifications.init.xcu"
     ];
 
     # Browsers

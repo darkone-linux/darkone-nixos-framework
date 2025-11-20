@@ -3,7 +3,6 @@
   programs.zsh = {
     enable = true;
     autocd = true;
-
     plugins = [
       {
         name = "powerlevel10k-config";

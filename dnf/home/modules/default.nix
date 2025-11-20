@@ -7,6 +7,7 @@
     ./games.nix
     ./gnome.nix
     ./imagery.nix
+    ./mime.nix
     ./music.nix
     ./office.nix
     ./syncthing.nix

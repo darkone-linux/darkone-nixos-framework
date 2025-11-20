@@ -15,4 +15,7 @@
 
   # Gnome params if graphic env
   darkone.home.gnome.enable = osConfig.darkone.graphic.gnome.enable;
+
+  # Mime types improvements for DNF
+  darkone.home.mime.enable = true;
 }

@@ -1035,6 +1035,28 @@ darkone.home.imagery = {
 
 <hr/>
 
+### &#x1F3E0; darkone.home.mime
+
+Mime types DNF module. (wip)
+
+:::note
+This module define default applications depending on user profile. For example, markdown editor for...
+- Beginner (default): apostrophe, gnome text editor...
+- Advanced: zed, vim, vscode...
+:::
+
+* **enable** `bool` Enable DNF default applications update
+* **enableAdvanced** `bool` Update the default applications for advanced profiles
+```nix
+darkone.home.mime = {
+  enable = false;
+  enableAdvanced = false;
+}
+
+```
+
+<hr/>
+
 ### &#x1F3E0; darkone.home.music
 
 Graphical music and sound creation apps.
@@ -1042,10 +1064,13 @@ Graphical music and sound creation apps.
 * **enable** `bool` Music creation home module
 * **enablePro** `bool` Hard tools for professionals (rose, ardour...)
 * **enableFun** `bool` Fun audio tools (mixxx...)
-* **enableCli** `bool` Command line audio tools (mpd, ncmpcpp...)
+* **enableCli** `bool` Command line audio tools (mpg123, cmus, moc...)
 * **enableDev** `bool` Audio software for developers (lilypond...)
+* **enableMpd** `bool` MPD daemon and players (mpd, ncmpcpp...)
+* **enableEasy** `bool` Easy tools instead of efficient (gnome-music vs audacious...)
+* **enableTools** `bool` Audio tools / editors (audacity...)
 * **enableScore** `bool` Score softwares (musescore...)
-* **enableBeginner** `bool` Creation tools for beginners (lmms, hydrogen...)
+* **enableCreator** `bool` Creation tools for beginners (lmms, hydrogen...)
 ```nix
 darkone.home.music = {
   enable = false;
@@ -1053,8 +1078,11 @@ darkone.home.music = {
   enableFun = false;
   enableCli = false;
   enableDev = false;
+  enableMpd = false;
+  enableEasy = false;
+  enableTools = false;
   enableScore = false;
-  enableBeginner = false;
+  enableCreator = false;
 }
 
 ```

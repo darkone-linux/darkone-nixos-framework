@@ -5,6 +5,9 @@ let
   graphic = osConfig.darkone.graphic.gnome.enable;
 in
 {
-  darkone.home.office.enable = lib.mkDefault graphic;
-  darkone.home.imagery.enable = true;
+  darkone.home = {
+    office.enable = lib.mkDefault graphic;
+    imagery.enable = lib.mkDefault graphic;
+    music.enable = lib.mkDefault graphic;
+  };
 }

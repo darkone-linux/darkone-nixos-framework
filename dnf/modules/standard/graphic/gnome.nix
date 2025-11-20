@@ -26,50 +26,63 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # Enable the X11 windowing system.
-    services.xserver.enable = true;
-
-    # Configure keymap in X11
-    # Type `localectl list-x11-keymap-variants` to list variants
-    services.xserver.xkb = {
-      layout = "${config.console.keyMap}";
-      variant = cfg.xkbVariant;
-    };
-
-    xdg.mime.defaultApplications = {
-      "application/pdf" = "evince.desktop";
-      "image/*" = [
-        "geeqie.desktop"
-        "gimp.desktop"
-      ];
-    };
-
     # Enable gnome
     services.desktopManager.gnome.enable = true;
 
-    # LightDM options if activated
-    services.xserver.displayManager.lightdm = lib.mkIf cfg.enableLightDM {
+    #==========================================================================
+    # XSERVER SETTINGS
+    #==========================================================================
+
+    services.xserver = {
+
+      # Enable the X11 windowing system.
       enable = true;
-      background = "#394999";
-      greeters.gtk = {
+
+      # Configure keymap in X11
+      # Type `localectl list-x11-keymap-variants` to list variants
+      xkb = {
+        layout = "${config.console.keyMap}";
+        variant = cfg.xkbVariant;
+      };
+
+      # Video drivers
+      videoDrivers = [
+        "modesetting"
+        "fbdev"
+        "amdgpu"
+        "intel"
+        #"nvidia"
+      ];
+
+      # LightDM options if activated
+      displayManager.lightdm = lib.mkIf cfg.enableLightDM {
         enable = true;
-        theme.name = "Adwaita-Dark";
-        iconTheme.name = "Papirus-Dark";
-        cursorTheme.name = "Bibata-Modern-Classic";
-        cursorTheme.size = 24;
-        indicators = [
-          "~host"
-          "~spacer"
-          "~clock"
-          "~spacer"
-          "~power"
-        ];
+        background = "#394999";
+        greeters.gtk = {
+          enable = true;
+          theme.name = "Adwaita-Dark";
+          iconTheme.name = "Papirus-Dark";
+          cursorTheme.name = "Bibata-Modern-Classic";
+          cursorTheme.size = 24;
+          indicators = [
+            "~host"
+            "~spacer"
+            "~clock"
+            "~spacer"
+            "~power"
+          ];
+        };
       };
     };
+
+    #==========================================================================
+    # GDM SETTINGS
+    #==========================================================================
 
     # GDM options if activated
     services.displayManager.gdm = lib.mkIf (!cfg.enableLightDM) {
       enable = true;
+      wayland = true; # Default
       autoSuspend = config.darkone.system.core.enableAutoSuspend;
       settings = {
         greeter = {
@@ -80,6 +93,10 @@ in
         };
       };
     };
+
+    #==========================================================================
+    # GNOME DEFAULT APPLICATIONS & SERVICES
+    #==========================================================================
 
     # Enable networking with networkmanager
     networking.networkmanager.enable = true;
@@ -128,7 +145,21 @@ in
       bibata-cursors
       gnomeExtensions.appindicator
       papirus-icon-theme
+      adwaita-qt
+      qgnomeplatform-qt6
     ];
+
+    # DO NOT TO THAT - break the gnome theme
+    # environment.sessionVariables = {
+    #   GTK_THEME = "Adwaita:dark";
+    # };
+
+    # Force QT dark theme
+    qt = {
+      enable = true;
+      style = "adwaita-dark";
+      platformTheme = "gnome";
+    };
 
     # Communication avec les devices
     programs.kdeconnect = lib.mkIf cfg.enableGsConnect {
@@ -136,10 +167,15 @@ in
       package = pkgs.gnomeExtensions.gsconnect;
     };
 
-    # Personnalisation de gnome
+    #==========================================================================
+    # DCONF SETTINGS
+    #==========================================================================
+
     programs.dconf = {
       enable = true;
       profiles = {
+
+        # Gnome settings
         user.databases = [
           {
             lockAll = true; # prevents overriding
@@ -153,9 +189,9 @@ in
                 cursor-theme = "Bibata-Modern-Classic";
                 cursor-size = "48";
                 icon-theme = "Papirus-Dark";
-                gtk-theme = "Adw-dark";
-                color-scheme = "prefer-dark"; # Dark par défaut
-                monospace-font-name = "JetBrainsMono Nerd Font Mono 16"; # Fonte mono par défaut
+                gtk-theme = "Adw-dark"; # not Adwaita-dark
+                color-scheme = "prefer-dark";
+                monospace-font-name = "JetBrainsMono Nerd Font Mono 16";
                 enable-hot-corners = false; # Suppression des actions quand le curseur arrive dans un coin
               };
               "org/gnome/desktop/background" = {
