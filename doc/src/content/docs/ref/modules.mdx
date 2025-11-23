@@ -27,7 +27,7 @@ darkone.host.desktop.enable = false;
 
 ### &#x1F4E6; darkone.host.gateway
 
-The main gateway / router of local network.
+The main gateway / router of a local network zone.
 
 :::tip[A ready-to-use gateway!]
 The gateway is configured in `usr/config.yaml` file.
@@ -48,6 +48,33 @@ darkone.host.gateway = {
   enableFail2ban = true;
   enableAdguardhome = builtins.hasAttr "adguardhome" host.services;
   enableNcps = builtins.hasAttr "ncps" host.services;
+  enableAuth = builtins.hasAttr "auth" host.services;
+  enableUsers = builtins.hasAttr "users" host.services;
+}
+
+```
+
+<hr/>
+
+### &#x1F4E6; darkone.host.headscale
+
+The main headscale coordination server.
+
+:::tip[A ready-to-use headscale server!]
+The network is configured in `usr/config.yaml` file.
+Additional enabled services (authentication, etc.)
+are automatically configured with consistent network plumbing on your
+global network.
+:::
+
+* **enable** `bool` Enable headscale DNF server
+* **enableFail2ban** `bool` Enable fail2ban service
+* **enableAuth** `bool` Enable authentication service (Authelia SSO)
+* **enableUsers** `bool` Enable user management with LLDAP for DNF SSO
+```nix
+darkone.host.headscale = {
+  enable = false;
+  enableFail2ban = true;
   enableAuth = builtins.hasAttr "auth" host.services;
   enableUsers = builtins.hasAttr "users" host.services;
 }
@@ -498,7 +525,7 @@ darkone.service.matrix = {
 
 ### &#x1F48E; darkone.service.mattermost
 
-A mattermost server.
+A mattermost server. (WIP)
 
 :::caution
 This module works with Mattermost Team Edition but I do not plan
@@ -677,7 +704,7 @@ to allow users to use syncthing with their account.
 darkone.service.syncthing = {
   enable = false;
   domainName = "syncthing";
-  ldapServerHost = "${network.gateway.hostname}.${network.domain}";
+  ldapServerHost = "${zone.gateway.hostname}.${zone.domain}";
   ldapServerPort = "3890";
 }
 
@@ -810,7 +837,7 @@ Location and lang configuration.
 By default, the configuration of this module adapts to the global configuration usr/config.yaml.
 :::
 
-* **enable** `bool` Enable i18n with network configuration by default
+* **enable** `bool` Enable i18n with network zone configuration by default
 * **locale** `str` Network locale
 * **timeZone** `str` Network time zone
 ```nix

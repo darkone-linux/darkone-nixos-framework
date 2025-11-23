@@ -2,7 +2,7 @@
 # from the configuration file usr/config.yaml
 # --> DO NOT EDIT <--
 
-{ config, lib, ... }:
+{ lib, ... }:
 {
   disko.devices.disk.main.device = lib.mkForce "/dev/nvme0n1";
 }

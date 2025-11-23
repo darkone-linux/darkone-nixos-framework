@@ -202,8 +202,8 @@ in
             fqdn = "${shortDomain}.${zone.domain}";
             isValid = srv.proxy.enable && (srv.proxy.servicePort != null);
             isDefault = isValid && srv.proxy.defaultService;
-            #isDefaultNotHostname = isDefault && (fqdn != "${host.hostname}.${zone.domain}");
           in
+          #isDefaultNotHostname = isDefault && (fqdn != "${host.hostname}.${zone.domain}");
           mkIf isValid {
 
             # Short name -> FQDN

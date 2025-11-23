@@ -3,104 +3,182 @@
 # --> DO NOT EDIT <--
 
 {
-  domain = "darkone.lan";
-  locale = "fr_FR.UTF-8";
-  timezone = "America/Miquelon";
-  gateway = {
-    hostname = "gateway";
-    wan = {
-      interface = "eth0";
+  domain = "darkone.yt";
+  default = {
+    locale = "fr_FR.UTF-8";
+    timezone = "Europe/Paris";
+  };
+  coordination = {
+    hostname = "hcs";
+  };
+  zones = {
+    www = {
+      locale = "fr_FR.UTF-8";
+      lang = "fr";
+      timezone = "Europe/Paris";
+      sharedServices = [
+        {
+          host = "hcs";
+          service = "headscale";
+        }
+      ];
     };
-    lan = {
-      interfaces = [ "enu1u4" ];
-      ip = "192.168.1.1";
-      prefixLength = 24;
-      dhcp-range = [ "192.168.1.100,192.168.1.230,24h" ];
+    local = {
+      locale = "fr_FR.UTF-8";
+      timezone = "America/Miquelon";
+      ipPrefix = "10.1";
+      gateway = {
+        wan = {
+          interface = "enp1s0";
+        };
+        lan = {
+          interfaces = [
+            "enp2s0"
+            "wlp0s20f0u1u3"
+          ];
+          dhcp-range = [ "10.1.3.200,10.1.3.250,24h" ];
+          ip = "10.1.1.1";
+        };
+        hostname = "gateway";
+      };
+      lang = "fr";
+      networkIp = "10.1.0.0";
+      prefixLength = 16;
+      domain = "local.darkone.yt";
+      extraDnsmasqSettings = {
+        dhcp-host = [
+          "f0:1f:af:14:62:a5,bc:82:56:25:b8:45,10.1.2.1"
+          "38:ff:dd:cd:8b:45,10.1.2.2"
+          "8c:dc:d4:3e:be:d1,10.1.11.1"
+          "8c:dc:d4:3e:be:d2,10.1.11.2"
+          "8c:dc:d4:3e:be:d3,10.1.11.3"
+          "8c:dc:d4:3e:be:d4,10.1.11.4"
+          "f0:1f:af:13:61:c1,10.1.10.1"
+          "f0:1f:af:13:61:c2,10.1.10.2"
+        ];
+        dhcp-option = [
+          "option:router,10.1.1.1"
+          "option:dns-server,10.1.1.1"
+          "option:domain-name,local.darkone.yt"
+          "option:domain-search,local.darkone.yt"
+        ];
+        dhcp-range = [ "10.1.3.200,10.1.3.250,24h" ];
+        address = [
+          "/adguardhome.darkone.yt/10.1.1.1"
+          "/adguardhome.local.darkone.yt/10.1.1.1"
+          "/adguardhome/10.1.1.1"
+          "/auth.darkone.yt/10.1.1.1"
+          "/auth.local.darkone.yt/10.1.1.1"
+          "/auth/10.1.1.1"
+          "/desktop-01.darkone.yt/10.1.11.1"
+          "/desktop-01.local.darkone.yt/10.1.11.1"
+          "/desktop-01/10.1.11.1"
+          "/desktop-02.darkone.yt/10.1.11.2"
+          "/desktop-02.local.darkone.yt/10.1.11.2"
+          "/desktop-02/10.1.11.2"
+          "/desktop-03.darkone.yt/10.1.11.3"
+          "/desktop-03.local.darkone.yt/10.1.11.3"
+          "/desktop-03/10.1.11.3"
+          "/desktop-04.darkone.yt/10.1.11.4"
+          "/desktop-04.local.darkone.yt/10.1.11.4"
+          "/desktop-04/10.1.11.4"
+          "/forgejo.darkone.yt/10.1.1.1"
+          "/forgejo.local.darkone.yt/10.1.1.1"
+          "/forgejo/10.1.1.1"
+          "/gateway.darkone.yt/10.1.1.1"
+          "/gateway.local.darkone.yt/10.1.1.1"
+          "/gateway/10.1.1.1"
+          "/gw.darkone.yt/10.1.1.1"
+          "/gw.local.darkone.yt/10.1.1.1"
+          "/gw/10.1.1.1"
+          "/hcs.darkone.yt/222.222.222.222"
+          "/hcs.local.darkone.yt/222.222.222.222"
+          "/hcs/222.222.222.222"
+          "/home-lab.darkone.yt/10.1.2.2"
+          "/home-lab.local.darkone.yt/10.1.2.2"
+          "/home-lab/10.1.2.2"
+          "/homelab.darkone.yt/10.1.2.2"
+          "/homelab.local.darkone.yt/10.1.2.2"
+          "/homelab/10.1.2.2"
+          "/homepage.darkone.yt/10.1.1.1"
+          "/homepage.local.darkone.yt/10.1.1.1"
+          "/homepage/10.1.1.1"
+          "/monitoring.darkone.yt/10.1.1.1"
+          "/monitoring.local.darkone.yt/10.1.1.1"
+          "/monitoring/10.1.1.1"
+          "/my-laptop.darkone.yt/10.1.2.1"
+          "/my-laptop.local.darkone.yt/10.1.2.1"
+          "/my-laptop/10.1.2.1"
+          "/ncps.darkone.yt/10.1.1.1"
+          "/ncps.local.darkone.yt/10.1.1.1"
+          "/ncps/10.1.1.1"
+          "/nextcloud.darkone.yt/10.1.2.2"
+          "/nextcloud.local.darkone.yt/10.1.2.2"
+          "/nextcloud/10.1.2.2"
+          "/nfs.darkone.yt/10.1.2.2"
+          "/nfs.local.darkone.yt/10.1.2.2"
+          "/nfs/10.1.2.2"
+          "/office-laptop.darkone.yt/10.1.10.1"
+          "/office-laptop.local.darkone.yt/10.1.10.1"
+          "/office-laptop/10.1.10.1"
+          "/photos.darkone.yt/10.1.2.2"
+          "/photos.local.darkone.yt/10.1.2.2"
+          "/photos/10.1.2.2"
+          "/saloon-laptop.darkone.yt/10.1.10.2"
+          "/saloon-laptop.local.darkone.yt/10.1.10.2"
+          "/saloon-laptop/10.1.10.2"
+          "/users.darkone.yt/10.1.1.1"
+          "/users.local.darkone.yt/10.1.1.1"
+          "/users/10.1.1.1"
+        ];
+      };
+      sharedServices = [
+        {
+          host = "gateway";
+          service = "homepage";
+        }
+        {
+          host = "gateway";
+          service = "ncps";
+        }
+        {
+          host = "gateway";
+          service = "auth";
+        }
+        {
+          host = "gateway";
+          service = "users";
+        }
+        {
+          host = "gateway";
+          service = "forgejo";
+        }
+        {
+          host = "gateway";
+          service = "adguardhome";
+        }
+        {
+          host = "gateway";
+          service = "monitoring";
+        }
+        {
+          host = "homelab";
+          service = "nfs";
+        }
+        {
+          host = "homelab";
+          service = "nextcloud";
+        }
+        {
+          host = "homelab";
+          service = "immich";
+          domainName = "photos";
+          displayName = "Local common photos";
+          description = "Shared pictures application";
+          icon = "google-photos";
+        }
+      ];
+      local-substituter = "gateway";
     };
   };
-  extraDnsmasqSettings = {
-    dhcp-host = [
-      "f0:1f:af:13:62:a5,bc:85:56:25:b8:45,192.168.1.3,my-laptop,infinite"
-      "f0:1f:af:13:61:c6,192.168.1.20,kids-laptop,infinite"
-    ];
-    dhcp-option = [
-      "option:router,192.168.1.1"
-      "option:dns-server,192.168.1.1"
-      "option:domain-name,darkone.lan"
-      "option:domain-search,darkone.lan"
-    ];
-    dhcp-range = [ "192.168.1.100,192.168.1.230,24h" ];
-    address = [
-      "/adguardhome.darkone.lan/192.168.1.1"
-      "/adguardhome/192.168.1.1"
-      "/forgejo.darkone.lan/192.168.1.1"
-      "/forgejo/192.168.1.1"
-      "/gateway.darkone.lan/192.168.1.1"
-      "/gateway.darkone.lan/192.168.1.1"
-      "/gateway/192.168.1.1"
-      "/gateway/192.168.1.1"
-      "/homepage.darkone.lan/192.168.1.1"
-      "/homepage/192.168.1.1"
-      "/kids-laptop.darkone.lan/192.168.1.20"
-      "/kids-laptop/192.168.1.20"
-      "/medias.darkone.lan/192.168.1.3"
-      "/medias/192.168.1.3"
-      "/monitoring.darkone.lan/192.168.1.1"
-      "/monitoring/192.168.1.1"
-      "/my-laptop.darkone.lan/192.168.1.3"
-      "/my-laptop/192.168.1.3"
-      "/ncps.darkone.lan/192.168.1.1"
-      "/ncps/192.168.1.1"
-      "/nlt-home.darkone.lan/192.168.1.3"
-      "/nlt-home/192.168.1.3"
-      "/nlt-nextcloud.darkone.lan/192.168.1.3"
-      "/nlt-nextcloud/192.168.1.3"
-      "/passerelle.darkone.lan/192.168.1.1"
-      "/passerelle/192.168.1.1"
-    ];
-  };
-  sharedServices = [
-    {
-      host = "gateway";
-      service = "homepage";
-    }
-    {
-      host = "gateway";
-      service = "ncps";
-    }
-    {
-      host = "gateway";
-      service = "forgejo";
-      displayName = "Our local forge";
-    }
-    {
-      host = "gateway";
-      service = "adguardhome";
-    }
-    {
-      host = "gateway";
-      service = "monitoring";
-    }
-    {
-      host = "my-laptop";
-      service = "homepage";
-      domainName = "nlt-home";
-    }
-    {
-      host = "my-laptop";
-      service = "immich";
-      domainName = "medias";
-      displayName = "Local pictures";
-      description = "Our pictures and videos";
-      icon = "google-photos";
-    }
-    {
-      host = "my-laptop";
-      service = "nextcloud";
-      domainName = "nlt-nextcloud";
-      displayName = "Our local cloud";
-      description = "A nextcloud instance";
-    }
-  ];
-  local-substituter = "gateway";
 }

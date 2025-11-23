@@ -4,44 +4,107 @@
 
 [
   {
+    hostname = "hcs";
+    zone = "www";
+    fqdn = "hcs.www.darkone.yt";
+    qdn = "hcs.darkone.yt";
+    name = "Headscale Coordination Server";
+    profile = "headscale";
+    ip = "222.222.222.222";
+    networkDomain = "darkone.yt";
+    groups = [ ];
+    users = [ "nix" ];
+    colmena = {
+      deployment = {
+        tags = [ "zone-www" ];
+      };
+    };
+    services = {
+      headscale = { };
+    };
+  }
+  {
     hostname = "gateway";
-    name = "Local Gateway";
+    zone = "local";
+    fqdn = "gateway.local.darkone.yt";
+    qdn = "gateway.darkone.yt";
+    name = "Local gateway";
     profile = "gateway";
-    ip = "192.168.1.1";
-    arch = "aarch64-linux";
-    groups = [ "admin" ];
-    users = [
-      "darkone"
-      "nix"
-    ];
+    ip = "10.1.1.1";
+    arch = "x86_64-linux";
+    networkDomain = "local.darkone.yt";
+    groups = [ ];
+    users = [ "nix" ];
     colmena = {
       deployment = {
         tags = [
-          "group-admin"
-          "user-darkone"
+          "local"
+          "zone-local"
         ];
       };
     };
     services = {
       homepage = { };
       ncps = { };
-      forgejo = {
-        title = "Our local forge";
-      };
+      auth = { };
+      users = { };
+      forgejo = { };
       adguardhome = { };
       monitoring = { };
     };
   }
   {
     hostname = "my-laptop";
+    zone = "local";
+    fqdn = "my-laptop.local.darkone.yt";
+    qdn = "my-laptop.darkone.yt";
     name = "My Laptop";
-    profile = "admin-laptop";
-    ip = "192.168.1.3";
-    arch = "x86_64-linux";
+    profile = "laptop";
+    ip = "10.1.2.1";
+    networkDomain = "local.darkone.yt";
     groups = [
-      "admin"
-      "common"
+      "zone-local"
+      "guests"
     ];
+    users = [
+      "alice"
+      "darkone"
+      "guest"
+      "guest-baby"
+      "guest-child"
+      "guest-student"
+      "guest-teen"
+      "nix"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "local"
+          "group-zone-local"
+          "group-guests"
+          "user-alice"
+          "user-darkone"
+          "user-guest"
+          "user-guest-baby"
+          "user-guest-child"
+          "user-guest-student"
+          "user-guest-teen"
+          "zone-local"
+        ];
+      };
+    };
+    services = { };
+  }
+  {
+    hostname = "homelab";
+    zone = "local";
+    fqdn = "homelab.local.darkone.yt";
+    qdn = "homelab.darkone.yt";
+    name = "My HomeLab";
+    profile = "server";
+    ip = "10.1.2.2";
+    networkDomain = "local.darkone.yt";
+    groups = [ "global" ];
     users = [
       "alice"
       "darkone"
@@ -50,113 +113,293 @@
     colmena = {
       deployment = {
         tags = [
-          "laptops"
-          "admin"
-          "group-admin"
-          "group-common"
+          "local"
+          "group-global"
           "user-alice"
           "user-darkone"
+          "zone-local"
         ];
       };
     };
     services = {
-      homepage = {
-        domain = "nlt-home";
-      };
+      nfs = { };
+      nextcloud = { };
       immich = {
-        title = "Local pictures";
-        description = "Our pictures and videos";
-        domain = "medias";
+        title = "Local common photos";
+        description = "Shared pictures application";
+        domain = "photos";
         icon = "google-photos";
       };
-      nextcloud = {
-        domain = "nlt-nextcloud";
-        title = "Our local cloud";
-        description = "A nextcloud instance";
-      };
     };
   }
   {
-    hostname = "vbox-01";
-    name = "Virtual 01";
-    profile = "vbox";
+    hostname = "usb-key";
+    zone = "local";
+    fqdn = "usb-key.local.darkone.yt";
+    qdn = "usb-key.darkone.yt";
+    name = "My usb key";
+    profile = "portable";
+    networkDomain = "local.darkone.yt";
     groups = [ ];
-    users = [ "nix" ];
-    colmena = {
-      deployment = {
-        tags = [
-          "vm"
-          "vbox"
-        ];
-      };
-    };
-    services = { };
-  }
-  {
-    hostname = "vbox-02";
-    name = "Virtual 02";
-    profile = "vbox";
-    groups = [ ];
-    users = [ "nix" ];
-    colmena = {
-      deployment = {
-        tags = [
-          "vm"
-          "vbox"
-        ];
-      };
-    };
-    services = { };
-  }
-  {
-    hostname = "vbox-03";
-    name = "Virtual 03";
-    profile = "vbox";
-    groups = [ ];
-    users = [ "nix" ];
-    colmena = {
-      deployment = {
-        tags = [
-          "vm"
-          "vbox"
-        ];
-      };
-    };
-    services = { };
-  }
-  {
-    hostname = "vbox-04";
-    name = "Virtual 04";
-    profile = "vbox";
-    groups = [ ];
-    users = [ "nix" ];
-    colmena = {
-      deployment = {
-        tags = [
-          "vm"
-          "vbox"
-        ];
-      };
-    };
-    services = { };
-  }
-  {
-    hostname = "kids-laptop";
-    name = "Laptop Kids";
-    profile = "local-laptop";
-    ip = "192.168.1.20";
-    groups = [ "common" ];
     users = [
-      "alice"
       "darkone"
       "nix"
     ];
     colmena = {
       deployment = {
         tags = [
-          "group-common"
+          "user-darkone"
+          "zone-local"
+        ];
+      };
+    };
+    services = { };
+  }
+  {
+    hostname = "desktop-01";
+    zone = "local";
+    fqdn = "desktop-01.local.darkone.yt";
+    qdn = "desktop-01.darkone.yt";
+    name = "Common Desktop #01";
+    profile = "desktop";
+    ip = "10.1.11.1";
+    networkDomain = "local.darkone.yt";
+    groups = [
+      "zone-local"
+      "guests"
+    ];
+    users = [
+      "alice"
+      "darkone"
+      "guest"
+      "guest-baby"
+      "guest-child"
+      "guest-student"
+      "guest-teen"
+      "nix"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "local"
+          "group-zone-local"
+          "group-guests"
           "user-alice"
           "user-darkone"
+          "user-guest"
+          "user-guest-baby"
+          "user-guest-child"
+          "user-guest-student"
+          "user-guest-teen"
+          "zone-local"
+        ];
+      };
+    };
+    services = { };
+  }
+  {
+    hostname = "desktop-02";
+    zone = "local";
+    fqdn = "desktop-02.local.darkone.yt";
+    qdn = "desktop-02.darkone.yt";
+    name = "Common Desktop #02";
+    profile = "desktop";
+    ip = "10.1.11.2";
+    networkDomain = "local.darkone.yt";
+    groups = [
+      "zone-local"
+      "guests"
+    ];
+    users = [
+      "alice"
+      "darkone"
+      "guest"
+      "guest-baby"
+      "guest-child"
+      "guest-student"
+      "guest-teen"
+      "nix"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "local"
+          "group-zone-local"
+          "group-guests"
+          "user-alice"
+          "user-darkone"
+          "user-guest"
+          "user-guest-baby"
+          "user-guest-child"
+          "user-guest-student"
+          "user-guest-teen"
+          "zone-local"
+        ];
+      };
+    };
+    services = { };
+  }
+  {
+    hostname = "desktop-03";
+    zone = "local";
+    fqdn = "desktop-03.local.darkone.yt";
+    qdn = "desktop-03.darkone.yt";
+    name = "Common Desktop #03";
+    profile = "desktop";
+    ip = "10.1.11.3";
+    networkDomain = "local.darkone.yt";
+    groups = [
+      "zone-local"
+      "guests"
+    ];
+    users = [
+      "alice"
+      "darkone"
+      "guest"
+      "guest-baby"
+      "guest-child"
+      "guest-student"
+      "guest-teen"
+      "nix"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "local"
+          "group-zone-local"
+          "group-guests"
+          "user-alice"
+          "user-darkone"
+          "user-guest"
+          "user-guest-baby"
+          "user-guest-child"
+          "user-guest-student"
+          "user-guest-teen"
+          "zone-local"
+        ];
+      };
+    };
+    services = { };
+  }
+  {
+    hostname = "desktop-04";
+    zone = "local";
+    fqdn = "desktop-04.local.darkone.yt";
+    qdn = "desktop-04.darkone.yt";
+    name = "Common Desktop #04";
+    profile = "desktop";
+    ip = "10.1.11.4";
+    networkDomain = "local.darkone.yt";
+    groups = [
+      "zone-local"
+      "guests"
+    ];
+    users = [
+      "alice"
+      "darkone"
+      "guest"
+      "guest-baby"
+      "guest-child"
+      "guest-student"
+      "guest-teen"
+      "nix"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "local"
+          "group-zone-local"
+          "group-guests"
+          "user-alice"
+          "user-darkone"
+          "user-guest"
+          "user-guest-baby"
+          "user-guest-child"
+          "user-guest-student"
+          "user-guest-teen"
+          "zone-local"
+        ];
+      };
+    };
+    services = { };
+  }
+  {
+    hostname = "office-laptop";
+    zone = "local";
+    fqdn = "office-laptop.local.darkone.yt";
+    qdn = "office-laptop.darkone.yt";
+    name = "Ordi portable Office Laptop";
+    profile = "laptop";
+    ip = "10.1.10.1";
+    networkDomain = "local.darkone.yt";
+    groups = [
+      "zone-local"
+      "guests"
+    ];
+    users = [
+      "alice"
+      "darkone"
+      "guest"
+      "guest-baby"
+      "guest-child"
+      "guest-student"
+      "guest-teen"
+      "nix"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "group-zone-local"
+          "group-guests"
+          "user-alice"
+          "user-darkone"
+          "user-guest"
+          "user-guest-baby"
+          "user-guest-child"
+          "user-guest-student"
+          "user-guest-teen"
+          "zone-local"
+        ];
+      };
+    };
+    services = { };
+  }
+  {
+    hostname = "saloon-laptop";
+    zone = "local";
+    fqdn = "saloon-laptop.local.darkone.yt";
+    qdn = "saloon-laptop.darkone.yt";
+    name = "Ordi portable Saloon Laptop";
+    profile = "laptop";
+    ip = "10.1.10.2";
+    networkDomain = "local.darkone.yt";
+    groups = [
+      "zone-local"
+      "guests"
+    ];
+    users = [
+      "alice"
+      "darkone"
+      "guest"
+      "guest-baby"
+      "guest-child"
+      "guest-student"
+      "guest-teen"
+      "nix"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "group-zone-local"
+          "group-guests"
+          "user-alice"
+          "user-darkone"
+          "user-guest"
+          "user-guest-baby"
+          "user-guest-child"
+          "user-guest-student"
+          "user-guest-teen"
+          "zone-local"
         ];
       };
     };

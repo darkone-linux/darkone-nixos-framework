@@ -6,21 +6,76 @@
   darkone = {
     uid = 1000;
     email = "darkone@darkone.yt";
-    name = "Darkone Linux";
+    name = "Darkone";
     profile = "dnf/home/profiles/nix-admin";
     groups = [
-      "common"
-      "admin"
+      "zone-local"
+      "global"
     ];
   };
   alice = {
     uid = 1001;
-    name = "Alice";
+    email = "alice@darkone.yt";
+    name = "alice";
     profile = "dnf/home/profiles/normal";
-    groups = [ "common" ];
+    groups = [
+      "zone-local"
+      "global"
+    ];
+  };
+  guest = {
+    uid = 9000;
+    email = "guest@darkone.yt";
+    name = "Guest";
+    profile = "dnf/home/profiles/normal";
+    groups = [
+      "guests"
+      "guest-main"
+    ];
+  };
+  guest-teen = {
+    uid = 9001;
+    email = "guest-teen@darkone.yt";
+    name = "Guest (teen)";
+    profile = "dnf/home/profiles/teenager";
+    groups = [
+      "guests"
+      "guest-kids"
+    ];
+  };
+  guest-child = {
+    uid = 9002;
+    email = "guest-child@darkone.yt";
+    name = "Guest (child)";
+    profile = "dnf/home/profiles/child";
+    groups = [
+      "guests"
+      "guest-kids"
+    ];
+  };
+  guest-baby = {
+    uid = 9003;
+    email = "guest-baby@darkone.yt";
+    name = "Guest (little child)";
+    profile = "dnf/home/profiles/baby";
+    groups = [
+      "guests"
+      "guest-kids"
+    ];
+  };
+  guest-student = {
+    uid = 9004;
+    email = "guest-student@darkone.yt";
+    name = "Invité (étudiant)";
+    profile = "dnf/home/profiles/student";
+    groups = [
+      "guests"
+      "guest-student"
+    ];
   };
   nix = {
     uid = 65000;
+    email = "nix@darkone.yt";
     name = "Nix Maintenance User";
     profile = "dnf/home/profiles/nix-admin";
     groups = [ ];
