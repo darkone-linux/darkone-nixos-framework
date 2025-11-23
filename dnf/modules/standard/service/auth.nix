@@ -3,7 +3,7 @@
 {
   lib,
   config,
-  network,
+  host,
   ...
 }:
 let
@@ -134,9 +134,9 @@ in
             cookies = [
               {
                 name = "dnf_auth";
-                domain = "${network.domain}";
-                authelia_url = "https://${cfg.domainName}.${network.domain}";
-                #default_redirection_url = "https://${network.domain}";
+                domain = "${host.networkDomain}";
+                authelia_url = "https://${cfg.domainName}.${host.networkDomain}";
+                #default_redirection_url = "https://${host.networkDomain}";
 
                 # The period of time the user can be inactive for before the session is destroyed
                 inactivity = "1M";
@@ -156,7 +156,7 @@ in
             default_policy = "deny";
             rules = [
               {
-                domain = "*.${network.domain}";
+                domain = "*.${host.networkDomain}";
                 policy = "one_factor";
               }
             ];
@@ -166,7 +166,7 @@ in
           # notifier.smtp = {
           #   address = "smtp://TODO";
           #   username = "TODO";
-          #   sender = "admin@${network.domain}";
+          #   sender = "admin@${host.networkDomain}";
           # };
         };
       };
@@ -175,7 +175,7 @@ in
       services.caddy = {
         enable = true;
 
-        virtualHosts."${cfg.domainName}.${network.domain}" = {
+        virtualHosts."${cfg.domainName}.${host.networkDomain}" = {
           extraConfig = ''
             tls /etc/authelia/certs/authelia.crt /etc/authelia/certs/authelia.key
             reverse_proxy 127.0.0.1:${toString autheliaPort}
@@ -193,7 +193,7 @@ in
           }
         '';
 
-        virtualHosts."test-app.${network.domain}" = {
+        virtualHosts."test-app.${host.networkDomain}" = {
           extraConfig = ''
             import auth
             tls /etc/authelia/certs/test-app.crt /etc/authelia/certs/test-app.key

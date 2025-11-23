@@ -10,12 +10,13 @@
   config,
   host,
   network,
+  zone,
   ...
 }:
 let
   cfg = config.darkone.service.syncthing;
   srv = config.services.syncthing;
-  isGateway = host.hostname == network.gateway.hostname;
+  isGateway = host.hostname == zone.gateway.hostname;
   guiPort = builtins.fromJSON (builtins.elemAt (lib.splitString ":" srv.guiAddress) 1);
   lldapSettings = config.services.lldap.settings;
   #usersService = config.darkone.service.users;
@@ -32,7 +33,7 @@ in
     };
     darkone.service.syncthing.ldapServerHost = lib.mkOption {
       type = lib.types.str;
-      default = "${network.gateway.hostname}.${network.domain}";
+      default = "${zone.gateway.hostname}.${zone.domain}";
       description = "Users service (lldap)";
     };
     darkone.service.syncthing.ldapServerPort = lib.mkOption {

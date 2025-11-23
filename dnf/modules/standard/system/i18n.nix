@@ -7,7 +7,7 @@
 {
   lib,
   config,
-  network,
+  zone,
   ...
 }:
 let
@@ -15,16 +15,16 @@ let
 in
 {
   options = {
-    darkone.system.i18n.enable = lib.mkEnableOption "Enable i18n with network configuration by default";
+    darkone.system.i18n.enable = lib.mkEnableOption "Enable i18n with network zone configuration by default";
     darkone.system.i18n.locale = lib.mkOption {
       type = lib.types.str;
-      default = "${network.locale}";
+      default = "${zone.locale}";
       example = "fr_FR.UTF-8";
       description = "Network locale";
     };
     darkone.system.i18n.timeZone = lib.mkOption {
       type = lib.types.str;
-      default = "${network.timezone}";
+      default = "${zone.timezone}";
       example = "Europe/Paris";
       description = "Network time zone";
     };

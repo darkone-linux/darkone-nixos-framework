@@ -14,14 +14,14 @@
   host,
   pkgs,
   config,
-  network,
+  zone,
   ...
 }:
 let
   cfg = config.darkone.service.nfs;
-  isGateway = host.hostname == network.gateway.hostname;
-  nfsServerCount = lib.count (s: s.service == "nfs") network.sharedServices;
-  nfsServer = (lib.findFirst (s: s.service == "nfs") null network.sharedServices).host;
+  isGateway = host.hostname == zone.gateway.hostname;
+  nfsServerCount = lib.count (s: s.service == "nfs") zone.sharedServices;
+  nfsServer = (lib.findFirst (s: s.service == "nfs") null zone.sharedServices).host;
   isServer = host.hostname == nfsServer;
   isClient = !isServer;
   hasServer = nfsServerCount == 1;
@@ -96,7 +96,7 @@ assert
 
     # Montage NFS
     fileSystems."/mnt/nfs/homes" = lib.mkIf isClient {
-      device = "${cfg.serverDomain}.${network.domain}:/homes";
+      device = "${cfg.serverDomain}.${host.networkDomain}:/homes";
       fsType = "nfs";
       options = [
         "x-systemd.automount" # Mount on demand
@@ -106,7 +106,7 @@ assert
       ];
     };
     fileSystems."/mnt/nfs/common" = lib.mkIf isClient {
-      device = "${cfg.serverDomain}.${network.domain}:/common";
+      device = "${cfg.serverDomain}.${host.networkDomain}:/common";
       fsType = "nfs";
       options = [
         "x-systemd.automount" # Mount on demand

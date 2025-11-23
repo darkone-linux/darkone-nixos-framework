@@ -3,11 +3,10 @@
 {
   lib,
   config,
-  network,
+  host,
   ...
 }:
 let
-  inherit network;
   cfg = config.darkone.service.forgejo;
   fjCfg = config.services.forgejo;
   srv = fjCfg.settings.server;
@@ -58,7 +57,7 @@ in
         settings = {
           server = {
             DOMAIN = "localhost";
-            ROOT_URL = "http://${cfg.domainName}.${network.domain}/"; # URL before reverse proxy
+            ROOT_URL = "http://${cfg.domainName}.${host.networkDomain}/"; # URL before reverse proxy
             HTTP_PORT = 3000;
             LANDING_PAGE = "explore";
           };
@@ -70,7 +69,7 @@ in
           service.DISABLE_REGISTRATION = true;
           "service.explore".DISABLE_USERS_PAGE = true;
           "ui.meta".AUTHOR = "Darkone Linux";
-          "ui.meta".DESCRIPTION = "${network.domain} git forge";
+          "ui.meta".DESCRIPTION = "${host.networkDomain} git forge";
 
           # Add support for actions, based on act: https://github.com/nektos/act
           actions = {
@@ -84,8 +83,8 @@ in
           # mailer = {
           #   ENABLED = false;
           #   SMTP_ADDR = "mail.cheznoo.net";
-          #   FROM = "noreply@${srv.DOMAIN}.${network.domain}";
-          #   USER = "noreply@${srv.DOMAIN}.${network.domain}";
+          #   FROM = "noreply@${srv.DOMAIN}.${host.networkDomain}";
+          #   USER = "noreply@${srv.DOMAIN}.${host.networkDomain}";
           # };
         };
         #mailerPasswordFile = config.age.secrets.forgejo-mailer-password.path;

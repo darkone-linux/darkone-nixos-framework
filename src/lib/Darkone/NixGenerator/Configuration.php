@@ -9,35 +9,43 @@ use Symfony\Component\Yaml\Yaml;
 
 class Configuration extends NixAttrSet
 {
-    public const TYPE_STRING = 'string';
-    public const TYPE_BOOL = 'boolean';
-    public const TYPE_ARRAY = 'array';
-    public const TYPE_INT = 'integer';
+    use ConfigurationAssertTrait;
 
-    public const REGEX_HOSTNAME = '/^[a-zA-Z][a-zA-Z0-9_-]{1,59}$/';
-    public const REGEX_LOGIN = '/^[a-zA-Z][a-zA-Z0-9_-]{1,59}$/';
-    public const REGEX_IDENTIFIER = '/^[a-z][a-zA-Z0-9-]{0,62}[a-zA-Z0-9]$/';
-    public const REGEX_DEVICE = '#^/dev(/[a-zA-Z0-9]+){1,3}$#';
-    public const REGEX_MAC_ADDRESS = '[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}';
-    public const REGEX_NAME = '/^.{3,128}$/';
-    public const REGEX_IPV4 = '/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/';
+    public const string TYPE_STRING = 'string';
+    public const string TYPE_BOOL = 'boolean';
+    public const string TYPE_ARRAY = 'array';
+    public const string TYPE_INT = 'integer';
+    public const string TYPE_EMAIL = 'email';
 
-    private const MAX_RANGE_BOUND = 1000;
+    public const string REGEX_HOSTNAME = '/^[a-zA-Z][a-zA-Z0-9_-]{1,59}$/';
+    public const string REGEX_LOGIN = '/^[a-zA-Z][a-zA-Z0-9_-]{1,59}$/';
+    public const string REGEX_IDENTIFIER = '/^[a-z][a-zA-Z0-9-]{0,62}[a-zA-Z0-9]$/';
+    public const string REGEX_DEVICE = '#^/dev(/[a-zA-Z0-9]+){1,3}$#';
+    public const string REGEX_MAC_ADDRESS = '[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}';
+    public const string REGEX_NAME = '/^.{3,128}$/';
+    public const string REGEX_IPV4 = '/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/';
+    public const string REGEX_LOCALE = '/^[a-z][a-z]_[A-Z][A-Z]\.UTF-8$/';
+    public const string REGEX_TIMEZONE = '/^([A-Za-z]+)\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?$/';
 
-    private const DEFAULT_PROFILE = 'minimal';
+    public const string EXTERNAL_ZONE_KEY = 'www';
+    public const string DEFAULT_LOCALE = 'fr_FR.UTF-8';
+    public const string DEFAULT_TIMEZONE = 'Europe/Paris';
+
+    private const int MAX_RANGE_BOUND = 1000;
+
+    private const string DEFAULT_PROFILE = 'minimal';
 
     // Nix user login name
-    private const NIX_USER_NAME = 'nix';
+    private const string NIX_USER_NAME = 'nix';
 
     // Nix special user is installed on each host
-    private const NIX_USER_PARAMS = [
+    private const array NIX_USER_PARAMS = [
         'uid' => 65000,
         'name' => 'Nix Maintenance User',
         'profile' => 'nix-admin',
     ];
 
     private string $formatter = 'nixfmt';
-    private ?array $lldapConfig = null;
 
     /**
      * @var User[]
@@ -48,12 +56,19 @@ class Configuration extends NixAttrSet
      * @var Host[]
      */
     private array $hosts = [];
+
+    /**
+     * @var NixZone[]
+     */
+    private array $zones = [];
+    private NixNetwork $network;
+
     private array $networkConfig = [];
-    private NixNetwork $extraNetwork;
+    private array $config; // Global configuration from yaml file
 
     public function __construct()
     {
-        $this->extraNetwork = new NixNetwork();
+        $this->network = new NixNetwork();
         parent::__construct();
     }
 
@@ -64,25 +79,13 @@ class Configuration extends NixAttrSet
     public function loadYamlFiles(string $configFile, string $generatedConfigFile): Configuration
     {
         $config = Yaml::parseFile($configFile);
-        $config = array_replace_recursive(Yaml::parseFile($generatedConfigFile), $config);
-        $this->loadUsers($config);
-        $this->loadHosts($config);
-        $this->loadFormatter($config);
-        $this->loadLldapProvider($config);
-        $this->loadNetwork($config);
+        $this->config = array_replace_recursive($config, Yaml::parseFile($generatedConfigFile));
+        $this->loadNetwork($this->config);
+        $this->loadZones($this->config);
+        $this->loadUsers($this->config);
+        $this->loadHosts($this->config);
 
         return $this;
-    }
-
-    /**
-     * @throws NixException
-     */
-    public function loadFormatter(array $config): void
-    {
-        if (isset($config['nix']['formatter'])) {
-            self::assert(self::TYPE_STRING, $config['nix']['formatter'], 'Bad formatter type');
-            $this->formatter = $config['nix']['formatter'];
-        }
     }
 
     public function getFormatter(): string
@@ -93,48 +96,15 @@ class Configuration extends NixAttrSet
     /**
      * @throws NixException
      */
-    public function loadLldapProvider(array $config): void
-    {
-        if (isset($config['hostProvider']['lldap'])) {
-            $lldapConfig = $config['hostProvider']['lldap'];
-            self::assert(self::TYPE_ARRAY, $lldapConfig, "Bad LLDAP configuration root type");
-            self::assert(self::TYPE_STRING, $lldapConfig['url'] ?? null, "A valid lldap url is required", '#^ldap://.+$#');
-            self::assert(self::TYPE_STRING, $lldapConfig['bind']['user'] ?? null, "A valid lldap bind user is required", '#^[a-zA-Z][a-zA-Z0-9_-]+$#');
-            self::assert(self::TYPE_STRING, $lldapConfig['bind']['passwordFile'] ?? null, "A valid lldap password file is required");
-            // $pwdFile = (NIX_PROJECT_ROOT ? NIX_PROJECT_ROOT . '/usr/secrets/' : '') . $lldapConfig['bind']['passwordFile'];
-            // if (!file_exists($pwdFile)) {
-            //     throw new NixException('LLDAP password file "' . $pwdFile . '" not found.');
-            // }
-        }
-    }
-
-    /**
-     * @throws NixException
-     */
-    public function getLldapConfig(): array
-    {
-        self::assert(self::TYPE_ARRAY, $this->lldapConfig, "No lldap configuration loaded");
-        return $this->lldapConfig;
-    }
-
-    /**
-     * @throws NixException
-     * @todo Auto e-mail by network
-     */
     private function loadUsers(array $config): void
     {
         self::assert(self::TYPE_ARRAY, $config['users'] ?? null, "Users not found in configuration");
         $config['users'][self::NIX_USER_NAME] = self::NIX_USER_PARAMS;
         foreach ($config['users'] as $login => $user) {
-            self::assert(self::TYPE_STRING, $login, "A user name is required", self::REGEX_LOGIN);
-            self::assert(self::TYPE_INT, $user['uid'] ?? '', "A valid uid is required for " . $login);
-            self::assert(self::TYPE_STRING, $user['email'] ?? '', "Bad email type for " . $login); // TODO email validation
-            self::assert(self::TYPE_STRING, $user['name'] ?? null, "A valid user name is required for " . $login, self::REGEX_NAME);
-            self::assert(self::TYPE_STRING, $user['profile'] ?? null, "A valid user profile is required for " . $login, self::REGEX_NAME);
-            self::assert(self::TYPE_ARRAY, $user['groups'] ?? [], "Bad user group type for " . $login, null, self::TYPE_STRING);
+            self::assertUserInput($login, $user);
             $this->users[$login] = (new User())
                 ->setUidAndLogin($user['uid'], $login)
-                ->setEmail($user['email'] ?? null)
+                ->setEmail($user['email'] ?? $login . '@' . $this->getNetwork()->getDomain())
                 ->setName($user['name'])
                 ->setProfile($user['profile'] ?? self::DEFAULT_PROFILE)
                 ->setGroups($user['groups'] ?? []);
@@ -150,9 +120,23 @@ class Configuration extends NixAttrSet
             return;
         }
         self::assert(self::TYPE_ARRAY, $config['hosts'], "Bad hosts root value");
-        $this->loadStaticHosts($config['hosts']['static'] ?? []);
-        $this->loadRangeHosts($config['hosts']['range'] ?? []);
-        $this->loadListHosts($config['hosts']['list'] ?? []);
+
+        $hosts = [];
+        foreach ($config['hosts'] as $host) {
+            $type = isset($host['range'])
+                ? 'range'
+                : (isset($host['hosts'])
+                    ? 'list'
+                    : 'static');
+            $hosts[$type][] = $host;
+        }
+
+        $this->loadStaticHosts($hosts['static'] ?? []);
+        $this->loadRangeHosts($hosts['range'] ?? []);
+        $this->loadListHosts($hosts['list'] ?? []);
+
+        // Add gateway host name + hosts and ips
+        $this->populateZones();
     }
 
     /**
@@ -160,29 +144,29 @@ class Configuration extends NixAttrSet
      */
     private function loadStaticHosts(array $staticHosts): void
     {
-        array_map(function (array $host) {
-            self::assertHostCommonParams($host);
+        foreach ($staticHosts as $host) {
+            $this->assertHostInput($host);
+            list($zoneName, $ip) = $this->extractZoneAndIp($host);
             self::assertHostName($host['hostname']);
+            $zone = $this->zones[$zoneName];
             $this->hosts[$host['hostname']] = (new Host())
                 ->setHostname($host['hostname'])
                 ->setName($host['name'])
+                ->setZone($zoneName)
                 ->setProfile($host['profile'])
-                ->setLocal($host['local'] ?? false)
                 ->setArch($host['arch'] ?? null)
+                ->setNetworkDomain($zone->getName() == self::EXTERNAL_ZONE_KEY ? $this->network->getDomain() : $zone->getDomain())
                 ->setUsers($this->extractAllUsers($host['users'] ?? [], $host['groups'] ?? []))
                 ->setGroups($host['groups'] ?? [])
                 ->setTags($host['tags'] ?? [])
-                ->registerAliases($this->extraNetwork, $host['aliases'] ?? [])
-                ->registerInterfaces($this->extraNetwork, $host['interfaces'] ?? [])
-                ->registerServices($this->extraNetwork, $host['services'] ?? [])
-                ->setIp($this->extraNetwork->getHostIp($host['hostname']))
+                ->registerAliases($zone, $host['aliases'] ?? [])
+                ->registerHostInZone($zone, $host, $ip)
+                ->registerServices($zone, $host['services'] ?? [])
+                ->setIp($ip)
                 ->setDisko($host['disko'] ?? []);
-        }, $staticHosts);
+        }
     }
 
-    /**
-     * @todo can be optimized
-     */
     private function extractAllUsers(array $hostUsers, array $groups): array
     {
         $users = [self::NIX_USER_NAME];
@@ -203,7 +187,9 @@ class Configuration extends NixAttrSet
 
     private function loadRangeHosts(array $rangeHosts): void
     {
-        array_map(fn (array $hostGroup) => $this->buildRangeHostGroup($hostGroup), $rangeHosts);
+        array_map(/**
+         * @throws NixException
+         */ fn (array $hostGroup) => $this->buildRangeHostGroup($hostGroup), $rangeHosts);
     }
 
     /**
@@ -225,12 +211,16 @@ class Configuration extends NixAttrSet
             $hosts[$i] = [
                 'hostname' => sprintf($rangeHostGroup['hostname'], $i),
                 'name' => sprintf($rangeHostGroup['name'], $i),
+                'zone' => sprintf($rangeHostGroup['zone'], $i),
                 'profile' => $rangeHostGroup['profile'],
                 'users' => $rangeHostGroup['users'] ?? [],
                 'groups' => $rangeHostGroup['groups'] ?? [],
                 'tags' => $rangeHostGroup['tags'] ?? [],
                 'disko' => $rangeHostGroup['disko'] ?? [],
             ];
+            if (!empty($rangeHostGroup['mac'][$i])) {
+                $hosts[$i]['mac'] = $rangeHostGroup['mac'][$i];
+            }
         }
 
         foreach ($rangeHostGroup['hosts'] ?? [] as $id => $extraConfig) {
@@ -242,7 +232,9 @@ class Configuration extends NixAttrSet
 
     private function loadListHosts(array $listHosts): void
     {
-        array_map(fn (array $hostGroup) => $this->buildListHostGroup($hostGroup), $listHosts);
+        array_map(/**
+         * @throws NixException
+         */ fn (array $hostGroup) => $this->buildListHostGroup($hostGroup), $listHosts);
     }
 
     /**
@@ -272,62 +264,14 @@ class Configuration extends NixAttrSet
     /**
      * @throws NixException
      */
-    public function assertHostName(string $hostName): void
+    public function populateZones(): void
     {
-        if (array_key_exists($hostName, $this->hosts)) {
-            throw new NixException('Host name collision "' . $hostName . '" (value already exists)');
-        }
-        if (!preg_match(self::REGEX_HOSTNAME, $hostName)) {
-            throw new NixException('Invalid host name "' . $hostName . '" (must match ' . self::REGEX_HOSTNAME . ')');
-        }
-    }
+        foreach ($this->hosts as $host) {
 
-    /**
-     * @throws NixException
-     */
-    public static function assertHostCommonParams(array $host): void
-    {
-        self::assert(self::TYPE_STRING, $host['hostname'] ?? null, "A hostname is required");
-        self::assert(self::TYPE_STRING, $host['name'] ?? null, 'A name (description) is required for "' . $host['hostname'] . '"');
-        self::assert(self::TYPE_STRING, $host['profile'] ?? null, 'A host profile is required for "' . $host['hostname'] . '"');
-        self::assert(self::TYPE_ARRAY, $host['users'] ?? [], 'Bad users list type for "' . $host['hostname'] . '"', null, self::TYPE_STRING);
-        self::assert(self::TYPE_ARRAY, $host['disko'] ?? [], 'Bad disko params');
-        self::assert(self::TYPE_BOOL, $host['local'] ?? false, 'Bad local key type for "' . $host['hostname'] . '"');
-    }
-
-    /**
-     * @throws NixException
-     */
-    public static function assert(
-        string $type,
-        mixed $value,
-        string $errMessage,
-        ?string $regex = null,
-        ?string $subType = null,
-        bool $nullableSubType = false
-    ): mixed {
-        if ($type !== gettype($value)) {
-            throw new NixException($errMessage);
+            // Add gateway
+            str_ends_with($host->getIp() ?? '', '.1.1') &&
+                $this->zones[$host->getZone()]->setGateway($host);
         }
-        if (!is_null($regex)) {
-            if (!is_string($value)) {
-                throw new NixException('Cannot check regex with non-string value');
-            }
-            if (!preg_match($regex, $value)) {
-                throw new NixException('Syntax Error for value "' . $value . '": ' . $errMessage);
-            }
-        }
-        if (!is_null($subType)) {
-            if ($type !== self::TYPE_ARRAY) {
-                throw new NixException('Cannot declare subtype for non-array content');
-            }
-            array_walk(
-                $value,
-                fn ($subValue) => ($nullableSubType && is_null($subValue)) || self::assert($subType, $subValue, $errMessage . ' (subvalue type error)')
-            );
-        }
-
-        return $value;
     }
 
     /**
@@ -362,21 +306,28 @@ class Configuration extends NixAttrSet
      */
     public function loadNetwork(array $config): Configuration
     {
-        $this->networkConfig = $this->extraNetwork->registerNetworkConfig($config['network'] ?? [])->getConfig();
-        if (isset($this->networkConfig['gateway']['hostname']) && isset($this->networkConfig['gateway']['lan']['ip'])) {
-            $gwHost = $this->networkConfig['gateway']['hostname'];
-            if (!isset($this->hosts[$gwHost])) {
-                throw new NixException('Gateway host "' . $gwHost . '" not found in hosts declarations.');
+        $this->networkConfig = $this->network->registerNetworkConfig($config['network'] ?? [])->getConfig();
+        return $this;
+    }
+
+    /**
+     * @throws NixException
+     */
+    public function loadZones(array $config): Configuration
+    {
+        // Special www zone (internet)
+        $zone = new NixZone(self::EXTERNAL_ZONE_KEY, $this->network);
+        $zone->registerZoneConfig([]);
+        $this->zones[self::EXTERNAL_ZONE_KEY] = $zone;
+
+        foreach ($config['zones'] ?? [] as $zoneName => $zoneConfig) {
+            if ($zoneName === 'common') {
+                continue;
             }
-            $gw = $this->hosts[$gwHost];
-            $nip = $this->networkConfig['gateway']['lan']['ip'];
-            if (($ip = $gw->getIp()) !== null) {
-                if ($ip !== $nip) {
-                    throw new NixException('Concurrent gw ip declarations "' . $ip . '" vs "' . $nip . '"');
-                }
-            } else {
-                $gw->setIp($nip);
-            }
+            $config['zones'][$zoneName] = array_merge_recursive($zoneConfig, $config['zones']['common'] ?? []);
+            $zone = new NixZone($zoneName, $this->network);
+            $zone->registerZoneConfig($zoneConfig);
+            $this->zones[$zoneName] = $zone;
         }
 
         return $this;
@@ -384,6 +335,60 @@ class Configuration extends NixAttrSet
 
     public function getNetworkConfig(): array
     {
-        return $this->networkConfig + $this->extraNetwork->buildExtraNetworkConfig();
+        return $this->networkConfig;
+    }
+
+    /**
+     * @return NixZone[]
+     * @throws NixException
+     */
+    public function extractZonesConfig(): array
+    {
+        $zones = [];
+        foreach ($this->zones as $zoneName => $zone) {
+            $zones[$zoneName] = $zone->getConfig() + $this->network->getZone($zoneName)->buildExtraZoneConfig();
+        }
+
+        return $zones;
+    }
+
+    /**
+     * @param array $host
+     * @return array
+     * @throws NixException
+     */
+    public function extractZoneAndIp(array $host): array
+    {
+        if (!empty($host['zone'])) {
+            [$zoneName, $ip] = explode(':', $host['zone'] . ':');
+            $ip = empty($ip) ? null : $this->zones[$zoneName]->getConfig()['ipPrefix'] . '.' . $ip;
+            if (!is_null($ip) && (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || !str_starts_with($ip, '10.'))) {
+                throw new NixException(
+                    'Generated IP address "' . $ip . '" for host "' . $host['hostname'] . '" is not a valid local IP.'
+                );
+            }
+        } else {
+            $zoneName = self::EXTERNAL_ZONE_KEY;
+            $ip = $host['ipv4'];
+            if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                throw new NixException(
+                    'Generated address "' . $ip . '" for host "' . $host['hostname'] . '" is not a valid external IP.'
+                );
+            }
+        }
+        return [$zoneName, $ip];
+    }
+
+    /**
+     * @return NixZone[]
+     */
+    public function getZones(): array
+    {
+        return $this->zones;
+    }
+
+    public function getNetwork(): NixNetwork
+    {
+        return $this->network;
     }
 }

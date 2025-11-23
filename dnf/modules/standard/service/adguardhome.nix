@@ -9,6 +9,7 @@
   lib,
   config,
   network,
+  zone,
   ...
 }:
 let
@@ -74,7 +75,7 @@ in
           ];
           auth_attempts = 5;
           block_auth_min = 1;
-          language = lib.toLower (builtins.substring 0 2 network.locale);
+          language = zone.lang;
 
           # adguardhome is a dnsmasq upstream
           dns = {
@@ -83,7 +84,7 @@ in
             upstream_dns = [
 
               # Local dns server for internal queries
-              ("[/" + network.domain + "/]" + dnsmasqAddr)
+              ("[/" + zone.domain + "/]" + dnsmasqAddr)
 
               # Reverse DNS upstream
               ("[/in-addr.arpa/]" + dnsmasqAddr)

@@ -13,7 +13,7 @@
   lib,
   config,
   host,
-  network,
+  zone,
   ...
 }:
 let
@@ -44,7 +44,7 @@ in
         cache = {
           inherit (cfg) dataPath;
           maxSize = "20G";
-          hostName = "${host.hostname}.${network.domain}";
+          hostName = "${host.hostname}.${zone.domain}";
           lru.schedule = "0 2 * * *";
           allowPutVerb = true;
           allowDeleteVerb = true;
@@ -65,7 +65,7 @@ in
     # Add local gw to substituters.
     # Check with nix --extra-experimental-features nix-command show-config | grep substituters
     nix.settings = {
-      substituters = [ "http://${network.gateway.hostname}.${network.domain}:8501" ];
+      substituters = [ "http://${zone.gateway.hostname}.${zone.domain}:8501" ];
       trusted-public-keys = [ "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=" ];
     };
   };

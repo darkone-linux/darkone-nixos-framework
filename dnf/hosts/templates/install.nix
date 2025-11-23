@@ -1,4 +1,4 @@
-# Standalone machine used to install a new host
+# Standalone machine used to install a new host - DEPRECATED
 
 { pkgs, ... }:
 {

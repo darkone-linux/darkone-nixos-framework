@@ -9,7 +9,7 @@
   lib,
   config,
   host,
-  network,
+  zone,
   pkgs,
   ...
 }:
@@ -19,9 +19,9 @@ let
   # Current host is a client and not the gateway, but network have a gateway with ncps activated
   isNcpsClient =
     cfg.enableGatewayClient
-    && network ? local-substituter
-    && network.local-substituter != null
-    && network.local-substituter != host.hostname;
+    && zone ? local-substituter
+    && zone.local-substituter != null
+    && zone.local-substituter != host.hostname;
 in
 {
   options = {
@@ -98,7 +98,7 @@ in
         allowPing = lib.mkDefault true;
         allowedTCPPorts = [ 22 ];
         allowedUDPPorts =
-          if host.hostname == network.gateway.hostname then
+          if host.hostname == zone.gateway.hostname then
             [ ]
           else
             [

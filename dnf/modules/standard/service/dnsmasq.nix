@@ -8,17 +8,17 @@
 {
   lib,
   config,
-  network,
+  zone,
   ...
 }:
 let
   cfg = config.darkone.service.dnsmasq;
-  inherit (network) domain;
-  inherit (network) extraDnsmasqSettings;
-  inherit (network) gateway;
-  wanInterface = network.gateway.wan.interface;
+  inherit (zone) domain;
+  inherit (zone) extraDnsmasqSettings;
+  inherit (zone) gateway;
+  wanInterface = gateway.wan.interface;
   lanInterface = "lan0"; # bridge for internal interfaces
-  lanIpRange = gateway.lan.ip + "/" + toString gateway.lan.prefixLength;
+  lanIpRange = zone.networkIp + "/" + toString zone.prefixLength;
 in
 {
   options = {
@@ -26,6 +26,7 @@ in
   };
 
   # TODO: IPv6 (cf. arthur gw conf)
+  # TODO: headscale / tailscale integration
   config = lib.mkIf cfg.enable {
 
     networking = {
@@ -33,12 +34,14 @@ in
       # No IPv6 for the moment
       enableIPv6 = false;
 
-      # domain + search
-      inherit (network) domain;
-      search = [ network.domain ];
+      # Local domain
+      inherit (zone) domain;
+
+      # Probably useless with headscale magicdns?
+      search = [ zone.domain ];
 
       # We need a bridge for dnsmasq settings
-      bridges.${lanInterface}.interfaces = network.gateway.lan.interfaces;
+      bridges.${lanInterface}.interfaces = gateway.lan.interfaces;
 
       # Internet sharing / nat
       nat = {
@@ -58,7 +61,7 @@ in
           ipv4.addresses = [
             {
               address = gateway.lan.ip;
-              inherit (gateway.lan) prefixLength;
+              inherit (zone) prefixLength;
             }
           ];
         };
@@ -147,7 +150,7 @@ in
         local = "/${domain}/";
 
         # Register the IP of gateway
-        address = [ "/${gateway.hostname}.${network.domain}/${gateway.lan.ip}" ];
+        address = [ "/${gateway.hostname}.${domain}/${gateway.lan.ip}" ];
 
         # Utiliser un port DNS différent si adguardhome est activé.
         port = if config.darkone.service.adguardhome.enable then 5353 else 53;

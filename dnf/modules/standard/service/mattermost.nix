@@ -1,4 +1,4 @@
-# A mattermost server.
+# A mattermost server. (WIP)
 #
 # :::caution
 # This module works with Mattermost Team Edition but I do not plan
@@ -10,11 +10,10 @@
   lib,
   pkgs,
   config,
-  network,
+  host,
   ...
 }:
 let
-  inherit network;
   cfg = config.darkone.service.mattermost;
   srv = config.services.mattermost;
 in
@@ -59,7 +58,7 @@ in
       # Mattermost server
       services.mattermost = {
         enable = true;
-        siteUrl = "https://${cfg.domainName}.${network.domain}";
+        siteUrl = "https://${cfg.domainName}.${host.networkDomain}";
       };
     })
   ];

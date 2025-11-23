@@ -4,6 +4,9 @@ namespace Darkone\MdxGenerator;
 
 class Generator
 {
+    /**
+     * @throws MdxException
+     */
     public static function generateAll(): void
     {
         file_put_contents(

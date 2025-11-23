@@ -7,263 +7,35 @@ namespace Darkone\NixGenerator;
  */
 class NixNetwork
 {
-    private const DEFAULT_LAN_IP = '192.168.9.1';
-    private const DEFAULT_LAN_PREFIX_LENGTH = 24;
-    private const DEFAULT_DOMAIN = 'darkone.lan';
-    private const DEFAULT_TIMEZONE = 'America/Miquelon';
-    private const DEFAULT_LOCALE = 'fr_FR.UTF-8';
+    private const string DEFAULT_DOMAIN = 'darkone.lan';
 
-    // Mac addresses for dhcp
-    private array $macAddresses = [];
+    private array $config;
+    private array $zones = [];
 
-    // Hosts with aliases
-    private array $aliases = [];
-    private array $allAliases = [];
-
-    // Hosts with ips
-    private array $hosts = [];
-
-    // Shared services informations
-    private array $services = [];
-
-    // Other options
-    private array $dhcpOption = [];
-    private array $dhcpRange = [];
-
-    // Updated configuration
-    private array $config = [];
-
-    // NCPS service provider
-    private ?string $substituter = null;
-
-    public function buildExtraNetworkConfig(): array
+    /**
+     * @return NixZone[]
+     */
+    public function getZones(): array
     {
-        return [
-            'extraDnsmasqSettings' => [
-                'dhcp-host' => array_values($this->macAddresses),
-                'dhcp-option' => $this->dhcpOption,
-                'dhcp-range' => $this->dhcpRange,
-                'address' => $this->buildAddresses(),
-
-                // Do not works with fqdn configuration of dnsmasq -> address
-                // 'cname' => $this->buildCnames(),
-            ],
-            'sharedServices' => $this->services,
-            'local-substituter' => $this->substituter,
-        ];
-    }
-
-    private function buildCnames(): array
-    {
-        $cnames = [];
-        foreach ($this->aliases as $host => $aliases) {
-            $hostCnames = [];
-            foreach ($aliases as $alias) {
-                $hostCnames[] = $alias . ',' . $host . '.' . $this->config['domain'];
-                $hostCnames[] = $alias . '.' . $this->config['domain'] . ',' . $host . '.' . $this->config['domain'];
-            }
-            sort($hostCnames);
-            $cnames = array_merge($cnames, $hostCnames);
-        }
-
-        return $cnames;
-    }
-
-    private function buildAddresses(): array
-    {
-        $addresses = [];
-
-        // Main hosts
-        foreach ($this->hosts as $host => $ip) {
-            if (!empty($ip)) {
-                $addresses[] = '/' . $host . '/' . $ip;
-                $addresses[] = '/' . $host . '.' . $this->config['domain'] . '/' . $ip;
-            }
-        }
-
-        // Replace cnames
-        foreach ($this->aliases as $host => $aliases) {
-            foreach ($aliases as $alias) {
-                $addresses[] = '/' . $alias . '/' . $this->hosts[$host];
-                $addresses[] = '/' . $alias . '.' . $this->config['domain'] . '/' . $this->hosts[$host];
-            }
-        }
-        sort($addresses);
-
-        return $addresses;
+        return $this->zones;
     }
 
     /**
+     * @param string $zoneName
+     * @return NixZone
      * @throws NixException
      */
-    public function registerMacAddress(string $mac, string $ip, string $host): NixNetwork
+    public function getZone(string $zoneName): NixZone
     {
-        static $macAddresses = [];
-
-        if (!empty($mac)) {
-
-            // Filter + checks
-            $mac = trim(strtolower($mac));
-            if (!preg_match('/^' . Configuration::REGEX_MAC_ADDRESS . '(,' . Configuration::REGEX_MAC_ADDRESS . ')*$/', $mac)) {
-                throw new NixException('Bad mac address syntax for "' . $mac . '"');
-            }
-
-            // Duplicates detection
-            if (in_array($mac, $macAddresses)) {
-                throw new NixException('Mac address ' . $mac . ' already declared');
-            }
-            $macAddresses[] = $mac;
-
-            // In case of we have this :
-            // interfaces:
-            // - mac: xxx
-            //   ip: "192.168.1.3"
-            // - mac: yyy
-            //   ip: "192.168.1.3" <- the same
-            if (isset($this->macAddresses[$ip])) {
-                throw new NixException('Ip address ' . $ip . ' conflict (mac: ' . $mac . ')');
-            } else {
-
-                # Do not put the name of the host here !
-                # The name of the installed OS must be defined by the OS only.
-                # Very important for usb keys that contains an OS.
-                $this->macAddresses[$ip] = $mac . ',' . $ip;
-            }
+        if (!isset($this->getZones()[$zoneName])) {
+            throw new NixException('Undefined zone "' . $zoneName . '"');
         }
-
-        return $this;
+        return $this->getZones()[$zoneName];
     }
 
-    /**
-     * @throws NixException
-     */
-    public function registerAliases(string $host, array $aliases): NixNetwork
+    public function addZone(NixZone $zone): NixNetwork
     {
-        if (!empty($hosts = array_intersect(array_keys($this->aliases), $aliases))) {
-            throw new NixException('Alias name(s) ' . implode(', ', $hosts) . ' already declared in main hosts');
-        }
-        if (!empty($hosts = array_intersect(array_keys($this->hosts), $aliases))) {
-            throw new NixException('Name(s) ' . implode(', ', $hosts) . ' cannot be aliases and main host names');
-        }
-        if (!empty($hosts = array_intersect($this->allAliases, $aliases))) {
-            throw new NixException('Duplicated alias(es) ' . implode(', ', $hosts));
-        }
-        $this->allAliases = array_merge($this->allAliases, $aliases);
-        $this->aliases[$host] = array_merge($this->aliases[$host] ?? [], $aliases);
-
-        return $this;
-    }
-
-    /**
-     * @throws NixException
-     */
-    public function registerHost(string $host, ?string $ip, bool $force = false): NixNetwork
-    {
-        if (empty($host)) {
-            return $this;
-        }
-        if (!$force && isset($this->hosts[$host])) {
-            throw new NixException('Hostname ' . $host . ' already declared');
-        }
-        if (!is_null($ip) && in_array($ip, $this->hosts)) {
-            throw new NixException('Ip address ' . $ip . ' assigned to more than one host');
-        }
-        $this->hosts[$host] = $ip ?? $this->hosts[$host] ?? null;
-
-        return $this;
-    }
-
-    /**
-     * @throws NixException
-     */
-    public function registerSharedServices(string $host, array $services): NixNetwork
-    {
-        static $serviceDomains = [];
-
-        if (empty($services)) {
-            return $this;
-        }
-
-        foreach ($services as $serviceKey => $service) {
-            if (!empty($service['domain'])) {
-                if (in_array($service['domain'], $serviceDomains)) {
-                    throw new NixException('Service domain conflict: "' . $service['domain'] . '"');
-                }
-                $serviceDomains[] = $service['domain'];
-            }
-            if ($serviceKey == 'ncps') {
-                if (!is_null($this->substituter)) {
-                    throw new NixException('Cannot have more than 1 ncps provider (' . $host . ' vs ' . $this->substituter . ').');
-                }
-                $this->substituter = $host;
-            }
-            $this->services[] = array_filter([
-                'host' => $host,
-                'service' => $serviceKey,
-                'domainName' => $service['domain'] ?? null,
-                'displayName' => $service['title'] ?? null,
-                'description' => $service['description'] ?? null,
-                'icon' => $service['icon'] ?? null,
-            ]);
-        }
-
-        return $this;
-    }
-
-    /**
-     * @throws NixException
-     */
-    public function registerNetworkConfig(array $cfg): NixNetwork
-    {
-        $gwStaticIp = $cfg['gateway']['lan']['ip'] ?? self::DEFAULT_LAN_IP;
-        $gwIpPrefix = preg_replace('/^([0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$/', '$1', $gwStaticIp);
-
-        // Rewrite cfg with default options
-        $cfg['domain'] ??= self::DEFAULT_DOMAIN;
-        $cfg['locale'] ??= self::DEFAULT_LOCALE;
-        $cfg['timezone'] ??= self::DEFAULT_TIMEZONE;
-
-        // No gateway?
-        if (!isset($cfg['gateway']['lan']) && !isset($cfg['gateway']['wan'])) {
-            $this->config = $cfg;
-            return $this;
-        }
-
-        // Checks before using config
-        $this->assertGwCfg($cfg['gateway']);
-
-        // Rewrite gateway cfg with default options
-        $cfg['gateway']['lan']['ip'] = $gwStaticIp;
-        $cfg['gateway']['lan']['prefixLength'] ??= self::DEFAULT_LAN_PREFIX_LENGTH;
-
-        // Gateway host + static ip
-        $this->registerHost($cfg['gateway']['hostname'] ?? '', $gwStaticIp, true);
-
-        // Extra hosts (not in nix host list)
-        foreach ($cfg['extraHosts'] ?? [] as $hostname => $hostCfg) {
-            $this->registerAliases($hostname, $hostCfg['aliases'] ?? []);
-            $this->registerHost($hostname, $hostCfg['interfaces'][0]['ip'] ?? null);
-            $this->registerSharedServices($hostname, $hostCfg['services'] ?? []);
-            foreach ($hostCfg['interfaces'] ?? [] as $interface) {
-                $this->registerMacAddress($interface['mac'] ?? '', $interface['ip'], $hostname);
-            }
-        }
-        unset($cfg['extraHosts']);
-
-        // DHCP Option
-        $this->dhcpOption = array_merge([
-            "option:router," . $gwStaticIp,
-            "option:dns-server," . $gwStaticIp,
-            "option:domain-name," . $cfg['domain'],
-            "option:domain-search," . $cfg['domain'],
-        ], $cfg['gateway']['lan']['dhcp-extra-option'] ?? []);
-
-        // DHCP Range
-        $this->dhcpRange = $cfg['gateway']['lan']['dhcp-range'] ?? [
-            $gwIpPrefix . '.200,' . $gwIpPrefix . '.249,24h'
-        ];
-        $this->config = $cfg;
-
+        $this->zones[$zone->getName()] = $zone;
         return $this;
     }
 
@@ -272,35 +44,37 @@ class NixNetwork
         return $this->config;
     }
 
-    /**
-     * @param $gateway
-     * @return void
-     * @throws NixException
-     */
-    public function assertGwCfg($gateway): void
+    public function getDomain(): string
     {
-        Configuration::assert(
-            Configuration::TYPE_STRING,
-            $gateway['hostname'] ?? null,
-            'A gateway valid hostname is required',
-            Configuration::REGEX_HOSTNAME
-        );
-        Configuration::assert(
-            Configuration::TYPE_STRING,
-            $gateway['wan']['interface'] ?? null,
-            'A WAN interface is required'
-        );
-        Configuration::assert(
-            Configuration::TYPE_ARRAY,
-            $gateway['lan']['interfaces'] ?? null,
-            'Valid LAN interfaces are required',
-            null,
-            Configuration::TYPE_STRING
-        );
+        return $this->getConfig()['domain'];
     }
 
-    public function getHostIp(string $host): ?string
+    public function getDefaultLocale(): ?string
     {
-        return $this->hosts[$host] ?? null;
+        return $this->getConfig()['default']['locale'] ?? null;
+    }
+
+    public function getDefaultTimezone(): ?string
+    {
+        return $this->getConfig()['default']['timezone'] ?? null;
+    }
+
+    // TODO: detect unknown keys
+
+    /**
+     * @param array $config
+     * @return $this
+     * @throws NixException
+     */
+    public function registerNetworkConfig(array $config): NixNetwork
+    {
+        $config['domain'] ??= self::DEFAULT_DOMAIN;
+        Configuration::assert(Configuration::TYPE_STRING, $config['domain'], 'Bad network domain type');
+        Configuration::assert(Configuration::TYPE_STRING, $config['default']['locale'] ?? '', 'Bad default network locale syntax', Configuration::REGEX_LOCALE);
+        Configuration::assert(Configuration::TYPE_STRING, $config['default']['timezone'] ?? '', 'Bad default network timezone syntax', Configuration::REGEX_TIMEZONE);
+        Configuration::assert(Configuration::TYPE_STRING, $config['coordination']['hostname'] ?? '', 'Bad coordination hostname type');
+        $this->config = $config;
+
+        return $this;
     }
 }

@@ -5,8 +5,8 @@
   lib,
   config,
   osConfig,
-  users,
   network,
+  users,
   ...
 }:
 

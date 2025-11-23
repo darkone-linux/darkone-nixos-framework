@@ -5,6 +5,7 @@
   config,
   pkgs,
   host,
+  zone,
   network,
   ...
 }:
@@ -149,8 +150,9 @@ in
             "localhost"
             (mkDomain cfg.domainName)
             "${(mkDomain cfg.domainName)}.${network.domain}"
+            "${(mkDomain cfg.domainName)}.${zone.domain}"
           ];
-          default_phone_region = lib.toUpper (builtins.substring 0 2 network.locale);
+          default_phone_region = lib.toUpper (builtins.substring 3 2 zone.locale);
         };
       };
 
