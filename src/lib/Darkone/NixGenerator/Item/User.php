@@ -8,7 +8,7 @@ class User
 {
     private static array $uids = [];
 
-    private const PROFILE_PATHS = ["usr/home/profiles/%s", "dnf/home/profiles/%s"];
+    private const array PROFILE_PATHS = ["usr/home/profiles/%s", "dnf/home/profiles/%s"];
 
     private string $login;
     private int $uid;
@@ -131,10 +131,5 @@ class User
     public function getGroups(): array
     {
         return $this->groups;
-    }
-
-    public function hasGroup(string $groupName): bool
-    {
-        return in_array($groupName, $this->groups);
     }
 }

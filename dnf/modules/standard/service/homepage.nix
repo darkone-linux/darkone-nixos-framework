@@ -8,15 +8,12 @@
   lib,
   config,
   host,
-  network,
+  zone,
   ...
 }:
 let
-  inherit network;
-  inherit host;
   cfg = config.darkone.service.homepage;
   hpd = config.services.homepage-dashboard;
-  language = lib.toLower (builtins.substring 0 2 network.locale);
 in
 {
   options = {
@@ -77,12 +74,12 @@ in
         enable = true;
         openFirewall = true;
         listenPort = 8082;
-        allowedHosts = "${cfg.domainName}.${network.domain}";
+        allowedHosts = "${cfg.domainName}.${host.networkDomain}";
 
         # https://gethomepage.dev/latest/configs/settings/
         settings = {
           title = "${host.name}";
-          inherit language;
+          language = zone.lang;
           hideVersion = true;
           theme = "dark";
           headerStyle = "clean";
@@ -183,7 +180,7 @@ in
                   #cputemp = true;
                   #network = true;
                   #disk = "/";
-                  #network = network.gateway.wan.interface;
+                  #network = zone.gateway.wan.interface;
                 };
               }
               {

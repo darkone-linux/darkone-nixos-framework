@@ -143,6 +143,7 @@
         value = {
           inherit host;
           inherit network;
+          zone = network.zones.${host.zone};
         }
         // mkCommonNodeArgs (getHostArch host);
       };
@@ -183,6 +184,7 @@
                   inherit host;
                   inherit users;
                   inherit inputs;
+                  zone = network.zones.${host.zone};
                   pkgs-stable = nixpkgsStableFor.${getHostArch host};
                 };
               };

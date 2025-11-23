@@ -16,7 +16,7 @@ class NixValue implements NixItemInterface
      */
     public function __construct(mixed $value)
     {
-        if (is_int($value) || is_bool($value) || is_float($value) || is_string($value)) {
+        if (is_int($value) || is_bool($value) || is_float($value) || is_string($value) || $value instanceof NixItemInterface) {
             $this->value = $value;
         } else {
             throw new NixException('Value type ' . gettype($value) . ' is not allowed for an elementary nix value.');

@@ -4,12 +4,12 @@
   config,
   osConfig,
   host,
-  network,
+  zone,
   ...
 }:
 let
   hasServer = osConfig.darkone.service.nfs.enable;
-  nfsServer = (lib.findFirst (s: s.service == "nfs") null network.sharedServices).host;
+  nfsServer = (lib.findFirst (s: s.service == "nfs") null zone.sharedServices).host;
   isClient = host.hostname != nfsServer;
   baseDir = if isClient then "/mnt/nfs" else "/export";
 in

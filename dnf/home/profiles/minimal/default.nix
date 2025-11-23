@@ -1,6 +1,6 @@
 # The minimal configuration for all home manager profiles.
 
-{ osConfig, network, ... }:
+{ osConfig, zone, ... }:
 {
   imports = [
     ./zsh.nix
@@ -11,7 +11,7 @@
   programs.home-manager.enable = true;
 
   # Environment
-  home.language.base = network.locale;
+  home.language.base = zone.locale;
 
   # Gnome params if graphic env
   darkone.home.gnome.enable = osConfig.darkone.graphic.gnome.enable;

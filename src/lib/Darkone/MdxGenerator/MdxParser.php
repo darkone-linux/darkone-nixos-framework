@@ -31,7 +31,7 @@ class MdxParser
         $options = [];
 
         // mkEnableOption
-        preg_match_all('/([a-zA-Z0-9_-]+) *=[^\n]*mkEnableOption +"([^\n]+)"; *\n/s', $fileContent, $matches);
+        preg_match_all('/([a-zA-Z0-9_-]+) *=[^\n]*mkEnableOption +"([^\n]+)"; *\n/', $fileContent, $matches);
         for ($i = 0; $i < count($matches[0]); $i++) {
             $options[] = [
                 'name' => $matches[1][$i],

@@ -65,5 +65,11 @@ in
         fi
       '';
     };
+
+    # STK networking -> TO PUT IN NIXOS CONF
+    # networking.firewall.allowedUDPPorts = lib.mkIf (cfg.enableChild || cfg.enableTeenager) [
+    #   2757
+    #   2759
+    # ];
   };
 }

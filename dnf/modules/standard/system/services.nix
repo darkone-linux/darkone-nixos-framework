@@ -12,7 +12,7 @@
   lib,
   config,
   host,
-  network,
+  zone,
   ...
 }:
 with lib;
@@ -24,7 +24,8 @@ let
   enabledServices = filterAttrs (_: v: v.enable) config.darkone.system.services.service;
 
   # If not a gateway, open HTTP
-  isGateway = host.hostname == network.gateway.hostname;
+  isGateway =
+    attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
 
   # Service parameter makers
   mkDomainName =
@@ -192,15 +193,16 @@ in
       '';
 
       # Configure virtual hosts (TODO: https)
+      # TODO: global / local service
       virtualHosts = mkMerge (
         mapAttrsToList (
           name: srv:
           let
             shortDomain = mkDomainName name srv.domainName;
-            fqdn = "${shortDomain}.${network.domain}";
+            fqdn = "${shortDomain}.${zone.domain}";
             isValid = srv.proxy.enable && (srv.proxy.servicePort != null);
             isDefault = isValid && srv.proxy.defaultService;
-            #isDefaultNotHostname = isDefault && (fqdn != "${host.hostname}.${network.domain}");
+            #isDefaultNotHostname = isDefault && (fqdn != "${host.hostname}.${zone.domain}");
           in
           mkIf isValid {
 
@@ -226,9 +228,9 @@ in
             };
 
             # Redirection to right domain for default service
-            # "http://${host.hostname}.${network.domain}" = mkIf isDefaultNotHostname {
+            # "http://${host.hostname}.${zone.domain}" = mkIf isDefaultNotHostname {
             #   extraConfig = ''
-            #     redir /${host.hostname}.${network.domain} http://${fqdn}
+            #     redir /${host.hostname}.${zone.domain} http://${fqdn}
             #   '';
             # };
 
@@ -258,7 +260,7 @@ in
         mapAttrsToList (name: srv: {
           ${(mkDisplayName name srv.displayName)} = mkIf srv.displayOnHomepage {
             description = mkDescription name srv.description;
-            href = "http://${(mkDomainName name srv.domainName)}.${network.domain}";
+            href = "http://${(mkDomainName name srv.domainName)}.${zone.domain}";
             icon = mkIcon name srv.icon;
           };
         }) enabledServices
@@ -268,14 +270,14 @@ in
           (srv: {
             ${(mkSrvValue srv "displayName")} = {
               description = (mkSrvValue srv "description") + " (" + srv.host + ")";
-              href = "http://${(mkSrvValue srv "domainName")}.${network.domain}";
+              href = "http://${(mkSrvValue srv "domainName")}.${zone.domain}";
               icon = mkSrvValue srv "icon";
             };
           })
           (
             builtins.filter (
               srv: (hasAttr srv.service allServices) && allServices.${srv.service}.displayOnHomepage
-            ) network.sharedServices
+            ) zone.sharedServices
           )
       );
 

@@ -4,19 +4,20 @@ namespace Darkone\NixGenerator\Item;
 
 use Darkone\NixGenerator\Configuration;
 use Darkone\NixGenerator\NixException;
-use Darkone\NixGenerator\NixNetwork;
+use Darkone\NixGenerator\NixZone;
 
 class Host
 {
-    private const DISKO_TPL_DIR_DNF = NIX_PROJECT_ROOT . '/dnf/hosts/disko';
-    private const DISKO_TPL_DIR_USR = NIX_PROJECT_ROOT . '/usr/hosts/disko';
+    private const string DISKO_TPL_DIR_DNF = NIX_PROJECT_ROOT . '/dnf/hosts/disko';
+    private const string DISKO_TPL_DIR_USR = NIX_PROJECT_ROOT . '/usr/hosts/disko';
 
     private string $hostname;
     private string $name;
+    private string $zone;
     private string $profile;
-    private bool $local = false;
     private ?string $ip;
     private ?string $arch;
+    private string $networkDomain;
 
     /**
      * @var array of string (logins)
@@ -46,36 +47,39 @@ class Host
     /**
      * @throws NixException
      */
-    public function registerAliases(NixNetwork $extraNetwork, array $aliases): Host
+    public function registerAliases(?NixZone $zone, array $aliases): Host
     {
-        $extraNetwork->registerAliases($this->getHostname(), $aliases);
+        $zone === null || $zone->registerAliases($this->getHostname(), $aliases);
         return $this;
     }
 
     /**
      * @throws NixException
      */
-    public function registerInterfaces(NixNetwork $extraNetwork, array $interfaces): Host
+    public function registerHostInZone(?NixZone $zone, array $host, ?string $ip): Host
     {
-        $extraNetwork->registerHost($this->getHostname(), $interfaces[0]['ip'] ?? null);
-        foreach ($interfaces as $interface) {
-            $extraNetwork->registerMacAddress($interface['mac'], $interface['ip'], $this->getHostname());
+        if ($zone !== null) {
+            $zone->registerHost($this->getHostname(), $ip);
+            empty($ip) || empty($host['mac']) || $zone->registerMacAddresses($host['mac'], $ip);
         }
+
         return $this;
     }
 
     /**
      * @throws NixException
      */
-    public function registerServices(NixNetwork $extraNetwork, array $services): Host
+    public function registerServices(?NixZone $zone, array $services): Host
     {
-        Configuration::assert(
-            Configuration::TYPE_ARRAY, $services, $this->getHostname() . '.services must contains collection of strings', null, Configuration::TYPE_ARRAY, true
-        );
-        foreach ($services as $name => $params) {
-            $extraNetwork->registerAliases($this->getHostname(), [$this->populateService($name, $params)]);
+        if ($zone !== null) {
+            Configuration::assert(
+                Configuration::TYPE_ARRAY, $services, $this->getHostname() . '.services must contains collection of strings', null, Configuration::TYPE_ARRAY, true
+            );
+            foreach ($services as $name => $params) {
+                $zone->registerAliases($this->getHostname(), [$this->populateService($name, $params)]);
+            }
+            $zone->registerSharedServices($this->getHostname(), $this->services);
         }
-        $extraNetwork->registerSharedServices($this->getHostname(), $this->services);
 
         return $this;
     }
@@ -102,6 +106,17 @@ class Host
         return $this;
     }
 
+    public function getZone(): string
+    {
+        return $this->zone;
+    }
+
+    public function setZone(string $zone): Host
+    {
+        $this->zone = $zone;
+        return $this;
+    }
+
     public function getUsers(): array
     {
         return $this->users;
@@ -109,7 +124,9 @@ class Host
 
     public function setUsers(array $users): Host
     {
-        array_map(fn ($key) => preg_match(
+        array_map(/**
+         * @throws NixException
+         */ fn ($key) => preg_match(
             Configuration::REGEX_LOGIN, $key) || throw new NixException("Bad login '$key'"),
             $users
         );
@@ -141,7 +158,6 @@ class Host
 
     public function setTags(array $tags): Host
     {
-        // TODO: array_map(fn (string $tag): if ($tag), $tags);
         $this->tags = $tags;
         return $this;
     }
@@ -180,20 +196,9 @@ class Host
         return $this->services;
     }
 
-    public function setLocal(bool $local): Host
-    {
-        $this->local = $local;
-        return $this;
-    }
-
-    public function isLocal(): bool
-    {
-        return $this->local;
-    }
-
     public function getIp(): ?string
     {
-        return $this->ip;
+        return $this->ip ?? null;
     }
 
     public function setIp(?string $ip): Host
@@ -210,6 +215,17 @@ class Host
     public function setArch(?string $arch): Host
     {
         $this->arch = $arch;
+        return $this;
+    }
+
+    public function getNetworkDomain(): string
+    {
+        return $this->networkDomain;
+    }
+
+    public function setNetworkDomain(string $networkDomain): Host
+    {
+        $this->networkDomain = $networkDomain;
         return $this;
     }
 

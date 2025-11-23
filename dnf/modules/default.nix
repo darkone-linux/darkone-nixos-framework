@@ -4,6 +4,7 @@
   imports = [
     ./mixin/host/desktop.nix
     ./mixin/host/gateway.nix
+    ./mixin/host/headscale.nix
     ./mixin/host/laptop.nix
     ./mixin/host/minimal.nix
     ./mixin/host/portable.nix

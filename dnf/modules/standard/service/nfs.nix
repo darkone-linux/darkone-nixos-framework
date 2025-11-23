@@ -14,14 +14,19 @@
   host,
   pkgs,
   config,
-  network,
+  zone,
   ...
 }:
 let
   cfg = config.darkone.service.nfs;
-  isGateway = host.hostname == network.gateway.hostname;
-  nfsServerCount = lib.count (s: s.service == "nfs") network.sharedServices;
-  nfsServer = (lib.findFirst (s: s.service == "nfs") null network.sharedServices).host;
+  isGateway =
+    lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
+  nfsServerCount = lib.count (s: s.service == "nfs") zone.sharedServices;
+  nfsServer =
+    if nfsServerCount == 0 then
+      null
+    else
+      (lib.findFirst (s: s.service == "nfs") null zone.sharedServices).host;
   isServer = host.hostname == nfsServer;
   isClient = !isServer;
   hasServer = nfsServerCount == 1;
@@ -70,13 +75,12 @@ assert
     #--------------------------------------------------------------------------
 
     # Server
-    # TODO: IP from network config
     services.nfs.server = lib.mkIf isServer {
       enable = true;
       exports = ''
-        /export        192.168.1.0/24(rw,fsid=0,no_subtree_check)
-        /export/homes  192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash)
-        /export/common 192.168.1.0/24(rw,nohide,insecure,sync,no_subtree_check,all_squash,anonuid=65534,anongid=100)
+        /export        ${zone.networkIp}/${toString zone.prefixLength}(rw,fsid=0,no_subtree_check)
+        /export/homes  ${zone.networkIp}/${toString zone.prefixLength}(rw,sync,no_subtree_check,no_root_squash)
+        /export/common ${zone.networkIp}/${toString zone.prefixLength}(rw,nohide,insecure,sync,no_subtree_check,all_squash,anonuid=65534,anongid=100)
       '';
     };
 
@@ -96,7 +100,7 @@ assert
 
     # Montage NFS
     fileSystems."/mnt/nfs/homes" = lib.mkIf isClient {
-      device = "${cfg.serverDomain}.${network.domain}:/homes";
+      device = "${cfg.serverDomain}.${host.networkDomain}:/homes";
       fsType = "nfs";
       options = [
         "x-systemd.automount" # Mount on demand
@@ -106,7 +110,7 @@ assert
       ];
     };
     fileSystems."/mnt/nfs/common" = lib.mkIf isClient {
-      device = "${cfg.serverDomain}.${network.domain}:/common";
+      device = "${cfg.serverDomain}.${host.networkDomain}:/common";
       fsType = "nfs";
       options = [
         "x-systemd.automount" # Mount on demand

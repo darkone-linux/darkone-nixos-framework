@@ -61,6 +61,7 @@ in
       (lib.mkIf (cfg.enableComputer && (cfg.enableChild || cfg.enableStudent)) klavaro)
       (lib.mkIf (cfg.enableLang && (cfg.enableChild || cfg.enableStudent)) kdePackages.parley) # vocabulary
       (lib.mkIf (cfg.enableLang && (cfg.enableChild || cfg.enableStudent)) verbiste)
+      (lib.mkIf (cfg.enableLang && (cfg.enableChild || cfg.enableStudent)) gnome-characters)
       (lib.mkIf (cfg.enableMath && (cfg.enableChild || cfg.enableStudent)) geogebra6) # math
       (lib.mkIf (cfg.enableMath && (cfg.enableChild || cfg.enableStudent)) kdePackages.kmplot) # math
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) gnome-graphs)

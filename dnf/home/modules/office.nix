@@ -3,7 +3,7 @@
 {
   lib,
   config,
-  network,
+  zone,
   inputs,
   pkgs,
   ...
@@ -11,8 +11,7 @@
 with lib;
 let
   cfg = config.darkone.home.office;
-  hasGateway = attrsets.hasAttrByPath [ "gateway" "hostname" ] network;
-  lang = toLower (builtins.substring 0 2 network.locale);
+  hasGateway = attrsets.hasAttrByPath [ "gateway" "hostname" ] zone;
 in
 {
   options = {
@@ -123,14 +122,14 @@ in
     programs.firefox = mkIf cfg.enableFirefox {
       enable = true;
       package = pkgs.firefox-esr;
-      languagePacks = [ "${lang}" ];
+      languagePacks = [ "${zone.lang}" ];
       profiles = {
         default = {
           id = 0;
           name = "default";
           isDefault = true;
           settings = {
-            "browser.startup.homepage" = mkIf hasGateway "http://${network.gateway.hostname}";
+            "browser.startup.homepage" = mkIf hasGateway "http://${zone.gateway.hostname}";
             "browser.search.defaultenginename" = "google";
             "browser.search.order.1" = "google";
             "browser.aboutConfig.showWarning" = false;

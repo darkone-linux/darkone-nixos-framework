@@ -1,4 +1,4 @@
-# The main gateway / router of local network.
+# The main gateway / router of a local network zone.
 #
 # :::tip[A ready-to-use gateway!]
 # The gateway is configured in `usr/config.yaml` file.

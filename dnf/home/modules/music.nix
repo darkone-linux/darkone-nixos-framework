@@ -4,17 +4,17 @@
   pkgs,
   lib,
   host,
+  zone,
   config,
   osConfig,
-  network,
   ...
 }:
 
 let
   cfg = config.darkone.home.music;
-  graphic = osConfig.darkone.graphic.gnome.enable;
+  #graphic = osConfig.darkone.graphic.gnome.enable;
   hasNfsServer = osConfig.darkone.service.nfs.enable;
-  nfsServer = (lib.findFirst (s: s.service == "nfs") null network.sharedServices).host;
+  nfsServer = (lib.findFirst (s: s.service == "nfs") null zone.sharedServices).host;
   isNfsClient = host.hostname != nfsServer;
   mpdMusicDir =
     if isNfsClient then
@@ -56,16 +56,16 @@ in
       (lib.mkIf cfg.enableCli cmus)
       #(lib.mkIf cfg.enableCli moc) # Compilation fail
       #(lib.mkIf cfg.enableMpd cantata) # Do not connect to MPD server
-      (lib.mkIf (cfg.enableMpd && graphic) (
-        ymuse.overrideAttrs (old: {
-          postInstall = (old.postInstall or "") + ''
-            wrapProgram $out/bin/ymuse \
-              --set GTK_THEME            "Adwaita:dark" \
-              --set GTK_DARK_THEME       "1" \
-              --set ADW_DISABLE_PORTAL   "1"
-          '';
-        })
-      )) # Not dark without this hack...
+      # (lib.mkIf (cfg.enableMpd && graphic) (
+      #   ymuse.overrideAttrs (old: {
+      #     postInstall = (old.postInstall or "") + ''
+      #       wrapProgram $out/bin/ymuse \
+      #         --set GTK_THEME            "Adwaita:dark" \
+      #         --set GTK_DARK_THEME       "1" \
+      #         --set ADW_DISABLE_PORTAL   "1"
+      #     '';
+      #   })
+      # )) # Not dark without this hack, too long to build...
       #(lib.mkIf cfg.enableMpd sonata) # ymuse alternative (old, not dark)
       #(lib.mkIf cfg.enableMpd ario) # Not free dependency
       (lib.mkIf cfg.enableFun mixxx)
