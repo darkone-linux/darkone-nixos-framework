@@ -9,15 +9,18 @@
 }:
 let
   hasServer = osConfig.darkone.service.nfs.enable;
-  nfsServer = (lib.findFirst (s: s.service == "nfs") null zone.sharedServices).host;
-  isClient = host.hostname != nfsServer;
-  baseDir = if isClient then "/mnt/nfs" else "/export";
+  nfsServer =
+    if hasServer then (lib.findFirst (s: s.service == "nfs") null zone.sharedServices).host else null;
+  isServer = nfsServer != null && host.hostname == nfsServer;
+  isClient = nfsServer != null && !isServer && host.nfsClient;
+  isEnable = hasServer && (isServer || isClient);
+  baseDir = if isServer then "/export" else "/mnt/nfs";
 in
 {
   # Home dirs creation
   # IMPORTANT: international names do NOT works with xdg.userDirs
   # This script create links from user dirs to NFS targets
-  home.activation.bindXdgToNfs = lib.mkIf hasServer (
+  home.activation.bindXdgToNfs = lib.mkIf isEnable (
     lib.hm.dag.entryAfter [ "writeBoundary" ] ''
 
       # Required to update correctly user dirs

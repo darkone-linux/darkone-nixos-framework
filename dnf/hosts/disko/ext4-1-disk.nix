@@ -6,7 +6,6 @@
       main = {
         type = "disk";
         device = "/dev/sda";
-
         content = {
           type = "gpt";
           partitions = {
@@ -25,7 +24,7 @@
 
             # MAIN
             root = {
-              size = "-4G";
+              end = "-4G";
               content = {
                 type = "filesystem";
                 format = "ext4";

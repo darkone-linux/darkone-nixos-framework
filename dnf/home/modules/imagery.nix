@@ -29,6 +29,7 @@ in
       (lib.mkIf cfg.enablePro inkscape)
       (lib.mkIf cfg.enablePro krita)
       (lib.mkIf cfg.enablePro yed)
+      (lib.mkIf cfg.enableCAD freecad)
     ];
   };
 }

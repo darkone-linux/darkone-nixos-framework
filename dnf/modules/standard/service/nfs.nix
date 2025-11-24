@@ -1,12 +1,16 @@
 # NFS server + client for home shares.
 #
-# :::caution
-# This module is auto-enabled if a nfs server is declared in the local network. It creates:
+# :::note
+# This module is enabled if a nfs server is declared in the local network. It creates:
 #
 # - A share (/export/homes) on the server.
 # - Mount dirs (/mnt/nfs/homes/[user]) on clients.
 #
 # The nfs home manager script links xdg directories to mount dirs.
+# In config.yaml file (hosts):
+#
+# - Only one host have a service `service.nfs`.
+# - Clients need `nfsClient = true`.
 # :::
 
 {
@@ -28,8 +32,8 @@ let
     else
       (lib.findFirst (s: s.service == "nfs") null zone.sharedServices).host;
   isServer = host.hostname == nfsServer;
-  isClient = !isServer;
   hasServer = nfsServerCount == 1;
+  isClient = !isServer && hasServer && host.nfsClient;
 in
 assert
   nfsServerCount <= 1

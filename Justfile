@@ -22,7 +22,7 @@ dnfInstallDir := '/mnt/dnf-install'
 alias c := clean
 alias d := develop
 alias e := enter
-alias a := apply-force
+alias a := apply
 alias al := apply-local
 alias av := apply-verbose
 
@@ -351,6 +351,7 @@ install host user='nix' ip='auto' do='install':
 		{{nix}} run github:nix-community/nixos-anywhere -- --flake .#{{host}} --vm-test
 	elif [ "{{do}}" == "install" ] ;then
 		{{nix}} run github:nix-community/nixos-anywhere -- \
+			--copy-host-keys \
 			--flake .#{{host}} \
 			-i "$HOME/.ssh/id_ed25519" \
 			--generate-hardware-config nixos-generate-config ./usr/machines/{{host}}/hardware-configuration.nix \
@@ -496,24 +497,19 @@ build-iso arch="x86_64-linux":
 #==============================================================================
 # Apply (colmena)
 #==============================================================================
+# TODO: Binary cache keys + remove --build-on-target -> https://nixos.wiki/wiki/Binary_Cache
 
 # Apply configuration using colmena
 [group('apply')]
 apply on what='switch':
 	@just _log "Applying nix configuration on {{on}} ({{what}})..."
-	colmena apply --eval-node-limit 3 --evaluator streaming --on "{{on}}" {{what}}
-
-# Apply with build-on-target + force repl. unk profiles
-[group('apply')]
-apply-force on what='switch':
-	@just _log "Applying (force) nix configuration on {{on}} ({{what}})..."
 	colmena apply --eval-node-limit 3 --evaluator streaming --build-on-target --force-replace-unknown-profiles --on "{{on}}" {{what}}
 
 # Apply force with verbose options
 [group('apply')]
 apply-verbose on what='switch':
 	@just _log "Applying (verbose) nix configuration on {{on}} ({{what}})..."
-	colmena apply --eval-node-limit 3 --evaluator streaming --build-on-target --force-replace-unknown-profiles --verbose --show-trace --on "{{on}}" {{what}}
+	colmena apply --build-on-target --force-replace-unknown-profiles --verbose --show-trace --on "{{on}}" {{what}}
 
 # Apply the local host configuration
 [group('apply')]

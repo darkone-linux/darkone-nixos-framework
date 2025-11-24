@@ -76,13 +76,12 @@ in
         enable = true;
         allowPing = lib.mkDefault true;
         interfaces.${lanInterface} = {
-          allowedTCPPorts =
-            [
-              22
-              53
-            ]
-            ++ lib.optional config.services.caddy.enable 80
-            ++ lib.optional config.darkone.service.ncps.enable 8501;
+          allowedTCPPorts = [
+            22
+            53
+          ]
+          ++ lib.optional config.services.caddy.enable 80
+          ++ lib.optional config.darkone.service.ncps.enable 8501;
           allowedUDPPorts = [
             53
             67
@@ -138,64 +137,63 @@ in
       enable = true;
       alwaysKeepRunning = true;
 
-      settings =
-        {
-          inherit domain;
+      settings = {
+        inherit domain;
 
-          interface = [ lanInterface ];
-          bind-interfaces = true;
-          dhcp-authoritative = true;
-          no-dhcp-interface = "lo";
+        interface = [ lanInterface ];
+        bind-interfaces = true;
+        dhcp-authoritative = true;
+        no-dhcp-interface = "lo";
 
-          # Les requêtes pour ces domaines ne sont traitées qu'à partir de /etc/hosts ou de DHCP.
-          # Elles ne sont pas transmises aux serveurs amont.
-          local = "/${domain}/";
+        # Les requêtes pour ces domaines ne sont traitées qu'à partir de /etc/hosts ou de DHCP.
+        # Elles ne sont pas transmises aux serveurs amont.
+        local = "/${domain}/";
 
-          # Register the IP of gateway
-          #address = [ "/${gateway.hostname}.${domain}/${gateway.lan.ip}" ];
+        # Register the IP of gateway
+        #address = [ "/${gateway.hostname}.${domain}/${gateway.lan.ip}" ];
 
-          # Utiliser un port DNS différent si adguardhome est activé.
-          port = if config.darkone.service.adguardhome.enable then 5353 else 53;
+        # Utiliser un port DNS différent si adguardhome est activé.
+        port = if config.darkone.service.adguardhome.enable then 5353 else 53;
 
-          # Filtrer les requêtes DNS inutiles provenant de Windows qui peuvent être déclenchées.
-          filterwin2k = true;
+        # Filtrer les requêtes DNS inutiles provenant de Windows qui peuvent être déclenchées.
+        filterwin2k = true;
 
-          # Prends dans /etc/hosts les ips qui matchent le réseau en priorité.
-          localise-queries = true;
+        # Prends dans /etc/hosts les ips qui matchent le réseau en priorité.
+        localise-queries = true;
 
-          # local-name = local-name.domain
-          expand-hosts = true;
+        # local-name = local-name.domain
+        expand-hosts = true;
 
-          # Accept DNS queries only from hosts whose address is on a local subnet
-          local-service = true;
+        # Accept DNS queries only from hosts whose address is on a local subnet
+        local-service = true;
 
-          # Log results of all DNS queries
-          log-queries = true;
+        # Log results of all DNS queries
+        log-queries = true;
 
-          # Don't forward requests for the local address ranges (10.x.x.x)
-          # to upstream nameservers
-          bogus-priv = true;
+        # Don't forward requests for the local address ranges (10.x.x.x)
+        # to upstream nameservers
+        bogus-priv = true;
 
-          # Don't forward requests without dots or domain parts to upstream nameservers
-          domain-needed = false;
+        # Don't forward requests without dots or domain parts to upstream nameservers
+        domain-needed = false;
 
-          # Dnsmasq récupère ses serveurs DNS amont à partir des fichiers "server"
-          # au lieu de /etc/resolv.conf ou tout autre fichier.
-          no-resolv = config.darkone.service.adguardhome.enable;
-          #server =
-          #  if config.darkone.service.adguardhome.enable then
-          #    [ ("127.0.0.1#" + (toString config.services.adguardhome.settings.dns.port)) ]
-          #  else
-          #    config.networking.nameservers;
+        # Dnsmasq récupère ses serveurs DNS amont à partir des fichiers "server"
+        # au lieu de /etc/resolv.conf ou tout autre fichier.
+        no-resolv = config.darkone.service.adguardhome.enable;
+        #server =
+        #  if config.darkone.service.adguardhome.enable then
+        #    [ ("127.0.0.1#" + (toString config.services.adguardhome.settings.dns.port)) ]
+        #  else
+        #    config.networking.nameservers;
 
-          # Force dnsmasq à inclure l’IP réelle du client dans les requêtes DNS transmises en upstream.
-          # Utile si adguardhome est derrière dnsmasq, ce qui n'est pas (plus) le cas ici.
-          #edns-packet-max = 1232;
-          #add-subnet = "32,128";
-        }
+        # Force dnsmasq à inclure l’IP réelle du client dans les requêtes DNS transmises en upstream.
+        # Utile si adguardhome est derrière dnsmasq, ce qui n'est pas (plus) le cas ici.
+        #edns-packet-max = 1232;
+        #add-subnet = "32,128";
+      }
 
-        # Generated configuration in var/generated/network.nix
-        // extraDnsmasqSettings;
+      # Generated configuration in var/generated/network.nix
+      // extraDnsmasqSettings;
     };
   };
 }

@@ -56,24 +56,23 @@ class NixZone
      */
     public function buildExtraZoneConfig(): array
     {
-        // Force nix empty list (and not attrset) if no item in services
-        $services = empty($this->services) ? new NixList() : $this->services;
+        return [
+            'name' => $this->name,
 
-        return $this->name === Configuration::EXTERNAL_ZONE_KEY ? [
-            'sharedServices' => $services,
-        ] : [
-            'extraDnsmasqSettings' => [
-                'dhcp-host' => array_values($this->macAddresses),
-                'dhcp-option' => $this->dhcpOption,
-                'dhcp-range' => $this->dhcpRange,
-                'address' => $this->buildAddresses(),
+             // Force nix empty list (and not attrset) if no item in services
+            'sharedServices' => empty($this->services) ? new NixList() : $this->services,
+        ] + ($this->name === Configuration::EXTERNAL_ZONE_KEY ? [] : [
+                'extraDnsmasqSettings' => [
+                    'dhcp-host' => array_values($this->macAddresses),
+                    'dhcp-option' => $this->dhcpOption,
+                    'dhcp-range' => $this->dhcpRange,
+                    'address' => $this->buildAddresses(),
 
-                // Do not works with fqdn configuration of dnsmasq -> address
-                // 'cname' => $this->buildCnames(),
-            ],
-            'sharedServices' => $services,
-            'local-substituter' => $this->substituter,
-        ];
+                    // Do not works with fqdn configuration of dnsmasq -> address
+                    // 'cname' => $this->buildCnames(),
+                ],
+                'local-substituter' => $this->substituter,
+            ]);
     }
 
     /**

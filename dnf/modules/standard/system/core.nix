@@ -15,6 +15,7 @@
 }:
 let
   cfg = config.darkone.system.core;
+  hostIsLocal = host.zone == zone.name;
 
   # Current host is a client and not the gateway, but network have a gateway with ncps activated
   isNcpsClient =
@@ -169,8 +170,8 @@ in
 
     # Enable NCPS client configuration if needed
     darkone.service.ncps = lib.mkIf isNcpsClient {
-      enable = true;
-      isClient = true;
+      enable = lib.mkDefault hostIsLocal;
+      isClient = lib.mkDefault hostIsLocal;
     };
 
     # Flatpak configuration for DNF

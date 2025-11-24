@@ -18,6 +18,7 @@
 }:
 let
   cfg = config.darkone.service.ncps;
+  hostIsLocal = host.zone == zone.name;
 in
 {
   options = {
@@ -63,10 +64,16 @@ in
       // cfg.extraOptions;
 
     # Add local gw to substituters.
-    # Check with nix --extra-experimental-features nix-command show-config | grep substituters
+    # Check with nix --extra-experimental-features nix-command config show | grep substituters
     nix.settings = {
-      substituters = [ "http://${zone.gateway.hostname}.${zone.domain}:8501" ];
-      trusted-public-keys = [ "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=" ];
+      substituters = [
+        (lib.mkIf hostIsLocal "http://${zone.gateway.hostname}.${zone.domain}:8501")
+        "https://nix-community.cachix.org"
+      ];
+      trusted-public-keys = [
+        "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+        "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+      ];
     };
   };
 }

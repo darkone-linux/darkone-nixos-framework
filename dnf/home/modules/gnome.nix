@@ -4,8 +4,8 @@
 
 let
   cfg = config.darkone.home.gnome;
+  #hasNFS = (nfsServerCount = lib.count (s: s.service == "nfs") osConfig.zone.sharedServices) == 1;
 in
-#hasNFS = (nfsServerCount = lib.count (s: s.service == "nfs") osConfig.zone.sharedServices) == 1;
 {
   options = {
     darkone.home.gnome.enable = lib.mkEnableOption "Enable gnome settings for home manager";

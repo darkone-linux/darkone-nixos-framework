@@ -156,6 +156,7 @@ class Configuration extends NixAttrSet
                 ->setProfile($host['profile'])
                 ->setArch($host['arch'] ?? null)
                 ->setNetworkDomain($zone->getName() == self::EXTERNAL_ZONE_KEY ? $this->network->getDomain() : $zone->getDomain())
+                ->setNfsClient($host['nfsClient'] ?? false)
                 ->setUsers($this->extractAllUsers($host['users'] ?? [], $host['groups'] ?? []))
                 ->setGroups($host['groups'] ?? [])
                 ->setTags($host['tags'] ?? [])
@@ -217,6 +218,7 @@ class Configuration extends NixAttrSet
                 'groups' => $rangeHostGroup['groups'] ?? [],
                 'tags' => $rangeHostGroup['tags'] ?? [],
                 'disko' => $rangeHostGroup['disko'] ?? [],
+                'nfsClient' => $rangeHostGroup['nfsClient'] ?? false,
             ];
             if (!empty($rangeHostGroup['mac'][$i])) {
                 $hosts[$i]['mac'] = $rangeHostGroup['mac'][$i];
@@ -256,6 +258,7 @@ class Configuration extends NixAttrSet
                 'groups' => $listHostGroup['groups'] ?? [],
                 'tags' => $listHostGroup['tags'] ?? [],
                 'disko' => $listHostGroup['disko'] ?? [],
+                'nfsClient' => $listHostGroup['nfsClient'] ?? false,
             ]);
         }
         $this->loadStaticHosts($hosts);
