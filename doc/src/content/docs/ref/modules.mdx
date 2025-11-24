@@ -177,10 +177,12 @@ darkone.host.server = {
 Virtual machines guest tools.
 
 * **enableVirtualbox** `bool` Virtualbox client
+* **enableQemu** `bool` Qemu/KVM client
 * **enableXen** `bool` Xen client
 ```nix
 darkone.host.vm = {
   enableVirtualbox = false;
+  enableQemu = false;
   enableXen = false;
 }
 
@@ -644,13 +646,17 @@ darkone.service.nextcloud = {
 
 NFS server + client for home shares.
 
-:::caution
-This module is auto-enabled if a nfs server is declared in the local network. It creates:
+:::note
+This module is enabled if a nfs server is declared in the local network. It creates:
 
 - A share (/export/homes) on the server.
 - Mount dirs (/mnt/nfs/homes/[user]) on clients.
 
 The nfs home manager script links xdg directories to mount dirs.
+In config.yaml file (hosts):
+
+- Only one host have a service `service.nfs`.
+- Clients need `nfsClient = true`.
 :::
 
 * **enable** `bool` Enable NFS DNF server (avoid enable manually)
