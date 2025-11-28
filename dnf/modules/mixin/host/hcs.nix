@@ -1,4 +1,4 @@
-# The main headscale coordination server.
+# The main headscale coordination server. (wip)
 #
 # :::tip[A ready-to-use headscale server!]
 # The network is configured in `usr/config.yaml` file.
@@ -14,22 +14,27 @@
   ...
 }:
 let
-  cfg = config.darkone.host.headscale;
+  cfg = config.darkone.host.hcs;
 in
 {
   options = {
-    darkone.host.headscale.enable = lib.mkEnableOption "Enable headscale DNF server";
-    darkone.host.headscale.enableFail2ban = lib.mkOption {
+    darkone.host.hcs.enable = lib.mkEnableOption "Enable headscale coordination server";
+    darkone.host.hcs.enableFail2ban = lib.mkOption {
       type = lib.types.bool;
       default = true;
       description = "Enable fail2ban service";
     };
-    darkone.host.headscale.enableAuth = lib.mkOption {
+    darkone.host.hcs.enableClient = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Enable tailscale client on HCS node (recommande to host services)";
+    };
+    darkone.host.hcs.enableAuth = lib.mkOption {
       type = lib.types.bool;
       default = builtins.hasAttr "auth" host.services;
       description = "Enable authentication service (Authelia SSO)";
     };
-    darkone.host.headscale.enableUsers = lib.mkOption {
+    darkone.host.hcs.enableUsers = lib.mkOption {
       type = lib.types.bool;
       default = builtins.hasAttr "users" host.services;
       description = "Enable user management with LLDAP for DNF SSO";
@@ -43,6 +48,11 @@ in
 
     # Enabled services
     darkone.service = {
+      headscale.enable = true;
+      tailscale = lib.mkIf cfg.enableClient {
+        enable = true;
+        isExitNode = true;
+      };
       auth.enable = cfg.enableAuth;
       users.enable = cfg.enableUsers;
     };

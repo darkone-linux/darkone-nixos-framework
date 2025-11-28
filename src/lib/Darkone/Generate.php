@@ -53,6 +53,10 @@ class Generate
     public function generate(string $what, bool $display = false): string
     {
         try {
+            array_map(
+                fn (string $name) => Configuration::assertUniqName($name, 'reserved word'),
+                Configuration::RESERVED_NAMES
+            );
             return match ($what) {
                 'hosts' => $this->generateHosts($display),
                 'users' => $this->generateUsers($display),
@@ -81,6 +85,7 @@ class Generate
                     . '.' . $this->config->getZones()[$host->getZone()]->getName()
                     . '.' . $this->config->getNetwork()->getDomain()
                 : null;
+            Configuration::assertUniqName($host->getHostname(), 'host', $host->getZone());
             $newHost = (new NixAttrSet())
                 ->setString('hostname', $host->getHostname())
                 ->setString('zone', $host->getZone())

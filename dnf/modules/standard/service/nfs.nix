@@ -42,7 +42,7 @@ assert
   options = {
     darkone.service.nfs.enable = lib.mkOption {
       type = lib.types.bool;
-      default = hasServer;
+      default = hasServer && (isServer || isClient);
       description = "Enable NFS DNF server (avoid enable manually)";
     };
     darkone.service.nfs.serverDomain = lib.mkOption {
@@ -52,7 +52,7 @@ assert
     };
   };
 
-  config = {
+  config = lib.mkIf cfg.enable {
 
     #--------------------------------------------------------------------------
     # Filesystem requirements (server + client)
@@ -89,11 +89,12 @@ assert
     };
 
     # Open NFS port, only for lan0 on gateway
-    networking.firewall =
+    networking.firewall = lib.mkIf isServer (
       if isGateway then
         { interfaces.lan0.allowedTCPPorts = [ 2049 ]; }
       else
-        { allowedTCPPorts = [ 2049 ]; };
+        { allowedTCPPorts = [ 2049 ]; }
+    );
 
     # NFS tools
     environment.systemPackages = [ pkgs.nfs-utils ];
@@ -102,14 +103,24 @@ assert
     # CLIENT
     #--------------------------------------------------------------------------
 
-    # Montage NFS
+    # NFS Mounts
     fileSystems."/mnt/nfs/homes" = lib.mkIf isClient {
       device = "${cfg.serverDomain}.${host.networkDomain}:/homes";
       fsType = "nfs";
       options = [
-        "x-systemd.automount" # Mount on demand
-        "x-systemd.idle-timeout=600" # Unmount after 10min with no activity
+
+        # TODO: automount for laptops?
+        # "x-systemd.automount" # Mount on demand
+        # "x-systemd.idle-timeout=600" # Unmount after 10min with no activity
+        # "noauto" # Required for automount
+
         "noatime" # Performance
+        "hard" # Wait if server do not respond
+        "intr" # Ctrl+C to interrupt
+        "timeo=600" # 60s timeout
+        "retrans=2" # Retry x2
+        "_netdev" # Wait the network (implicit)
+        "bg" # Background try if fail
         "rw"
       ];
     };
@@ -119,9 +130,22 @@ assert
       options = [
         "x-systemd.automount" # Mount on demand
         "x-systemd.idle-timeout=600" # Unmount after 10min with no activity
+        "noauto" # Useful with automount
         "noatime" # Performance
         "rw"
       ];
+    };
+
+    # Avoid reloads on automounts (force restart)
+    systemd.services = lib.mkIf isClient {
+      # "mnt-nfs-homes.automount" = {
+      #   reloadIfChanged = lib.mkForce false;
+      #   restartIfChanged = true;
+      # };
+      "mnt-nfs-common.automount" = {
+        reloadIfChanged = lib.mkForce false;
+        restartIfChanged = true;
+      };
     };
   };
 }

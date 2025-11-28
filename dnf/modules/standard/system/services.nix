@@ -2,9 +2,10 @@
 #
 # :::caution[Special internal module]
 # This module is used to register and configure DNF modules:
-# - Reverse proxy (caddy)
-# - Homepage registration
-# - DNS entry
+# - Coordination server client (headscale / tailscale)
+# - Reverse proxies (caddy)
+# - Homepage registrations
+# - DNS entries
 # - folders and files to backup
 # :::
 
@@ -18,6 +19,7 @@
 with lib;
 let
   cfg = config.darkone.system.services;
+  inLocalZone = zone.name != "www";
 
   # Full list of registered services in current host
   allServices = config.darkone.system.services.service;
@@ -73,6 +75,7 @@ in
           {
             options = {
               enable = mkEnableOption "Enable service proxy";
+              # TODO: isPublic = mkEnableOption "Public service accessed from internet";
 
               # Domain (DNS)
               domainName = mkOption {
@@ -183,17 +186,21 @@ in
   # TODO: TLS
   config = mkIf cfg.enable {
 
+    #--------------------------------------------------------------------------
     # Reverse proxy
+    #--------------------------------------------------------------------------
+
     services.caddy = {
       enable = mkForce true;
 
       # TMP
-      globalConfig = ''
+      globalConfig = mkIf inLocalZone ''
         auto_https off
       '';
 
-      # Configure virtual hosts (TODO: https)
-      # TODO: global / local service
+      logFormat = lib.mkIf (!inLocalZone) (lib.mkForce "level INFO");
+
+      # Configure virtual hosts (TODO: https + redir permanent)
       virtualHosts = mkMerge (
         mapAttrsToList (
           name: srv:
@@ -204,57 +211,80 @@ in
             isDefault = isValid && srv.proxy.defaultService;
             #isDefaultNotHostname = isDefault && (fqdn != "${host.hostname}.${zone.domain}");
           in
-          mkIf isValid {
+          mkIf isValid (
+            if inLocalZone then
+              {
 
-            # Short name -> FQDN
-            "http://${shortDomain}" = {
-              extraConfig = ''
-                # TODO: redir http://${fqdn}{uri} permanent
-                redir http://${fqdn}{uri}
-              '';
-            };
+                # Short name -> FQDN
+                "http://${shortDomain}" = {
+                  extraConfig = ''
+                    redir http://${fqdn}{uri}
+                  '';
+                };
 
-            # Reverse proxy to the target service
-            "http://${fqdn}" = {
-              extraConfig = ''
-                reverse_proxy http://localhost:${toString srv.proxy.servicePort} {
-                    header_up X-Forwarded-Proto {scheme}
-                    header_up X-Forwarded-Host {host}
-                    header_up X-Forwarded-For {remote}
-                    header_up Host {upstream_hostport}
-                }
-                ${srv.proxy.extraConfig}
-              '';
-            };
+                # Reverse proxy to the target service
+                "http://${fqdn}" = {
+                  extraConfig = ''
+                    reverse_proxy http://127.0.0.1:${toString srv.proxy.servicePort} {
+                        header_up Host {upstream_hostport}
+                    }
+                    ${srv.proxy.extraConfig}
+                  '';
+                };
 
-            # Redirection to right domain for default service
-            # "http://${host.hostname}.${zone.domain}" = mkIf isDefaultNotHostname {
-            #   extraConfig = ''
-            #     redir /${host.hostname}.${zone.domain} http://${fqdn}
-            #   '';
-            # };
+                # Redirection to right domain for default service
+                # "http://${host.hostname}.${zone.domain}" = mkIf isDefaultNotHostname {
+                #   extraConfig = ''
+                #     redir /${host.hostname}.${zone.domain} http://${fqdn}
+                #   '';
+                # };
 
-            # Redirection to default domain if needed
-            ":80, :443" = mkIf isDefault {
-              extraConfig = ''
-                # TODO: redir http://${fqdn} permanent
-                redir http://${fqdn}
-              '';
-            };
-          }
+                # Redirection to default domain if needed
+                ":80, :443" = mkIf isDefault {
+                  extraConfig = ''
+                    redir http://${fqdn}
+                  '';
+                };
+              }
+
+            # In WWW
+            else
+              {
+
+                # Short name -> FQDN
+                ${shortDomain} = lib.mkIf inLocalZone {
+                  extraConfig = ''
+                    redir https://${fqdn}{uri}
+                  '';
+                };
+
+                # Reverse proxy to the target service
+                ${fqdn} = {
+                  extraConfig = ''
+                    reverse_proxy http://127.0.0.1:${toString srv.proxy.servicePort} {
+                        header_up Host {upstream_hostport}
+                    }
+                    ${srv.proxy.extraConfig}
+                  '';
+                };
+
+                # Redirection to default domain if needed
+                ":80, :443" = mkIf isDefault {
+                  extraConfig = ''
+                    redir https://${fqdn}
+                  '';
+                };
+              }
+          )
         ) enabledServices
       );
     };
 
-    # Add domains to /etc/hosts
-    networking.hosts = mkMerge (
-      mapAttrsToList (
-        name: srv:
-        mkIf config.services.dnsmasq.enable { "${host.ip}" = [ (mkDomainName name srv.domainName) ]; }
-      ) enabledServices
-    );
+    #--------------------------------------------------------------------------
+    # Homepage
+    #--------------------------------------------------------------------------
 
-    # Add services to homepage
+    # Add services to homepage (TODO: public or not)
     darkone.service.homepage.appServices =
       mkIf (!isGateway) (
         mapAttrsToList (name: srv: {
@@ -281,12 +311,31 @@ in
           )
       );
 
+    #--------------------------------------------------------------------------
+    # DNS
+    #--------------------------------------------------------------------------
+
+    # Add domains to /etc/hosts (deprecated?)
+    networking.hosts = mkMerge (
+      mapAttrsToList (
+        name: srv:
+        mkIf config.services.dnsmasq.enable { "${host.ip}" = [ (mkDomainName name srv.domainName) ]; }
+      ) enabledServices
+    );
+
+    #--------------------------------------------------------------------------
+    # Firewall
+    #--------------------------------------------------------------------------
+
     # Open right ports
     # TODO: HTTPS
     networking.firewall = {
 
       # Open HTTP on all interfaces if not the gateway
-      allowedTCPPorts = lib.mkIf (!isGateway) [ 80 ];
+      allowedTCPPorts = lib.mkIf (!isGateway) [
+        80
+        (mkIf (!inLocalZone) 443)
+      ];
 
       # Open HTTP port only for lan interface(s)
       # TODO: simplify + adapt to headscale

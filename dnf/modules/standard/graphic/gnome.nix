@@ -125,6 +125,7 @@ in
       gnome-software
       gnome-tour
       gnome-user-docs
+      gnome-user-share
       gnome-weather
       hitori
       iagno
@@ -161,10 +162,17 @@ in
       platformTheme = "gnome";
     };
 
-    # Communication avec les devices
+    # Devices connections
     programs.kdeconnect = lib.mkIf cfg.enableGsConnect {
       enable = true;
       package = pkgs.gnomeExtensions.gsconnect;
+    };
+
+    # Gnome services
+    services.gnome = {
+      gnome-online-accounts.enable = false;
+      gnome-user-share.enable = false;
+      localsearch.enable = true;
     };
 
     #==========================================================================
@@ -278,6 +286,12 @@ in
               };
               "org/gnome/bluetooth" = {
                 powered = false;
+              };
+              "org/gnome/nautilus/preferences" = {
+                show-directory-item-counts = "never";
+              };
+              "org/gnome/settings-daemon/plugins/sharing" = {
+                active = false;
               };
             };
           }

@@ -15,6 +15,8 @@
 let
   cfg = config.darkone.service.adguardhome;
   agh = config.services.adguardhome;
+  hasHcs = network.coordination.enable;
+  hasDnsmasq = config.darkone.service.dnsmasq.enable;
   dnsmasqAddr = "127.0.0.1:" + (toString config.services.dnsmasq.settings.port);
 in
 {
@@ -47,7 +49,23 @@ in
         service.adguardhome.enable = true;
       };
 
+      #------------------------------------------------------------------------
+      # dnsmasq updates
+      #------------------------------------------------------------------------
+
+      services.dnsmasq.settings = lib.mkIf hasDnsmasq {
+        no-resolv = false;
+        server = [
+          "94.140.14.14"
+          "94.140.15.15"
+        ]
+        ++ config.services.adguardhome.settings.dns.fallback_dns;
+      };
+
+      #------------------------------------------------------------------------
       # adguardhome Service
+      #------------------------------------------------------------------------
+
       # TODO: clients from config.yaml + update password
       services.adguardhome = {
         enable = true;
@@ -84,10 +102,16 @@ in
             upstream_dns = [
 
               # Local dns server for internal queries
+              ("[/" + network.domain + "/]" + dnsmasqAddr)
               ("[/" + zone.domain + "/]" + dnsmasqAddr)
+              #(lib.mkIf (!hasHcs) ("[/" + network.domain + "/]" + dnsmasqAddr))
+              #(lib.mkIf (!hasHcs) ("[/" + zone.domain + "/]" + dnsmasqAddr))
+              #(lib.mkIf hasHcs ("[/" + network.domain + "/]100.100.100.100"))
+              #(lib.mkIf hasHcs ("[/" + zone.domain + "/]100.100.100.100"))
 
               # Reverse DNS upstream
-              ("[/in-addr.arpa/]" + dnsmasqAddr)
+              ("[/10.in-addr.arpa/]" + dnsmasqAddr)
+              (lib.mkIf hasHcs "[/100.in-addr.arpa/]100.100.100.100")
 
               "94.140.14.14"
               "94.140.15.15"

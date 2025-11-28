@@ -34,7 +34,12 @@ trait ConfigurationAssertTrait
         if (isset($this->zones[$hostName])) {
             throw new NixException('Name "' . $hostName . '" cannot be used for a host because it is a name of a zone.');
         }
-        if (in_array($hostName, ['common', self::EXTERNAL_ZONE_KEY])) {
+        if (in_array($hostName, [
+            'common',
+            self::EXTERNAL_ZONE_KEY,
+            $this->network->getMagicDnsSubDomain(),
+            $this->network->getCoordinationDomainName()
+        ])) {
             throw new NixException('Name "' . $hostName . '" cannot be used for a host because this word is reserved.');
         }
     }
@@ -103,6 +108,54 @@ trait ConfigurationAssertTrait
         }
         if (count($zoneField) > 1 && !$isGateway && empty($host['mac'])) {
             throw new NixException('Host "' . $host['hostname'] . '" must have a mac address with its ip address.');
+        }
+    }
+
+    /**
+     * @param string $ip
+     * @return void
+     * @throws NixException
+     */
+    public static function assertTailscaleIp(string $ip): void
+    {
+        // Is IPv4
+        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            throw new NixException('ipv4 "' . $ip . '" is not a valid address.');
+        }
+
+        $longIp = ip2long($ip);
+
+        // 100.64.0.0/10 = from 100.64.0.0 to 100.127.255.255
+        if ($longIp < ip2long('100.64.0.1') || $longIp > ip2long('100.127.255.254')) {
+            throw new NixException('ipv4 "' . $ip . '" is not a tailnet address (100.64.0.0/10).');
+        }
+    }
+
+    /**
+     * @param string $name
+     * @param string $context
+     * @param string|null $namespace
+     * @return void
+     * @throws NixException
+     */
+    public static function assertUniqName(string $name, string $context, ?string $namespace = null): void
+    {
+        static $names = [];
+        static $namesWithNs = [];
+
+        if (isset($names[$name])) {
+            throw new NixException('Name "' . $name . '" already exists (' . $context . ' vs ' . $names[$name] . ')');
+        }
+        if ($namespace !== null) {
+            if (isset($namesWithNs[$namespace][$name])) {
+                throw new NixException(
+                    'Name "' . $namespace . '::' . $name . '" already exists ('
+                    . $context . ' vs ' . $namesWithNs[$namespace][$name] . ')'
+                );
+            }
+            $namesWithNs[$namespace][$name] = $context;
+        } else {
+            $names[$name] = $context;
         }
     }
 

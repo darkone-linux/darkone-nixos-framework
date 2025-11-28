@@ -4,11 +4,16 @@
   pkgs,
   lib,
   config,
+  osConfig,
   ...
 }:
 
 let
   cfg = config.darkone.home.games;
+  enableStk = cfg.enableChild || cfg.enableTeenager || cfg.enableStk;
+  enableStkShare = enableStk && osConfig.darkone.graphic.supertuxkart.enable;
+  isStkServer = osConfig.darkone.graphic.supertuxkart.isNfsServer;
+  stkSharePrefix = if isStkServer then "/export" else "/mnt/nfs";
 in
 {
   options = {
@@ -17,11 +22,20 @@ in
     darkone.home.games.enableTeenager = lib.mkEnableOption "Games for teenagers and adults (>=12 yo)";
     darkone.home.games.enable3D = lib.mkEnableOption "More 3D Games";
     darkone.home.games.enableCli = lib.mkEnableOption "Cli Games";
+    darkone.home.games.enableStk = lib.mkEnableOption "SuperTuxKart (only)";
+    darkone.home.games.stkServer = lib.mkOption {
+      type = lib.types.str;
+      default = osConfig.darkone.service.nfs.serverDomain;
+      description = "STK server domain name";
+    };
   };
 
   config = lib.mkIf (cfg.enableBaby || cfg.enableChild || cfg.enableTeenager) {
 
+    #--------------------------------------------------------------------------
     # Packages
+    #--------------------------------------------------------------------------
+
     home.packages = with pkgs; [
       #(lib.mkIf cfg.enableChild pingus) # Bugged
       (lib.mkIf (cfg.enable3D && (cfg.enableChild || cfg.enableTeenager)) veloren) # Minecraft like
@@ -45,16 +59,20 @@ in
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-sudoku)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) lenmus) # LenMus Phonascus is a program for learning music
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) leocad) # Virt lego
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) superTuxKart)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) ltris) # Tetris
       (lib.mkIf cfg.enableCli bsdgames)
       (lib.mkIf cfg.enableCli chess-tui)
       (lib.mkIf cfg.enableCli solitaire-tui)
       (lib.mkIf cfg.enableCli tetris)
+      (lib.mkIf enableStk superTuxKart)
     ];
 
+    #--------------------------------------------------------------------------
+    # STK
+    #--------------------------------------------------------------------------
+
     # Unlock STK
-    home.activation = lib.mkIf (cfg.enableChild || cfg.enableTeenager) {
+    home.activation = lib.mkIf enableStk {
       unlockSupertuxkart = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         config_file="$HOME/.config/supertuxkart/config-0.10/config.xml"
         if [ -f "$config_file" ]; then
@@ -66,10 +84,10 @@ in
       '';
     };
 
-    # STK networking -> TO PUT IN NIXOS CONF
-    # networking.firewall.allowedUDPPorts = lib.mkIf (cfg.enableChild || cfg.enableTeenager) [
-    #   2757
-    #   2759
-    # ];
+    # STK link to shared tracks
+    systemd.user.tmpfiles.rules = lib.mkIf enableStkShare [
+      "d ${config.home.homeDirectory}/.local/share/supertuxkart/addons 0755 ${config.home.username} users -"
+      "L+ ${config.home.homeDirectory}/.local/share/supertuxkart/addons/tracks - - - - ${stkSharePrefix}/stk-tracks"
+    ];
   };
 }

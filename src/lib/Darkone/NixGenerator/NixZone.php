@@ -30,7 +30,6 @@ class NixZone
     private array $services = [];
 
     // Other options
-    private array $dhcpOption = [];
     private array $dhcpRange = [];
 
     // Updated configuration
@@ -64,7 +63,6 @@ class NixZone
         ] + ($this->name === Configuration::EXTERNAL_ZONE_KEY ? [] : [
                 'extraDnsmasqSettings' => [
                     'dhcp-host' => array_values($this->macAddresses),
-                    'dhcp-option' => $this->dhcpOption,
                     'dhcp-range' => $this->dhcpRange,
                     'address' => $this->buildAddresses(),
 
@@ -97,6 +95,7 @@ class NixZone
 
     /**
      * @return array
+     * @throws NixException
      */
     private function buildAddresses(): array
     {
@@ -117,6 +116,14 @@ class NixZone
                 $addresses[] = '/' . $alias . '/' . $this->hosts[$host];
                 $addresses[] = '/' . $alias . '.' . $this->network->getDomain() . '/' . $this->hosts[$host];
                 $addresses[] = '/' . $alias . '.' . $this->config['domain'] . '/' . $this->hosts[$host];
+            }
+        }
+
+        // External hosts services
+        foreach ($this->network->getZone(Configuration::EXTERNAL_ZONE_KEY)->getAliases() as $host => $aliases) {
+            foreach ($aliases as $alias) {
+                $addresses[] = '/' . $alias . '/' . $this->hosts[$host];
+                $addresses[] = '/' . $alias . '.' . $this->network->getDomain() . '/' . $this->hosts[$host];
             }
         }
 
@@ -177,6 +184,10 @@ class NixZone
         if (!empty($hosts = array_intersect($this->allAliases, $aliases))) {
             throw new NixException('Duplicated alias(es) ' . implode(', ', $hosts));
         }
+        array_map(
+            fn (string $name) => Configuration::assertUniqName($name, 'host "' . $host . '" alias', $this->getName()),
+            $aliases
+        );
         $this->allAliases = array_merge($this->allAliases, $aliases);
         $this->aliases[$host] = array_merge($this->aliases[$host] ?? [], $aliases);
 
@@ -240,23 +251,28 @@ class NixZone
     }
 
     /**
+     * TODO: check
      * @throws NixException
      */
     public function registerZoneConfig(array $cfg): NixZone
     {
+        $isLocal = $this->name !== Configuration::EXTERNAL_ZONE_KEY;
+
         // www + local zones
-        $cfg['locale'] ??= $this->network->getDefaultLocale() ?? Configuration::DEFAULT_LOCALE;
+        $cfg['locale'] ??= $this->network->getDefaultLocale();
         $cfg['lang'] ??= substr($cfg['locale'], 0, 2);
-        $cfg['timezone'] ??= $this->network->getDefaultTimezone() ?? Configuration::DEFAULT_TIMEZONE;
+        $cfg['timezone'] ??= $this->network->getDefaultTimezone();
+        $cfg['domain'] = $isLocal
+            ? $this->name . '.' . $this->network->getDomain()
+            : $this->network->getDomain();
 
         // Exit if www zone
-        if ($this->name !== Configuration::EXTERNAL_ZONE_KEY) {
+        if ($isLocal) {
 
             // IPs, domain
             $cfg['ipPrefix'] ??= self::DEFAULT_LAN_IP_PREFIX;
             $cfg['networkIp'] = $cfg['ipPrefix'] . '.0.0';
             $cfg['prefixLength'] = self::LAN_PREFIX_LENGTH;
-            $cfg['domain'] = $this->name . '.' . $this->network->getDomain();
 
             // No gateway?
             if (!isset($cfg['gateway']['lan']) && !isset($cfg['gateway']['wan'])) {
@@ -276,14 +292,6 @@ class NixZone
                 $this->registerSharedServices($hostname, $hostCfg['services'] ?? []);
             }
             unset($cfg['extraHosts']);
-
-            // DHCP Option
-            $this->dhcpOption = array_merge([
-                "option:router," . $cfg['ipPrefix'] . '.1.1',
-                "option:dns-server," . $cfg['ipPrefix'] . '.1.1',
-                "option:domain-name," . $cfg['domain'],
-                "option:domain-search," . $cfg['domain'],
-            ], $cfg['gateway']['lan']['dhcp-extra-option'] ?? []);
 
             // DHCP Range
             $this->dhcpRange = $cfg['gateway']['lan']['dhcp-range'] ?? [
@@ -325,6 +333,7 @@ class NixZone
             null,
             Configuration::TYPE_STRING
         );
+        isset($gateway['vpn']['ipv4']) && Configuration::assertTailscaleIp($gateway['vpn']['ipv4']);
     }
 
     /**
@@ -361,5 +370,10 @@ class NixZone
         $this->config['gateway']['lan']['ip'] = $host->getIp();
 
         return $this;
+    }
+
+    public function getAliases(): array
+    {
+        return $this->aliases;
     }
 }

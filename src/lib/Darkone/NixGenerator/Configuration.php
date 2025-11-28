@@ -28,8 +28,13 @@ class Configuration extends NixAttrSet
     public const string REGEX_TIMEZONE = '/^([A-Za-z]+)\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?$/';
 
     public const string EXTERNAL_ZONE_KEY = 'www';
+    public const string DEFAULT_DOMAIN = 'darkone.lan';
     public const string DEFAULT_LOCALE = 'fr_FR.UTF-8';
     public const string DEFAULT_TIMEZONE = 'Europe/Paris';
+    public const string DEFAULT_COORDINATION_DOMAIN_NAME = 'headscale';
+    public const string DEFAULT_MAGIC_DNS_SUB_DOMAIN = 'vpn';
+
+    public const array RESERVED_NAMES = ['common', 'headscale'];
 
     private const int MAX_RANGE_BOUND = 1000;
 
@@ -274,16 +279,6 @@ class Configuration extends NixAttrSet
             // Add gateway
             str_ends_with($host->getIp() ?? '', '.1.1') &&
                 $this->zones[$host->getZone()]->setGateway($host);
-
-            // Add www hosts in dnsmasq config
-            // TODO: To be deleted when headscale is operational
-            if ($host->getZone() === self::EXTERNAL_ZONE_KEY) {
-                foreach ($this->zones as $zone) {
-                    if ($zone->getName() !== self::EXTERNAL_ZONE_KEY) {
-                        $zone->registerHost($host->getHostname(), $host->getIp());
-                    }
-                }
-            }
         }
     }
 
@@ -359,6 +354,7 @@ class Configuration extends NixAttrSet
     {
         $zones = [];
         foreach ($this->zones as $zoneName => $zone) {
+            Configuration::assertUniqName($zoneName, 'zone');
             $zones[$zoneName] = $zone->getConfig() + $this->network->getZone($zoneName)->buildExtraZoneConfig();
         }
 

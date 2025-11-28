@@ -70,17 +70,15 @@ class Host
     /**
      * @throws NixException
      */
-    public function registerServices(?NixZone $zone, array $services): Host
+    public function registerServices(NixZone $zone, array $services): Host
     {
-        if ($zone !== null) {
-            Configuration::assert(
-                Configuration::TYPE_ARRAY, $services, $this->getHostname() . '.services must contains collection of strings', null, Configuration::TYPE_ARRAY, true
-            );
-            foreach ($services as $name => $params) {
-                $zone->registerAliases($this->getHostname(), [$this->populateService($name, $params)]);
-            }
-            $zone->registerSharedServices($this->getHostname(), $this->services);
+        Configuration::assert(
+            Configuration::TYPE_ARRAY, $services, $this->getHostname() . '.services must contains collection of strings', null, Configuration::TYPE_ARRAY, true
+        );
+        foreach ($services as $name => $params) {
+            $zone->registerAliases($this->getHostname(), [$this->populateService($name, $params)]);
         }
+        $zone->registerSharedServices($this->getHostname(), $this->services);
 
         return $this;
     }

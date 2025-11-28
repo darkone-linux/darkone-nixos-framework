@@ -4,7 +4,7 @@
   imports = [
     ./mixin/host/desktop.nix
     ./mixin/host/gateway.nix
-    ./mixin/host/headscale.nix
+    ./mixin/host/hcs.nix
     ./mixin/host/laptop.nix
     ./mixin/host/minimal.nix
     ./mixin/host/portable.nix
@@ -16,6 +16,7 @@
     ./standard/console/pandoc.nix
     ./standard/console/zsh.nix
     ./standard/graphic/gnome.nix
+    ./standard/graphic/supertuxkart.nix
     ./standard/graphic/virt-manager.nix
     ./standard/graphic/virtualbox.nix
     ./standard/service/adguardhome.nix
@@ -23,6 +24,7 @@
     ./standard/service/auth.nix
     ./standard/service/dnsmasq.nix
     ./standard/service/forgejo.nix
+    ./standard/service/headscale.nix
     ./standard/service/home-assistant.nix
     ./standard/service/homepage.nix
     ./standard/service/httpd.nix
@@ -36,6 +38,7 @@
     ./standard/service/nfs.nix
     ./standard/service/printing.nix
     ./standard/service/syncthing.nix
+    ./standard/service/tailscale.nix
     ./standard/service/users.nix
     ./standard/service/vaultwarden.nix
     ./standard/system/core.nix

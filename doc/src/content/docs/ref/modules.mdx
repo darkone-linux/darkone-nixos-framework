@@ -56,9 +56,9 @@ darkone.host.gateway = {
 
 <hr/>
 
-### &#x1F4E6; darkone.host.headscale
+### &#x1F4E6; darkone.host.hcs
 
-The main headscale coordination server.
+The main headscale coordination server. (wip)
 
 :::tip[A ready-to-use headscale server!]
 The network is configured in `usr/config.yaml` file.
@@ -67,14 +67,16 @@ are automatically configured with consistent network plumbing on your
 global network.
 :::
 
-* **enable** `bool` Enable headscale DNF server
+* **enable** `bool` Enable headscale coordination server
 * **enableFail2ban** `bool` Enable fail2ban service
+* **enableClient** `bool` Enable tailscale client on HCS node (recommande to host services)
 * **enableAuth** `bool` Enable authentication service (Authelia SSO)
 * **enableUsers** `bool` Enable user management with LLDAP for DNF SSO
 ```nix
-darkone.host.headscale = {
+darkone.host.hcs = {
   enable = false;
   enableFail2ban = true;
+  enableClient = true;
   enableAuth = builtins.hasAttr "auth" host.services;
   enableUsers = builtins.hasAttr "users" host.services;
 }
@@ -315,6 +317,26 @@ darkone.graphic.gnome = {
 
 <hr/>
 
+### &#x1F48E; darkone.graphic.supertuxkart
+
+SuperTuxKart with configurations to play in local network.
+
+:::tip
+To use in conjonction with homemanager games module!
+:::
+
+* **enable** `bool` SuperTuxKart + firewall config + tracks share
+* **isNfsServer** `bool` NFS server (share tracks), default is the main NFS server. (wip, enable on main server)
+```nix
+darkone.graphic.supertuxkart = {
+  enable = false;
+  isNfsServer = isMainNfsServer;
+}
+
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.graphic.virt-manager
 
 Virt manager + viewer with spice, win-virtio and ovmf.
@@ -421,6 +443,24 @@ darkone.service.forgejo = {
   enable = false;
   domainName = "forgejo";
   appName = "The local forge";
+}
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.headscale
+
+A full-configured headscale service for HCS.
+
+* **enable** `bool` Enable headscale DNF service
+* **enableGRPC** `bool` Open GRPC TCP port
+* **appName** `str` Title of the headscale service
+```nix
+darkone.service.headscale = {
+  enable = false;
+  enableGRPC = false;
+  appName = "Headscale DNF Service";
 }
 
 ```
@@ -663,7 +703,7 @@ In config.yaml file (hosts):
 * **serverDomain** `str` NFS Server FQDN
 ```nix
 darkone.service.nfs = {
-  enable = hasServer;
+  enable = hasServer && (isServer || isClient);
   serverDomain = "nfs";
 }
 
@@ -712,6 +752,27 @@ darkone.service.syncthing = {
   domainName = "syncthing";
   ldapServerHost = "${zone.gateway.hostname}.${zone.domain}";
   ldapServerPort = "3890";
+}
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.tailscale
+
+Tailscale client service for HCS.
+
+:::note
+A tailscale client to connect an external host to HCS.
+Do not use it to connect a gateway for a tailnet subnet.
+:::
+
+* **enable** `bool` Enable tailscale client to connect HCS
+* **isExitNode** `bool` Configure this client as exit node
+```nix
+darkone.service.tailscale = {
+  enable = false;
+  isExitNode = false;
 }
 
 ```
@@ -863,14 +924,16 @@ DNF Service registration and configuration.
 
 :::caution[Special internal module]
 This module is used to register and configure DNF modules:
-- Reverse proxy (caddy)
-- Homepage registration
-- DNS entry
+- Coordination server client (headscale / tailscale)
+- Reverse proxies (caddy)
+- Homepage registrations
+- DNS entries
 - folders and files to backup
 :::
 
 * **enable** `bool` Enable DNF services manager to register a new service
 * **enable** `bool` Enable service proxy
+* **isPublic** `bool` Public service accessed from internet
 * **service** `str` Domain name for the service
 * **displayOnHomepage** `bool` Display a link on homepage
 * **displayName** `str` Display name in homepage
@@ -890,6 +953,7 @@ This module is used to register and configure DNF modules:
 darkone.system.services = {
   enable = false;
   enable = false;
+  isPublic = false;
   service = "name";
   displayOnHomepage = true;
   displayName = "name";
@@ -1017,6 +1081,8 @@ Several graphical game packages.
 * **enableTeenager** `bool` Games for teenagers and adults (&gt;=12 yo)
 * **enable3D** `bool` More 3D Games
 * **enableCli** `bool` Cli Games
+* **enableStk** `bool` SuperTuxKart (only)
+* **stkServer** `str` STK server domain name
 ```nix
 darkone.home.games = {
   enableBaby = false;
@@ -1024,6 +1090,8 @@ darkone.home.games = {
   enableTeenager = false;
   enable3D = false;
   enableCli = false;
+  enableStk = false;
+  stkServer = "osConfig.darkone.service.nfs.serverDomain";
 }
 
 ```
