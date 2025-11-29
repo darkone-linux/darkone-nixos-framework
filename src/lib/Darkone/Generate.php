@@ -96,6 +96,7 @@ class Generate
                 ->setString('ip', $host->getIp())
                 ->setString('arch', $host->getArch())
                 ->setBool('nfsClient', $host->isNfsClient())
+                ->setString('zoneDomain', $host->getZoneDomain())
                 ->setString('networkDomain', $host->getNetworkDomain())
                 ->set('groups', (new NixList())->populateStrings($host->getGroups()))
                 ->set('users', (new NixList())->populateStrings($host->getUsers()))

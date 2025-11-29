@@ -48,7 +48,7 @@ in
       # Enregistrement des adresses du réseau de zone et connexion au serveur
       extraUpFlags = [
         "--login-server"
-        "https://${network.coordination.domainName}.${network.domain}"
+        "https://${network.coordination.domain}.${network.domain}"
         (lib.mkIf cfg.isExitNode "--advertise-exit-node")
         "--accept-routes"
         "--accept-dns"

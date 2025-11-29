@@ -59,7 +59,7 @@ class NixNetwork
 
     public function getCoordinationDomainName(): string
     {
-        return $this->getConfig()['coordination']['domainName'];
+        return $this->getConfig()['coordination']['domain'];
     }
 
     public function getMagicDnsSubDomain(): string
@@ -79,7 +79,7 @@ class NixNetwork
         $config['default']['locale'] ??= Configuration::DEFAULT_LOCALE;
         $config['default']['timezone'] ??= Configuration::DEFAULT_TIMEZONE;
         $config['coordination']['enable'] ??= false;
-        $config['coordination']['domainName'] ??= Configuration::DEFAULT_COORDINATION_DOMAIN_NAME;
+        $config['coordination']['domain'] ??= Configuration::DEFAULT_COORDINATION_DOMAIN;
         $config['coordination']['magicDnsSubDomain'] ??= Configuration::DEFAULT_MAGIC_DNS_SUB_DOMAIN;
 
         // Values types
@@ -87,7 +87,7 @@ class NixNetwork
         Configuration::assert(Configuration::TYPE_STRING, $config['default']['locale'], 'Bad default network locale syntax', Configuration::REGEX_LOCALE);
         Configuration::assert(Configuration::TYPE_STRING, $config['default']['timezone'], 'Bad default network timezone syntax', Configuration::REGEX_TIMEZONE);
         Configuration::assert(Configuration::TYPE_STRING, $config['coordination']['hostname'] ?? '', 'Bad coordination hostname type', Configuration::REGEX_HOSTNAME);
-        Configuration::assert(Configuration::TYPE_STRING, $config['coordination']['domainName'] ?? '', 'Bad Headscale domaine name', Configuration::REGEX_HOSTNAME);
+        Configuration::assert(Configuration::TYPE_STRING, $config['coordination']['domain'] ?? '', 'Bad Headscale domaine name', Configuration::REGEX_HOSTNAME);
         Configuration::assert(Configuration::TYPE_STRING, $config['coordination']['magicDnsSubDomain'] ?? '', 'Bad Headscale magicDnsSubDomain', Configuration::REGEX_HOSTNAME);
         Configuration::assert(Configuration::TYPE_BOOL, $config['coordination']['enable'], 'Bad coordination enable type');
 
@@ -100,7 +100,7 @@ class NixNetwork
             $testConfig['default']['password-hash'], // Auto-generated
             $testConfig['coordination']['hostname'],
             $testConfig['coordination']['enable'],
-            $testConfig['coordination']['domainName'],
+            $testConfig['coordination']['domain'],
             $testConfig['coordination']['magicDnsSubDomain']
         );
         if (!empty($testConfig['default'])) {

@@ -65,6 +65,8 @@ The network is configured in `usr/config.yaml` file.
 Additional enabled services (authentication, etc.)
 are automatically configured with consistent network plumbing on your
 global network.
+
+Zsh alias "h" for "headscale".
 :::
 
 * **enable** `bool` Enable headscale coordination server
@@ -270,15 +272,18 @@ darkone.console.pandoc.enable = false;
 A full zsh installation with aliases, bindkeys and optimized prompt.
 
 :::tip[Some shortcuts]
+General:
 - `l`, `la`, `ll`: ls with options
 - `vz`: vim + fzf
+- `treef`: tree with files (eza)
+- `treed`: tree only dirs (eza)
+
+For nix/dnf admin profile:
 - `nx`: cd /etc/nixos
 - `nf`: nixfmt
 - `nc`: deadnix
-- `dnf`: cd /home/nix/dnf
+- `dnf`: cd ~/dnf
 - `mrproper`: nix-collect-garbage(s) + switch-to-conf boot
-- `treef`: tree with files (eza)
-- `treed`: tree only dirs (eza)
 :::
 
 * **enable** `bool` ZSH environment
@@ -375,12 +380,8 @@ It uses the [DNF dnsmasq module](/ref/modules/#-darkoneservicednsmasq) as upstre
 :::
 
 * **enable** `bool` Enable local adguardhome service
-* **domainName** `str` Domain name for Adguard Home, registered in global network
 ```nix
-darkone.service.adguardhome = {
-  enable = false;
-  domainName = "adguardhome";
-}
+darkone.service.adguardhome.enable = false;
 
 ```
 
@@ -403,12 +404,8 @@ darkone.service.audio.enable = false;
 DNF SSO with Authelia.
 
 * **enable** `bool` Enable local SSO with Authelia (and LLDAP)
-* **domainName** `str` Domain name for authentication (SSO), registered in network configuration
 ```nix
-darkone.service.auth = {
-  enable = false;
-  domainName = "auth";
-}
+darkone.service.auth.enable = false;
 
 ```
 
@@ -436,14 +433,8 @@ darkone.service.dnsmasq.enable = false;
 A full-configured forgejo git forge.
 
 * **enable** `bool` Enable local forgejo service
-* **domainName** `str` Domain name for the forge, registered in network configuration
-* **appName** `str` Default title for the local GIT forge
 ```nix
-darkone.service.forgejo = {
-  enable = false;
-  domainName = "forgejo";
-  appName = "The local forge";
-}
+darkone.service.forgejo.enable = false;
 
 ```
 
@@ -455,12 +446,10 @@ A full-configured headscale service for HCS.
 
 * **enable** `bool` Enable headscale DNF service
 * **enableGRPC** `bool` Open GRPC TCP port
-* **appName** `str` Title of the headscale service
 ```nix
 darkone.service.headscale = {
   enable = false;
   enableGRPC = false;
-  appName = "Headscale DNF Service";
 }
 
 ```
@@ -488,7 +477,6 @@ For each DNF service enabled, an entry is automatically added to the homepage co
 :::
 
 * **enable** `bool` Enable homepage dashboard + httpd + host
-* **domainName** `str` Domain name for homepage (default is hostname)
 * **adminServices** `?` Services to add in Administration section
 * **appServices** `?` Services to add in Applications section
 * **bookmarks** `?` Replace default bookmarks (links)
@@ -496,7 +484,6 @@ For each DNF service enabled, an entry is automatically added to the homepage co
 ```nix
 darkone.service.homepage = {
   enable = false;
-  domainName = "home";
   adminServices = [ ];
   appServices = [ ];
   bookmarks = [ ];
@@ -532,13 +519,11 @@ darkone.service.httpd = {
 Immich (photo management) full-configured service.
 
 * **enable** `bool` Enable local immich service
-* **domainName** `str` Domain name for immich, registered in local network
 * **enableMachineLearning** `bool` Enable machine learning features (face recognition, object detection)
 * **enableRedis** `bool` Enable Redis for caching (recommended for performance)
 ```nix
 darkone.service.immich = {
   enable = false;
-  domainName = "immich";
   enableMachineLearning = false;
   enableRedis = false;
 }
@@ -552,14 +537,8 @@ darkone.service.immich = {
 A matrix (synapse) server. (WIP)
 
 * **enable** `bool` Enable matrix (synapse) service
-* **domainName** `str` Domain name for matrix web client, registered in network configuration
-* **appName** `str` Default title for matrix service
 ```nix
-darkone.service.matrix = {
-  enable = false;
-  domainName = "matrix";
-  appName = "Matrix";
-}
+darkone.service.matrix.enable = false;
 
 ```
 
@@ -576,14 +555,8 @@ from the open-source version.
 :::
 
 * **enable** `bool` Enable mattermost service
-* **domainName** `str` Domain name for mattermost, registered in network configuration
-* **appName** `str` Default title for mattermost service
 ```nix
-darkone.service.mattermost = {
-  enable = false;
-  domainName = "mattermost";
-  appName = "Mattermost";
-}
+darkone.service.mattermost.enable = false;
 
 ```
 
@@ -599,12 +572,10 @@ to monitor the operating system, network activity, resources, and performance.
 :::
 
 * **enable** `bool` Enable monitoring with prometheus, grafana and node exporter
-* **domainName** `str` Domain name for monitoring, registered in local network
 * **retentionTime** `str` Durée de rétention des métriques Prometheus
 ```nix
 darkone.service.monitoring = {
   enable = false;
-  domainName = "monitoring";
   retentionTime = "15d";
 }
 
@@ -651,12 +622,8 @@ to use the “pro” version, so it is better to use the “monitoring” module
 :::
 
 * **enable** `bool` Enable netdata application
-* **domainName** `str` Domain name for netdata, registered in local network
 ```nix
-darkone.service.netdata = {
-  enable = false;
-  domainName = "netdata";
-}
+darkone.service.netdata.enable = false;
 
 ```
 
@@ -667,13 +634,11 @@ darkone.service.netdata = {
 Nextcloud full-configured service.
 
 * **enable** `bool` Enable local nextcloud service
-* **domainName** `str` Domain name for nextcloud, registered in network configuration
 * **adminUser** `str` Admin username for Nextcloud
 * **adminPassword** `str` Admin password for Nextcloud (change this!)
 ```nix
 darkone.service.nextcloud = {
   enable = false;
-  domainName = "nextcloud";
   adminUser = "admin";
   adminPassword = "changeme";
 }
@@ -743,13 +708,11 @@ to allow users to use syncthing with their account.
 :::
 
 * **enable** `bool` Enable local syncthing service
-* **domainName** `str` Domain name for sync server, registered in network configuration
 * **ldapServerHost** `str` Users service (lldap)
 * **ldapServerPort** `str` Users service (lldap)
 ```nix
 darkone.service.syncthing = {
   enable = false;
-  domainName = "syncthing";
   ldapServerHost = "${zone.gateway.hostname}.${zone.domain}";
   ldapServerPort = "3890";
 }
@@ -784,12 +747,8 @@ darkone.service.tailscale = {
 LLDAP service for DNF SSO.
 
 * **enable** `bool` Enable local user management with LLDAP (SSO)
-* **domainName** `str` Domain name for user management (SSO), registered in network configuration
 ```nix
-darkone.service.users = {
-  enable = false;
-  domainName = "users";
-}
+darkone.service.users.enable = false;
 
 ```
 
@@ -800,14 +759,8 @@ darkone.service.users = {
 A full-configured vaultwarden server (wip).
 
 * **enable** `bool` Enable local Vaultwarden service
-* **domainName** `str` Domain name for the Vaultwarden service
-* **appName** `str` Default title for Vaultwarden server
 ```nix
-darkone.service.vaultwarden = {
-  enable = false;
-  domainName = "vaultwarden";
-  appName = "Unofficial Bitwarden compatible server";
-}
+darkone.service.vaultwarden.enable = false;
 
 ```
 
@@ -935,10 +888,14 @@ This module is used to register and configure DNF modules:
 * **enable** `bool` Enable service proxy
 * **isPublic** `bool` Public service accessed from internet
 * **service** `str` Domain name for the service
-* **displayOnHomepage** `bool` Display a link on homepage
-* **displayName** `str` Display name in homepage
+* **title** `str` Display name in homepage
 * **description** `str` Service description for homepage
 * **icon** `str` Icon name for homepage (https://dashboardicons.com/)
+* **global** `bool` Global service is accessible on Internet
+* **fqdn** `str` Calculated FQDN or the service before the reverse proxy
+* **href** `str` Calculated URL of the service before the reverse proxy
+* **ip** `str` Calculated IP to contact the service
+* **displayOnHomepage** `bool` Display a link on homepage
 * **dirs** `?` Service persistant dirs
 * **files** `?` Service persistant files
 * **dbDirs** `?` Service persistant dirs with database(s)
@@ -955,10 +912,14 @@ darkone.system.services = {
   enable = false;
   isPublic = false;
   service = "name";
-  displayOnHomepage = true;
-  displayName = "name";
+  title = "name";
   description = "name";
   icon = "name";
+  global = false;
+  fqdn = "";
+  href = "";
+  ip = "";
+  displayOnHomepage = true;
   dirs = [ ];
   files = [ ];
   dbDirs = [ ];

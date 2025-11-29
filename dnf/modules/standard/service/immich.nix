@@ -2,21 +2,19 @@
 
 {
   lib,
+  dnfLib,
   config,
   pkgs,
+  host,
   ...
 }:
 let
   cfg = config.darkone.service.immich;
+  params = dnfLib.extractServiceParams host "immich" { description = "Smart media manager"; };
 in
 {
   options = {
     darkone.service.immich.enable = lib.mkEnableOption "Enable local immich service";
-    darkone.service.immich.domainName = lib.mkOption {
-      type = lib.types.str;
-      default = "immich";
-      description = "Domain name for immich, registered in local network";
-    };
     darkone.service.immich.enableMachineLearning = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -33,9 +31,7 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.immich = {
-        inherit (cfg) domainName;
-        displayName = "Immich";
-        description = "Gestionnaire de photos intelligent";
+        inherit params;
         persist = {
           dirs = [
             "/var/lib/immich/profile"
@@ -90,7 +86,7 @@ in
       services.immich = {
         enable = true;
         port = 2283;
-        host = "localhost";
+        host = params.ip;
         openFirewall = false;
 
         # Redis configuration

@@ -2,6 +2,7 @@
 
 {
   lib,
+  dnfLib,
   config,
   host,
   ...
@@ -10,29 +11,18 @@ let
   cfg = config.darkone.service.forgejo;
   fjCfg = config.services.forgejo;
   srv = fjCfg.settings.server;
+  params = dnfLib.extractServiceParams host "forgejo" { };
 in
 {
   options = {
     darkone.service.forgejo.enable = lib.mkEnableOption "Enable local forgejo service";
-    darkone.service.forgejo.domainName = lib.mkOption {
-      type = lib.types.str;
-      default = "forgejo";
-      description = "Domain name for the forge, registered in network configuration";
-    };
-    darkone.service.forgejo.appName = lib.mkOption {
-      type = lib.types.str;
-      default = "The local forge";
-      description = "Default title for the local GIT forge";
-    };
   };
 
   config = lib.mkMerge [
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.forgejo = {
-        inherit (cfg) domainName;
-        displayName = "Forgejo";
-        description = "Forge GIT locale";
+        inherit params;
         persist.dirs = [
           "/var/lib/forgejo/custom"
           "/var/lib/forgejo/data"
@@ -50,6 +40,7 @@ in
         service.forgejo.enable = true;
       };
 
+      # Forgejo main service
       services.forgejo = {
         enable = true;
         database.type = "postgres";
@@ -57,23 +48,23 @@ in
         settings = {
           server = {
             DOMAIN = "localhost";
-            ROOT_URL = "http://${cfg.domainName}.${host.networkDomain}/"; # URL before reverse proxy
+            ROOT_URL = params.href; # URL before reverse proxy
             HTTP_PORT = 3000;
             LANDING_PAGE = "explore";
           };
           DEFAULT = {
-            APP_NAME = cfg.appName;
+            APP_NAME = params.title;
           };
 
           # You can temporarily allow registration to create an admin user.
           service.DISABLE_REGISTRATION = true;
           "service.explore".DISABLE_USERS_PAGE = true;
           "ui.meta".AUTHOR = "Darkone Linux";
-          "ui.meta".DESCRIPTION = "${host.networkDomain} git forge";
+          "ui.meta".DESCRIPTION = params.description;
 
           # Add support for actions, based on act: https://github.com/nektos/act
           actions = {
-            ENABLED = true;
+            ENABLED = false;
             DEFAULT_ACTIONS_URL = "github";
           };
 
@@ -83,8 +74,8 @@ in
           # mailer = {
           #   ENABLED = false;
           #   SMTP_ADDR = "mail.cheznoo.net";
-          #   FROM = "noreply@${srv.DOMAIN}.${host.networkDomain}";
-          #   USER = "noreply@${srv.DOMAIN}.${host.networkDomain}";
+          #   FROM = "noreply@${params.fqdn}";
+          #   USER = "noreply@${params.fqdn}";
           # };
         };
         #mailerPasswordFile = config.age.secrets.forgejo-mailer-password.path;

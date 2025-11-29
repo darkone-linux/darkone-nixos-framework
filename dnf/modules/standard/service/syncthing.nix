@@ -7,6 +7,7 @@
 
 {
   lib,
+  dnfLib,
   config,
   host,
   network,
@@ -23,15 +24,11 @@ let
   #usersService = config.darkone.service.users;
   ldapBaseDn =
     "dc=" + (lib.concatStringsSep ",dc=" (builtins.match "^([^.]+)\.([^.]+)$" "${network.domain}"));
+  params = dnfLib.extractServiceParams host "syncthing" { description = "Synchronization solution"; };
 in
 {
   options = {
     darkone.service.syncthing.enable = lib.mkEnableOption "Enable local syncthing service";
-    darkone.service.syncthing.domainName = lib.mkOption {
-      type = lib.types.str;
-      default = "syncthing";
-      description = "Domain name for sync server, registered in network configuration";
-    };
     darkone.service.syncthing.ldapServerHost = lib.mkOption {
       type = lib.types.str;
       default = "${zone.gateway.hostname}.${zone.domain}";
@@ -48,9 +45,7 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.syncthing = {
-        inherit (cfg) domainName;
-        displayName = "Syncthing";
-        description = "Local synchronization";
+        inherit params;
         persist.dirs = [ srv.dataDir ];
         proxy.servicePort = guiPort;
       };

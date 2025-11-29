@@ -2,27 +2,20 @@
 
 {
   lib,
+  dnfLib,
   config,
   pkgs,
+  host,
   ...
 }:
 let
   cfg = config.darkone.service.vaultwarden;
   srv = config.services.vaultwarden.config;
+  params = dnfLib.extractServiceParams host "vaultwarden" { };
 in
 {
   options = {
     darkone.service.vaultwarden.enable = lib.mkEnableOption "Enable local Vaultwarden service";
-    darkone.service.vaultwarden.domainName = lib.mkOption {
-      type = lib.types.str;
-      default = "vaultwarden";
-      description = "Domain name for the Vaultwarden service";
-    };
-    darkone.service.vaultwarden.appName = lib.mkOption {
-      type = lib.types.str;
-      default = "Unofficial Bitwarden compatible server";
-      description = "Default title for Vaultwarden server";
-    };
   };
 
   # TODO: work in progress, activate TLS + FQDN
@@ -30,9 +23,7 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.vaultwarden = {
-        inherit (cfg) domainName;
-        displayName = "Vaultwarden";
-        description = "Vaultwarden local server";
+        inherit params;
         persist = {
           files = [
             "rsa_key.pem"
@@ -63,9 +54,9 @@ in
         config = {
 
           # TODO: FQDN + HTTPS
-          DOMAIN = "http://vaultwarden";
+          DOMAIN = params.href;
           SIGNUPS_ALLOWED = true; # TODO: false
-          ROCKET_ADDRESS = "127.0.0.1";
+          ROCKET_ADDRESS = params.ip;
           ROCKET_PORT = 8222;
           ROCKET_LOG = "critical";
 
@@ -73,7 +64,7 @@ in
           #SMTP_HOST = "127.0.0.1";
           #SMTP_PORT = 25;
           #SMTP_SSL = false;
-          #SMTP_FROM = "vaultwarden@${cfg.domainName}.${network.domain}";
+          #SMTP_FROM = "${params.domain}@${network.domain}";
           #SMTP_FROM_NAME = "${network.domain} Vaultwarden server";
         };
 

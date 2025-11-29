@@ -101,7 +101,7 @@ in
       # Enregistrement des adresses du réseau de zone et connexion au serveur
       extraUpFlags = [
         "--login-server"
-        "https://${network.coordination.domainName}.${network.domain}"
+        "https://${network.coordination.domain}.${network.domain}"
         "--advertise-routes"
         "${zone.networkIp}/${toString zone.prefixLength}"
         "--snat-subnet-routes" # source NAT traffic to local routes advertised with --advertise-routes

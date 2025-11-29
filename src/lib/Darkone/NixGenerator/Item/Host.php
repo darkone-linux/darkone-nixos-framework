@@ -17,6 +17,7 @@ class Host
     private string $profile;
     private ?string $ip;
     private ?string $arch;
+    private string $zoneDomain;
     private string $networkDomain;
     private bool $nfsClient = false;
 
@@ -177,12 +178,13 @@ class Host
         isset($params['description']) && Configuration::assert(Configuration::TYPE_STRING, $params['description'], $this->getHostname() . '.services.' . $name . '.description must be a string');
         isset($params['domain']) && Configuration::assert(Configuration::TYPE_STRING, $params['domain'], 'Invalid name: ' . $this->getHostname() . '.services.' . $name . '.domain', Configuration::REGEX_HOSTNAME);
         isset($params['icon']) && Configuration::assert(Configuration::TYPE_STRING, $params['icon'], 'Invalid name: ' . $this->getHostname() . '.services.' . $name . '.domain', Configuration::REGEX_HOSTNAME);
+        isset($params['global']) && Configuration::assert(Configuration::TYPE_BOOL, $params['global'], 'Global "global" key must be a boolean');
         $domain = $params['domain'] ?? $name;
         if (isset($this->services[$name])) {
             throw new NixException('Service ' . $this->getHostname() . ':' . $name . ' already registered');
         }
         $this->services[$name] = $params;
-        unset($params['title'], $params['description'], $params['domain'], $params['icon']);
+        unset($params['title'], $params['description'], $params['domain'], $params['icon'], $params['global']);
         if (!empty($params)) {
             throw new NixException('Service ' . $this->getHostname() . ':' . $name . ', unknown values ' . json_encode($params));
         }
@@ -214,6 +216,17 @@ class Host
     public function setArch(?string $arch): Host
     {
         $this->arch = $arch;
+        return $this;
+    }
+
+    public function getZoneDomain(): string
+    {
+        return $this->zoneDomain;
+    }
+
+    public function setZoneDomain(string $zoneDomain): Host
+    {
+        $this->zoneDomain = $zoneDomain;
         return $this;
     }
 

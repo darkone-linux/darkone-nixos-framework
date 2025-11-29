@@ -52,25 +52,45 @@ class NixZone
 
     /**
      * @return array
+     * @throws NixException
      */
-    public function buildExtraZoneConfig(): array
+    public function buildExtraZoneConfig(Configuration $globalConfig): array
     {
         return [
             'name' => $this->name,
 
              // Force nix empty list (and not attrset) if no item in services
             'sharedServices' => empty($this->services) ? new NixList() : $this->services,
-        ] + ($this->name === Configuration::EXTERNAL_ZONE_KEY ? [] : [
-                'extraDnsmasqSettings' => [
-                    'dhcp-host' => array_values($this->macAddresses),
-                    'dhcp-range' => $this->dhcpRange,
-                    'address' => $this->buildAddresses(),
+        ] + ($this->name === Configuration::EXTERNAL_ZONE_KEY ? [
+            'globalServices' => $this->buildGlobalServices($globalConfig) ?? (new NixList()),
+        ] : [
+            'extraDnsmasqSettings' => [
+                'dhcp-host' => array_values($this->macAddresses),
+                'dhcp-range' => $this->dhcpRange,
+                'address' => $this->buildAddresses($globalConfig),
 
-                    // Do not works with fqdn configuration of dnsmasq -> address
-                    // 'cname' => $this->buildCnames(),
-                ],
-                'local-substituter' => $this->substituter,
-            ]);
+                // Do not works with fqdn configuration of dnsmasq -> address
+                // 'cname' => $this->buildCnames(),
+            ],
+            'local-substituter' => $this->substituter,
+        ]);
+    }
+
+    private function buildGlobalServices(Configuration $globalConfig): ?array
+    {
+        $globalServices = [];
+        foreach ($this->network->getZones() as $zone) {
+            foreach ($zone->getServices() as $service) {
+                if ($service['global'] ?? false) {
+                    unset($service['global']);
+                    $host = $globalConfig->getHosts()[$service['host']];
+                    $service['targetIp'] = $host->getIp();
+                    $globalServices[] = $service;
+                }
+            }
+        }
+
+        return empty($globalServices) ? null : $globalServices;
     }
 
     /**
@@ -94,18 +114,26 @@ class NixZone
     }
 
     /**
+     * TODO: voir si on étend aux global services des autres zones...
+     * @param Configuration $globalConfig
      * @return array
      * @throws NixException
      */
-    private function buildAddresses(): array
+    private function buildAddresses(Configuration $globalConfig): array
     {
         $addresses = [];
+        $globalServices = [];
+        foreach ($this->getServices() as $service) {
+            if ($service['global'] ?? false) {
+                $globalServices[$service['domain']] = $globalConfig->getHosts()[$service['host']]->getIp();
+            }
+        }
 
         // Main hosts
         foreach ($this->hosts as $host => $ip) {
             if (!empty($ip)) {
                 $addresses[] = '/' . $host . '/' . $ip; // host
-                $addresses[] = '/' . $host . '.' . $this->network->getDomain() . '/' . $ip; // host.domain.tld
+                // $addresses[] = '/' . $host . '.' . $this->network->getDomain() . '/' . $ip; // host.domain.tld
                 $addresses[] = '/' . $host . '.' . $this->config['domain'] . '/' . $ip; // host.zone.domain.tld
             }
         }
@@ -114,13 +142,16 @@ class NixZone
         foreach ($this->aliases as $host => $aliases) {
             foreach ($aliases as $alias) {
                 $addresses[] = '/' . $alias . '/' . $this->hosts[$host];
-                $addresses[] = '/' . $alias . '.' . $this->network->getDomain() . '/' . $this->hosts[$host];
-                $addresses[] = '/' . $alias . '.' . $this->config['domain'] . '/' . $this->hosts[$host];
+                $addresses[] = isset($globalServices[$alias])
+                    ? '/' . $alias . '.' . $this->network->getDomain() . '/' . $globalServices[$alias]
+                    : '/' . $alias . '.' . $this->config['domain'] . '/' . $this->hosts[$host];
             }
         }
 
-        // External hosts services
-        foreach ($this->network->getZone(Configuration::EXTERNAL_ZONE_KEY)->getAliases() as $host => $aliases) {
+        // External (internet) zone global hosts
+        // -> Usefull to contact external hosts without configured DNS / Headscale service
+        $globalZone = $this->network->getZone(Configuration::EXTERNAL_ZONE_KEY);
+        foreach ($globalZone->getAliases() as $host => $aliases) {
             foreach ($aliases as $alias) {
                 $addresses[] = '/' . $alias . '/' . $this->hosts[$host];
                 $addresses[] = '/' . $alias . '.' . $this->network->getDomain() . '/' . $this->hosts[$host];
@@ -240,10 +271,11 @@ class NixZone
             $this->services[] = array_filter([
                 'host' => $host,
                 'service' => $serviceKey,
-                'domainName' => $service['domain'] ?? null,
-                'displayName' => $service['title'] ?? null,
+                'domain' => $service['domain'] ?? null,
+                'title' => $service['title'] ?? null,
                 'description' => $service['description'] ?? null,
                 'icon' => $service['icon'] ?? null,
+                'global' => $service['global'] ?? null,
             ]);
         }
 
@@ -288,8 +320,8 @@ class NixZone
                 $hostIp = $cfg['ipPrefix'] . '.' . $hostCfg['ip'];
                 $this->registerHost($hostname, $hostIp);
                 $this->registerMacAddresses($hostCfg['mac'], $hostIp);
-                $this->registerAliases($hostname, $hostCfg['aliases'] ?? []);
                 $this->registerSharedServices($hostname, $hostCfg['services'] ?? []);
+                $this->registerAliases($hostname, $hostCfg['aliases'] ?? []);
             }
             unset($cfg['extraHosts']);
 
@@ -350,6 +382,14 @@ class NixZone
     public function getDomain(): string
     {
         return $this->config['domain'];
+    }
+
+    /**
+     * @return array
+     */
+    public function getServices(): array
+    {
+        return $this->services;
     }
 
     /**

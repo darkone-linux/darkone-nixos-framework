@@ -7,30 +7,26 @@
 
 {
   lib,
+  dnfLib,
   config,
   pkgs,
+  host,
   ...
 }:
 let
   cfg = config.darkone.service.netdata;
+  params = dnfLib.extractServiceParams host "netdata" { };
 in
 {
   options = {
     darkone.service.netdata.enable = lib.mkEnableOption "Enable netdata application";
-    darkone.service.netdata.domainName = lib.mkOption {
-      type = lib.types.str;
-      default = "netdata";
-      description = "Domain name for netdata, registered in local network";
-    };
   };
 
   config = lib.mkMerge [
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.netdata = {
-        inherit (cfg) domainName;
-        displayName = "Netdata";
-        description = "Outil de supervision";
+        inherit params;
         persist.dirs = [ "/var/lib/netdata" ];
         proxy.servicePort = 19999;
       };

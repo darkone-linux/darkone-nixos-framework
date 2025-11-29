@@ -14,10 +14,7 @@
 }:
 let
   cfg = config.darkone.service.dnsmasq;
-  inherit (zone) domain;
-  inherit (zone) extraDnsmasqSettings;
-  inherit (zone) gateway;
-  wanInterface = gateway.wan.interface;
+  wanInterface = zone.gateway.wan.interface;
   lanInterface = "lan0"; # bridge for internal interfaces
   lanIpRange = zone.networkIp + "/" + toString zone.prefixLength;
   hasAdguardHome = config.darkone.service.adguardhome.enable;
@@ -43,13 +40,13 @@ in
       # Probably useless with headscale magicdns?
       search = [ zone.domain ];
 
-      # We need a bridge for dnsmasq settings
-      bridges.${lanInterface}.interfaces = gateway.lan.interfaces;
+      # We need a bridge for dnsmasq settings (lan0)
+      bridges.${lanInterface}.interfaces = zone.gateway.lan.interfaces;
 
       # Internet sharing / nat
       nat = {
         enable = true;
-        externalInterface = gateway.wan.interface;
+        externalInterface = zone.gateway.wan.interface;
         internalIPs = [ lanIpRange ];
         internalInterfaces = [ lanInterface ];
       };
@@ -63,7 +60,7 @@ in
           useDHCP = false;
           ipv4.addresses = [
             {
-              address = gateway.lan.ip;
+              address = zone.gateway.lan.ip;
               inherit (zone) prefixLength;
             }
           ];
@@ -141,7 +138,9 @@ in
       alwaysKeepRunning = true;
 
       settings = {
-        inherit domain;
+
+        # Domaine local qui sera ajouté aux noms DNS des machines assignées par le DHCP et fourni en nom de domaine local aux clients DHCP
+        inherit (zone) domain;
 
         interface = [
           lanInterface
@@ -151,18 +150,12 @@ in
         dhcp-authoritative = true;
         no-dhcp-interface = "lo";
 
-        # listen-address = [
-        #   "127.0.0.1"
-        #   "${zone.gateway.lan.ip}"
-        #   (lib.mkIf isTailscaleSubnet "100.64.0.1") # TODO: fix this address
-        # ];
-
         # Les requêtes pour ces domaines ne sont traitées qu'à partir de /etc/hosts ou de DHCP.
         # Elles ne sont pas transmises aux serveurs amont.
-        local = "/${domain}/";
+        local = "/${zone.domain}/";
 
         # Register the IP of gateway
-        #address = [ "/${gateway.hostname}.${domain}/${gateway.lan.ip}" ];
+        #address = [ "/${zone.gateway.hostname}.${zone.domain}/${zone.gateway.lan.ip}" ];
 
         # Utiliser un port DNS différent si adguardhome est activé.
         port = if hasAdguardHome then 5353 else 53;
@@ -170,21 +163,28 @@ in
         # Prends dans /etc/hosts les ips qui matchent le réseau en priorité.
         localise-queries = true;
 
-        # local-name = local-name.domain
+        # local-name -> local-name.zone.domain.tld
         expand-hosts = true;
 
-        # Accept DNS queries only from hosts whose address is on a local subnet
+        # Accept DNS queries only from hosts whose address is on a local subnet.
+        # Ne communiquer qu'avec les machines dans notre réseau.
         local-service = true;
 
         # Log results of all DNS queries
-        log-queries = true;
+        log-queries = lib.mkDefault true;
 
-        # Don't forward requests for the local address ranges (10.x.x.x)
-        # to upstream nameservers
+        # Don't forward requests for the local address ranges (10.x.x.x) to upstream nameservers.
+        # Fausse résolution inverse pour les réseaux privés. Toutes les requêtes DNS inverses pour des
+        # adresses IP privées (ie 192.168.x.x, etc...) qui ne sont pas trouvées dans /etc/hosts ou dans
+        # le fichier de baux DHCP se voient retournées une réponse "pas de tel domaine" ("no such domain")
+        # au lieu d'être transmises aux serveurs de nom amont ("upstream server").
         bogus-priv = true;
 
-        # Don't forward requests without dots or domain parts to upstream nameservers
-        domain-needed = false;
+        # Don't forward requests without dots or domain parts to upstream nameservers.
+        # Indique à Dnsmasq de ne jamais transmettre en amont de requêtes A ou AAAA pour des noms simples,
+        # c'est à dire ne comprenant ni points ni nom de domaine.
+        # TODO: voir ce qu'on fait pour les noms simples des autres zones.
+        domain-needed = true;
 
         # Main dhcp options + headscale return route
         # https://tailscale.com/kb/1019/subnets#disable-snat
@@ -198,6 +198,8 @@ in
         ];
 
         # Default: do not read /etc/resolv.conf, but headscale and adguardhome set it to false.
+        # Ne pas lire le contenu du fichier /etc/resolv.conf. N'obtenir l'adresse des serveurs de nom
+        # amont que depuis la ligne de commande ou le fichier de configuration de Dnsmasq.
         no-resolv = lib.mkDefault true;
 
         # Force dnsmasq à inclure l’IP réelle du client dans les requêtes DNS transmises en upstream.
@@ -207,7 +209,8 @@ in
       }
 
       # Generated configuration in var/generated/network.nix
-      // extraDnsmasqSettings;
+      # -> dhcp-host + dhcp-range + address
+      // zone.extraDnsmasqSettings;
     };
   };
 }

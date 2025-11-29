@@ -77,6 +77,8 @@
       # Unstable state version for new hosts / homes installations
       unstableStateVersion = "25.11";
 
+      # DNF local library
+
       # Support for multiple architectures
       supportedSystems = [
         "x86_64-linux"
@@ -136,6 +138,7 @@
         inherit users;
         inherit network;
         pkgs-stable = nixpkgsStableFor.${system};
+        dnfLib = mkDnfLib system;
       };
 
       mkNodeSpecialArgs = host: {
@@ -161,7 +164,6 @@
             sops-nix.nixosModules.sops
             disko.nixosModules.disko
             nix-flatpak.nixosModules.nix-flatpak
-            { _module.args.dnfLib = mkDnfLib (getHostArch host); }
             home-manager.nixosModules.home-manager
             {
               home-manager = {
@@ -186,6 +188,7 @@
                   inherit inputs;
                   zone = network.zones.${host.zone};
                   pkgs-stable = nixpkgsStableFor.${getHostArch host};
+                  dnfLib = mkDnfLib (getHostArch host);
                 };
               };
             }

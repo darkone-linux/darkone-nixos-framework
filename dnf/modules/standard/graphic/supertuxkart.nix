@@ -49,7 +49,7 @@ in
 
     # NFS mount (clients)
     fileSystems."/mnt/nfs/stk-tracks" = lib.mkIf ((!cfg.isNfsServer) && hasNfsServer) {
-      device = "${nfsServer}.${host.networkDomain}:/stk-tracks";
+      device = "${nfsServer}.${host.zoneDomain}:/stk-tracks";
       fsType = "nfs";
       options = [
         "x-systemd.automount" # Mount on demand

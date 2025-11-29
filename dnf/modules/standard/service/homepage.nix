@@ -6,6 +6,7 @@
 
 {
   lib,
+  dnfLib,
   config,
   host,
   zone,
@@ -14,15 +15,14 @@
 let
   cfg = config.darkone.service.homepage;
   hpd = config.services.homepage-dashboard;
+  params = dnfLib.extractServiceParams host "homepage" {
+    title = "Home";
+    description = "Local network home page";
+  };
 in
 {
   options = {
     darkone.service.homepage.enable = lib.mkEnableOption "Enable homepage dashboard + httpd + host";
-    darkone.service.homepage.domainName = lib.mkOption {
-      type = lib.types.str;
-      default = "home";
-      description = "Domain name for homepage (default is hostname)";
-    };
     darkone.service.homepage.adminServices = lib.mkOption {
       type = lib.types.listOf lib.types.attrs;
       default = [ ];
@@ -51,10 +51,8 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.homepage = {
+        inherit params;
         displayOnHomepage = false;
-        inherit (cfg) domainName;
-        displayName = "Homepage";
-        description = "Page d'accueil du réseau local";
         proxy.servicePort = hpd.listenPort;
         proxy.defaultService = true;
       };
@@ -74,7 +72,7 @@ in
         enable = true;
         openFirewall = true;
         listenPort = 8082;
-        allowedHosts = "${cfg.domainName}.${host.networkDomain}";
+        allowedHosts = params.fqdn;
 
         # https://gethomepage.dev/latest/configs/settings/
         settings = {

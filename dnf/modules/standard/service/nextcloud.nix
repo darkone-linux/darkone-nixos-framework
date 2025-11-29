@@ -2,11 +2,11 @@
 
 {
   lib,
+  dnfLib,
   config,
   pkgs,
   host,
   zone,
-  network,
   ...
 }:
 let
@@ -14,21 +14,11 @@ let
   port = 8089;
 
   # TODO: factoriser dans lib avec httpd
-  mkDomain =
-    defaultDomain:
-    if lib.attrsets.hasAttrByPath [ "services" "nextcloud" "domain" ] host then
-      host.services.nextcloud.domain
-    else
-      defaultDomain;
+  params = dnfLib.extractServiceParams host "nextcloud" { description = "Local personal cloud"; };
 in
 {
   options = {
     darkone.service.nextcloud.enable = lib.mkEnableOption "Enable local nextcloud service";
-    darkone.service.nextcloud.domainName = lib.mkOption {
-      type = lib.types.str;
-      default = "nextcloud";
-      description = "Domain name for nextcloud, registered in network configuration";
-    };
     darkone.service.nextcloud.adminUser = lib.mkOption {
       type = lib.types.str;
       default = "admin";
@@ -45,9 +35,7 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.nextcloud = {
-        domainName = mkDomain cfg.domainName;
-        displayName = "Nextcloud";
-        description = "Cloud personnel local";
+        inherit params;
         persist = {
           dirs = [ "/var/lib/nextcloud/data" ];
           dbDirs = [ "/var/lib/postgresql" ];
@@ -73,10 +61,10 @@ in
 
       # Internal nginx
       services.nginx = {
-        virtualHosts."${mkDomain cfg.domainName}" = {
+        virtualHosts."${params.fqdn}" = {
           listen = [
             {
-              addr = "127.0.0.1";
+              addr = params.ip;
               inherit port;
             }
           ];
@@ -87,7 +75,7 @@ in
       services.nextcloud = {
         enable = true;
         package = pkgs.nextcloud32;
-        hostName = mkDomain cfg.domainName;
+        hostName = params.fqdn;
         maxUploadSize = "16G";
 
         # TODO: true
@@ -99,6 +87,8 @@ in
           adminpassFile = "/etc/nextcloud-admin-pass";
           dbtype = "pgsql";
           trustedProxies = [
+            "10.64.0.0/10"
+            "10.0.0.0/8"
             "127.0.0.1"
             "::1"
           ];
@@ -148,9 +138,8 @@ in
           overwriteprotocol = "http";
           trusted_domains = [
             "localhost"
-            (mkDomain cfg.domainName)
-            "${(mkDomain cfg.domainName)}.${network.domain}"
-            "${(mkDomain cfg.domainName)}.${zone.domain}"
+            params.domain
+            params.fqdn
           ];
           default_phone_region = lib.toUpper (builtins.substring 3 2 zone.locale);
         };

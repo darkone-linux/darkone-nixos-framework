@@ -31,7 +31,7 @@ class Configuration extends NixAttrSet
     public const string DEFAULT_DOMAIN = 'darkone.lan';
     public const string DEFAULT_LOCALE = 'fr_FR.UTF-8';
     public const string DEFAULT_TIMEZONE = 'Europe/Paris';
-    public const string DEFAULT_COORDINATION_DOMAIN_NAME = 'headscale';
+    public const string DEFAULT_COORDINATION_DOMAIN = 'headscale';
     public const string DEFAULT_MAGIC_DNS_SUB_DOMAIN = 'vpn';
 
     public const array RESERVED_NAMES = ['common', 'headscale'];
@@ -160,14 +160,15 @@ class Configuration extends NixAttrSet
                 ->setZone($zoneName)
                 ->setProfile($host['profile'])
                 ->setArch($host['arch'] ?? null)
-                ->setNetworkDomain($zone->getName() == self::EXTERNAL_ZONE_KEY ? $this->network->getDomain() : $zone->getDomain())
+                ->setZoneDomain($zone->getName() == self::EXTERNAL_ZONE_KEY ? $this->network->getDomain() : $zone->getDomain())
+                ->setNetworkDomain($this->network->getDomain())
                 ->setNfsClient($host['nfsClient'] ?? false)
                 ->setUsers($this->extractAllUsers($host['users'] ?? [], $host['groups'] ?? []))
                 ->setGroups($host['groups'] ?? [])
                 ->setTags($host['tags'] ?? [])
+                ->registerServices($zone, $host['services'] ?? [])
                 ->registerAliases($zone, $host['aliases'] ?? [])
                 ->registerHostInZone($zone, $host, $ip)
-                ->registerServices($zone, $host['services'] ?? [])
                 ->setIp($ip)
                 ->setDisko($host['disko'] ?? []);
         }
@@ -279,6 +280,15 @@ class Configuration extends NixAttrSet
             // Add gateway
             str_ends_with($host->getIp() ?? '', '.1.1') &&
                 $this->zones[$host->getZone()]->setGateway($host);
+
+            // External hosts access
+            if ($host->getZone() === self::EXTERNAL_ZONE_KEY) {
+                foreach ($this->zones as $zone) {
+                    if ($zone->getName() !== self::EXTERNAL_ZONE_KEY) {
+                        $zone->registerHost($host->getHostname(), $host->getIp());
+                    }
+                }
+            }
         }
     }
 
@@ -355,7 +365,7 @@ class Configuration extends NixAttrSet
         $zones = [];
         foreach ($this->zones as $zoneName => $zone) {
             Configuration::assertUniqName($zoneName, 'zone');
-            $zones[$zoneName] = $zone->getConfig() + $this->network->getZone($zoneName)->buildExtraZoneConfig();
+            $zones[$zoneName] = $zone->getConfig() + $this->network->getZone($zoneName)->buildExtraZoneConfig($this);
         }
 
         return $zones;

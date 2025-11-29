@@ -5,6 +5,8 @@
 # Additional enabled services (authentication, etc.)
 # are automatically configured with consistent network plumbing on your
 # global network.
+#
+# Zsh alias "h" for "headscale".
 # :::
 
 {
@@ -59,5 +61,10 @@ in
 
     # Fail2ban
     services.fail2ban.enable = cfg.enableFail2ban;
+
+    # Zsh aliases
+    programs.zsh.shellAliases = {
+      h = "sudo headscale";
+    };
   };
 }

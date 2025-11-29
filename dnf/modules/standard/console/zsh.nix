@@ -1,15 +1,18 @@
 # A full zsh installation with aliases, bindkeys and optimized prompt.
 #
 # :::tip[Some shortcuts]
+# General:
 # - `l`, `la`, `ll`: ls with options
 # - `vz`: vim + fzf
+# - `treef`: tree with files (eza)
+# - `treed`: tree only dirs (eza)
+#
+# For nix/dnf admin profile:
 # - `nx`: cd /etc/nixos
 # - `nf`: nixfmt
 # - `nc`: deadnix
-# - `dnf`: cd /home/nix/dnf
+# - `dnf`: cd ~/dnf
 # - `mrproper`: nix-collect-garbage(s) + switch-to-conf boot
-# - `treef`: tree with files (eza)
-# - `treed`: tree only dirs (eza)
 # :::
 
 {
@@ -49,11 +52,6 @@ in
         ll = "ls -l";
         l = "eza --icons -a --group-directories-first -1 --group --git --long";
         vz = "vim `fzf`";
-        nx = "cd /etc/nixos";
-        nf = "nixfmt -s"; # Nix Format
-        nc = "deadnix"; # Nix Check
-        dnf = "cd /home/nix/dnf";
-        mrproper = "nix-collect-garbage --delete-old && sudo nix-collect-garbage -d && sudo /run/current-system/bin/switch-to-configuration boot";
         treef = "eza --icons --tree --group-directories-first";
         treed = "eza --icons --tree --group-directories-first --only-dirs";
       };

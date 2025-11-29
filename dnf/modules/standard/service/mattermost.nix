@@ -8,6 +8,7 @@
 
 {
   lib,
+  dnfLib,
   pkgs,
   config,
   host,
@@ -16,29 +17,18 @@
 let
   cfg = config.darkone.service.mattermost;
   srv = config.services.mattermost;
+  params = dnfLib.extractServiceParams host "mattermost" { };
 in
 {
   options = {
     darkone.service.mattermost.enable = lib.mkEnableOption "Enable mattermost service";
-    darkone.service.mattermost.domainName = lib.mkOption {
-      type = lib.types.str;
-      default = "mattermost";
-      description = "Domain name for mattermost, registered in network configuration";
-    };
-    darkone.service.mattermost.appName = lib.mkOption {
-      type = lib.types.str;
-      default = "Mattermost";
-      description = "Default title for mattermost service";
-    };
   };
 
   config = lib.mkMerge [
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.mattermost = {
-        inherit (cfg) domainName;
-        displayName = "Mattermost";
-        description = "Communication solution";
+        inherit params;
         persist.dirs = [ srv.dataDir ];
         proxy.servicePort = srv.port;
       };
@@ -58,7 +48,7 @@ in
       # Mattermost server
       services.mattermost = {
         enable = true;
-        siteUrl = "https://${cfg.domainName}.${host.networkDomain}";
+        siteUrl = params.href;
       };
     })
   ];

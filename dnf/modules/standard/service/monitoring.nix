@@ -5,7 +5,13 @@
 # to monitor the operating system, network activity, resources, and performance.
 # :::
 
-{ lib, config, ... }:
+{
+  lib,
+  dnfLib,
+  config,
+  host,
+  ...
+}:
 let
   cfg = config.darkone.service.monitoring;
   port = {
@@ -13,15 +19,14 @@ let
     nodeExporter = 9100;
     prometheus = config.services.prometheus.port;
   };
+  params = dnfLib.extractServiceParams host "monitoring" {
+    description = "System and Network Statistics";
+    icon = "grafana";
+  };
 in
 {
   options = {
     darkone.service.monitoring.enable = lib.mkEnableOption "Enable monitoring with prometheus, grafana and node exporter";
-    darkone.service.monitoring.domainName = lib.mkOption {
-      type = lib.types.str;
-      default = "monitoring";
-      description = "Domain name for monitoring, registered in local network";
-    };
     darkone.service.monitoring.retentionTime = lib.mkOption {
       type = lib.types.str;
       default = "15d";
@@ -35,10 +40,7 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.monitoring = {
-        inherit (cfg) domainName;
-        displayName = "Monitoring";
-        description = "Visualisation des ressources système et réseau";
-        icon = "grafana";
+        inherit params;
         persist = {
           dbFiles = [ "/var/lib/grafana/grafana.db" ];
           varDirs = [
@@ -139,10 +141,10 @@ in
 
         settings = {
           server = {
-            http_addr = "127.0.0.1";
+            http_addr = params.ip;
             http_port = port.grafana;
-            domain = cfg.domainName;
-            root_url = "http://" + cfg.domainName + "/";
+            domain = params.fqdn;
+            root_url = params.href;
             serve_from_sub_path = false;
           };
           #security = {
@@ -172,7 +174,6 @@ in
 
         provision = {
           enable = true;
-
           datasources.settings.datasources = [
             {
               name = "Prometheus";
@@ -182,7 +183,6 @@ in
               editable = false;
             }
           ];
-
           dashboards.settings.providers = [
             {
               name = "Monitoring local";

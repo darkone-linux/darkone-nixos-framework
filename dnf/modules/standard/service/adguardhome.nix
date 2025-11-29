@@ -7,9 +7,11 @@
 
 {
   lib,
+  dnfLib,
   config,
   network,
   zone,
+  host,
   ...
 }:
 let
@@ -17,26 +19,23 @@ let
   agh = config.services.adguardhome;
   hasHcs = network.coordination.enable;
   hasDnsmasq = config.darkone.service.dnsmasq.enable;
-  dnsmasqAddr = "127.0.0.1:" + (toString config.services.dnsmasq.settings.port);
+  params = dnfLib.extractServiceParams host "adguardhome" {
+    title = "AdGuardHome";
+    description = "Ad and tracker blocker";
+    icon = "adguard-home";
+  };
+  dnsmasqAddr = "${params.ip}:" + (toString config.services.dnsmasq.settings.port);
 in
 {
   options = {
     darkone.service.adguardhome.enable = lib.mkEnableOption "Enable local adguardhome service";
-    darkone.service.adguardhome.domainName = lib.mkOption {
-      type = lib.types.str;
-      default = "adguardhome";
-      description = "Domain name for Adguard Home, registered in global network";
-    };
   };
 
   config = lib.mkMerge [
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.adguardhome = {
-        inherit (cfg) domainName;
-        displayName = "AdGuard Home";
-        description = "Bloqueur de publicités et de traqueurs";
-        icon = "adguard-home";
+        inherit params;
         proxy.servicePort = agh.port;
       };
     }
@@ -75,7 +74,7 @@ in
 
         # Web interface default host + port (target for reverse proxy)
         port = 3083;
-        host = "127.0.0.1";
+        host = params.ip;
 
         # Allow changes made on the AdGuard Home web interface to persist between service restarts.
         mutableSettings = true;
@@ -133,7 +132,8 @@ in
             local_ptr_upstreams = [ dnsmasqAddr ];
 
             # Forward to dnsmasq if needed!
-            use_private_ptr_resolvers = true;
+            # IMPORTANT: do not activate with headscale (DNS infinite loop)
+            use_private_ptr_resolvers = false;
 
             # Cache must be disabled to not disturb dnsmasq configuration changes
             cache_enabled = false;

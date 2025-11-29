@@ -2,6 +2,7 @@
 
 {
   lib,
+  dnfLib,
   config,
   host,
   ...
@@ -10,25 +11,22 @@ let
   cfg = config.darkone.service.auth;
   lldapSettings = config.services.lldap.settings;
   autheliaPort = 9091;
+  params = dnfLib.extractServiceParams host "auth" {
+    title = "Authentification";
+    description = "Global authentication for DNF services";
+    icon = "authelia";
+  };
 in
 {
   options = {
     darkone.service.auth.enable = lib.mkEnableOption "Enable local SSO with Authelia (and LLDAP)";
-    darkone.service.auth.domainName = lib.mkOption {
-      type = lib.types.str;
-      default = "auth";
-      description = "Domain name for authentication (SSO), registered in network configuration";
-    };
   };
 
   config = lib.mkMerge [
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.auth = {
-        inherit (cfg) domainName;
-        displayName = "Authentification";
-        description = "Global authentication for DNF services";
-        icon = "authelia";
+        inherit params;
         persist.dirs = [
           "/etc/authelia"
           "/var/lib/authelia-main"
@@ -105,7 +103,7 @@ in
 
           authentication_backend.ldap = {
             implementation = "lldap";
-            address = "ldap://${cfg.domainName}:${toString lldapSettings.ldap_port}";
+            address = "ldap://${params.fqdn}:${toString lldapSettings.ldap_port}";
             base_dn = lldapSettings.ldap_base_dn;
             user = "uid=admin,ou=people,${lldapSettings.ldap_base_dn}"; # Bind user
             users_filter = "(&({username_attribute}={input})(objectClass=person))";
@@ -134,8 +132,8 @@ in
             cookies = [
               {
                 name = "dnf_auth";
-                domain = "${host.networkDomain}";
-                authelia_url = "https://${cfg.domainName}.${host.networkDomain}";
+                domain = params.fqdn;
+                authelia_url = params.href;
                 #default_redirection_url = "https://${host.networkDomain}";
 
                 # The period of time the user can be inactive for before the session is destroyed
@@ -156,7 +154,7 @@ in
             default_policy = "deny";
             rules = [
               {
-                domain = "*.${host.networkDomain}";
+                domain = "*.${params.fqdn}";
                 policy = "one_factor";
               }
             ];
@@ -166,7 +164,7 @@ in
           # notifier.smtp = {
           #   address = "smtp://TODO";
           #   username = "TODO";
-          #   sender = "admin@${host.networkDomain}";
+          #   sender = "${params.domain}@${network.domain}";
           # };
         };
       };
@@ -175,7 +173,7 @@ in
       services.caddy = {
         enable = true;
 
-        virtualHosts."${cfg.domainName}.${host.networkDomain}" = {
+        virtualHosts."${params.fqdn}" = {
           extraConfig = ''
             tls /etc/authelia/certs/authelia.crt /etc/authelia/certs/authelia.key
             reverse_proxy 127.0.0.1:${toString autheliaPort}
@@ -193,7 +191,7 @@ in
           }
         '';
 
-        virtualHosts."test-app.${host.networkDomain}" = {
+        virtualHosts."test-app.${params.fqdn}" = {
           extraConfig = ''
             import auth
             tls /etc/authelia/certs/test-app.crt /etc/authelia/certs/test-app.key

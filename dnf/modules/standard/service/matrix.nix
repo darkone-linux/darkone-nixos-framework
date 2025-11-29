@@ -2,38 +2,29 @@
 
 {
   lib,
+  dnfLib,
   pkgs,
   config,
   network,
+  host,
   ...
 }:
 let
   inherit network;
   cfg = config.darkone.service.matrix;
   srv = config.services.matrix-synapse;
+  params = dnfLib.extractServiceParams host "matrix" { description = "Communication solution"; };
 in
 {
   options = {
     darkone.service.matrix.enable = lib.mkEnableOption "Enable matrix (synapse) service";
-    darkone.service.matrix.domainName = lib.mkOption {
-      type = lib.types.str;
-      default = "matrix";
-      description = "Domain name for matrix web client, registered in network configuration";
-    };
-    darkone.service.matrix.appName = lib.mkOption {
-      type = lib.types.str;
-      default = "Matrix";
-      description = "Default title for matrix service";
-    };
   };
 
   config = lib.mkMerge [
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.matrix = {
-        inherit (cfg) domainName;
-        displayName = "Matrix";
-        description = "Communication solution";
+        inherit params;
         persist.dirs = [ srv.settings.server_name ];
         proxy.servicePort = (builtins.elemAt srv.settings.listeners 0).port;
       };
@@ -79,7 +70,7 @@ in
           listeners = [
             {
               port = 8008;
-              bind_addresses = [ "::1" ];
+              bind_addresses = [ params.ip ];
               type = "http";
               tls = false;
               x_forwarded = true;
