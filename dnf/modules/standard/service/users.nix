@@ -12,7 +12,7 @@ let
   cfg = config.darkone.service.users;
   lldapSettings = config.services.lldap.settings;
   lldapUserDn = "admin";
-  params = dnfLib.extractServiceParams host "users" {
+  params = dnfLib.extractServiceParams host network "users" {
     description = "Global user management for DNF services";
     icon = "openldap";
   };

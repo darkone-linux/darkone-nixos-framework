@@ -7,6 +7,7 @@
   pkgs,
   host,
   zone,
+  network,
   ...
 }:
 let
@@ -14,7 +15,9 @@ let
   port = 8089;
 
   # TODO: factoriser dans lib avec httpd
-  params = dnfLib.extractServiceParams host "nextcloud" { description = "Local personal cloud"; };
+  params = dnfLib.extractServiceParams host network "nextcloud" {
+    description = "Local personal cloud";
+  };
 in
 {
   options = {

@@ -16,7 +16,7 @@ let
       lib.filterAttrs (_: z: z.domain != network.domain) network.zones
     else
       { };
-  params = dnfLib.extractServiceParams host "headscale" {
+  params = dnfLib.extractServiceParams host network "headscale" {
     inherit (network.coordination) domain;
     description = "Headscale DNF service";
     global = true;

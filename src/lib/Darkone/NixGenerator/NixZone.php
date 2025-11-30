@@ -60,9 +60,10 @@ class NixZone
             'name' => $this->name,
 
              // Force nix empty list (and not attrset) if no item in services
-            'sharedServices' => empty($this->services) ? new NixList() : $this->services,
+            'sharedServices' => empty($this->services) ? new NixList() : array_values($this->services),
         ] + ($this->name === Configuration::EXTERNAL_ZONE_KEY ? [
             'globalServices' => $this->buildGlobalServices($globalConfig) ?? (new NixList()),
+            'address' => $this->buildAddressList($globalConfig) ?? (new NixList()),
         ] : [
             'extraDnsmasqSettings' => [
                 'dhcp-host' => array_values($this->macAddresses),
@@ -91,6 +92,36 @@ class NixZone
         }
 
         return empty($globalServices) ? null : $globalServices;
+    }
+
+    /**
+     * Address list for TLS
+     * @param Configuration $globalConfig
+     * @return array|null
+     */
+    private function buildAddressList(Configuration $globalConfig): ?array
+    {
+        $address = [];
+        foreach ($this->network->getZones() as $zone) {
+            if ($zone->getName() == Configuration::EXTERNAL_ZONE_KEY) {
+                continue;
+            }
+            foreach ($zone->getAliases() as $alias) {
+                $alias = array_filter($alias, fn (string $name) => empty($zone->getServices()[$name]['global']));
+                $address += array_map(fn (string $name) => $name . '.' . $zone->getDomain(), $alias);
+            }
+        }
+
+        // Hosts: useless?
+//        foreach ($globalConfig->getHosts() as $host) {
+//            $fqdn = $host->getHostname() . '.' . $host->getZoneDomain();
+//            if (in_array($fqdn, $address)) {
+//                throw new NixException('Host & service "' . $fqdn . '" conflict');
+//            }
+//            $address[] = $fqdn;
+//        }
+
+        return empty($address) ? null : $address;
     }
 
     /**
@@ -268,7 +299,7 @@ class NixZone
                 }
                 $this->substituter = $host;
             }
-            $this->services[] = array_filter([
+            $this->services[$service['domain'] ?? $serviceKey] = array_filter([
                 'host' => $host,
                 'service' => $serviceKey,
                 'domain' => $service['domain'] ?? null,

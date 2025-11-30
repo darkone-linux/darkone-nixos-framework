@@ -6,12 +6,13 @@
   config,
   pkgs,
   host,
+  network,
   ...
 }:
 let
   cfg = config.darkone.service.vaultwarden;
   srv = config.services.vaultwarden.config;
-  params = dnfLib.extractServiceParams host "vaultwarden" { };
+  params = dnfLib.extractServiceParams host network "vaultwarden" { };
 in
 {
   options = {

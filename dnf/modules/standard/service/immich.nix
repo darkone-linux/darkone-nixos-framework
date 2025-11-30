@@ -6,11 +6,12 @@
   config,
   pkgs,
   host,
+  network,
   ...
 }:
 let
   cfg = config.darkone.service.immich;
-  params = dnfLib.extractServiceParams host "immich" { description = "Smart media manager"; };
+  params = dnfLib.extractServiceParams host network "immich" { description = "Smart media manager"; };
 in
 {
   options = {

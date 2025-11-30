@@ -13,7 +13,9 @@ let
   inherit network;
   cfg = config.darkone.service.matrix;
   srv = config.services.matrix-synapse;
-  params = dnfLib.extractServiceParams host "matrix" { description = "Communication solution"; };
+  params = dnfLib.extractServiceParams host network "matrix" {
+    description = "Communication solution";
+  };
 in
 {
   options = {

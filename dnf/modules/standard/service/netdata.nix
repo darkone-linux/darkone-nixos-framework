@@ -11,11 +11,12 @@
   config,
   pkgs,
   host,
+  network,
   ...
 }:
 let
   cfg = config.darkone.service.netdata;
-  params = dnfLib.extractServiceParams host "netdata" { };
+  params = dnfLib.extractServiceParams host network "netdata" { };
 in
 {
   options = {

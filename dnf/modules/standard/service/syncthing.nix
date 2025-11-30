@@ -24,7 +24,9 @@ let
   #usersService = config.darkone.service.users;
   ldapBaseDn =
     "dc=" + (lib.concatStringsSep ",dc=" (builtins.match "^([^.]+)\.([^.]+)$" "${network.domain}"));
-  params = dnfLib.extractServiceParams host "syncthing" { description = "Synchronization solution"; };
+  params = dnfLib.extractServiceParams host network "syncthing" {
+    description = "Synchronization solution";
+  };
 in
 {
   options = {

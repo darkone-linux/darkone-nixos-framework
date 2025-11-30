@@ -21,11 +21,12 @@ with lib;
 let
   cfg = config.darkone.system.services;
   inLocalZone = zone.name != "www";
-  isHcs =
-    (!inLocalZone) && network.coordination.enable && network.coordination.hostname == host.hostname;
+  hasHeadscale = network.coordination.enable;
+  isHcs = (!inLocalZone) && hasHeadscale && network.coordination.hostname == host.hostname;
 
   # Global services to expose to internet, only for HCS
   globalServices = if isHcs then zone.globalServices else [ ];
+  globalAddress = if isHcs then zone.address else [ ];
 
   # Full list of registered services in current host
   allServices = config.darkone.system.services.service;
@@ -48,6 +49,9 @@ let
       srv.params.${key}
     else
       allServices.${srv.service}.params.${key};
+
+  # TODO: factorize with tailscale.nix
+  caddyStorage = "/var/lib/caddy/storage";
 in
 {
   options = {
@@ -65,7 +69,7 @@ in
               # TODO: isPublic = mkEnableOption "Public service accessed from internet";
 
               params = mkOption {
-                type = lib.types.submodule {
+                type = types.submodule {
                   options = {
                     domain = mkOption {
                       type = types.str;
@@ -197,36 +201,36 @@ in
     };
   };
 
-  # TODO: TLS
   config = mkIf cfg.enable {
 
     #--------------------------------------------------------------------------
-    # Wildcard keys
-    #--------------------------------------------------------------------------
-
-    # TLS wildcard keys
-    sops.secrets.tls-crt = {
-      mode = "0400";
-      owner = "caddy";
-    };
-    sops.secrets.tls-key = {
-      mode = "0400";
-      owner = "caddy";
-    };
-
-    #--------------------------------------------------------------------------
-    # Reverse proxy
+    # Reverse proxy - Caddy
     #--------------------------------------------------------------------------
 
     services.caddy = {
       enable = mkForce true;
 
-      # TMP
-      globalConfig = lib.mkIf inLocalZone ''
+      # Used by ACME, be sure to have a valid "admin@domain.tld" here.
+      email = "admin@${network.domain}";
+
+      # Fixed root file_system storage for sync
+      globalConfig = ''
+        storage file_system {
+          root ${caddyStorage}
+        }
+      ''
+
+      # Do not install certificates in local zone
+      + optionalString inLocalZone ''
+        skip_install_trust
+      ''
+
+      # No HTTPS redirection if no tailnet
+      + optionalString (!hasHeadscale) ''
         auto_https off
       '';
 
-      logFormat = lib.mkIf (!inLocalZone) (lib.mkForce "level INFO");
+      logFormat = "level INFO";
 
       # Configure virtual hosts (TODO: https + redir permanent)
       # TODO: TLS -> les sous-sous-domaines ne sont pas couverts par wildcards :(
@@ -236,20 +240,17 @@ in
           let
             isValid = srv.proxy.enable && (srv.proxy.servicePort != null);
             isDefault = isValid && srv.proxy.defaultService;
-            isInsecure = inLocalZone && (!srv.params.global);
-            vhPrefix = if isInsecure then "http://" else "";
-            tls =
-              if isInsecure then
-                ""
-              else
-                ''
-                  tls ${config.sops.secrets.tls-crt.path} ${config.sops.secrets.tls-key.path}
-                '';
+            vhPrefix = optionalString (!hasHeadscale) "http://";
+            tls = optionalString (hasHeadscale && inLocalZone) ''
+              tls {
+                on_demand
+              }
+            '';
           in
           mkIf isValid {
 
             # Short name -> FQDN
-            "${vhPrefix}${srv.params.domain}" = {
+            "${vhPrefix}${srv.params.domain}" = mkIf inLocalZone {
               extraConfig = ''
                 redir ${srv.params.href}{uri}
               '';
@@ -272,7 +273,7 @@ in
           }
         ) enabledServices
 
-        # Global (public) services access
+        # Global (public) services access on HCS
         ++ map (
           s:
           let
@@ -315,12 +316,20 @@ in
                 handle @badbots {
                   respond 403
                 }
-                tls ${config.sops.secrets.tls-pem.path} ${config.sops.secrets.tls-key.path}
                 reverse_proxy http://${s.targetIp}:${toString sPort}
               '';
             };
           }
         ) globalServices
+
+        # Internal FQDN to expose in order to sync TLS certificates
+        ++ map (address: {
+          "${address}" = {
+            extraConfig = ''
+              respond "${address}"
+            '';
+          };
+        }) globalAddress
       );
     };
 
@@ -371,10 +380,10 @@ in
     #--------------------------------------------------------------------------
 
     # Open right ports
-    networking.firewall = lib.mkIf hasServices {
+    networking.firewall = mkIf hasServices {
 
       # Open HTTP on all interfaces if not the gateway
-      allowedTCPPorts = lib.mkIf (!isGateway) (
+      allowedTCPPorts = mkIf (!isGateway) (
         [
           80
           443
@@ -385,7 +394,7 @@ in
       # Open HTTP port only for lan interface(s)
       # TODO: simplify + adapt to headscale
       interfaces = mkIf (isGateway && config.services.dnsmasq.enable) (
-        lib.listToAttrs (
+        listToAttrs (
           map (iface: {
             name = iface;
             value = {

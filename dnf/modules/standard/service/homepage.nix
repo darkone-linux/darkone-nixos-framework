@@ -10,12 +10,13 @@
   config,
   host,
   zone,
+  network,
   ...
 }:
 let
   cfg = config.darkone.service.homepage;
   hpd = config.services.homepage-dashboard;
-  params = dnfLib.extractServiceParams host "homepage" {
+  params = dnfLib.extractServiceParams host network "homepage" {
     title = "Home";
     description = "Local network home page";
   };

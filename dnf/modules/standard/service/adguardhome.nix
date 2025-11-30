@@ -19,7 +19,7 @@ let
   agh = config.services.adguardhome;
   hasHcs = network.coordination.enable;
   hasDnsmasq = config.darkone.service.dnsmasq.enable;
-  params = dnfLib.extractServiceParams host "adguardhome" {
+  params = dnfLib.extractServiceParams host network "adguardhome" {
     title = "AdGuardHome";
     description = "Ad and tracker blocker";
     icon = "adguard-home";

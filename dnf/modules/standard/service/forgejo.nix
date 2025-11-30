@@ -5,13 +5,14 @@
   dnfLib,
   config,
   host,
+  network,
   ...
 }:
 let
   cfg = config.darkone.service.forgejo;
   fjCfg = config.services.forgejo;
   srv = fjCfg.settings.server;
-  params = dnfLib.extractServiceParams host "forgejo" { };
+  params = dnfLib.extractServiceParams host network "forgejo" { };
 in
 {
   options = {

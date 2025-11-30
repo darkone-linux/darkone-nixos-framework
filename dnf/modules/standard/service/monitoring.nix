@@ -10,6 +10,7 @@
   dnfLib,
   config,
   host,
+  network,
   ...
 }:
 let
@@ -19,7 +20,7 @@ let
     nodeExporter = 9100;
     prometheus = config.services.prometheus.port;
   };
-  params = dnfLib.extractServiceParams host "monitoring" {
+  params = dnfLib.extractServiceParams host network "monitoring" {
     description = "System and Network Statistics";
     icon = "grafana";
   };

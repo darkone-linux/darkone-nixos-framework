@@ -5,13 +5,14 @@
   dnfLib,
   config,
   host,
+  network,
   ...
 }:
 let
   cfg = config.darkone.service.auth;
   lldapSettings = config.services.lldap.settings;
   autheliaPort = 9091;
-  params = dnfLib.extractServiceParams host "auth" {
+  params = dnfLib.extractServiceParams host network "auth" {
     title = "Authentification";
     description = "Global authentication for DNF services";
     icon = "authelia";

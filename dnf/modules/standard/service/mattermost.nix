@@ -12,12 +12,13 @@
   pkgs,
   config,
   host,
+  network,
   ...
 }:
 let
   cfg = config.darkone.service.mattermost;
   srv = config.services.mattermost;
-  params = dnfLib.extractServiceParams host "mattermost" { };
+  params = dnfLib.extractServiceParams host network "mattermost" { };
 in
 {
   options = {

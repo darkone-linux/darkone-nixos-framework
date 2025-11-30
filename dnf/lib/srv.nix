@@ -3,7 +3,7 @@
 { lib, strings }:
 with lib;
 {
-  # params = dnfLib.srv.extractServiceParams host "forgejo" {
+  # params = dnfLib.srv.extractServiceParams host network "forgejo" {
   #   domain = "forgejo"; # optional, default is name
   #   title = "Forgejo";
   #   description = "Local GIT Forge";
@@ -11,7 +11,7 @@ with lib;
   #   global = false;
   # };
   extractServiceParams =
-    host: name: defaults:
+    host: network: name: defaults:
     let
       ucName = strings.ucFirst name;
       domain =
@@ -53,7 +53,7 @@ with lib;
         else
           false;
       fqdn = if global then "${domain}.${host.networkDomain}" else "${domain}.${host.zoneDomain}";
-      href = (if global then "https://" else "http://") + fqdn;
+      href = (if network.coordination.enable then "https://" else "http://") + fqdn;
       ip = if global then host.ip else "127.0.0.1";
     in
     {
