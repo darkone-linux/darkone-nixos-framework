@@ -108,7 +108,7 @@ in
                     };
                     ip = mkOption {
                       type = types.str;
-                      default = "";
+                      default = "127.0.0.1";
                       description = "Calculated IP to contact the service";
                     };
                   };
@@ -297,7 +297,7 @@ in
                   header User-Agent "*MJ12bot*"
                   header User-Agent "*DotBot*"
 
-                  # Google / Bing / etc. (si tu veux VRAIMENT tout bloquer)
+                  # Google / Bing / etc.
                   header User-Agent "*Googlebot*"
                   header User-Agent "*bingbot*"
                   header User-Agent "*DuckDuckBot*"

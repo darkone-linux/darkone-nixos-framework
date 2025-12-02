@@ -51,6 +51,7 @@ class NixZone
     }
 
     /**
+     * @param Configuration $globalConfig
      * @return array
      * @throws NixException
      */
@@ -63,7 +64,7 @@ class NixZone
             'sharedServices' => empty($this->services) ? new NixList() : array_values($this->services),
         ] + ($this->name === Configuration::EXTERNAL_ZONE_KEY ? [
             'globalServices' => $this->buildGlobalServices($globalConfig) ?? (new NixList()),
-            'address' => $this->buildAddressList($globalConfig) ?? (new NixList()),
+            'address' => $this->buildAddressList() ?? (new NixList()),
         ] : [
             'extraDnsmasqSettings' => [
                 'dhcp-host' => array_values($this->macAddresses),
@@ -96,10 +97,9 @@ class NixZone
 
     /**
      * Address list for TLS
-     * @param Configuration $globalConfig
      * @return array|null
      */
-    private function buildAddressList(Configuration $globalConfig): ?array
+    private function buildAddressList(): ?array
     {
         $address = [];
         foreach ($this->network->getZones() as $zone) {
@@ -108,18 +108,9 @@ class NixZone
             }
             foreach ($zone->getAliases() as $alias) {
                 $alias = array_filter($alias, fn (string $name) => empty($zone->getServices()[$name]['global']));
-                $address += array_map(fn (string $name) => $name . '.' . $zone->getDomain(), $alias);
+                $address = array_merge($address, array_map(fn (string $name) => $name . '.' . $zone->getDomain(), $alias));
             }
         }
-
-        // Hosts: useless?
-//        foreach ($globalConfig->getHosts() as $host) {
-//            $fqdn = $host->getHostname() . '.' . $host->getZoneDomain();
-//            if (in_array($fqdn, $address)) {
-//                throw new NixException('Host & service "' . $fqdn . '" conflict');
-//            }
-//            $address[] = $fqdn;
-//        }
 
         return empty($address) ? null : $address;
     }
@@ -163,16 +154,19 @@ class NixZone
         // Main hosts
         foreach ($this->hosts as $host => $ip) {
             if (!empty($ip)) {
-                $addresses[] = '/' . $host . '/' . $ip; // host
-                // $addresses[] = '/' . $host . '.' . $this->network->getDomain() . '/' . $ip; // host.domain.tld
                 $addresses[] = '/' . $host . '.' . $this->config['domain'] . '/' . $ip; // host.zone.domain.tld
             }
+        }
+
+        // Full hosts to complete tailnet magic dns list
+        foreach (Configuration::getFullHostIps() as $host => $ip) {
+            $addresses[] = '/' . $host . '/' . $ip; // host
         }
 
         // Replace cnames
         foreach ($this->aliases as $host => $aliases) {
             foreach ($aliases as $alias) {
-                $addresses[] = '/' . $alias . '/' . $this->hosts[$host];
+                // $addresses[] = '/' . $alias . '/' . $this->hosts[$host];
                 $addresses[] = isset($globalServices[$alias])
                     ? '/' . $alias . '.' . $this->network->getDomain() . '/' . $globalServices[$alias]
                     : '/' . $alias . '.' . $this->config['domain'] . '/' . $this->hosts[$host];
@@ -353,6 +347,9 @@ class NixZone
                 $this->registerMacAddresses($hostCfg['mac'], $hostIp);
                 $this->registerSharedServices($hostname, $hostCfg['services'] ?? []);
                 $this->registerAliases($hostname, $hostCfg['aliases'] ?? []);
+
+                // Only NixOS hosts (for management)
+                // Configuration::addToFullHostIps($hostname, $hostIp);
             }
             unset($cfg['extraHosts']);
 

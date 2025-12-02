@@ -32,7 +32,6 @@ class Configuration extends NixAttrSet
     public const string DEFAULT_LOCALE = 'fr_FR.UTF-8';
     public const string DEFAULT_TIMEZONE = 'Europe/Paris';
     public const string DEFAULT_COORDINATION_DOMAIN = 'headscale';
-    public const string DEFAULT_MAGIC_DNS_SUB_DOMAIN = 'vpn';
 
     public const array RESERVED_NAMES = ['common', 'headscale'];
 
@@ -61,6 +60,11 @@ class Configuration extends NixAttrSet
      * @var Host[]
      */
     private array $hosts = [];
+
+    /**
+     * @var array host -> internal ip
+     */
+    private static array $fullHostIps = [];
 
     /**
      * @var NixZone[]
@@ -171,6 +175,7 @@ class Configuration extends NixAttrSet
                 ->registerHostInZone($zone, $host, $ip)
                 ->setIp($ip)
                 ->setDisko($host['disko'] ?? []);
+            self::addToFullHostIps($host['hostname'], $ip);
         }
     }
 
@@ -317,6 +322,29 @@ class Configuration extends NixAttrSet
     public function getHosts(): array
     {
         return $this->hosts;
+    }
+
+    public static function getFullHostIps(): array
+    {
+        return self::$fullHostIps;
+    }
+
+    /**
+     * @param string $hostname
+     * @param string|null $ip
+     * @return void
+     * @throws NixException
+     */
+    public static function addToFullHostIps(string $hostname, ?string $ip): void
+    {
+        if (!empty($ip)) {
+            if (isset(self::$fullHostIps[$hostname]) && self::$fullHostIps[$hostname] !== $ip) {
+                throw new NixException(
+                    'IP conflict for host(s) ' . $hostname . ' ' . $ip . ' vs ' . self::$fullHostIps[$hostname]
+                );
+            }
+            self::$fullHostIps[$hostname] = $ip;
+        }
     }
 
     /**

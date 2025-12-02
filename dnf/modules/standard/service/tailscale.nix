@@ -20,7 +20,12 @@ let
   hasHeadscale = coord.enable;
   isHcsSubnetGateway = hasHeadscale && cfg.isGateway;
   hcsFqdn = "${coord.domain}.${network.domain}";
-  hcsInternalFqdn = "${coord.hostname}.${coord.magicDnsSubDomain}.${network.domain}";
+
+  # NOTE: ce n'est pas une adresse interne pour le moment, on
+  # résoud l'adresse externe.
+  # TODO: adresse interne via magic dns.
+  hcsInternalFqdn = "${coord.hostname}.${network.domain}";
+
   caddyStorage = "/var/lib/caddy/storage"; # TODO: factorize with services.nix
   caddyStorTmp = "/tmp/caddy-storage-sync";
 in
@@ -63,14 +68,21 @@ in
       authKeyFile = config.sops.secrets."tailscale/authKey".path;
 
       # Enregistrement des adresses du réseau de zone et connexion au serveur
+      # TODO: faire en sorte que ces paramètres soient fixés au démarrage de tailscaled,
+      #       pour le moment il faut manuellement passer par "set" pour effectuer les réglages.
       extraUpFlags = [
         "--login-server"
         "https://${hcsFqdn}"
         (lib.mkIf cfg.isExitNode "--advertise-exit-node")
         "--accept-routes"
         "--accept-dns"
+
+        # NOTE: pour le moment on peut laisser false mais on a plus MagicDNS, c'est
+        # dnsmasq qui gère le DNS derrière AGH. Mais c'est compliqué et pas très propre.
+        # Solution à étudier : tailscale gère le DNS avec AGH en intermédiaire.
         (lib.mkIf cfg.isGateway "false")
         "--ssh" # Usefull to sync TLS certificates with HCS caddy.
+        "--reset" # Reload.
       ]
       ++ lib.optionals cfg.isGateway [
         "--advertise-routes"
@@ -94,6 +106,7 @@ in
     #--------------------------------------------------------------------------
     # Certificat sync
     #--------------------------------------------------------------------------
+    # TODO: remontée d'info sur le bon fonctionnement de la synchro.
 
     # We need rsync
     environment.systemPackages = with pkgs; [

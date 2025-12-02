@@ -11,6 +11,10 @@
 }:
 let
   cfg = config.darkone.service.immich;
+
+  # TODO: faire un extractServiceParams dans darkone.system.services et ne rentrer que les 
+  # valeurs par défaut car "params" dépend du "host" et ça génère des incohérence dans la 
+  # page d'accueil...
   params = dnfLib.extractServiceParams host network "immich" { description = "Smart media manager"; };
 in
 {

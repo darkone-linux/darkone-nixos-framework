@@ -80,7 +80,7 @@ in
     #--------------------------------------------------------------------------
 
     # If headscale is enabled but not adguardhome, we must have fallback DNS
-    # servers to contact headscale coordination server.
+    # servers to contact headscale coordination server. (wip)
     services.dnsmasq.settings = lib.mkIf (hasHeadscale && (!hasAdguardHome)) {
 
       # no-resolv is false because tailscale client update the resolv file.

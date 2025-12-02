@@ -38,7 +38,10 @@ in
       inherit (zone) domain;
 
       # Probably useless with headscale magicdns?
-      search = [ zone.domain ];
+      search = [
+        zone.domain
+        "tailnet.internal"
+      ];
 
       # We need a bridge for dnsmasq settings (lan0)
       bridges.${lanInterface}.interfaces = zone.gateway.lan.interfaces;
@@ -139,16 +142,41 @@ in
 
       settings = {
 
-        # Domaine local qui sera ajouté aux noms DNS des machines assignées par le DHCP et fourni en nom de domaine local aux clients DHCP
-        inherit (zone) domain;
+        # Domaine local ajouté aux noms DNS des machines assignées par le DHCP
+        # -> Ne permet pas de gérer les machines des autres zones avec tailnet !
+        domaine = lib.mkIf (!isTailscaleSubnet) zone.domain;
 
         interface = [
           lanInterface
           (lib.mkIf isTailscaleSubnet config.services.tailscale.interfaceName)
         ];
-        bind-interfaces = true; # Avoid conflicts with tailscale
+
+        # Contrairement à --bind-interfaces, se bind sur l'interface lan0 d'abord,
+        # puis sur tailscale0 une fois que celle-ci est disponible.
+        bind-dynamic = true; # Avoid conflicts with tailscale
+
+        # https://man.archlinux.org/man/dnsmasq.8.fr#K,
         dhcp-authoritative = true;
         no-dhcp-interface = "lo";
+
+        # Passer par le dns de headscale si on est un subnet tailnet (nul)
+        #server = lib.optional isTailscaleSubnet "100.100.100.100";
+        server = [
+          "/${zone.domain}/#" # Do not forward my zone (-> loop: zone -> tailscale -> zone)
+        ]
+
+        # Other zones (not current, not www)
+        ++ (lib.mapAttrsToList (_: z: "/${z.domain}/${z.gateway.vpn.ipv4}") (
+          lib.filterAttrs (
+            n: z: (n != "www" && n != zone.name && lib.hasAttrByPath [ "gateway" "vpn" "ipv4" ] z)
+          ) network.zones
+        ))
+        ++ [
+          "94.140.14.14"
+          "94.140.15.15"
+          "1.1.1.1"
+          "9.9.9.9"
+        ];
 
         # Les requêtes pour ces domaines ne sont traitées qu'à partir de /etc/hosts ou de DHCP.
         # Elles ne sont pas transmises aux serveurs amont.
@@ -192,15 +220,20 @@ in
           "option:netmask,255.255.0.0"
           "option:router,${zone.gateway.lan.ip}"
           "option:dns-server,${zone.gateway.lan.ip}"
-          "option:domain-name,${zone.domain}"
-          "option:domain-search,${zone.domain}"
-          (lib.mkIf isTailscaleSubnet "121,100.64.0.0/10,${zone.gateway.lan.ip}")
+
+          # Do not send a domaine name / search with tailnet!
+          # -> Ne permet pas de gérer les machines des autres zones avec tailnet !
+          (lib.mkIf (!isTailscaleSubnet) "option:domain-name,${zone.domain}")
+          (lib.mkIf (!isTailscaleSubnet) "option:domain-search,${zone.domain}")
+
+          # Pour le réseau 100.64.x.x, utilise le gateway local... (not working)
+          #(lib.mkIf isTailscaleSubnet "121,100.64.0.0/10,${zone.gateway.lan.ip}")
         ];
 
         # Default: do not read /etc/resolv.conf, but headscale and adguardhome set it to false.
         # Ne pas lire le contenu du fichier /etc/resolv.conf. N'obtenir l'adresse des serveurs de nom
         # amont que depuis la ligne de commande ou le fichier de configuration de Dnsmasq.
-        no-resolv = lib.mkDefault true;
+        no-resolv = lib.mkDefault false;
 
         # Force dnsmasq à inclure l’IP réelle du client dans les requêtes DNS transmises en upstream.
         # Utile si adguardhome est derrière dnsmasq, ce qui n'est pas (plus) le cas ici.

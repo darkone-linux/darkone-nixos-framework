@@ -62,11 +62,6 @@ class NixNetwork
         return $this->getConfig()['coordination']['domain'];
     }
 
-    public function getMagicDnsSubDomain(): string
-    {
-        return $this->getConfig()['coordination']['magicDnsSubDomain'];
-    }
-
     /**
      * @param array $config
      * @return $this
@@ -80,7 +75,6 @@ class NixNetwork
         $config['default']['timezone'] ??= Configuration::DEFAULT_TIMEZONE;
         $config['coordination']['enable'] ??= false;
         $config['coordination']['domain'] ??= Configuration::DEFAULT_COORDINATION_DOMAIN;
-        $config['coordination']['magicDnsSubDomain'] ??= Configuration::DEFAULT_MAGIC_DNS_SUB_DOMAIN;
 
         // Values types
         Configuration::assert(Configuration::TYPE_STRING, $config['domain'], 'Bad network domain type');
@@ -88,7 +82,6 @@ class NixNetwork
         Configuration::assert(Configuration::TYPE_STRING, $config['default']['timezone'], 'Bad default network timezone syntax', Configuration::REGEX_TIMEZONE);
         Configuration::assert(Configuration::TYPE_STRING, $config['coordination']['hostname'] ?? '', 'Bad coordination hostname type', Configuration::REGEX_HOSTNAME);
         Configuration::assert(Configuration::TYPE_STRING, $config['coordination']['domain'] ?? '', 'Bad Headscale domaine name', Configuration::REGEX_HOSTNAME);
-        Configuration::assert(Configuration::TYPE_STRING, $config['coordination']['magicDnsSubDomain'] ?? '', 'Bad Headscale magicDnsSubDomain', Configuration::REGEX_HOSTNAME);
         Configuration::assert(Configuration::TYPE_BOOL, $config['coordination']['enable'], 'Bad coordination enable type');
 
         // Unknown keys detection
@@ -101,7 +94,6 @@ class NixNetwork
             $testConfig['coordination']['hostname'],
             $testConfig['coordination']['enable'],
             $testConfig['coordination']['domain'],
-            $testConfig['coordination']['magicDnsSubDomain']
         );
         if (!empty($testConfig['default'])) {
             throw new NixException('Unknown keys in "network.default" section: ' . json_encode($testConfig['default']));

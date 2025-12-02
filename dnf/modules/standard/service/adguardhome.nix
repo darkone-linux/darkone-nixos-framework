@@ -17,14 +17,15 @@
 let
   cfg = config.darkone.service.adguardhome;
   agh = config.services.adguardhome;
-  hasHcs = network.coordination.enable;
-  hasDnsmasq = config.darkone.service.dnsmasq.enable;
   params = dnfLib.extractServiceParams host network "adguardhome" {
     title = "AdGuardHome";
     description = "Ad and tracker blocker";
     icon = "adguard-home";
   };
-  dnsmasqAddr = "${params.ip}:" + (toString config.services.dnsmasq.settings.port);
+
+  # TODO: find dnsmasq IP and port if not in the same machine, or consider
+  # ADH and DNSMASQ are on the same host.
+  dnsmasqAddr = "127.0.0.1:" + (toString config.services.dnsmasq.settings.port);
 in
 {
   options = {
@@ -52,14 +53,14 @@ in
       # dnsmasq updates
       #------------------------------------------------------------------------
 
-      services.dnsmasq.settings = lib.mkIf hasDnsmasq {
-        no-resolv = false;
-        server = [
-          "94.140.14.14"
-          "94.140.15.15"
-        ]
-        ++ config.services.adguardhome.settings.dns.fallback_dns;
-      };
+      # services.dnsmasq.settings = lib.mkIf hasDnsmasq {
+      #   no-resolv = false;
+      #   server = [
+      #     "94.140.14.14"
+      #     "94.140.15.15"
+      #   ]
+      #   ++ config.services.adguardhome.settings.dns.fallback_dns;
+      # };
 
       #------------------------------------------------------------------------
       # adguardhome Service
@@ -98,19 +99,23 @@ in
           dns = {
             port = 53;
             bind_hosts = [ "0.0.0.0" ];
+
+            # DOMAIN ROUTING
+            # 1. Noms simples → dnsmasq
+            # 2. Domaines locaux → dnsmasq
+            # 3. Tout le reste → dns de ADH
             upstream_dns = [
 
-              # Local dns server for internal queries
-              ("[/" + network.domain + "/]" + dnsmasqAddr)
-              ("[/" + zone.domain + "/]" + dnsmasqAddr)
-              #(lib.mkIf (!hasHcs) ("[/" + network.domain + "/]" + dnsmasqAddr))
-              #(lib.mkIf (!hasHcs) ("[/" + zone.domain + "/]" + dnsmasqAddr))
-              #(lib.mkIf hasHcs ("[/" + network.domain + "/]100.100.100.100"))
-              #(lib.mkIf hasHcs ("[/" + zone.domain + "/]100.100.100.100"))
+              # Unqualified names (hosts, services)
+              # https://github.com/AdguardTeam/Adguardhome/wiki/Configuration#specifying-upstreams-for-domains
+              ("[//]" + dnsmasqAddr)
 
-              # Reverse DNS upstream
-              ("[/10.in-addr.arpa/]" + dnsmasqAddr)
-              (lib.mkIf hasHcs "[/100.in-addr.arpa/]100.100.100.100")
+              # Local names
+              ("[/" + network.domain + "/]" + dnsmasqAddr)
+
+              # Reverse DNS upstream (utile ?)
+              #("[/10.in-addr.arpa/]" + dnsmasqAddr)
+              #(lib.mkIf hasHcs "[/100.in-addr.arpa/]100.100.100.100")
 
               "94.140.14.14"
               "94.140.15.15"
@@ -127,6 +132,9 @@ in
               "8.8.4.4"
               "1.1.1.1"
             ];
+
+            # N'ajoute pas de suffixe à mes noms
+            local_domain_name = "";
 
             # List of upstream dns for local queries (+reverse?)
             local_ptr_upstreams = [ dnsmasqAddr ];

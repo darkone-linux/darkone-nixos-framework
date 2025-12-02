@@ -1,5 +1,7 @@
 # A full-configured headscale service for HCS.
 
+# TODO: ça marche mais on peut simplifier / optimiser.
+
 {
   lib,
   dnfLib,
@@ -11,14 +13,10 @@
 let
   cfg = config.darkone.service.headscale;
   srv = config.services.headscale;
-  hcsClientZones =
-    if network.coordination.enable then
-      lib.filterAttrs (_: z: z.domain != network.domain) network.zones
-    else
-      { };
   params = dnfLib.extractServiceParams host network "headscale" {
     inherit (network.coordination) domain;
     description = "Headscale DNF service";
+    ip = srv.address;
     global = true;
   };
 in
@@ -65,15 +63,18 @@ in
             magic_dns = true;
 
             # Domaine de base pour MagicDNS
-            base_domain = "${network.coordination.magicDnsSubDomain}.${network.domain}";
+            # -> Mettre un domaine interne ici pour éviter que les noms qui y sont attachés
+            #    fuitent sur internet / les DNS externes. Mettre un nom du genre vpn.mondomaine.tld
+            #    n'est pas une bonne idée !
+            base_domain = "tailnet.internal";
 
             # Forcer l'utilisation de la conf DNS de headscale sur celle des noeuds
-            #override_local_dns = true;
+            override_local_dns = false;
 
-            # ACLs
+            # ACLs (TODO)
             #acl_policy_path = "/var/lib/headscale/acls.json";
 
-            # # OIDC (pour intégration future avec Authelia)
+            # OIDC (pour intégration future avec Authelia)
             # https://github.com/juanfont/headscale/blob/9c4c017eac2e81908d2ae7d8d777e143a13a1772/config-example.yaml#L329
             # oidc = {
             #   issuer = "https://auth.mydomain.tld";
@@ -82,14 +83,16 @@ in
             # };
 
             # Serveurs DNS pour les clients
+            # -> On ne résoud pas de NDD externes sur headscale pour le moment.
             nameservers = {
               global = [
-                "1.1.1.1"
-                "1.0.0.1"
-                "2606:4700:4700::1111"
-                "2606:4700:4700::1001"
+                # "1.1.1.1"
+                # "1.0.0.1"
+                # "2606:4700:4700::1111"
+                # "2606:4700:4700::1001"
               ];
 
+              # A chaque suffixe de zone son IP tailnet
               # { "zone.domain.tld" = [ "100.64.x.x" ]; (...) };
               split = lib.concatMapAttrs (_: z: { "${z.domain}" = [ "${z.gateway.vpn.ipv4}" ]; }) (
                 lib.filterAttrs (_: z: lib.hasAttrByPath [ "gateway" "vpn" "ipv4" ] z) network.zones
@@ -97,45 +100,24 @@ in
             };
 
             # Domaines de recherche
+            # -> Pas de recherche via headscale pour le moment.
             # zone1.domain.tld, zone2.domain.tld, etc.
             # With MagicDNS enabled, your tailnet base_domain is always the first search domain.
-            search_domains = [ srv.settings.dns.base_domain ];
-            #++ lib.attrsets.mapAttrsToList (_: z: z.domain) hcsClientZones;
+            # search_domains = [
+            #   srv.settings.dns.base_domain
+            # ]
+            # ++ lib.attrsets.mapAttrsToList (_: z: z.domain) hcsClientZones;
+            #search_domains = lib.attrsets.mapAttrsToList (_: z: z.domain) hcsClientZones;
+            search_domains = [ "tailnet.internal" ];
 
-            # Voir si on ne met pas ici les services globaux (MARCHE PAS)
+            # Voir si on ne met pas ici les services globaux (MARCHE PAS - AUCUN EFFET)
             # A utiliser pour les global services ?
             # https://github.com/juanfont/headscale/blob/9c4c017eac2e81908d2ae7d8d777e143a13a1772/config-example.yaml#L312
-            extra_records = lib.attrsets.mapAttrsToList (_: z: {
-              name = "${z.gateway.hostname}.${z.domain}";
-              type = "A";
-              value = "100.64.${z.ipPrefix}";
-            }) hcsClientZones;
-          };
-        };
-      };
-
-      #------------------------------------------------------------------------
-      # TLS certificates sync
-      #------------------------------------------------------------------------
-
-      # TODO: to activate or abandon
-      services.rsyncd = lib.mkIf false {
-        enable = true;
-        settings = {
-          globalSection = {
-            address = "0.0.0.0";
-            uid = "nobody";
-            gid = "nobody";
-            "max connections" = 2;
-            "use chroot" = true;
-          };
-          sections = {
-            caddy-certs = {
-              "auth users" = [ "nix" ];
-              "read only" = "yes";
-              comment = "Certificats publics Let’s Encrypt";
-              path = "/var/lib/caddy-export";
-            };
+            # extra_records = lib.attrsets.mapAttrsToList (_: z: {
+            #   name = "${z.gateway.hostname}.${z.domain}";
+            #   type = "A";
+            #   value = "100.64.${z.ipPrefix}";
+            # }) hcsClientZones;
           };
         };
       };

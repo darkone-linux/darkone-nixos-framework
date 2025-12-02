@@ -37,7 +37,6 @@ trait ConfigurationAssertTrait
         if (in_array($hostName, [
             'common',
             self::EXTERNAL_ZONE_KEY,
-            $this->network->getMagicDnsSubDomain(),
             $this->network->getCoordinationDomainName()
         ])) {
             throw new NixException('Name "' . $hostName . '" cannot be used for a host because this word is reserved.');

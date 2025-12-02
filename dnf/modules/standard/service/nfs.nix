@@ -105,7 +105,7 @@ assert
 
     # NFS Mounts
     fileSystems."/mnt/nfs/homes" = lib.mkIf isClient {
-      device = "${cfg.serverDomain}.${host.networkDomain}:/homes";
+      device = "${cfg.serverDomain}.${host.zoneDomain}:/homes";
       fsType = "nfs";
       options = [
 
@@ -125,7 +125,7 @@ assert
       ];
     };
     fileSystems."/mnt/nfs/common" = lib.mkIf isClient {
-      device = "${cfg.serverDomain}.${host.networkDomain}:/common";
+      device = "${cfg.serverDomain}.${host.zoneDomain}:/common";
       fsType = "nfs";
       options = [
         "x-systemd.automount" # Mount on demand

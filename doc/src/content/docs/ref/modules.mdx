@@ -56,29 +56,25 @@ darkone.host.gateway = {
 
 <hr/>
 
-### &#x1F4E6; darkone.host.hcs
+### &#x1F4E6; darkone.host.headscale
 
-The main headscale coordination server. (wip)
+The main headscale coordination server.
 
 :::tip[A ready-to-use headscale server!]
 The network is configured in `usr/config.yaml` file.
 Additional enabled services (authentication, etc.)
 are automatically configured with consistent network plumbing on your
 global network.
-
-Zsh alias "h" for "headscale".
 :::
 
-* **enable** `bool` Enable headscale coordination server
+* **enable** `bool` Enable headscale DNF server
 * **enableFail2ban** `bool` Enable fail2ban service
-* **enableClient** `bool` Enable tailscale client on HCS node (recommande to host services)
 * **enableAuth** `bool` Enable authentication service (Authelia SSO)
 * **enableUsers** `bool` Enable user management with LLDAP for DNF SSO
 ```nix
-darkone.host.hcs = {
+darkone.host.headscale = {
   enable = false;
   enableFail2ban = true;
-  enableClient = true;
   enableAuth = builtins.hasAttr "auth" host.services;
   enableUsers = builtins.hasAttr "users" host.services;
 }
@@ -181,12 +177,10 @@ darkone.host.server = {
 Virtual machines guest tools.
 
 * **enableVirtualbox** `bool` Virtualbox client
-* **enableQemu** `bool` Qemu/KVM client
 * **enableXen** `bool` Xen client
 ```nix
 darkone.host.vm = {
   enableVirtualbox = false;
-  enableQemu = false;
   enableXen = false;
 }
 
@@ -272,18 +266,15 @@ darkone.console.pandoc.enable = false;
 A full zsh installation with aliases, bindkeys and optimized prompt.
 
 :::tip[Some shortcuts]
-General:
 - `l`, `la`, `ll`: ls with options
 - `vz`: vim + fzf
-- `treef`: tree with files (eza)
-- `treed`: tree only dirs (eza)
-
-For nix/dnf admin profile:
 - `nx`: cd /etc/nixos
 - `nf`: nixfmt
 - `nc`: deadnix
-- `dnf`: cd ~/dnf
+- `dnf`: cd /home/nix/dnf
 - `mrproper`: nix-collect-garbage(s) + switch-to-conf boot
+- `treef`: tree with files (eza)
+- `treed`: tree only dirs (eza)
 :::
 
 * **enable** `bool` ZSH environment
@@ -316,26 +307,6 @@ darkone.graphic.gnome = {
   enableCaffeine = false;
   enableGsConnect = false;
   xkbVariant = "";
-}
-
-```
-
-<hr/>
-
-### &#x1F48E; darkone.graphic.supertuxkart
-
-SuperTuxKart with configurations to play in local network.
-
-:::tip
-To use in conjonction with homemanager games module!
-:::
-
-* **enable** `bool` SuperTuxKart + firewall config + tracks share
-* **isNfsServer** `bool` NFS server (share tracks), default is the main NFS server. (wip, enable on main server)
-```nix
-darkone.graphic.supertuxkart = {
-  enable = false;
-  isNfsServer = isMainNfsServer;
 }
 
 ```
@@ -380,8 +351,12 @@ It uses the [DNF dnsmasq module](/ref/modules/#-darkoneservicednsmasq) as upstre
 :::
 
 * **enable** `bool` Enable local adguardhome service
+* **domainName** `str` Domain name for Adguard Home, registered in global network
 ```nix
-darkone.service.adguardhome.enable = false;
+darkone.service.adguardhome = {
+  enable = false;
+  domainName = "adguardhome";
+}
 
 ```
 
@@ -404,8 +379,12 @@ darkone.service.audio.enable = false;
 DNF SSO with Authelia.
 
 * **enable** `bool` Enable local SSO with Authelia (and LLDAP)
+* **domainName** `str` Domain name for authentication (SSO), registered in network configuration
 ```nix
-darkone.service.auth.enable = false;
+darkone.service.auth = {
+  enable = false;
+  domainName = "auth";
+}
 
 ```
 
@@ -433,23 +412,13 @@ darkone.service.dnsmasq.enable = false;
 A full-configured forgejo git forge.
 
 * **enable** `bool` Enable local forgejo service
+* **domainName** `str` Domain name for the forge, registered in network configuration
+* **appName** `str` Default title for the local GIT forge
 ```nix
-darkone.service.forgejo.enable = false;
-
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.headscale
-
-A full-configured headscale service for HCS.
-
-* **enable** `bool` Enable headscale DNF service
-* **enableGRPC** `bool` Open GRPC TCP port
-```nix
-darkone.service.headscale = {
+darkone.service.forgejo = {
   enable = false;
-  enableGRPC = false;
+  domainName = "forgejo";
+  appName = "The local forge";
 }
 
 ```
@@ -477,6 +446,7 @@ For each DNF service enabled, an entry is automatically added to the homepage co
 :::
 
 * **enable** `bool` Enable homepage dashboard + httpd + host
+* **domainName** `str` Domain name for homepage (default is hostname)
 * **adminServices** `?` Services to add in Administration section
 * **appServices** `?` Services to add in Applications section
 * **bookmarks** `?` Replace default bookmarks (links)
@@ -484,6 +454,7 @@ For each DNF service enabled, an entry is automatically added to the homepage co
 ```nix
 darkone.service.homepage = {
   enable = false;
+  domainName = "home";
   adminServices = [ ];
   appServices = [ ];
   bookmarks = [ ];
@@ -519,11 +490,13 @@ darkone.service.httpd = {
 Immich (photo management) full-configured service.
 
 * **enable** `bool` Enable local immich service
+* **domainName** `str` Domain name for immich, registered in local network
 * **enableMachineLearning** `bool` Enable machine learning features (face recognition, object detection)
 * **enableRedis** `bool` Enable Redis for caching (recommended for performance)
 ```nix
 darkone.service.immich = {
   enable = false;
+  domainName = "immich";
   enableMachineLearning = false;
   enableRedis = false;
 }
@@ -537,8 +510,14 @@ darkone.service.immich = {
 A matrix (synapse) server. (WIP)
 
 * **enable** `bool` Enable matrix (synapse) service
+* **domainName** `str` Domain name for matrix web client, registered in network configuration
+* **appName** `str` Default title for matrix service
 ```nix
-darkone.service.matrix.enable = false;
+darkone.service.matrix = {
+  enable = false;
+  domainName = "matrix";
+  appName = "Matrix";
+}
 
 ```
 
@@ -555,8 +534,14 @@ from the open-source version.
 :::
 
 * **enable** `bool` Enable mattermost service
+* **domainName** `str` Domain name for mattermost, registered in network configuration
+* **appName** `str` Default title for mattermost service
 ```nix
-darkone.service.mattermost.enable = false;
+darkone.service.mattermost = {
+  enable = false;
+  domainName = "mattermost";
+  appName = "Mattermost";
+}
 
 ```
 
@@ -572,10 +557,12 @@ to monitor the operating system, network activity, resources, and performance.
 :::
 
 * **enable** `bool` Enable monitoring with prometheus, grafana and node exporter
+* **domainName** `str` Domain name for monitoring, registered in local network
 * **retentionTime** `str` Durée de rétention des métriques Prometheus
 ```nix
 darkone.service.monitoring = {
   enable = false;
+  domainName = "monitoring";
   retentionTime = "15d";
 }
 
@@ -622,8 +609,12 @@ to use the “pro” version, so it is better to use the “monitoring” module
 :::
 
 * **enable** `bool` Enable netdata application
+* **domainName** `str` Domain name for netdata, registered in local network
 ```nix
-darkone.service.netdata.enable = false;
+darkone.service.netdata = {
+  enable = false;
+  domainName = "netdata";
+}
 
 ```
 
@@ -634,11 +625,13 @@ darkone.service.netdata.enable = false;
 Nextcloud full-configured service.
 
 * **enable** `bool` Enable local nextcloud service
+* **domainName** `str` Domain name for nextcloud, registered in network configuration
 * **adminUser** `str` Admin username for Nextcloud
 * **adminPassword** `str` Admin password for Nextcloud (change this!)
 ```nix
 darkone.service.nextcloud = {
   enable = false;
+  domainName = "nextcloud";
   adminUser = "admin";
   adminPassword = "changeme";
 }
@@ -651,24 +644,20 @@ darkone.service.nextcloud = {
 
 NFS server + client for home shares.
 
-:::note
-This module is enabled if a nfs server is declared in the local network. It creates:
+:::caution
+This module is auto-enabled if a nfs server is declared in the local network. It creates:
 
 - A share (/export/homes) on the server.
 - Mount dirs (/mnt/nfs/homes/[user]) on clients.
 
 The nfs home manager script links xdg directories to mount dirs.
-In config.yaml file (hosts):
-
-- Only one host have a service `service.nfs`.
-- Clients need `nfsClient = true`.
 :::
 
 * **enable** `bool` Enable NFS DNF server (avoid enable manually)
 * **serverDomain** `str` NFS Server FQDN
 ```nix
 darkone.service.nfs = {
-  enable = hasServer && (isServer || isClient);
+  enable = hasServer;
   serverDomain = "nfs";
 }
 
@@ -708,36 +697,15 @@ to allow users to use syncthing with their account.
 :::
 
 * **enable** `bool` Enable local syncthing service
+* **domainName** `str` Domain name for sync server, registered in network configuration
 * **ldapServerHost** `str` Users service (lldap)
 * **ldapServerPort** `str` Users service (lldap)
 ```nix
 darkone.service.syncthing = {
   enable = false;
+  domainName = "syncthing";
   ldapServerHost = "${zone.gateway.hostname}.${zone.domain}";
   ldapServerPort = "3890";
-}
-
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.tailscale
-
-Tailscale client service for HCS.
-
-:::note
-A tailscale client to connect an external host to HCS.
-Do not use it to connect a gateway for a tailnet subnet.
-:::
-
-* **enable** `bool` Enable tailscale client to connect HCS
-* **isGateway** `bool` This tailscale node is a subnet gateway
-* **isExitNode** `bool` Configure this client as exit node
-```nix
-darkone.service.tailscale = {
-  enable = false;
-  isGateway = false;
-  isExitNode = false;
 }
 
 ```
@@ -749,8 +717,12 @@ darkone.service.tailscale = {
 LLDAP service for DNF SSO.
 
 * **enable** `bool` Enable local user management with LLDAP (SSO)
+* **domainName** `str` Domain name for user management (SSO), registered in network configuration
 ```nix
-darkone.service.users.enable = false;
+darkone.service.users = {
+  enable = false;
+  domainName = "users";
+}
 
 ```
 
@@ -761,8 +733,14 @@ darkone.service.users.enable = false;
 A full-configured vaultwarden server (wip).
 
 * **enable** `bool` Enable local Vaultwarden service
+* **domainName** `str` Domain name for the Vaultwarden service
+* **appName** `str` Default title for Vaultwarden server
 ```nix
-darkone.service.vaultwarden.enable = false;
+darkone.service.vaultwarden = {
+  enable = false;
+  domainName = "vaultwarden";
+  appName = "Unofficial Bitwarden compatible server";
+}
 
 ```
 
@@ -879,25 +857,19 @@ DNF Service registration and configuration.
 
 :::caution[Special internal module]
 This module is used to register and configure DNF modules:
-- Coordination server client (headscale / tailscale)
-- Reverse proxies (caddy)
-- Homepage registrations
-- DNS entries
+- Reverse proxy (caddy)
+- Homepage registration
+- DNS entry
 - folders and files to backup
 :::
 
 * **enable** `bool` Enable DNF services manager to register a new service
 * **enable** `bool` Enable service proxy
-* **isPublic** `bool` Public service accessed from internet
 * **service** `str` Domain name for the service
-* **title** `str` Display name in homepage
+* **displayOnHomepage** `bool` Display a link on homepage
+* **displayName** `str` Display name in homepage
 * **description** `str` Service description for homepage
 * **icon** `str` Icon name for homepage (https://dashboardicons.com/)
-* **global** `bool` Global service is accessible on Internet
-* **fqdn** `str` Calculated FQDN or the service before the reverse proxy
-* **href** `str` Calculated URL of the service before the reverse proxy
-* **ip** `str` Calculated IP to contact the service
-* **displayOnHomepage** `bool` Display a link on homepage
 * **dirs** `?` Service persistant dirs
 * **files** `?` Service persistant files
 * **dbDirs** `?` Service persistant dirs with database(s)
@@ -912,16 +884,11 @@ This module is used to register and configure DNF modules:
 darkone.system.services = {
   enable = false;
   enable = false;
-  isPublic = false;
   service = "name";
-  title = "name";
+  displayOnHomepage = true;
+  displayName = "name";
   description = "name";
   icon = "name";
-  global = false;
-  fqdn = "";
-  href = "";
-  ip = "";
-  displayOnHomepage = true;
   dirs = [ ];
   files = [ ];
   dbDirs = [ ];
@@ -1044,8 +1011,6 @@ Several graphical game packages.
 * **enableTeenager** `bool` Games for teenagers and adults (&gt;=12 yo)
 * **enable3D** `bool` More 3D Games
 * **enableCli** `bool` Cli Games
-* **enableStk** `bool` SuperTuxKart (only)
-* **stkServer** `str` STK server domain name
 ```nix
 darkone.home.games = {
   enableBaby = false;
@@ -1053,8 +1018,6 @@ darkone.home.games = {
   enableTeenager = false;
   enable3D = false;
   enableCli = false;
-  enableStk = false;
-  stkServer = "osConfig.darkone.service.nfs.serverDomain";
 }
 
 ```

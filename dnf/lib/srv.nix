@@ -54,7 +54,13 @@ with lib;
           false;
       fqdn = if global then "${domain}.${host.networkDomain}" else "${domain}.${host.zoneDomain}";
       href = (if network.coordination.enable then "https://" else "http://") + fqdn;
-      ip = if global then host.ip else "127.0.0.1";
+      ip =
+        if attrsets.hasAttrByPath [ "services" "${name}" "ip" ] host then
+          host.services."${name}".ip
+        else if hasAttr "ip" defaults then
+          defaults.ip
+        else
+          (if global then host.ip else "127.0.0.1");
     in
     {
       inherit domain;
