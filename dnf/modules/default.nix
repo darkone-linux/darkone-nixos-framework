@@ -29,6 +29,7 @@
     ./standard/service/homepage.nix
     ./standard/service/httpd.nix
     ./standard/service/immich.nix
+    ./standard/service/jitsi-meet.nix
     ./standard/service/matrix.nix
     ./standard/service/mattermost.nix
     ./standard/service/monitoring.nix

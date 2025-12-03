@@ -80,6 +80,11 @@ in
       default = builtins.hasAttr "ncps" host.services;
       description = "Enable the proxy cache for packages";
     };
+    darkone.host.minimal.enableJitsiMeet = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "jitsi-meet" host.services;
+      description = "Enable jitsi-meet service";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -109,6 +114,7 @@ in
       forgejo.enable = cfg.enableForgejo;
       homepage.enable = cfg.enableHomepage;
       immich.enable = cfg.enableImmich;
+      jitsi-meet.enable = cfg.enableJitsiMeet;
       matrix.enable = cfg.enableMatrix;
       mattermost.enable = cfg.enableMattermost;
       monitoring.enable = cfg.enableMonitoring;

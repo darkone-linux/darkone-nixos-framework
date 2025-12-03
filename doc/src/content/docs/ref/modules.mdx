@@ -121,6 +121,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableMatrix** `bool` Enable a matrix server
 * **enableNfsHomeShares** `bool` Enable a DNF nfs home shares
 * **enableNcps** `bool` Enable the proxy cache for packages
+* **enableJitsiMeet** `bool` Enable jitsi-meet service
 ```nix
 darkone.host.minimal = {
   enable = false;
@@ -137,6 +138,7 @@ darkone.host.minimal = {
   enableMatrix = attrsets.hasAttrByPath [ "services" "matrix" ] host;
   enableNfsHomeShares = attrsets.hasAttrByPath [ "services" "nfs" ] host;
   enableNcps = builtins.hasAttr "ncps" host.services;
+  enableJitsiMeet = builtins.hasAttr "jitsi-meet" host.services;
 }
 
 ```
@@ -527,6 +529,18 @@ darkone.service.immich = {
   enableMachineLearning = false;
   enableRedis = false;
 }
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.jitsi-meet
+
+A full-configured jitsi-meet service.
+
+* **enable** `bool` Enable local jitsi-meet service
+```nix
+darkone.service.jitsi-meet.enable = false;
 
 ```
 

@@ -143,9 +143,10 @@ hosts:
   - hostname: "hcs"
     name: "Headscale Coordination Server"
     profile: "headscale"
-    ipv4: "222.222.222.222" # External IP = zone "www"
-    services:
-      headscale:
+    ipv4:
+      external: "222.222.222.222" # External IP = zone "www"
+    #services:
+    #  headscale:
     # disko:
     #   profile: "btrfs-1-disk"
 
