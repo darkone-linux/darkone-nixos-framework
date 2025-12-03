@@ -19,6 +19,7 @@
 let
   cfg = config.darkone.service.ncps;
   hostIsLocal = host.zone == zone.name;
+  ncpsPort = 8501;
 in
 {
   options = {
@@ -36,44 +37,63 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable {
+  config = lib.mkMerge [
+    {
+      # Darkone service registration
+      darkone.system.services.service.ncps = {
+        displayOnHomepage = false;
+        persist = {
+          varDirs = [ config.services.ncps.dataPath ];
+        };
+        proxy.enable = false;
+      };
+    }
 
-    # Main ncps service
-    services.ncps =
-      lib.mkIf (!cfg.isClient) {
+    (lib.mkIf cfg.enable {
+
+      # Darkone service: enable
+      darkone.system.services = {
         enable = true;
-        cache = {
-          inherit (cfg) dataPath;
-          maxSize = "20G";
-          hostName = "${host.hostname}.${zone.domain}";
-          lru.schedule = "0 2 * * *";
-          allowPutVerb = true;
-          allowDeleteVerb = true;
-        };
-        upstream = {
-          caches = [
-            "https://cache.nixos.org"
-            "https://nix-community.cachix.org"
-          ];
-          publicKeys = [
-            "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-            "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-          ];
-        };
-      }
-      // cfg.extraOptions;
+        service.ncps.enable = true;
+      };
 
-    # Add local gw to substituters.
-    # Check with nix --extra-experimental-features nix-command config show | grep substituters
-    nix.settings = {
-      substituters = [
-        (lib.mkIf hostIsLocal "http://${zone.gateway.hostname}.${zone.domain}:8501")
-        "https://nix-community.cachix.org"
-      ];
-      trusted-public-keys = [
-        "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-        "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-      ];
-    };
-  };
+      # Main ncps service
+      services.ncps =
+        lib.mkIf (!cfg.isClient) {
+          enable = true;
+          cache = {
+            inherit (cfg) dataPath;
+            maxSize = "20G";
+            hostName = "${host.hostname}.${zone.domain}";
+            lru.schedule = "0 2 * * *";
+            allowPutVerb = true;
+            allowDeleteVerb = true;
+          };
+          upstream = {
+            caches = [
+              "https://cache.nixos.org"
+              "https://nix-community.cachix.org"
+            ];
+            publicKeys = [
+              "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+              "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+            ];
+          };
+        }
+        // cfg.extraOptions;
+
+      # Add local gw to substituters.
+      # Check with nix --extra-experimental-features nix-command config show | grep substituters
+      nix.settings = {
+        substituters = [
+          (lib.mkIf hostIsLocal "http://${zone.gateway.hostname}.${zone.domain}:${toString ncpsPort}")
+          "https://nix-community.cachix.org"
+        ];
+        trusted-public-keys = [
+          "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+          "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+        ];
+      };
+    })
+  ];
 }

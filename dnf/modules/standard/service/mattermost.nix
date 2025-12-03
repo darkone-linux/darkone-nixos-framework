@@ -29,7 +29,6 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.mattermost = {
-        inherit params;
         persist.dirs = [ srv.dataDir ];
         proxy.servicePort = srv.port;
       };

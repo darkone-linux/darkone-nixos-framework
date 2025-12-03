@@ -5,12 +5,16 @@
   osConfig,
   host,
   zone,
+  network,
   ...
 }:
 let
   hasServer = osConfig.darkone.service.nfs.enable;
   nfsServer =
-    if hasServer then (lib.findFirst (s: s.service == "nfs") null zone.sharedServices).host else null;
+    if hasServer then
+      (lib.findFirst (s: s.name == "nfs" && s.zone == zone.name) null network.services).host
+    else
+      null;
   isServer = nfsServer != null && host.hostname == nfsServer;
   isClient = nfsServer != null && !isServer && host.nfsClient;
   isEnable = hasServer && (isServer || isClient);

@@ -12,10 +12,11 @@ let
   cfg = config.darkone.service.users;
   lldapSettings = config.services.lldap.settings;
   lldapUserDn = "admin";
-  params = dnfLib.extractServiceParams host network "users" {
+  defaultParams = {
     description = "Global user management for DNF services";
     icon = "openldap";
   };
+  params = dnfLib.extractServiceParams host network "users" defaultParams;
 in
 {
   options = {
@@ -26,7 +27,7 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.users = {
-        inherit params;
+        inherit defaultParams;
         persist.dirs = [ "/var/lib/lldap" ];
         proxy.servicePort = lldapSettings.http_port; # Default is 17170
       };

@@ -59,17 +59,13 @@ class NixZone
     {
         return [
             'name' => $this->name,
-
-             // Force nix empty list (and not attrset) if no item in services
-            'sharedServices' => empty($this->services) ? new NixList() : array_values($this->services),
         ] + ($this->name === Configuration::EXTERNAL_ZONE_KEY ? [
-            'globalServices' => $this->buildGlobalServices($globalConfig) ?? (new NixList()),
             'address' => $this->buildAddressList() ?? (new NixList()),
         ] : [
             'extraDnsmasqSettings' => [
                 'dhcp-host' => array_values($this->macAddresses),
                 'dhcp-range' => $this->dhcpRange,
-                'address' => $this->buildAddresses($globalConfig),
+                'address' => $this->buildAddresses(),
 
                 // Do not works with fqdn configuration of dnsmasq -> address
                 // 'cname' => $this->buildCnames(),
@@ -78,39 +74,18 @@ class NixZone
         ]);
     }
 
-    private function buildGlobalServices(Configuration $globalConfig): ?array
-    {
-        $globalServices = [];
-        foreach ($this->network->getZones() as $zone) {
-            foreach ($zone->getServices() as $service) {
-                if ($service['global'] ?? false) {
-                    unset($service['global']);
-                    $host = $globalConfig->getHosts()[$service['host']];
-                    $service['targetIp'] = $host->getIp();
-                    $globalServices[] = $service;
-                }
-            }
-        }
-
-        return empty($globalServices) ? null : $globalServices;
-    }
-
     /**
      * Address list for TLS
      * @return array|null
      */
     private function buildAddressList(): ?array
     {
-        $address = [];
-        foreach ($this->network->getZones() as $zone) {
-            if ($zone->getName() == Configuration::EXTERNAL_ZONE_KEY) {
-                continue;
-            }
-            foreach ($zone->getAliases() as $alias) {
-                $alias = array_filter($alias, fn (string $name) => empty($zone->getServices()[$name]['global']));
-                $address = array_merge($address, array_map(fn (string $name) => $name . '.' . $zone->getDomain(), $alias));
-            }
-        }
+        $address = array_values(
+            array_map(
+                fn (NixService $service) => $service->getFqdn($this->network),
+                array_filter(
+                    $this->network->getServices(),
+                    fn (NixService $service) => !$service->isGlobal())));
 
         return empty($address) ? null : $address;
     }
@@ -137,24 +112,31 @@ class NixZone
 
     /**
      * TODO: voir si on étend aux global services des autres zones...
-     * @param Configuration $globalConfig
      * @return array
      * @throws NixException
      */
-    private function buildAddresses(Configuration $globalConfig): array
+    private function buildAddresses(): array
     {
         $addresses = [];
-        $globalServices = [];
-        foreach ($this->getServices() as $service) {
-            if ($service['global'] ?? false) {
-                $globalServices[$service['domain']] = $globalConfig->getHosts()[$service['host']]->getIp();
+
+        foreach ($this->network->getServices() as $service) {
+            $domain = $service->getDomain() ?? $service->getName();
+            $srvZone = $this->network->getZones()[$service->getZone()];
+            $srvGwIp = $srvZone->getConfig()['ipPrefix'] . '.1.1';
+
+            // Unqualified names for services of current zone
+            if ($this->getName() == $srvZone->getName()) {
+                $addresses[] = '/' . $domain . '/' . $srvGwIp;
             }
+
+            // Full qualified names for all services
+            $addresses[] =  '/' . $service->getFqdn($this->network) . '/' . $srvGwIp;
         }
 
         // Main hosts
         foreach ($this->hosts as $host => $ip) {
             if (!empty($ip)) {
-                $addresses[] = '/' . $host . '.' . $this->config['domain'] . '/' . $ip; // host.zone.domain.tld
+                $addresses[] = '/' . $host . '.' . $this->getDomain() . '/' . $ip; // host.zone.domain.tld
             }
         }
 
@@ -163,13 +145,11 @@ class NixZone
             $addresses[] = '/' . $host . '/' . $ip; // host
         }
 
-        // Replace cnames
+        // Host aliases
         foreach ($this->aliases as $host => $aliases) {
             foreach ($aliases as $alias) {
-                // $addresses[] = '/' . $alias . '/' . $this->hosts[$host];
-                $addresses[] = isset($globalServices[$alias])
-                    ? '/' . $alias . '.' . $this->network->getDomain() . '/' . $globalServices[$alias]
-                    : '/' . $alias . '.' . $this->config['domain'] . '/' . $this->hosts[$host];
+                $addresses[] = '/' . $alias . '/' . $this->hosts[$host];
+                $addresses[] = '/' . $alias . '.' . $this->getDomain() . '/' . $this->hosts[$host];
             }
         }
 
@@ -270,41 +250,17 @@ class NixZone
     }
 
     /**
+     * @param string $host
      * @throws NixException
      */
-    public function registerSharedServices(string $host, array $services): NixZone
+    public function setSubstituter(string $host): void
     {
-        static $serviceDomains = [];
-
-        if (empty($services)) {
-            return $this;
+        if (!is_null($this->substituter)) {
+            throw new NixException(
+                'Zone ' . $this->getName() . ' already have a substituter: ' . $this->substituter . ' vs ' . $host
+            );
         }
-
-        foreach ($services as $serviceKey => $service) {
-            if (!empty($service['domain'])) {
-                if (in_array($service['domain'], $serviceDomains)) {
-                    throw new NixException('Service domain conflict: "' . $service['domain'] . '"');
-                }
-                $serviceDomains[] = $service['domain'];
-            }
-            if ($serviceKey == 'ncps') {
-                if (!is_null($this->substituter)) {
-                    throw new NixException('Cannot have more than 1 ncps provider (' . $host . ' vs ' . $this->substituter . ').');
-                }
-                $this->substituter = $host;
-            }
-            $this->services[$service['domain'] ?? $serviceKey] = array_filter([
-                'host' => $host,
-                'service' => $serviceKey,
-                'domain' => $service['domain'] ?? null,
-                'title' => $service['title'] ?? null,
-                'description' => $service['description'] ?? null,
-                'icon' => $service['icon'] ?? null,
-                'global' => $service['global'] ?? null,
-            ]);
-        }
-
-        return $this;
+        $this->substituter = $host;
     }
 
     /**
@@ -345,7 +301,11 @@ class NixZone
                 $hostIp = $cfg['ipPrefix'] . '.' . $hostCfg['ip'];
                 $this->registerHost($hostname, $hostIp);
                 $this->registerMacAddresses($hostCfg['mac'], $hostIp);
-                $this->registerSharedServices($hostname, $hostCfg['services'] ?? []);
+                $this->network->registerServices(
+                    (new Host())
+                        ->setName($hostname)
+                        ->setZone($this->getName())
+                        ->setServices($hostCfg['services'] ?? []));
                 $this->registerAliases($hostname, $hostCfg['aliases'] ?? []);
 
                 // Only NixOS hosts (for management)
@@ -413,11 +373,18 @@ class NixZone
     }
 
     /**
+     * Extract services of this zone, but not global services
      * @return array
      */
-    public function getServices(): array
+    public function getLocalServicesNames(): array
     {
-        return $this->services;
+        return array_map(
+            fn (NixService $service) => $service->getDomain() ?? $service->getName(),
+            array_filter(
+                $this->network->getServices(),
+                fn (NixService $service) => ($service->getZone() == $this->getName() && !$service->isGlobal())
+            )
+        );
     }
 
     /**

@@ -4,8 +4,8 @@
   lib,
   dnfLib,
   config,
-  host,
   network,
+  host,
   ...
 }:
 let
@@ -23,7 +23,6 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.forgejo = {
-        inherit params;
         persist.dirs = [
           "/var/lib/forgejo/custom"
           "/var/lib/forgejo/data"
@@ -48,7 +47,7 @@ in
         lfs.enable = true;
         settings = {
           server = {
-            DOMAIN = "localhost";
+            DOMAIN = host.ip;
             ROOT_URL = params.href; # URL before reverse proxy
             HTTP_PORT = 3000;
             LANDING_PAGE = "explore";

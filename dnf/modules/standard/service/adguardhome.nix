@@ -7,21 +7,14 @@
 
 {
   lib,
-  dnfLib,
   config,
   network,
   zone,
-  host,
   ...
 }:
 let
   cfg = config.darkone.service.adguardhome;
   agh = config.services.adguardhome;
-  params = dnfLib.extractServiceParams host network "adguardhome" {
-    title = "AdGuardHome";
-    description = "Ad and tracker blocker";
-    icon = "adguard-home";
-  };
 
   # TODO: find dnsmasq IP and port if not in the same machine, or consider
   # ADH and DNSMASQ are on the same host.
@@ -36,7 +29,12 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.adguardhome = {
-        inherit params;
+        defaultParams = {
+          title = "AdGuardHome";
+          description = "Ad and tracker blocker";
+          icon = "adguard-home";
+          ip = "127.0.0.1";
+        };
         proxy.servicePort = agh.port;
       };
     }
@@ -75,7 +73,7 @@ in
 
         # Web interface default host + port (target for reverse proxy)
         port = 3083;
-        host = params.ip;
+        host = "127.0.0.1"; # ADH and RP are on the same host
 
         # Allow changes made on the AdGuard Home web interface to persist between service restarts.
         mutableSettings = true;

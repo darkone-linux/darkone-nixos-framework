@@ -7,16 +7,12 @@
 
 {
   lib,
-  dnfLib,
   config,
   pkgs,
-  host,
-  network,
   ...
 }:
 let
   cfg = config.darkone.service.netdata;
-  params = dnfLib.extractServiceParams host network "netdata" { };
 in
 {
   options = {
@@ -27,7 +23,6 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.netdata = {
-        inherit params;
         persist.dirs = [ "/var/lib/netdata" ];
         proxy.servicePort = 19999;
       };

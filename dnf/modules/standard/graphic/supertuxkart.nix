@@ -8,13 +8,14 @@
   lib,
   config,
   zone,
+  network,
   host,
   pkgs,
   ...
 }:
 let
   cfg = config.darkone.graphic.supertuxkart;
-  mainNfsHost = (lib.findFirst (s: s.service == "nfs") "" zone.sharedServices).host;
+  mainNfsHost = (lib.findFirst (s: s.name == "nfs" && s.zone == zone.name) "" network.services).host;
   hasNfsServer = mainNfsHost != "";
   isMainNfsServer = config.darkone.service.nfs.enable && (host.hostname == mainNfsHost);
   nfsServer = "nfs"; # TODO

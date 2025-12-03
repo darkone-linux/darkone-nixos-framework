@@ -4,6 +4,7 @@ namespace Darkone\NixGenerator\Item;
 
 use Darkone\NixGenerator\Configuration;
 use Darkone\NixGenerator\NixException;
+use Darkone\NixGenerator\NixNetwork;
 use Darkone\NixGenerator\NixZone;
 
 class Host
@@ -71,15 +72,23 @@ class Host
     /**
      * @throws NixException
      */
-    public function registerServices(NixZone $zone, array $services): Host
+    public function registerServices(NixNetwork $network, NixZone $zone, array $services): Host
     {
         Configuration::assert(
-            Configuration::TYPE_ARRAY, $services, $this->getHostname() . '.services must contains collection of strings', null, Configuration::TYPE_ARRAY, true
+            Configuration::TYPE_ARRAY,
+            $services,
+            $this->getHostname() . '.services must contains collection of strings',
+            null,
+            Configuration::TYPE_ARRAY,
+            true
         );
         foreach ($services as $name => $params) {
-            $zone->registerAliases($this->getHostname(), [$this->populateService($name, $params)]);
+            $domain = $this->populateService($name, $params);
+
+            // Services domains not in aliases because it must point to the gateway
+            //$zone->registerAliases($this->getHostname(), [$domain]);
         }
-        $zone->registerSharedServices($this->getHostname(), $this->services);
+        $network->registerServices($this);
 
         return $this;
     }
@@ -190,6 +199,12 @@ class Host
         }
 
         return $domain;
+    }
+
+    public function setServices(array $services): Host
+    {
+        $this->services = $services;
+        return $this;
     }
 
     public function getServices(): array

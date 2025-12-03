@@ -4,7 +4,7 @@
 
 let
   cfg = config.darkone.home.gnome;
-  #hasNFS = (nfsServerCount = lib.count (s: s.service == "nfs") osConfig.zone.sharedServices) == 1;
+  #hasNFS = (nfsServerCount = lib.count (s: s.name == "nfs" && s.zone == zone.name) osConfig.network.services) == 1;
 in
 {
   options = {

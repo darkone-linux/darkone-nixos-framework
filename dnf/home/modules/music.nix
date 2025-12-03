@@ -5,6 +5,7 @@
   lib,
   host,
   zone,
+  network,
   config,
   osConfig,
   ...
@@ -14,7 +15,7 @@ let
   cfg = config.darkone.home.music;
   #graphic = osConfig.darkone.graphic.gnome.enable;
   hasNfsServer = osConfig.darkone.service.nfs.enable;
-  nfsServer = (lib.findFirst (s: s.service == "nfs") null zone.sharedServices).host;
+  nfsServer = (lib.findFirst (s: s.name == "nfs" && s.zone == zone.name) null network.services).host;
   isNfsClient = host.hostname != nfsServer;
   mpdMusicDir =
     if isNfsClient then

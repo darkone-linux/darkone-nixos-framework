@@ -16,23 +16,28 @@
 let
   cfg = config.darkone.service.homepage;
   hpd = config.services.homepage-dashboard;
-  params = dnfLib.extractServiceParams host network "homepage" {
+  defaultParams = {
     title = "Home";
     description = "Local network home page";
   };
+  params = dnfLib.extractServiceParams host network "homepage" defaultParams;
+
+  # TODO: internationalisation
+  localTitle = "1. Applications Locales";
+  remoteTitle = "2. Applications Distantes";
 in
 {
   options = {
     darkone.service.homepage.enable = lib.mkEnableOption "Enable homepage dashboard + httpd + host";
-    darkone.service.homepage.adminServices = lib.mkOption {
+    darkone.service.homepage.localServices = lib.mkOption {
       type = lib.types.listOf lib.types.attrs;
       default = [ ];
-      description = "Services to add in Administration section";
+      description = "Services to add in Local Applications section";
     };
-    darkone.service.homepage.appServices = lib.mkOption {
+    darkone.service.homepage.remoteServices = lib.mkOption {
       type = lib.types.listOf lib.types.attrs;
       default = [ ];
-      description = "Services to add in Applications section";
+      description = "Services to add in Remote Applications section";
     };
     darkone.service.homepage.bookmarks = lib.mkOption {
       type = lib.types.listOf lib.types.attrs;
@@ -52,7 +57,7 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.homepage = {
-        inherit params;
+        inherit defaultParams;
         displayOnHomepage = false;
         proxy.servicePort = hpd.listenPort;
         proxy.defaultService = true;
@@ -84,11 +89,11 @@ in
           headerStyle = "clean";
           target = "_self";
           layout = {
-            Applications = {
+            ${localTitle} = {
               style = "row";
               columns = 3;
             };
-            Administration = {
+            ${remoteTitle} = {
               style = "row";
               columns = 3;
             };
@@ -161,8 +166,8 @@ in
 
         # https://gethomepage.dev/latest/configs/services/
         services = [
-          { "Applications" = cfg.appServices; }
-          { "Administration" = cfg.adminServices; }
+          { ${localTitle} = cfg.localServices; }
+          { ${remoteTitle} = cfg.remoteServices; }
         ];
 
         # https://gethomepage.dev/latest/configs/service-widgets/

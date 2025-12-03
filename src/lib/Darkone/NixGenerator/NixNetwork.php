@@ -2,6 +2,8 @@
 
 namespace Darkone\NixGenerator;
 
+use Darkone\NixGenerator\Item\Host;
+
 /**
  * @todo integrity tests + unit tests
  */
@@ -9,6 +11,11 @@ class NixNetwork
 {
     private array $config;
     private array $zones = [];
+
+    /**
+     * @var NixService[]
+     */
+    private array $services = [];
 
     /**
      * @return NixZone[]
@@ -60,6 +67,89 @@ class NixNetwork
     public function getCoordinationDomainName(): string
     {
         return $this->getConfig()['coordination']['domain'];
+    }
+
+    /**
+     * @return NixService[]
+     */
+    public function getGlobalServices(): array
+    {
+        return array_filter(
+            $this->services,
+            fn (NixService $service) => $service->isGlobal()
+        );
+    }
+
+    /**
+     * @return NixService[]
+     */
+    public function getServices(): array
+    {
+        return $this->services;
+    }
+
+    /**
+     * @return array
+     */
+    public function servicesToArray(): array
+    {
+        return array_values(array_map(fn (NixService $service) => $service->toArray(), $this->services));
+    }
+
+    /**
+     * @param Host $host
+     * @return $this
+     * @throws NixException
+     */
+    public function registerServices(Host $host): NixNetwork
+    {
+        static $uniqServices = [];
+        static $globalServices = [];
+
+        foreach ($host->getServices() as $serviceName => $service) {
+            $isGlobal = $service['global'] ?? false;
+            $serviceDomain = $service['domain'] ?? $serviceName;
+
+            // Check services that must be unique per zone
+            if (in_array($serviceName, NixService::UNIQUE_SERVICES_BY_ZONE)) {
+                if (isset($uniqServices[$host->getZone()][$serviceName])) {
+                    throw new NixException('Service ' . $serviceName . ' must be unique in zone ' . $host->getZone());
+                }
+                $uniqServices[$host->getZone()][$serviceName] = true;
+            }
+
+            // Check name conflict for global services
+            if ($isGlobal) {
+                if (in_array($serviceDomain, $globalServices)) {
+                    throw new NixException('Global services domain name conflict: ' . $serviceName);
+                }
+                $globalServices[] = $serviceDomain;
+            }
+
+            // Register substituter for special service NCPS
+            if ($serviceName == 'ncps') {
+                $this->getZones()[$host->getZone()]->setSubstituter($host->getHostname());
+            }
+
+            // Build service key to detect domain conflicts
+            $key = $host->getZone() . ':' . $serviceDomain;
+            if (array_key_exists($key, $this->services)) {
+                throw new NixException('Service name conflict: ' . $key);
+            }
+
+            // Register new service
+            $this->services[$key] = (new NixService())
+                ->setName($serviceName)
+                ->setHost($host->getHostname())
+                ->setZone($host->getZone())
+                ->setDomain($service['domain'] ?? null)
+                ->setTitle($service['title'] ?? null)
+                ->setDescription($service['description'] ?? null)
+                ->setIcon($service['icon'] ?? null)
+                ->setGlobal($isGlobal);
+        }
+
+        return $this;
     }
 
     /**

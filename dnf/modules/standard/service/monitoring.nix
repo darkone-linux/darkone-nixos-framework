@@ -7,8 +7,8 @@
 
 {
   lib,
-  dnfLib,
   config,
+  dnfLib,
   host,
   network,
   ...
@@ -20,10 +20,11 @@ let
     nodeExporter = 9100;
     prometheus = config.services.prometheus.port;
   };
-  params = dnfLib.extractServiceParams host network "monitoring" {
+  defaultParams = {
     description = "System and Network Statistics";
     icon = "grafana";
   };
+  params = dnfLib.extractServiceParams host network "monitoring" defaultParams;
 in
 {
   options = {
@@ -41,7 +42,7 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.monitoring = {
-        inherit params;
+        inherit defaultParams;
         persist = {
           dbFiles = [ "/var/lib/grafana/grafana.db" ];
           varDirs = [

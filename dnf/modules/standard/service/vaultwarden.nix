@@ -2,9 +2,9 @@
 
 {
   lib,
-  dnfLib,
   config,
   pkgs,
+  dnfLib,
   host,
   network,
   ...
@@ -24,7 +24,6 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.vaultwarden = {
-        inherit params;
         persist = {
           files = [
             "rsa_key.pem"

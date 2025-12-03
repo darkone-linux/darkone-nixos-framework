@@ -170,10 +170,10 @@ class Configuration extends NixAttrSet
                 ->setUsers($this->extractAllUsers($host['users'] ?? [], $host['groups'] ?? []))
                 ->setGroups($host['groups'] ?? [])
                 ->setTags($host['tags'] ?? [])
-                ->registerServices($zone, $host['services'] ?? [])
                 ->registerAliases($zone, $host['aliases'] ?? [])
                 ->registerHostInZone($zone, $host, $ip)
                 ->setIp($ip)
+                ->registerServices($this->network, $zone, $host['services'] ?? [])
                 ->setDisko($host['disko'] ?? []);
             self::addToFullHostIps($host['hostname'], $ip);
         }

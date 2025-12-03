@@ -13,12 +13,13 @@
 let
   cfg = config.darkone.service.headscale;
   srv = config.services.headscale;
-  params = dnfLib.extractServiceParams host network "headscale" {
+  defaultParams = {
     inherit (network.coordination) domain;
     description = "Headscale DNF service";
     ip = srv.address;
     global = true;
   };
+  params = dnfLib.extractServiceParams host network "headscale" defaultParams;
 in
 {
   options = {
@@ -30,7 +31,7 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.headscale = {
-        inherit params;
+        inherit defaultParams;
         persist.dirs = [ "/var/lib/headscale" ];
         proxy.servicePort = srv.port;
       };

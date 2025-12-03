@@ -75,6 +75,11 @@ in
       default = attrsets.hasAttrByPath [ "services" "nfs" ] host;
       description = "Enable a DNF nfs home shares";
     };
+    darkone.host.minimal.enableNcps = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "ncps" host.services;
+      description = "Enable the proxy cache for packages";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -107,6 +112,7 @@ in
       matrix.enable = cfg.enableMatrix;
       mattermost.enable = cfg.enableMattermost;
       monitoring.enable = cfg.enableMonitoring;
+      ncps.enable = cfg.enableNcps;
       netdata.enable = cfg.enableNetdata;
       nextcloud.enable = cfg.enableNextcloud;
       syncthing.enable = cfg.enableSyncthing;

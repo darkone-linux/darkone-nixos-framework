@@ -6,5 +6,6 @@ let
 in
 {
   inherit (strings) ucFirst;
+  inherit (srv) buildServiceParams;
   inherit (srv) extractServiceParams;
 }

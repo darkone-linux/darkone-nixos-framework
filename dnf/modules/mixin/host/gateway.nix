@@ -32,11 +32,6 @@ in
       default = builtins.hasAttr "adguardhome" host.services;
       description = "Enable pre-configured Aguard Home service";
     };
-    darkone.host.gateway.enableNcps = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "ncps" host.services;
-      description = "Enable the proxy cache for packages";
-    };
     darkone.host.gateway.enableAuth = lib.mkOption {
       type = lib.types.bool;
       default = builtins.hasAttr "auth" host.services;
@@ -62,7 +57,6 @@ in
     darkone.service = {
       dnsmasq.enable = true;
       adguardhome.enable = cfg.enableAdguardhome;
-      ncps.enable = cfg.enableNcps;
       auth.enable = cfg.enableAuth;
       users.enable = cfg.enableUsers;
       tailscale = lib.mkIf hasHeadscale {

@@ -2,7 +2,6 @@
 
 {
   lib,
-  dnfLib,
   pkgs,
   config,
   network,
@@ -13,9 +12,6 @@ let
   inherit network;
   cfg = config.darkone.service.matrix;
   srv = config.services.matrix-synapse;
-  params = dnfLib.extractServiceParams host network "matrix" {
-    description = "Communication solution";
-  };
 in
 {
   options = {
@@ -26,7 +22,9 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.matrix = {
-        inherit params;
+        defaultParams = {
+          description = "Communication solution";
+        };
         persist.dirs = [ srv.settings.server_name ];
         proxy.servicePort = (builtins.elemAt srv.settings.listeners 0).port;
       };
@@ -72,7 +70,7 @@ in
           listeners = [
             {
               port = 8008;
-              bind_addresses = [ params.ip ];
+              bind_addresses = [ host.ip ];
               type = "http";
               tls = false;
               x_forwarded = true;

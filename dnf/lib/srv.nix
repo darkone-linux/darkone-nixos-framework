@@ -2,65 +2,73 @@
 
 { lib, strings }:
 with lib;
-{
-  # params = dnfLib.srv.extractServiceParams host network "forgejo" {
-  #   domain = "forgejo"; # optional, default is name
-  #   title = "Forgejo";
-  #   description = "Local GIT Forge";
-  #   icon = "forgejo";
-  #   global = false;
-  # };
+rec {
+  # Extract params to use in the service.
   extractServiceParams =
-    host: network: name: defaults:
+    serviceHost: network: serviceName: defaults:
     let
+      overloadParams = lib.findFirst (
+        s: s.name == serviceName && s.host == serviceHost.hostname && s.zone == serviceHost.zone
+      ) { } network.services;
+    in
+    buildServiceParams serviceHost network overloadParams defaults;
+
+  # Params calculated and used in services.nix
+  buildServiceParams =
+    serviceHost: network: service: defaults:
+    let
+      inherit (service) name;
       ucName = strings.ucFirst name;
       domain =
-        if attrsets.hasAttrByPath [ "services" "${name}" "domain" ] host then
-          host.services."${name}".domain
-        else if hasAttr "domain" defaults then
+        if hasAttr "domain" service then
+          service.domain
+        else if (hasAttr "domain" defaults) && defaults.domain != "" then
           defaults.domain
         else
           name;
       title =
-        if attrsets.hasAttrByPath [ "services" "${name}" "title" ] host then
-          host.services."${name}".title
-        else if hasAttr "title" defaults then
+        if hasAttr "title" service then
+          service.title
+        else if (hasAttr "title" defaults) && defaults.title != "" then
           defaults.title
         else
           ucName;
       description =
-        if attrsets.hasAttrByPath [ "services" "${name}" "description" ] host then
-          host.services."${name}".description
-        else if hasAttr "description" defaults then
+        if hasAttr "description" service then
+          service.description
+        else if (hasAttr "description" defaults) && defaults.description != "" then
           defaults.description
         else
           "${ucName} local service";
       icon =
         "sh-"
         + (
-          if attrsets.hasAttrByPath [ "services" "${name}" "icon" ] host then
-            host.services."${name}".icon
-          else if hasAttr "icon" defaults then
+          if hasAttr "icon" service then
+            service.icon
+          else if (hasAttr "icon" defaults) && defaults.icon != "" then
             defaults.icon
           else
             name
         );
       global =
-        if attrsets.hasAttrByPath [ "services" "${name}" "global" ] host then
-          host.services."${name}".global
+        if hasAttr "global" service then
+          service.global
         else if hasAttr "global" defaults then
           defaults.global
         else
           false;
-      fqdn = if global then "${domain}.${host.networkDomain}" else "${domain}.${host.zoneDomain}";
+      zone = if hasAttr "zone" service then service.zone else serviceHost.zone;
+      host = if hasAttr "host" service then service.host else serviceHost.hostname;
+      fqdn =
+        if global then "${domain}.${serviceHost.networkDomain}" else "${domain}.${serviceHost.zoneDomain}";
       href = (if network.coordination.enable then "https://" else "http://") + fqdn;
       ip =
-        if attrsets.hasAttrByPath [ "services" "${name}" "ip" ] host then
-          host.services."${name}".ip
-        else if hasAttr "ip" defaults then
+        if hasAttr "ip" service then
+          service.ip
+        else if (hasAttr "ip" defaults) && defaults.ip != "" then
           defaults.ip
         else
-          (if global then host.ip else "127.0.0.1");
+          serviceHost.ip;
     in
     {
       inherit domain;
@@ -68,6 +76,8 @@ with lib;
       inherit description;
       inherit icon;
       inherit global;
+      inherit zone;
+      inherit host;
       inherit fqdn;
       inherit href;
       inherit ip;

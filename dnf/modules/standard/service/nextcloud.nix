@@ -2,22 +2,21 @@
 
 {
   lib,
-  dnfLib,
   config,
   pkgs,
-  host,
   zone,
   network,
+  host,
+  dnfLib,
   ...
 }:
 let
   cfg = config.darkone.service.nextcloud;
   port = 8089;
-
-  # TODO: factoriser dans lib avec httpd
-  params = dnfLib.extractServiceParams host network "nextcloud" {
+  defaultParams = {
     description = "Local personal cloud";
   };
+  params = dnfLib.extractServiceParams host network "nextcloud" defaultParams;
 in
 {
   options = {
@@ -38,7 +37,7 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.nextcloud = {
-        inherit params;
+        inherit defaultParams;
         persist = {
           dirs = [ "/var/lib/nextcloud/data" ];
           dbDirs = [ "/var/lib/postgresql" ];

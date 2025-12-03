@@ -145,6 +145,7 @@
         name = host.hostname;
         value = {
           inherit host;
+          inherit hosts;
           inherit network;
           zone = network.zones.${host.zone};
         }

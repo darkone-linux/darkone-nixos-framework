@@ -170,10 +170,13 @@ class Generate
      */
     private function generateNetworkConfig(bool $display): string
     {
+        $networkServices = $this->config->getNetwork()->servicesToArray();
         return $this->registerContent(
             self::FILE_GEN_NETWORK, 
             NixBuilder::arrayToNix(
-                $this->config->getNetworkConfig() + ['zones' => $this->config->extractZonesConfig()]
+                $this->config->getNetworkConfig()
+                + ['services' => empty($networkServices) ? new NixList() : $networkServices]
+                + ['zones' => $this->config->extractZonesConfig()]
             ), $display
         );
     }

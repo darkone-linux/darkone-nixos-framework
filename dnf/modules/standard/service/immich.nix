@@ -2,20 +2,16 @@
 
 {
   lib,
-  dnfLib,
   config,
   pkgs,
   host,
-  network,
+  zone,
   ...
 }:
 let
   cfg = config.darkone.service.immich;
-
-  # TODO: faire un extractServiceParams dans darkone.system.services et ne rentrer que les 
-  # valeurs par défaut car "params" dépend du "host" et ça génère des incohérence dans la 
-  # page d'accueil...
-  params = dnfLib.extractServiceParams host network "immich" { description = "Smart media manager"; };
+  isGateway =
+    lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
 in
 {
   options = {
@@ -36,7 +32,9 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.immich = {
-        inherit params;
+        defaultParams = {
+          description = "Smart media manager";
+        };
         persist = {
           dirs = [
             "/var/lib/immich/profile"
@@ -91,8 +89,8 @@ in
       services.immich = {
         enable = true;
         port = 2283;
-        host = params.ip;
-        openFirewall = false;
+        host = host.ip;
+        openFirewall = !isGateway;
 
         # Redis configuration
         redis = lib.mkIf cfg.enableRedis {

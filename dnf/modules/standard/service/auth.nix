@@ -3,20 +3,21 @@
 {
   lib,
   dnfLib,
-  config,
-  host,
   network,
+  host,
+  config,
   ...
 }:
 let
   cfg = config.darkone.service.auth;
   lldapSettings = config.services.lldap.settings;
   autheliaPort = 9091;
-  params = dnfLib.extractServiceParams host network "auth" {
+  defaultParams = {
     title = "Authentification";
     description = "Global authentication for DNF services";
     icon = "authelia";
   };
+  params = dnfLib.extractServiceParams host network "auth" defaultParams;
 in
 {
   options = {
@@ -27,7 +28,7 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.auth = {
-        inherit params;
+        inherit defaultParams;
         persist.dirs = [
           "/etc/authelia"
           "/var/lib/authelia-main"
