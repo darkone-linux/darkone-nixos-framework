@@ -4,7 +4,12 @@ namespace Darkone\NixGenerator;
 
 class NixService
 {
+    // Voir comment automatiser, aller chercher dans la conf nix...
     public const array UNIQUE_SERVICES_BY_ZONE = ['ncps', 'adguardhome', 'homepage'];
+    public const array REVERSE_PROXY_SERVICES = [
+        'adguardhome', 'auth', 'forgejo', 'home-assistant', 'homepage', 'immich', 'matrix', 'mattermost', 'monitoring',
+        'netdata', 'nextcloud', 'syncthing', 'users', 'vaultwarden'
+    ];
 
     private string $name;
     private string $host;

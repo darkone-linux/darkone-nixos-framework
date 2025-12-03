@@ -3,6 +3,7 @@
 namespace Darkone;
 
 use Darkone\MdxGenerator\Generator;
+use Darkone\MdxGenerator\MdxException;
 use Darkone\NixGenerator\Configuration;
 use Darkone\NixGenerator\Item\Host;
 use Darkone\NixGenerator\Item\User;
@@ -48,7 +49,7 @@ class Generate
     }
 
     /**
-     * @throws NixException
+     * @throws NixException|MdxException
      */
     public function generate(string $what, bool $display = false): string
     {
@@ -265,6 +266,7 @@ class Generate
     /**
      * @param bool $debug
      * @return string
+     * @throws MdxException
      */
     private function generateDoc(bool $debug): string
     {

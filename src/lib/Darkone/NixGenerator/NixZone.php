@@ -26,9 +26,6 @@ class NixZone
     // Hosts with ips
     private array $hosts = [];
 
-    // Shared services informations
-    private array $services = [];
-
     // Other options
     private array $dhcpRange = [];
 
@@ -65,7 +62,7 @@ class NixZone
             'extraDnsmasqSettings' => [
                 'dhcp-host' => array_values($this->macAddresses),
                 'dhcp-range' => $this->dhcpRange,
-                'address' => $this->buildAddresses(),
+                'address' => $this->buildAddresses($globalConfig),
 
                 // Do not works with fqdn configuration of dnsmasq -> address
                 // 'cname' => $this->buildCnames(),
@@ -112,25 +109,32 @@ class NixZone
 
     /**
      * TODO: voir si on étend aux global services des autres zones...
+     * @param Configuration $config
      * @return array
      * @throws NixException
      */
-    private function buildAddresses(): array
+    private function buildAddresses(Configuration $config): array
     {
         $addresses = [];
 
         foreach ($this->network->getServices() as $service) {
             $domain = $service->getDomain() ?? $service->getName();
             $srvZone = $this->network->getZones()[$service->getZone()];
-            $srvGwIp = $srvZone->getConfig()['ipPrefix'] . '.1.1';
+            $needReverseProxy = in_array($service->getName(), NixService::REVERSE_PROXY_SERVICES);
+
+            // Les services à proxier pointent vers le gateway tandis que les services
+            // à accès direct doivent être résolus vers l'hôte qui les hébergent.
+            $ip = $needReverseProxy
+                ? $srvZone->getConfig()['ipPrefix'] . '.1.1'
+                : $config->getHosts()[$service->getHost()]->getIp();
 
             // Unqualified names for services of current zone
             if ($this->getName() == $srvZone->getName()) {
-                $addresses[] = '/' . $domain . '/' . $srvGwIp;
+                $addresses[] = '/' . $domain . '/' . $ip;
             }
 
             // Full qualified names for all services
-            $addresses[] =  '/' . $service->getFqdn($this->network) . '/' . $srvGwIp;
+            $addresses[] =  '/' . $service->getFqdn($this->network) . '/' . $ip;
         }
 
         // Main hosts
@@ -370,21 +374,6 @@ class NixZone
     public function getDomain(): string
     {
         return $this->config['domain'];
-    }
-
-    /**
-     * Extract services of this zone, but not global services
-     * @return array
-     */
-    public function getLocalServicesNames(): array
-    {
-        return array_map(
-            fn (NixService $service) => $service->getDomain() ?? $service->getName(),
-            array_filter(
-                $this->network->getServices(),
-                fn (NixService $service) => ($service->getZone() == $this->getName() && !$service->isGlobal())
-            )
-        );
     }
 
     /**

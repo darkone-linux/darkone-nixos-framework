@@ -57,10 +57,9 @@ in
       #findutils # locate
       #powerline
       #powerline-fonts
+      (lib.mkIf (graphic && (cfg.enableDeveloper || cfg.enableAdmin)) vscode) # TODO: module
       (lib.mkIf (graphic && cfg.enableAdmin) filezilla)
       (lib.mkIf (graphic && cfg.enableAdmin) gparted)
-      (lib.mkIf (graphic && cfg.enableAdmin) vscode) # TODO: vscode module + declarative conf
-      (lib.mkIf (graphic && cfg.enableDeveloper) vscode) # TODO: module
       (lib.mkIf (graphic && cfg.enableNixAdmin) dconf-editor) # GSettings editor
       (lib.mkIf (graphic && cfg.enableTools && cfg.enableAdmin) impression) # Create bootable drives
       (lib.mkIf (graphic && cfg.enableTools && cfg.enableAdmin) sysprof) # System-wide profiler
@@ -97,11 +96,11 @@ in
       (lib.mkIf cfg.enableAdmin wirelesstools) # ifrename iwconfig iwevent iwgetid iwlist iwpriv iwspy
       (lib.mkIf cfg.enableEssentials cpufetch)
       (lib.mkIf cfg.enableEssentials duf)
-      (lib.mkIf cfg.enableEssentials fastfetch)
       (lib.mkIf cfg.enableEssentials gawk)
       (lib.mkIf cfg.enableEssentials htop)
       (lib.mkIf cfg.enableEssentials jq)
       (lib.mkIf cfg.enableEssentials less)
+      (lib.mkIf cfg.enableEssentials microfetch)
       (lib.mkIf cfg.enableEssentials nodejs_24) # CoC, required for vim
       (lib.mkIf cfg.enableEssentials rename)
       (lib.mkIf cfg.enableEssentials rsync)
@@ -109,7 +108,7 @@ in
       (lib.mkIf cfg.enableEssentials unzip)
       (lib.mkIf cfg.enableEssentials wget)
       (lib.mkIf cfg.enableEssentials zip)
-      (lib.mkIf cfg.enableTools microfetch)
+      (lib.mkIf cfg.enableTools fastfetch)
       (lib.mkIf cfg.enableTools presenterm)
       (lib.mkIf cfg.enableTools pv)
       (lib.mkIf cfg.enableTools ranger)

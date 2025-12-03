@@ -72,17 +72,6 @@ class NixNetwork
     /**
      * @return NixService[]
      */
-    public function getGlobalServices(): array
-    {
-        return array_filter(
-            $this->services,
-            fn (NixService $service) => $service->isGlobal()
-        );
-    }
-
-    /**
-     * @return NixService[]
-     */
     public function getServices(): array
     {
         return $this->services;
