@@ -95,6 +95,7 @@ class Generate
                 ->setString('name', $host->getName())
                 ->setString('profile', $host->getProfile())
                 ->setString('ip', $host->getIp())
+                ->setString('vpnIp', $host->getVpnIp())
                 ->setString('arch', $host->getArch())
                 ->setBool('nfsClient', $host->isNfsClient())
                 ->setString('zoneDomain', $host->getZoneDomain())

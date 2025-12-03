@@ -120,13 +120,18 @@ class NixZone
         foreach ($this->network->getServices() as $service) {
             $domain = $service->getDomain() ?? $service->getName();
             $srvZone = $this->network->getZones()[$service->getZone()];
-            $needReverseProxy = in_array($service->getName(), NixService::REVERSE_PROXY_SERVICES);
+            $srvHost = $config->getHosts()[$service->getHost()];
+            $isExternal = $srvZone->getName() === Configuration::EXTERNAL_ZONE_KEY;
+            $targetIsGateway = !$isExternal && in_array($service->getName(), NixService::REVERSE_PROXY_SERVICES);
 
             // Les services à proxier pointent vers le gateway tandis que les services
-            // à accès direct doivent être résolus vers l'hôte qui les hébergent.
-            $ip = $needReverseProxy
+            // à accès direct qui hébergés à l'extérieur doivent être résolus vers l'hôte qui les hébergent.
+            // 1. Dans une zone et la cible doit être le gateway -> gateway de la zone
+            // 2. A l'extérieur d'une zone mais dans le tailnet -> adresse interne du VPN / Tailnet
+            // 3. Sinon -> adresse interne de l'hôte qui héberge le service
+            $ip = $targetIsGateway
                 ? $srvZone->getConfig()['ipPrefix'] . '.1.1'
-                : $config->getHosts()[$service->getHost()]->getIp();
+                : ($isExternal ? $srvHost->getVpnIp() : $srvHost->getIp());
 
             // Unqualified names for services of current zone
             if ($this->getName() == $srvZone->getName()) {

@@ -69,6 +69,11 @@ class NixNetwork
         return $this->getConfig()['coordination']['domain'];
     }
 
+    public function getCoordinationHostname(): string
+    {
+        return $this->getConfig()['coordination']['hostname'];
+    }
+
     /**
      * @return NixService[]
      */
@@ -113,6 +118,11 @@ class NixNetwork
                     throw new NixException('Global services domain name conflict: ' . $serviceName);
                 }
                 $globalServices[] = $serviceDomain;
+            }
+
+            // Is not global but external -> fail
+            elseif ($host->getZone() === Configuration::EXTERNAL_ZONE_KEY) {
+                throw new NixException('External service "' . $serviceName . '" must be global.');
             }
 
             // Register substituter for special service NCPS

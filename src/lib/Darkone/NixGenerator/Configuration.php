@@ -24,6 +24,7 @@ class Configuration extends NixAttrSet
     public const string REGEX_MAC_ADDRESS = '[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}';
     public const string REGEX_NAME = '/^.{3,128}$/';
     public const string REGEX_IPV4 = '/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/';
+    public const string REGEX_IPV4_TAILNET = '/^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/';
     public const string REGEX_LOCALE = '/^[a-z][a-z]_[A-Z][A-Z]\.UTF-8$/';
     public const string REGEX_TIMEZONE = '/^([A-Za-z]+)\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?$/';
 
@@ -173,6 +174,7 @@ class Configuration extends NixAttrSet
                 ->registerAliases($zone, $host['aliases'] ?? [])
                 ->registerHostInZone($zone, $host, $ip)
                 ->setIp($ip)
+                ->setVpnIp($host['ipv4']['internal'] ?? null)
                 ->registerServices($this->network, $zone, $host['services'] ?? [])
                 ->setDisko($host['disko'] ?? []);
             self::addToFullHostIps($host['hostname'], $ip);
@@ -283,8 +285,9 @@ class Configuration extends NixAttrSet
         foreach ($this->hosts as $host) {
 
             // Add gateway
-            str_ends_with($host->getIp() ?? '', '.1.1') &&
-                $this->zones[$host->getZone()]->setGateway($host);
+            $host->getZone() !== self::EXTERNAL_ZONE_KEY
+                && str_ends_with($host->getIp() ?? '', '.1.1')
+                && $this->zones[$host->getZone()]->setGateway($host);
 
             // External hosts access
             if ($host->getZone() === self::EXTERNAL_ZONE_KEY) {
@@ -416,7 +419,7 @@ class Configuration extends NixAttrSet
             }
         } else {
             $zoneName = self::EXTERNAL_ZONE_KEY;
-            $ip = $host['ipv4'];
+            $ip = $host['ipv4']['external'];
             if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
                 throw new NixException(
                     'Generated address "' . $ip . '" for host "' . $host['hostname'] . '" is not a valid external IP.'

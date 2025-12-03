@@ -67,6 +67,19 @@ rec {
           service.ip
         else if (hasAttr "ip" defaults) && defaults.ip != "" then
           defaults.ip
+
+        # Is HCS -> service is located in HCS reverse proxy -> IP is 120.0.0.1
+        else if
+          (hasAttrByPath [ "coordination" "hostname" ] network)
+          && (serviceHost.hostname == network.coordination.hostname)
+        then
+          "127.0.0.1"
+
+        # Is in an external host of our tailnet -> internal VPN IP
+        else if (hasAttr "vpnIp" serviceHost) && serviceHost.vpnIp != "" then
+          serviceHost.vpnIp
+
+        # Is a host in a zone -> host IP
         else
           serviceHost.ip;
     in

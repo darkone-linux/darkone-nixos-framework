@@ -57,21 +57,23 @@ trait ConfigurationAssertTrait
         self::assert(self::TYPE_ARRAY, $host['users'] ?? [], 'Bad users list type for "' . $host['hostname'] . '"', null, self::TYPE_STRING);
         self::assert(self::TYPE_ARRAY, $host['disko'] ?? [], 'Bad disko params');
         self::assert(self::TYPE_BOOL, $host['local'] ?? false, 'Bad local key type for "' . $host['hostname'] . '"');
-        self::assert(self::TYPE_STRING, $host['zone'] ?? $host['ipv4'] ?? null, 'A zone name or ipv4 is required for "' . $host['hostname'] . '"');
+        self::assert(self::TYPE_STRING, $host['zone'] ?? $host['ipv4']['external'] ?? null, 'A zone name or ipv4 is required for "' . $host['hostname'] . '"');
+        isset($host['ipv4']['internal']) && self::assert(self::TYPE_STRING, $host['ipv4']['internal'], 'Bad syntax for internal ipv4 of "' . $host['hostname'] . '"', self::REGEX_IPV4_TAILNET);
+        isset($host['ipv4']['external']) && self::assert(self::TYPE_STRING, $host['ipv4']['external'], 'Bad syntax for external ipv4 of "' . $host['hostname'] . '"', self::REGEX_IPV4);
         $this->checkZoneField($host);
         $this->checkHostMacAddress($host);
     }
 
     /**
      * @param array $host
-     * @return void
      * @throws NixException
      */
     public function checkZoneField(array $host): void
     {
+        // External zone
         if (!empty($host['ipv4'])) {
-            if (!preg_match(self::REGEX_IPV4, $host['ipv4'])) {
-                throw new NixException('Bad ipv4 "' . $host['ipv4'] . '" of host "' . $host['hostname'] . '".');
+            if (!empty($host['zone'])) {
+                throw new NixException('A host "' . $host['hostname'] . '" in a local zone cannot have an ipv4 key.');
             }
             return;
         }

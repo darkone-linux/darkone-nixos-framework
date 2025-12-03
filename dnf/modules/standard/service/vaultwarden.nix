@@ -12,7 +12,8 @@
 let
   cfg = config.darkone.service.vaultwarden;
   srv = config.services.vaultwarden.config;
-  params = dnfLib.extractServiceParams host network "vaultwarden" { };
+  defaultParams = { icon = "bitwarden"; };
+  params = dnfLib.extractServiceParams host network "vaultwarden" defaultParams;
 in
 {
   options = {
@@ -24,6 +25,7 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.vaultwarden = {
+        inherit defaultParams;
         persist = {
           files = [
             "rsa_key.pem"
@@ -53,9 +55,8 @@ in
         enable = true;
         config = {
 
-          # TODO: FQDN + HTTPS
           DOMAIN = params.href;
-          SIGNUPS_ALLOWED = true; # TODO: false
+          SIGNUPS_ALLOWED = false; # TODO: false + SSO (change to true the first time)
           ROCKET_ADDRESS = params.ip;
           ROCKET_PORT = 8222;
           ROCKET_LOG = "critical";

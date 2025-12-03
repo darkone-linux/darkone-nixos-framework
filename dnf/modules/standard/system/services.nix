@@ -39,15 +39,12 @@ let
 
   # Global services to expose to internet, only for HCS
   globalServices =
-    if isHcs then
-      #(filter (s: (hasAttr "global" s.params) && s.params.global && s.enable && s.proxy.enable) services)
-      (filter (s: (hasAttr "global" s.params) && s.params.global) services)
-    else
-      [ ];
+    if isHcs then (filter (s: (hasAttr "global" s.params) && s.params.global) services) else [ ];
   globalAddress = if isHcs then zone.address else [ ];
 
   # Full list of registered services for the local zone
-  localZoneServices = filter (s: s.params.zone == zone.name && s.proxy.enable) services;
+  localZoneServices =
+    if inLocalZone then filter (s: s.params.zone == zone.name && s.proxy.enable) services else [ ];
 
   # Has service
   hasServicesToExpose =

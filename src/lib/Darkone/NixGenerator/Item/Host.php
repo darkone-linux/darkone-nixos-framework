@@ -17,6 +17,7 @@ class Host
     private string $zone;
     private string $profile;
     private ?string $ip;
+    private ?string $vpnIp;
     private ?string $arch;
     private string $zoneDomain;
     private string $networkDomain;
@@ -220,6 +221,17 @@ class Host
     public function setIp(?string $ip): Host
     {
         $this->ip = $ip;
+        return $this;
+    }
+
+    public function getVpnIp(): ?string
+    {
+        return $this->vpnIp;
+    }
+
+    public function setVpnIp(?string $vpnIp): Host
+    {
+        $this->vpnIp = $vpnIp;
         return $this;
     }
 
