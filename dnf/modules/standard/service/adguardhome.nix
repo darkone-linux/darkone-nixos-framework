@@ -10,6 +10,7 @@
   config,
   network,
   zone,
+  host,
   ...
 }:
 let
@@ -19,6 +20,15 @@ let
   # TODO: find dnsmasq IP and port if not in the same machine, or consider
   # ADH and DNSMASQ are on the same host.
   dnsmasqAddr = "127.0.0.1:" + (toString config.services.dnsmasq.settings.port);
+
+  extractReversePrefix =
+    str:
+    let
+      parts = lib.splitString "." str;
+      first = builtins.elemAt parts 0;
+      second = builtins.elemAt parts 1;
+    in
+    "${second}.${first}";
 in
 {
   options = {
@@ -111,9 +121,23 @@ in
               # Local names
               ("[/" + network.domain + "/]" + dnsmasqAddr)
 
-              # Reverse DNS upstream (utile ?)
-              #("[/10.in-addr.arpa/]" + dnsmasqAddr)
-              #(lib.mkIf hasHcs "[/100.in-addr.arpa/]100.100.100.100")
+              # Local dns reverse
+              ("[/" + (extractReversePrefix zone.ipPrefix) + ".in-addr.arpa/]" + dnsmasqAddr)
+            ]
+            ++
+
+              # Reverse DNS upstreams for other subnets
+              (lib.mapAttrsToList
+                (_: z: "[/${extractReversePrefix z.ipPrefix}.in-addr.arpa/]${z.gateway.lan.ip}:5353")
+                (
+                  lib.filterAttrs (
+                    _: z: (lib.hasAttrByPath [ "gateway" "lan" "ip" ] z) && z.name != host.zone
+                  ) network.zones
+                )
+              )
+
+            ++ [
+              (lib.mkIf network.coordination.enable "[/100.in-addr.arpa/]100.100.100.100")
 
               "94.140.14.14"
               "94.140.15.15"
@@ -131,15 +155,16 @@ in
               "1.1.1.1"
             ];
 
-            # N'ajoute pas de suffixe à mes noms
+            # N'ajoute pas de suffixe à mes noms locaux
             local_domain_name = "";
 
-            # List of upstream dns for local queries (+reverse?)
+            # dnsmasq is an upstream dns for reverse DNS
+            # List of upstream DNS servers to resolve PTR requests for addresses inside locally-served networks.
+            # If empty, AdGuard Home will automatically try to get local resolvers from the OS.
             local_ptr_upstreams = [ dnsmasqAddr ];
 
-            # Forward to dnsmasq if needed!
-            # IMPORTANT: do not activate with headscale (DNS infinite loop)
-            use_private_ptr_resolvers = false;
+            # If AdGuard Home should use private reverse DNS servers.
+            use_private_ptr_resolvers = true;
 
             # Cache must be disabled to not disturb dnsmasq configuration changes
             cache_enabled = false;

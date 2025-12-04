@@ -62,7 +62,15 @@ class NixZone
             'extraDnsmasqSettings' => [
                 'dhcp-host' => array_values($this->macAddresses),
                 'dhcp-range' => $this->dhcpRange,
-                'address' => $this->buildAddresses($globalConfig),
+
+                // Toutes les adresses en *zoneCourante.domain.tld sons résolues avec l'adresse du gateway
+                'address' => ['/' . $this->getDomain() . '/' . $this->getConfig()['gateway']['lan']['ip']],
+
+                // Toutes les adresses en *autresZone.domain.tld sont redirigées vers le gateway de la zone
+                'server' => $this->buildServers(),
+
+                // A + PTR
+                'host-record' => $this->buildHostRecordList($globalConfig),
 
                 // Do not works with fqdn configuration of dnsmasq -> address
                 // 'cname' => $this->buildCnames(),
@@ -108,21 +116,49 @@ class NixZone
     }
 
     /**
+     * @return array
+     */
+    private function buildServers(): array
+    {
+        $servers = [];
+        foreach ($this->network->getZones() as $zone) {
+
+            // Pour la zone courante -> "address"
+            if ($zone->getName() === $this->getName()) {
+                continue;
+            }
+
+            // Pas besoin du HCS
+            // TODO: voir si le HCS ne pourrait pas récupérer la résolution du domaine principal
+            if ($zone->getName() === Configuration::EXTERNAL_ZONE_KEY) {
+                continue;
+            }
+
+            // --server pour tous les autres subnets
+            $servers[] = '/' . $zone->getDomain() . '/' . $zone->getConfig()['gateway']['lan']['ip'];
+        }
+
+        return $servers;
+    }
+
+    /**
      * TODO: voir si on étend aux global services des autres zones...
      * @param Configuration $config
      * @return array
      * @throws NixException
      */
-    private function buildAddresses(Configuration $config): array
+    private function buildHostRecordList(Configuration $config): array
     {
-        $addresses = [];
+        $hostRecords = [];
 
         foreach ($this->network->getServices() as $service) {
             $domain = $service->getDomain() ?? $service->getName();
             $srvZone = $this->network->getZones()[$service->getZone()];
             $srvHost = $config->getHosts()[$service->getHost()];
-            $isExternal = $srvZone->getName() === Configuration::EXTERNAL_ZONE_KEY;
-            $targetIsGateway = !$isExternal && in_array($service->getName(), NixService::REVERSE_PROXY_SERVICES);
+            $needVpnIp = $srvZone->getName() === Configuration::EXTERNAL_ZONE_KEY
+                && !in_array($service->getName(), NixService::EXTERNAL_ACCESS_SERVICES);
+            $targetIsGateway = $srvZone->getName() !== Configuration::EXTERNAL_ZONE_KEY
+                && in_array($service->getName(), NixService::REVERSE_PROXY_SERVICES);
 
             // Les services à proxier pointent vers le gateway tandis que les services
             // à accès direct qui hébergés à l'extérieur doivent être résolus vers l'hôte qui les hébergent.
@@ -131,34 +167,23 @@ class NixZone
             // 3. Sinon -> adresse interne de l'hôte qui héberge le service
             $ip = $targetIsGateway
                 ? $srvZone->getConfig()['ipPrefix'] . '.1.1'
-                : ($isExternal ? $srvHost->getVpnIp() : $srvHost->getIp());
+                : ($needVpnIp ? $srvHost->getVpnIp() : $srvHost->getIp());
 
             // Unqualified names for services of current zone
-            if ($this->getName() == $srvZone->getName()) {
-                $addresses[] = '/' . $domain . '/' . $ip;
-            }
+            $hr = $this->getName() == $srvZone->getName() ? $domain . ',' : '';
 
             // Full qualified names for all services
-            $addresses[] =  '/' . $service->getFqdn($this->network) . '/' . $ip;
-        }
-
-        // Main hosts
-        foreach ($this->hosts as $host => $ip) {
-            if (!empty($ip)) {
-                $addresses[] = '/' . $host . '.' . $this->getDomain() . '/' . $ip; // host.zone.domain.tld
-            }
+            $hostRecords[] =  $hr . $service->getFqdn($this->network) . ',' . $ip;
         }
 
         // Full hosts to complete tailnet magic dns list
-        foreach (Configuration::getFullHostIps() as $host => $ip) {
-            $addresses[] = '/' . $host . '/' . $ip; // host
-        }
+        $hostRecords = array_merge($hostRecords, Configuration::getHostRecords());
 
         // Host aliases
+        // TODO: les alias sont-ils vraiment utiles à l'heure actuelle ?
         foreach ($this->aliases as $host => $aliases) {
             foreach ($aliases as $alias) {
-                $addresses[] = '/' . $alias . '/' . $this->hosts[$host];
-                $addresses[] = '/' . $alias . '.' . $this->getDomain() . '/' . $this->hosts[$host];
+                $hostRecords[] = $alias . ',' . $alias . '.' . $this->getDomain() . ',' . $this->hosts[$host];
             }
         }
 
@@ -167,14 +192,23 @@ class NixZone
         $globalZone = $this->network->getZone(Configuration::EXTERNAL_ZONE_KEY);
         foreach ($globalZone->getAliases() as $host => $aliases) {
             foreach ($aliases as $alias) {
-                $addresses[] = '/' . $alias . '/' . $this->hosts[$host];
-                $addresses[] = '/' . $alias . '.' . $this->network->getDomain() . '/' . $this->hosts[$host];
+                $hostRecords[] = $alias . ',' . $alias . '.' . $this->network->getDomain() . ',' . $this->hosts[$host];
             }
         }
 
-        sort($addresses);
+        // Hosts résiduels -> extra hosts (non-nix)
+        $hosts = array_filter($this->hosts);
+        foreach ($hostRecords as $record) {
+            $name = explode(',', $record)[0];
+            unset ($hosts[$name]);
+        }
+        foreach ($hosts as $host => $ip) {
+            $hostRecords[] =  $host . ',' . $host . '.' . $this->getDomain() . ',' . $this->hosts[$host];
+        }
 
-        return $addresses;
+        sort($hostRecords);
+
+        return $hostRecords;
     }
 
     /**

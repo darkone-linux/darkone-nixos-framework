@@ -31,6 +31,7 @@ in
     {
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.headscale = {
+        displayOnHomepage = false;
         inherit defaultParams;
         persist.dirs = [ "/var/lib/headscale" ];
         proxy.servicePort = srv.port;

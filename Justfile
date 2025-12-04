@@ -117,14 +117,18 @@ fix:
 	just _log "Full fixing..." "STATIX"
 	statix fix .
 
-# just clean + git amend + apply-local test
+# Clean + git Amend + apply-local (or on host) + Test
 [group('dev')]
-cat:
+cat host='':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	just clean
 	git add . && git commit --amend --no-edit
-	just apply-local test
+	if [ "{{host}}" == "" ] ;then
+		just apply-local test
+	else
+		just apply-verbose "{{host}}"
+	fi
 
 #==============================================================================
 # Generators

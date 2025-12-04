@@ -26,7 +26,6 @@ in
   };
 
   # TODO: IPv6 (cf. arthur gw conf)
-  # TODO: headscale / tailscale integration
   config = lib.mkIf cfg.enable {
 
     networking = {

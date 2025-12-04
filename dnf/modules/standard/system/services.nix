@@ -271,11 +271,11 @@ in
           mkIf isValid {
 
             # Short name -> FQDN
-            "${vhPrefix}${srv.params.domain}" = mkIf inLocalZone {
-              extraConfig = ''
-                redir ${srv.params.href}{uri}
-              '';
-            };
+            # "${vhPrefix}${srv.params.domain}" = mkIf inLocalZone {
+            #   extraConfig = ''
+            #     redir ${srv.params.href}{uri}
+            #   '';
+            # };
 
             # Reverse proxy to the target service
             "${vhPrefix}${srv.params.fqdn}" = {
@@ -302,42 +302,44 @@ in
           in
           {
             "${srv.params.domain}.${network.domain}" = {
+              # TODO: activate bots or not... (not for headscale!)
+              #  @badbots {
+              #
+              #    # Regular bots
+              #    header User-Agent "*bot*"
+              #    header User-Agent "*crawler*"
+              #    header User-Agent "*spider*"
+              #    header User-Agent "*scan*"
+              #    header User-Agent "*fetch*"
+              #
+              #    # Bot SEO
+              #    header User-Agent "*AhrefsBot*"
+              #    header User-Agent "*SemrushBot*"
+              #    header User-Agent "*MJ12bot*"
+              #    header User-Agent "*DotBot*"
+              #
+              #    # Google / Bing / etc.
+              #    header User-Agent "*Googlebot*"
+              #    header User-Agent "*bingbot*"
+              #    header User-Agent "*DuckDuckBot*"
+              #    header User-Agent "*Baiduspider*"
+              #    header User-Agent "*YandexBot*"
+              #
+              #    # Suspect User-agents
+              #    header User-Agent "*curl*"
+              #    header User-Agent "*wget*"
+              #    header User-Agent "*python*"
+              #    header User-Agent "*Go-http-client*"
+              #
+              #    # No User-Agent
+              #    header User-Agent ""
+              #  }
+              #  handle @badbots {
+              #    respond 403
+              #  }
               extraConfig = ''
-                @badbots {
-
-                  # Bots "classiques"
-                  header User-Agent "*bot*"
-                  header User-Agent "*crawler*"
-                  header User-Agent "*spider*"
-                  header User-Agent "*scan*"
-                  header User-Agent "*fetch*"
-
-                  # Bot SEO
-                  header User-Agent "*AhrefsBot*"
-                  header User-Agent "*SemrushBot*"
-                  header User-Agent "*MJ12bot*"
-                  header User-Agent "*DotBot*"
-
-                  # Google / Bing / etc.
-                  header User-Agent "*Googlebot*"
-                  header User-Agent "*bingbot*"
-                  header User-Agent "*DuckDuckBot*"
-                  header User-Agent "*Baiduspider*"
-                  header User-Agent "*YandexBot*"
-
-                  # User-agents suspects
-                  header User-Agent "*curl*"
-                  header User-Agent "*wget*"
-                  header User-Agent "*python*"
-                  header User-Agent "*Go-http-client*"
-
-                  # User-Agent vide
-                  header User-Agent ""
-                }
-                handle @badbots {
-                  respond 403
-                }
                 reverse_proxy http://${srv.params.ip}:${toString sPort}
+                ${srv.proxy.extraConfig}
               '';
             };
           }

@@ -13,7 +13,7 @@ let
   cfg = config.darkone.service.vaultwarden;
   srv = config.services.vaultwarden.config;
   defaultParams = {
-    icon = "bitwarden";
+    icon = "vaultwarden-light";
   };
   params = dnfLib.extractServiceParams host network "vaultwarden" defaultParams;
 in

@@ -101,7 +101,7 @@ class NixNetwork
         static $globalServices = [];
 
         foreach ($host->getServices() as $serviceName => $service) {
-            $isGlobal = $service['global'] ?? false;
+            $isGlobal = $service['global'] ?? null;
             $serviceDomain = $service['domain'] ?? $serviceName;
 
             // Check services that must be unique per zone
@@ -113,16 +113,21 @@ class NixNetwork
             }
 
             // Check name conflict for global services
+            if ($host->getZone() === Configuration::EXTERNAL_ZONE_KEY) {
+                if (!is_null($isGlobal)) {
+                    throw new NixException(
+                        'External service "' . $serviceName . '" is necessarily global. Remove the "global" key.'
+                    );
+                }
+                $isGlobal = true;
+            }
+
+            // Global explicitly specified for an implicitly global external service -> fail
             if ($isGlobal) {
                 if (in_array($serviceDomain, $globalServices)) {
                     throw new NixException('Global services domain name conflict: ' . $serviceName);
                 }
                 $globalServices[] = $serviceDomain;
-            }
-
-            // Is not global but external -> fail
-            elseif ($host->getZone() === Configuration::EXTERNAL_ZONE_KEY) {
-                throw new NixException('External service "' . $serviceName . '" must be global.');
             }
 
             // Register substituter for special service NCPS
@@ -145,7 +150,7 @@ class NixNetwork
                 ->setTitle($service['title'] ?? null)
                 ->setDescription($service['description'] ?? null)
                 ->setIcon($service['icon'] ?? null)
-                ->setGlobal($isGlobal);
+                ->setGlobal($isGlobal ?? false);
         }
 
         return $this;

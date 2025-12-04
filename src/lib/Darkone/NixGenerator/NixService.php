@@ -11,6 +11,9 @@ class NixService
         'netdata', 'nextcloud', 'syncthing', 'users', 'vaultwarden'
     ];
 
+    // Doit être contacté avec son adresse ip fixe externe !
+    public const array EXTERNAL_ACCESS_SERVICES = ['headscale'];
+
     private string $name;
     private string $host;
     private string $zone;

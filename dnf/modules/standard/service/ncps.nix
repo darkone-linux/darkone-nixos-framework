@@ -18,7 +18,7 @@
 }:
 let
   cfg = config.darkone.service.ncps;
-  hostIsLocal = host.zone == zone.name;
+  hostIsLocal = host.zone != "www";
   ncpsPort = 8501;
 in
 {

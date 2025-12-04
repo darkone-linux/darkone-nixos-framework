@@ -569,8 +569,12 @@ from the open-source version.
 :::
 
 * **enable** `bool` Enable mattermost service
+* **enableSmtp** `bool` Enable SMTP to send emails (recommended)
 ```nix
-darkone.service.mattermost.enable = false;
+darkone.service.mattermost = {
+  enable = false;
+  enableSmtp = true;
+}
 
 ```
 

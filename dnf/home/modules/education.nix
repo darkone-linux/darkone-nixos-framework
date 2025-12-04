@@ -70,11 +70,7 @@ in
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) kdePackages.kbruch) # fractions
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) labplot) # data visualization
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) maxima) # math
-      (lib.mkIf (cfg.enableMath && cfg.enableStudent) maxima) # math
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) octaveFull) # math
-      (lib.mkIf (cfg.enableMath && cfg.enableStudent) octaveFull) # math
-      (lib.mkIf (cfg.enableMath && cfg.enableStudent) sage) # math
-      (lib.mkIf (cfg.enableMath && cfg.enableStudent) sage) # math
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) scilab-bin) # math
       (lib.mkIf (cfg.enableMisc && (cfg.enableChild || cfg.enableStudent)) kdePackages.blinken) # memory training
       (lib.mkIf (cfg.enableMisc && (cfg.enableChild || cfg.enableStudent)) wike) # wikipedia

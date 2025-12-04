@@ -88,12 +88,6 @@ in
           adminuser = cfg.adminUser;
           adminpassFile = "/etc/nextcloud-admin-pass";
           dbtype = "pgsql";
-          trustedProxies = [
-            "10.64.0.0/10"
-            "10.0.0.0/8"
-            "127.0.0.1"
-            "::1"
-          ];
         };
 
         # Base de données PostgreSQL
@@ -142,6 +136,12 @@ in
             "localhost"
             params.domain
             params.fqdn
+          ];
+          trusted_proxies = [
+            "10.64.0.0/10"
+            "10.0.0.0/8"
+            "127.0.0.1"
+            "::1"
           ];
           default_phone_region = lib.toUpper (builtins.substring 3 2 zone.locale);
         };

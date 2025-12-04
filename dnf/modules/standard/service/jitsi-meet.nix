@@ -41,7 +41,7 @@ in
       };
 
       # TMP?
-      nixpkgs.config.permittedInsecurePackages = [ "jitsi-meet-1.0.8043" ];
+      nixpkgs.config.permittedInsecurePackages = [ "jitsi-meet-1.0.8792" ];
 
       # Forgejo main service
       services.jitsi-meet = {

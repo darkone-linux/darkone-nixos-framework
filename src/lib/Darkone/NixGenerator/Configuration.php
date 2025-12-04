@@ -65,7 +65,7 @@ class Configuration extends NixAttrSet
     /**
      * @var array host -> internal ip
      */
-    private static array $fullHostIps = [];
+    private static array $hostRecords = [];
 
     /**
      * @var NixZone[]
@@ -177,7 +177,7 @@ class Configuration extends NixAttrSet
                 ->setVpnIp($host['ipv4']['internal'] ?? null)
                 ->registerServices($this->network, $zone, $host['services'] ?? [])
                 ->setDisko($host['disko'] ?? []);
-            self::addToFullHostIps($host['hostname'], $ip);
+            self::registerHostRecord($host['hostname'], $this->hosts[$host['hostname']]->getZoneDomain(), $ip);
         }
     }
 
@@ -327,26 +327,33 @@ class Configuration extends NixAttrSet
         return $this->hosts;
     }
 
-    public static function getFullHostIps(): array
+    public static function getHostRecords(): array
     {
-        return self::$fullHostIps;
+        return self::$hostRecords;
     }
 
     /**
      * @param string $hostname
+     * @param string $zoneDomain
      * @param string|null $ip
      * @return void
      * @throws NixException
      */
-    public static function addToFullHostIps(string $hostname, ?string $ip): void
+    public static function registerHostRecord(string $hostname, string $zoneDomain, ?string $ip): void
     {
+        static $ips = [];
+        static $names = [];
+
         if (!empty($ip)) {
-            if (isset(self::$fullHostIps[$hostname]) && self::$fullHostIps[$hostname] !== $ip) {
-                throw new NixException(
-                    'IP conflict for host(s) ' . $hostname . ' ' . $ip . ' vs ' . self::$fullHostIps[$hostname]
-                );
+            if (in_array($hostname, $names)) {
+                throw new NixException('Host "' . $hostname . '" name conflict: ' . $names);
             }
-            self::$fullHostIps[$hostname] = $ip;
+            if (in_array($ip, $ips)) {
+                throw new NixException('Host "' . $hostname . '" IP conflict: ' . $ip);
+            }
+            $ips[] = $ip;
+            $names[] = $hostname;
+            self::$hostRecords[] = $hostname . ',' . $hostname . '.' . $zoneDomain . ',' . $ip;
         }
     }
 
