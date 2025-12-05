@@ -87,8 +87,7 @@ hosts:
 ❯ just
 Available recipes:
     [apply]
-    apply on what='switch'                         # Apply configuration using colmena
-    apply-force on what='switch'                   # Apply with build-on-target + force repl. unk profiles [alias: a]
+    apply on what='switch'                         # Apply configuration using colmena [alias: a]
     apply-local what='switch'                      # Apply the local host configuration [alias: al]
     apply-verbose on what='switch'                 # Apply force with verbose options [alias: av]
 
@@ -98,7 +97,7 @@ Available recipes:
     check-statix                                   # Check with statix
 
     [dev]
-    cat                                            # just clean + git amend + apply-local test
+    cat host=''                                    # Clean + git Amend + apply-local (or on host) + Test
     clean                                          # format: fix + check + generate + format [alias: c]
     develop                                        # Launch a "nix develop" with zsh (dev env) [alias: d]
     fix                                            # Fix with statix
@@ -113,22 +112,20 @@ Available recipes:
     configure-admin-host                           # Framework installation on local machine (builder / admin)
     copy-hw host                                   # Extract hardware config from host
     copy-id host                                   # Copy pub key to the node (nix user must exists)
-    format-dnf-on host dev                         # Format and install DNF on an usb key (deprecated)
-    format-dnf-shell                               # Nix shell with tools to create usb keys (deprecated)
     full-install host user='nix' ip='auto'         # New host: full installation (install, configure, apply)
     install host user='nix' ip='auto' do='install' # New host: format with nixos-everywhere + disko
+    install-key host                               # New host: format with nixos-everywhere + disko
     passwd user                                    # Update a user password
     passwd-default                                 # Update the default DNF password
     push-key host                                  # Push the infrastructure key to the host
 
     [manage]
-    enter host                                     # Interactive shell to the host [alias: e]
+    enter on                                       # Interactive shell to the host [alias: e]
     fix-boot on                                    # Multi-reinstall bootloader (using colmena)
     fix-zsh on                                     # Remove zshrc bkp to avoid error when replacing zshrc
     gc on                                          # Multi garbage collector (using colmena)
     halt on                                        # Multi-alt (using colmena)
     reboot on                                      # Multi-reboot (using colmena)
-
 ```
 
 ## A faire (todo)
@@ -136,20 +133,17 @@ Available recipes:
 ### En cours
 
 - [ ] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + configuration multi-postes.
-- [ ] Services distribués (aujourd'hui les services réseau sont sur la passerelle).
-- [ ] Stratégie de synchronisation avec syncthing.
+- [ ] Stratégie de synchronisation avec syncthing (ou autre).
 - [ ] SSO avec [Authelia](https://github.com/authelia/authelia) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.authelia))
   - Intégration du module Authelia (cf. mes notes, fichier `PAM`).
   - Gestion auto `secrets/users_database.yml` de authelia (via module ?).
   - Conf auto pour nginx, immich, nextcloud...
-- [ ] Réseau distribué avec [Headscale](https://github.com/juanfont/headscale) + [WireGuard](https://www.wireguard.com/)
-- [ ] Serveurs et postes "externes" (administrable mais ne faisant pas partie du LAN).
-- [ ] Configuration pour réseau extérieur (https, dns, vpn...).
 - [ ] Partages Samba pour windows + linux.
+- [ ] Réseau social à voir : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost), [mastodon](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mastodon), [matrix](https://nixos.wiki/wiki/Matrix), [gotosocial](https://search.nixos.org/options?channel=24.11&from=0&size=50&sort=relevance&type=packages&query=services.gotosocial), [zulip](https://zulip.com/self-hosting/)...
+- [ ] Gestion centralisée des utilisateurs avec [lldap](https://github.com/lldap/lldap).
 
 ### Planifié (prioritaire)
 
-- [ ] Let's encrypt
 - [ ] Stratégie de sauvegarde, plusieurs options :
   - Ecosystème [Borg](https://github.com/borgbackup/borg) + [Borgmatic](https://github.com/borgmatic-collective/borgmatic) + [BorgWeb](https://github.com/borgbackup/borgweb) (plus maintenu ?) + [BorgWarehouse](https://github.com/ravinou/borgwarehouse) (bien mais pas intégré à nix) + [Vorta](https://vorta.borgbase.com/).
   - Ecosystème [Restic](https://github.com/kopia/kopia), bon module nix, plus simple, plus "CLI", plus de connexions que Borg, moins performant.
@@ -163,10 +157,15 @@ Available recipes:
 - [ ] Attributions d'emails automatiques par réseaux.
 - [ ] Serveur de mails.
 - [ ] Générateur / gestionnaire d'UIDs (pour les grands réseaux).
-- [ ] Réseau social à voir : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost), [mastodon](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mastodon), [matrix](https://nixos.wiki/wiki/Matrix), [gotosocial](https://search.nixos.org/options?channel=24.11&from=0&size=50&sort=relevance&type=packages&query=services.gotosocial), [zulip](https://zulip.com/self-hosting/)...
 
 ### Fait
 
+- [x] Création de noeuds avec [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) + [disko](https://github.com/nix-community/disko).
+- [x] Services distribués (aujourd'hui les services réseau sont sur la passerelle).
+- [x] Réseau distribué avec [Headscale](https://github.com/juanfont/headscale) + [WireGuard](https://www.wireguard.com/)
+- [x] Serveurs et postes "externes" (administrable mais ne faisant pas partie du LAN).
+- [x] Configuration pour réseau extérieur (https, dns, vpn...).
+- [x] Let's encrypt
 - [x] Architecture modulaire.
 - [x] Configuration colmena.
 - [x] Configuration transversale générale.
@@ -198,18 +197,21 @@ Available recipes:
   - Domaines locaux des machines -> 127.0.0.1 (shunt dnsmasq + adguard)
   - Homepage GW -> accès aux services globaux installés sur le réseau hors GW
 
-### En pause
+### Etat des modules de services
 
-- [ ] Création de noeuds avec [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) + [disko](https://github.com/nix-community/disko).
-- [ ] Gestion centralisée des utilisateurs avec [lldap](https://github.com/lldap/lldap).
-
-## Remarques complémentaires
-
-> [!WARNING]
-> Après de nombreuses heures d'utilisation, il apparaît que Colmena et Deploy-rs ne répondent pas
-> à une gestion de postes NixOS à large échelle. Je vais remplacer la configuration colmena actuelle
-> par un équivalent non-nix, certainement [salt](https://github.com/saltstack/salt), pour administrer de nombreux postes en parallèle.
-> Enfin, je ferai également en sorte de pouvoir builder et switcher chaque poste indépendemment au
-> besoin, plutôt qu'être tributaire de la machine maître.
->
-> ![Archi prévisionnelle avec Salt](doc/src/assets/new-network-architecture-black-tr.png)
+| Service              | Application                                      | Accès                  | IODC | Prio | OK  |
+| -------------------- | ------------------------------------------------ | ---------------------- | ---- | ---- | --- |
+| Accueil              | Homepage                                         | VPN                    | -    | 1    | X   |
+| Photo / vidéo        | Immich                                           | VPN + privé (+ public) | oui  | 2    | X   |
+| Généalogie           | Geneweb                                          | VPN + privé (+ public) | non  | 3    |     |
+| Synchronisations     | Syncthing                                        | VPN + privé            | non  | 1    |     |
+| Cloud                | Nextcloud                                        | VPN + privé            | oui  | 1    | -   |
+| Collaboration        | Mattermost                                       | VPN + privé            | oui  | 2    | X   |
+| GIT                  | Forgejo                                          | VPN + privé (+ public) | ?    | 1    | X   |
+| Visio                | Jitsi                                            | VPN + privé (+ public) | ?    | 3    | X   |
+| Sauvegarde           | Borg                                             | VPN                    | -    | 1    |     |
+| SSO                  | Authelia                                         | VPN                    | oui  | 1    | -   |
+| Recettes de cuisine  | Mealie                                           | VPN + privé (+ public) | oui  | 3    |     |
+| Mots de passe / clés | Vaultwarden                                      | VPN (+ privé)          | ?    | 2    | X   |
+| Vidéo / Films        | [Jellyfin](https://wiki.nixos.org/wiki/Jellyfin) | VPN + privé            | oui  | 3    |     |
+| Musique              | [Navidrome](https://www.navidrome.org/demo/)     | VPN + privé            | non  | 3    |     |

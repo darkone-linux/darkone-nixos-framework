@@ -19,6 +19,7 @@
 
 ## Main features
 
+- **Easy and full VPN** with [headscale](https://headscale.net/) / [tailscale](https://tailscale.com/).
 - **[Multi-hosts and multi-users](https://darkone-linux.github.io/doc/specifications/#the-generator)**, deployed with [colmena](https://github.com/zhaofengli/colmena) and [just](https://github.com/casey/just).
 - **Full automated host install** with [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) and [disko](https://github.com/nix-community/disko).
 - **[Host profiles](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop)** for servers, containers, network nodes and workstations.
@@ -31,13 +32,16 @@
 - **Easy and reliable security**, a single password to unlock, with [sops](https://github.com/Mic92/sops-nix).
 - **No-conf DNS, DHCP, reverse-proxy, firewall** and all network plumbing.
 
+## One configuration, a full network
+
+![New network architecture](doc/src/assets/reseau-darkone-2.png)
+
 ## Just commands
 
 ```
 Available recipes:
     [apply]
-    apply on what='switch'                         # Apply configuration using colmena
-    apply-force on what='switch'                   # Apply with build-on-target + force repl. unk profiles [alias: a]
+    apply on what='switch'                         # Apply configuration using colmena [alias: a]
     apply-local what='switch'                      # Apply the local host configuration [alias: al]
     apply-verbose on what='switch'                 # Apply force with verbose options [alias: av]
 
@@ -47,7 +51,7 @@ Available recipes:
     check-statix                                   # Check with statix
 
     [dev]
-    cat                                            # just clean + git amend + apply-local test
+    cat host=''                                    # Clean + git Amend + apply-local (or on host) + Test
     clean                                          # format: fix + check + generate + format [alias: c]
     develop                                        # Launch a "nix develop" with zsh (dev env) [alias: d]
     fix                                            # Fix with statix
@@ -62,22 +66,18 @@ Available recipes:
     configure-admin-host                           # Framework installation on local machine (builder / admin)
     copy-hw host                                   # Extract hardware config from host
     copy-id host                                   # Copy pub key to the node (nix user must exists)
-    format-dnf-on host dev                         # Format and install DNF on an usb key (deprecated)
-    format-dnf-shell                               # Nix shell with tools to create usb keys (deprecated)
     full-install host user='nix' ip='auto'         # New host: full installation (install, configure, apply)
     install host user='nix' ip='auto' do='install' # New host: format with nixos-everywhere + disko
+    install-key host                               # New host: format with nixos-everywhere + disko
     passwd user                                    # Update a user password
     passwd-default                                 # Update the default DNF password
     push-key host                                  # Push the infrastructure key to the host
 
     [manage]
-    enter host                                     # Interactive shell to the host [alias: e]
+    enter on                                       # Interactive shell to the host [alias: e]
     fix-boot on                                    # Multi-reinstall bootloader (using colmena)
     fix-zsh on                                     # Remove zshrc bkp to avoid error when replacing zshrc
     gc on                                          # Multi garbage collector (using colmena)
     halt on                                        # Multi-alt (using colmena)
+    reboot on                                      # Multi-reboot (using colmena)
 ```
-
-## The future architecture
-
-![New network architecture](doc/src/assets/reseau-darkone-2.png)
