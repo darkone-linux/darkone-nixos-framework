@@ -361,6 +361,7 @@ in
     #--------------------------------------------------------------------------
 
     # Add services to homepage
+    # TODO: widgets params integration in service params / sops
     darkone.service.homepage = mkIf isGateway {
       localServices = mkHomeSection (filter (srv: srv.params.zone == zone.name) homepageServices);
       remoteServices = mkHomeSection (filter (srv: srv.params.zone != zone.name) homepageServices);

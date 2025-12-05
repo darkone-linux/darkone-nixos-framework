@@ -28,6 +28,10 @@ in
   # TODO: IPv6 (cf. arthur gw conf)
   config = lib.mkIf cfg.enable {
 
+    #--------------------------------------------------------------------------
+    # Networking: lan0 bridge, nat, gw interfaces, firewall
+    #--------------------------------------------------------------------------
+
     networking = {
 
       # No IPv6 for the moment
@@ -112,6 +116,10 @@ in
       };
     };
 
+    #--------------------------------------------------------------------------
+    # Services parameters
+    #--------------------------------------------------------------------------
+
     # lan0 bridge must be created before starting dnsmasq
     systemd.services.dnsmasq = {
       wants = [
@@ -134,6 +142,10 @@ in
 
     # No resolved service
     services.resolved.enable = false;
+
+    #--------------------------------------------------------------------------
+    # Dnsmasq
+    #--------------------------------------------------------------------------
 
     services.dnsmasq = {
       enable = true;

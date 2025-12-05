@@ -3,6 +3,7 @@
 {
   lib,
   config,
+  osConfig,
   zone,
   inputs,
   pkgs,
@@ -196,10 +197,10 @@ in
           };
           extensions = {
             force = true;
-            packages = with inputs.firefox-addons.packages.${pkgs.system}; [
-              #bitwarden
+            packages = with inputs.firefox-addons.packages.${pkgs.stdenv.hostPlatform.system}; [
+              (lib.mkIf osConfig.darkone.service.vaultwarden.enable bitwarden)
               #darkreader
-              browserpass
+              #browserpass
               ublock-origin
             ];
             settings."uBlock0@raymondhill.net".settings = {

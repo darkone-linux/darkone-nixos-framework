@@ -12,7 +12,6 @@
     boot.loader.systemd-boot.enable = true;
     boot.loader.efi.canTouchEfiVariables = false;
     boot.loader.systemd-boot.editor = false;
-    nixpkgs.config.allowUnfree = true;
     hardware.enableAllFirmware = true;
     users.users.nix = {
       uid = 65000;

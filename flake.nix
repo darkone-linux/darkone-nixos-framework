@@ -286,7 +286,6 @@
                 };
               };
               modules = [
-                #"${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
                 { nixpkgs.pkgs = nixpkgsFor.${system}; }
                 ./dnf/hosts/iso.nix
               ];
