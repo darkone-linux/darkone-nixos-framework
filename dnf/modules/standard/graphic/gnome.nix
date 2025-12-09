@@ -235,13 +235,15 @@ in
                 ++ (if cfg.enableDashToDock then [ "dash-to-dock@micxgx.gmail.com" ] else [ ]);
                 favorite-apps = [
                   "org.gnome.Console.desktop"
+                  "brave-browser.desktop"
                   "com.brave.Browser.desktop"
                   "chromium-browser.desktop"
                   "firefox.desktop"
                   "firefox-esr.desktop"
-                  "org.gnome.TextEditor.desktop"
                   "obsidian.desktop"
                   "code.desktop"
+                  "dev.zed.Zed.desktop"
+                  "org.gnome.TextEditor.desktop"
                   "writer.desktop"
                   "calc.desktop"
                   "impress.desktop"

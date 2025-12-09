@@ -9,20 +9,14 @@
   lib,
   config,
   host,
-  zone,
   pkgs,
+  zone,
   ...
 }:
 let
   cfg = config.darkone.system.core;
-  hostIsLocal = host.zone == zone.name;
-
-  # Current host is a client and not the gateway, but network have a gateway with ncps activated
-  isNcpsClient =
-    cfg.enableGatewayClient
-    && zone ? local-substituter
-    && zone.local-substituter != null
-    && zone.local-substituter != host.hostname;
+  isGateway =
+    lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
 in
 {
   options = {
@@ -51,11 +45,6 @@ in
       default = true;
       description = "Enable sops dnf module (default true)";
     };
-    darkone.system.core.enableGatewayClient = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Configuration optimized for local gateway (ncps client...)";
-    };
     darkone.system.core.enableFlatpak = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -69,6 +58,8 @@ in
     darkone.system.core.enableBoost = lib.mkEnableOption "Enable overclocking, corectl";
     darkone.system.core.enableAutoSuspend = lib.mkEnableOption "Enable automatic suspend (for laptops, ignored if disableSuspend is true)";
     darkone.system.core.disableSuspend = lib.mkEnableOption "Full suspend disable (for servers)";
+    darkone.system.core.enableCommonFilesUser = lib.mkEnableOption "Enable the common-files user used by several services";
+    darkone.system.core.enableFail2ban = lib.mkEnableOption "Enable fail2ban with DNF specificities";
   };
 
   # Core module for DNF machines
@@ -97,8 +88,8 @@ in
       firewall = {
         enable = cfg.enableFirewall;
         allowPing = lib.mkDefault true;
-        allowedTCPPorts = [ 22 ];
-        allowedUDPPorts = [ ];
+        allowedTCPPorts = lib.optional (!isGateway) 22;
+        interfaces.lan0.allowedTCPPorts = lib.optional isGateway 22;
       };
     };
 
@@ -133,7 +124,6 @@ in
       '';
       useXkbConfig = false;
     };
-    #security.loginDefs.settings.ERASECHAR = "0x08";
 
     # To manage nodes, openssh must be activated
     services.openssh.enable = true;
@@ -168,14 +158,11 @@ in
       interval = "daily";
     };
 
-    # Enable NCPS client configuration if needed
-    darkone.service.ncps = lib.mkIf isNcpsClient {
-      enable = lib.mkDefault hostIsLocal;
-      isClient = lib.mkDefault hostIsLocal;
-    };
+    # Enable NCPS -> server and clients are automatically found by the service
+    darkone.service.ncps.enable = true;
 
-    # Flatpak configuration for DNF
-    darkone.system.flatpak.enable = cfg.enableFlatpak && config.darkone.graphic.gnome.enable;
+    # Enable flatpak
+    services.flatpak.enable = cfg.enableFlatpak && config.darkone.graphic.gnome.enable;
 
     # Disable suspend for servers
     # TODO: wakeonlan from suspend?
@@ -222,5 +209,19 @@ in
         }
       });
     '';
+
+    # Special group 9999 (and system user) common-files, used for shared folders between
+    # services (nextcloud, navidrome, jellyfin, etc.)
+    users.groups.common-files = lib.mkIf cfg.enableCommonFilesUser { gid = 9999; };
+    users.users.common-files = lib.mkIf cfg.enableCommonFilesUser {
+      enable = true;
+      isNormalUser = true;
+      uid = 9999;
+      group = "common-files";
+      extraGroups = [ "users" ];
+      homeMode = "770";
+      description = "User / Group for several services common files";
+    };
+    users.users.nix.extraGroups = lib.mkIf cfg.enableCommonFilesUser [ "common-files" ];
   };
 }

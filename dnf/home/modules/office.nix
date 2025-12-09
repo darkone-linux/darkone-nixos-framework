@@ -3,7 +3,6 @@
 {
   lib,
   config,
-  osConfig,
   zone,
   inputs,
   pkgs,
@@ -103,6 +102,7 @@ in
       (mkIf cfg.enableTools snapshot) # Webcam
       (mkIf cfg.enableProductivity obsidian)
       (mkIf cfg.enableCommunication zoom-us)
+      (mkIf cfg.enableBrave brave)
     ];
 
     # Hack to set Colibre icons instead of dark icon with light theme
@@ -198,7 +198,7 @@ in
           extensions = {
             force = true;
             packages = with inputs.firefox-addons.packages.${pkgs.stdenv.hostPlatform.system}; [
-              (lib.mkIf osConfig.darkone.service.vaultwarden.enable bitwarden)
+              bitwarden
               #darkreader
               #browserpass
               ublock-origin
@@ -222,16 +222,37 @@ in
         DontCheckDefaultBrowser = true;
         DisablePocket = true;
         SearchBar = "unified";
-        #ExtensionSettings = {
-        #  "bitwarden@bitwarden.com" = { installation_mode = "force_installed"; };
-        #};
+        ExtensionSettings = {
+          "bitwarden@bitwarden.com" = {
+            installation_mode = "force_installed";
+          };
+        };
       };
     };
-    programs.chromium.enable = cfg.enableChromium;
-    services.flatpak.packages = mkIf cfg.enableBrave [ "com.brave.Browser" ];
 
-    # TODO: replace by bitwarden / vaultwarden?
-    programs.browserpass.enable = cfg.enableBrave || cfg.enableFirefox || cfg.enableChromium;
+    # Chromium (wip) - not working
+    programs.chromium = lib.mkIf cfg.enableChromium {
+      enable = true;
+      #package = pkgs.ungoogled-chromium;
+      extensions = [
+        "aapbdbdomjkkjkaonfhkkikfgjllcleb" # Google Translate
+        "gcbommkclmclpchllfjekcdonpmejbdp" # https everywhere
+        "cjpalhdlnbpafiamejdnhcphjbkeiagm" # ublock origin
+        "oldceeleldhonbafppcapldpdifcinji" # Language tool
+        "gppongmhjkpfnbhagpmjfkannfbllamg" # Wappalyzer
+        "nfkmalbckemmklibjddenhnofgnfcdfp" # Channel Blocker
+        "hdannnflhlmdablckfkjpleikpphncik" # Youtube Speed Control
+        "bbeaicapbccfllodepmimpkgecanonai" # Block Tube
+        "jjnkmicfnfojkkgobdfeieblocadmcie" # Tube Archivist companion
+        "mnjggcdmjocbbbhaepdhchncahnbgone" # SponsorBlock
+        "icallnadddjmdinamnolclfjanhfoafe" # Fast Forward
+        "nngceckbapebfimnlniiiahkandclblb" # Bitwarden
+      ];
+      dictionaries = [
+        pkgs.hunspellDictsChromium.fr_FR
+        pkgs.hunspellDictsChromium.en_US
+      ];
+    };
 
     # TODO: Thunderbird profile
     #programs.thunderbird.enable = cfg.enableEmail;

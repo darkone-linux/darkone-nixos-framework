@@ -75,15 +75,20 @@ in
       default = attrsets.hasAttrByPath [ "services" "nfs" ] host;
       description = "Enable a DNF nfs home shares";
     };
-    darkone.host.minimal.enableNcps = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "ncps" host.services;
-      description = "Enable the proxy cache for packages";
-    };
     darkone.host.minimal.enableJitsiMeet = lib.mkOption {
       type = lib.types.bool;
       default = builtins.hasAttr "jitsi-meet" host.services;
       description = "Enable jitsi-meet service";
+    };
+    darkone.host.minimal.enableNavidrome = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "navidrome" host.services;
+      description = "Enable Navidrome service";
+    };
+    darkone.host.minimal.enableKeycloak = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "keycloak" host.services;
+      description = "Enable Keycloak service";
     };
   };
 
@@ -115,10 +120,11 @@ in
       homepage.enable = cfg.enableHomepage;
       immich.enable = cfg.enableImmich;
       jitsi-meet.enable = cfg.enableJitsiMeet;
+      keycloak.enable = cfg.enableKeycloak;
       matrix.enable = cfg.enableMatrix;
       mattermost.enable = cfg.enableMattermost;
       monitoring.enable = cfg.enableMonitoring;
-      ncps.enable = cfg.enableNcps;
+      navidrome.enable = cfg.enableNavidrome;
       netdata.enable = cfg.enableNetdata;
       nextcloud.enable = cfg.enableNextcloud;
       syncthing.enable = cfg.enableSyncthing;

@@ -47,6 +47,20 @@ in
           ];
         };
         proxy.servicePort = port;
+        proxy.extraConfig = ''
+          header {
+            X-Frame-Options "sameorigin"
+            X-Content-Type-Options "nosniff"
+            X-Robots-Tag "noindex,nofollow"
+            X-Permitted-Cross-Domain-Policies "none"
+            Referrer-Policy "no-referrer-when-downgrade"
+            Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+          }
+          request_body {
+            max_size 200MB
+          }
+          encode gzip
+        '';
       };
     }
 
@@ -79,9 +93,10 @@ in
         package = pkgs.nextcloud32;
         hostName = params.fqdn;
         maxUploadSize = "16G";
-
-        # TODO: true
         https = false;
+
+        # TODO: https://search.nixos.org/options?channel=unstable&show=services.nextcloud.secrets
+        #secrets = {};
 
         # Configuration de base
         config = {
@@ -131,7 +146,7 @@ in
 
         # Paramètres supplémentaires
         settings = {
-          overwriteprotocol = "http";
+          overwriteprotocol = "https";
           trusted_domains = [
             "localhost"
             params.domain
@@ -144,6 +159,7 @@ in
             "::1"
           ];
           default_phone_region = lib.toUpper (builtins.substring 3 2 zone.locale);
+          mail_domain = "admin@${network.domain}";
         };
       };
 

@@ -1,11 +1,6 @@
 # NixOS configuration for the local LAN administrator computer.
 
-{
-  lib,
-  config,
-  pkgs,
-  ...
-}:
+{ lib, config, ... }:
 let
   cfg = config.darkone.admin.nix;
 in
@@ -16,23 +11,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-
-    # Nix / Darkone management packages
-    environment.systemPackages = with pkgs; [
-      age
-      colmena
-      deadnix
-      just
-      mkpasswd
-      moreutils # sponge
-      nixfmt-rfc-style
-      php84
-      php84Packages.composer
-      sops
-      statix
-      wakeonlan
-      yq
-    ];
 
     # Allow unfree packages
     nixpkgs.config.allowUnfree = true;
@@ -59,7 +37,7 @@ in
     #};
 
     # Nix helper tool
-    programs.nh = lib.mkIf cfg.enable {
+    programs.nh = lib.mkIf cfg.enableNh {
       enable = true;
       clean = {
         enable = true;
@@ -67,7 +45,7 @@ in
         extraArgs = "--keep-since 7d --keep 3";
       };
     };
-    environment.shellAliases = lib.mkIf cfg.enable { rebuild = "nh os switch /etc/nixos/"; };
+    environment.shellAliases = lib.mkIf cfg.enableNh { rebuild = "nh os switch /etc/nixos/"; };
 
     # We need an ssh agent to deploy nodes
     programs.ssh.startAgent = !config.services.gnome.gcr-ssh-agent.enable;

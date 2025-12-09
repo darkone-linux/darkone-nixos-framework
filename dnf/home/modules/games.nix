@@ -13,7 +13,7 @@ let
   enableStk = cfg.enableChild || cfg.enableTeenager || cfg.enableStk;
   enableStkShare = enableStk && osConfig.darkone.graphic.supertuxkart.enable;
   isStkServer = osConfig.darkone.graphic.supertuxkart.isNfsServer;
-  stkSharePrefix = if isStkServer then "/export" else "/mnt/nfs";
+  stkSharePrefix = if isStkServer then osConfig.darkone.system.dirs.root else "/mnt/nfs";
 in
 {
   options = {

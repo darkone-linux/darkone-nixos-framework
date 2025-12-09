@@ -5,10 +5,12 @@ namespace Darkone\NixGenerator;
 class NixService
 {
     // Voir comment automatiser, aller chercher dans la conf nix...
+    // TODO: Trouver un moyen moins contraignant de faire ça, construire la liste des hosts dans dnsmasq
+    //       et récupérer ces informations dans la conf nix.
     public const array UNIQUE_SERVICES_BY_ZONE = ['ncps', 'adguardhome', 'homepage'];
     public const array REVERSE_PROXY_SERVICES = [
         'adguardhome', 'auth', 'forgejo', 'home-assistant', 'homepage', 'immich', 'matrix', 'mattermost', 'monitoring',
-        'netdata', 'nextcloud', 'syncthing', 'users', 'vaultwarden'
+        'netdata', 'nextcloud', 'syncthing', 'users', 'vaultwarden', 'keycloak', 'jitsi-meet', 'navidrome'
     ];
 
     // Doit être contacté avec son adresse ip fixe externe !

@@ -56,7 +56,7 @@ darkone.host.gateway = {
 
 ### &#x1F4E6; darkone.host.hcs
 
-The main headscale coordination server. (wip)
+The main headscale coordination server.
 
 :::tip[A ready-to-use headscale server!]
 The network is configured in `usr/config.yaml` file.
@@ -120,8 +120,9 @@ yaml file so that the service is visible across the entire network!**
 * **enableMattermost** `bool` Enable a mattermost server
 * **enableMatrix** `bool` Enable a matrix server
 * **enableNfsHomeShares** `bool` Enable a DNF nfs home shares
-* **enableNcps** `bool` Enable the proxy cache for packages
 * **enableJitsiMeet** `bool` Enable jitsi-meet service
+* **enableNavidrome** `bool` Enable Navidrome service
+* **enableKeycloak** `bool` Enable Keycloak service
 ```nix
 darkone.host.minimal = {
   enable = false;
@@ -137,8 +138,9 @@ darkone.host.minimal = {
   enableMattermost = attrsets.hasAttrByPath [ "services" "mattermost" ] host;
   enableMatrix = attrsets.hasAttrByPath [ "services" "matrix" ] host;
   enableNfsHomeShares = attrsets.hasAttrByPath [ "services" "nfs" ] host;
-  enableNcps = builtins.hasAttr "ncps" host.services;
   enableJitsiMeet = builtins.hasAttr "jitsi-meet" host.services;
+  enableNavidrome = builtins.hasAttr "navidrome" host.services;
+  enableKeycloak = builtins.hasAttr "keycloak" host.services;
 }
 
 ```
@@ -413,6 +415,30 @@ darkone.service.auth.enable = false;
 
 <hr/>
 
+### &#x1F48E; darkone.service.beets
+
+Media library management system for obsessive music geeks.
+
+:::tips
+Beets service is hosted by "common-files" user.
+```sh
+su - common-files
+beets import [dir]
+```
+:::
+
+* **enable** `bool` Enable beets for common-files
+* **enableService** `bool` Enable beets service (incoming music -&gt; shared music dir)
+```nix
+darkone.service.beets = {
+  enable = false;
+  enableService = false;
+}
+
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.service.dnsmasq
 
 Pre-configured dnsmasq for local gateway / router.
@@ -425,6 +451,18 @@ It is the essential functionality of the local gateway.
 * **enable** `bool` Enable local dnsmasq service
 ```nix
 darkone.service.dnsmasq.enable = false;
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.fail2ban
+
+Fail2ban DNF specific module.
+
+* **enable** `bool` Enable fail2ban with DNF specificities
+```nix
+darkone.service.fail2ban.enable = false;
 
 ```
 
@@ -498,7 +536,7 @@ darkone.service.homepage = {
 
 ### &#x1F48E; darkone.service.httpd
 
-Nginx httpd simple server with PHP84 (WIP)
+Nginx httpd simple server with PHP84 (DEPRECATED)
 
 * **enable** `bool` Enable httpd (nginx)
 * **enableUserDir** `bool` Enable user dir configuration
@@ -541,6 +579,22 @@ A full-configured jitsi-meet service.
 * **enable** `bool` Enable local jitsi-meet service
 ```nix
 darkone.service.jitsi-meet.enable = false;
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.keycloak
+
+A full-configured keycloak IAM service.
+
+* **enable** `bool` Enable keycloak service
+* **enableBootstrap** `bool` Enable bootstrap state to set admin password
+```nix
+darkone.service.keycloak = {
+  enable = false;
+  enableBootstrap = false;
+}
 
 ```
 
@@ -601,9 +655,27 @@ darkone.service.monitoring = {
 
 <hr/>
 
+### &#x1F48E; darkone.service.navidrome
+
+A full-configured navidrome service.
+
+* **enable** `bool` Enable navidrome service
+* **enableNfsShare** `bool` Enable music directory NFS share
+```nix
+darkone.service.navidrome = {
+  enable = false;
+  enableNfsShare = true;
+}
+
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.service.ncps
 
 Nix cache proxy with NCPS module.
+
+This module is activated by core. Server and clients are automatically detected.
 
 :::tip
 To check if a host contains the local gateway in substituters:
@@ -615,13 +687,11 @@ telnet <your-gateway> 8501
 :::
 
 * **enable** `bool` Enable nix cache proxy for packages
-* **isClient** `bool` Only enable client configuration
 * **dataPath** `str` Nix cache proxy cache folder
 * **extraOptions** `attrs` services.ncps extra options
 ```nix
 darkone.service.ncps = {
   enable = false;
-  isClient = false;
   dataPath = "/var/cache/ncps";
   extraOptions = { };
 }
@@ -672,7 +742,7 @@ NFS server + client for home shares.
 :::note
 This module is enabled if a nfs server is declared in the local network. It creates:
 
-- A share (/export/homes) on the server.
+- A share (${dirs.homes}) on the server.
 - Mount dirs (/mnt/nfs/homes/[user]) on clients.
 
 The nfs home manager script links xdg directories to mount dirs.
@@ -798,25 +868,67 @@ It is required for the proper functioning of every NixOS computer on the local n
 * **enableBoost** `bool` Enable overclocking, corectl
 * **enableAutoSuspend** `bool` Enable automatic suspend (for laptops, ignored if disableSuspend is true)
 * **disableSuspend** `bool` Full suspend disable (for servers)
+* **enableCommonFilesUser** `bool` Enable the common-files user used by several services
+* **enableFail2ban** `bool` Enable fail2ban with DNF specificities
 * **enable** `bool` Darkone framework core system (activated by default)
 * **enableSystemdBoot** `bool` Enable the default boot loader
 * **enableFstrim** `bool` SSD optimisation with fstrim
 * **enableFirewall** `bool` Enable firewall (default true)
 * **enableSops** `bool` Enable sops dnf module (default true)
-* **enableGatewayClient** `bool` Configuration optimized for local gateway (ncps client...)
 * **enableFlatpak** `bool` Enable flatpak DNF configuration (only for graphic environments)
 ```nix
 darkone.system.core = {
   enableBoost = false;
   enableAutoSuspend = false;
   disableSuspend = false;
+  enableCommonFilesUser = false;
+  enableFail2ban = false;
   enable = true;
   enableSystemdBoot = true;
   enableFstrim = true;
   enableFirewall = true;
   enableSops = true;
-  enableGatewayClient = true;
   enableFlatpak = true;
+}
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.system.dirs
+
+* **enableHomes** `bool` Enable homes path
+* **enableCommon** `bool` Enable common path
+* **enablePictures** `bool` Enable pictures path
+* **enableMusic** `bool` Enable music path
+* **enableVideo** `bool` Enable video path
+* **enableIncoming** `bool` Enable incoming path
+* **enableIncomingMusic** `bool` Enable incoming/music path
+* **root** `str` Root dir for NFS shares and persistant data
+* **homes** `str` Root directory for shared homes
+* **common** `str` Shared common directory (~/Public)
+* **pictures** `str` Shared pictures directory (Nextcloud, Immich...)
+* **music** `str` Shared music files directory (Jellyfin, Beets, Navidrome...)
+* **video** `str` Shared video files directory (Jellyfin...)
+* **incoming** `str` Shared incoming directory (write access)
+* **incomingMusic** `str` Shared incoming music directory (Beets source files)
+```nix
+darkone.system.dirs = {
+  enableHomes = false;
+  enableCommon = false;
+  enablePictures = false;
+  enableMusic = false;
+  enableVideo = false;
+  enableIncoming = false;
+  enableIncomingMusic = false;
+  root = "/srv";
+  homes = "";
+  common = "";
+  pictures = "";
+  music = "";
+  video = "";
+  incoming = "";
+  incomingMusic = "";
 }
 
 ```
@@ -830,22 +942,6 @@ Documentation (man) for developers and admins.
 * **enable** `bool` Enable useful technical documentation (man, nixos)
 ```nix
 darkone.system.documentation.enable = false;
-
-```
-
-<hr/>
-
-### &#x1F48E; darkone.system.flatpak
-
-Flatpak software management.
-
-* **enable** `bool` DNF Flatpak packages
-* **packages** `?` List of packages to install
-```nix
-darkone.system.flatpak = {
-  enable = false;
-  packages = [ ];
-}
 
 ```
 
@@ -912,6 +1008,7 @@ This module is used to register and configure DNF modules:
 * **description** `str` Service description for homepage
 * **icon** `str` Icon name for homepage (https://gethomepage.dev/configs/services/#icons)
 * **global** `bool` Global service is accessible on Internet
+* **noRobots** `bool` Prevent robots from scanning if global is true
 * **fqdn** `str` Calculated FQDN or the service before the reverse proxy
 * **href** `str` Calculated URL of the service before the reverse proxy
 * **ip** `str` Calculated IP to contact the service
@@ -936,6 +1033,7 @@ darkone.system.services = {
   description = "";
   icon = "";
   global = false;
+  noRobots = true;
   fqdn = "";
   href = "";
   ip = "";
@@ -984,6 +1082,16 @@ This module is enabled by default (required by DNF configuration).
 * **enable** `bool` Users common builder (enabled by default)
 ```nix
 darkone.user.build.enable = true;
+
+```
+
+<hr/>
+
+### &#x1F48E; darkone.user.root
+
+Root user specific settings
+
+```nix
 
 ```
 

@@ -22,7 +22,9 @@
     ./standard/service/adguardhome.nix
     ./standard/service/audio.nix
     ./standard/service/auth.nix
+    ./standard/service/beets.nix
     ./standard/service/dnsmasq.nix
+    ./standard/service/fail2ban.nix
     ./standard/service/forgejo.nix
     ./standard/service/headscale.nix
     ./standard/service/home-assistant.nix
@@ -30,9 +32,11 @@
     ./standard/service/httpd.nix
     ./standard/service/immich.nix
     ./standard/service/jitsi-meet.nix
+    ./standard/service/keycloak.nix
     ./standard/service/matrix.nix
     ./standard/service/mattermost.nix
     ./standard/service/monitoring.nix
+    ./standard/service/navidrome.nix
     ./standard/service/ncps.nix
     ./standard/service/netdata.nix
     ./standard/service/nextcloud.nix
@@ -43,12 +47,13 @@
     ./standard/service/users.nix
     ./standard/service/vaultwarden.nix
     ./standard/system/core.nix
+    ./standard/system/dirs.nix
     ./standard/system/documentation.nix
-    ./standard/system/flatpak.nix
     ./standard/system/hardware.nix
     ./standard/system/i18n.nix
     ./standard/system/services.nix
     ./standard/system/sops.nix
     ./standard/user/build.nix
+    ./standard/user/root.nix
   ];
 }

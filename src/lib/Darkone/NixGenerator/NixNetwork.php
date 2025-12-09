@@ -130,11 +130,6 @@ class NixNetwork
                 $globalServices[] = $serviceDomain;
             }
 
-            // Register substituter for special service NCPS
-            if ($serviceName == 'ncps') {
-                $this->getZones()[$host->getZone()]->setSubstituter($host->getHostname());
-            }
-
             // Build service key to detect domain conflicts
             $key = $host->getZone() . ':' . $serviceDomain;
             if (array_key_exists($key, $this->services)) {

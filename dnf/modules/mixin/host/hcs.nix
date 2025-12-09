@@ -1,4 +1,4 @@
-# The main headscale coordination server. (wip)
+# The main headscale coordination server.
 #
 # :::tip[A ready-to-use headscale server!]
 # The network is configured in `usr/config.yaml` file.
@@ -57,10 +57,8 @@ in
       };
       auth.enable = cfg.enableAuth;
       users.enable = cfg.enableUsers;
+      fail2ban.enable = cfg.enableFail2ban;
     };
-
-    # Fail2ban
-    services.fail2ban.enable = cfg.enableFail2ban;
 
     # Zsh aliases
     programs.zsh.shellAliases = {

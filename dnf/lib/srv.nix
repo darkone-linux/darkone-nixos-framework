@@ -57,6 +57,13 @@ rec {
           defaults.global
         else
           false;
+      noRobots =
+        if hasAttr "noRobots" service then
+          service.noRobots
+        else if hasAttr "noRobots" defaults then
+          defaults.noRobots
+        else
+          true;
       zone = if hasAttr "zone" service then service.zone else serviceHost.zone;
       host = if hasAttr "host" service then service.host else serviceHost.hostname;
       fqdn =
@@ -89,6 +96,7 @@ rec {
       inherit description;
       inherit icon;
       inherit global;
+      inherit noRobots;
       inherit zone;
       inherit host;
       inherit fqdn;

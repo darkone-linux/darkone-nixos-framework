@@ -113,6 +113,19 @@ in
       (lib.mkIf cfg.enableTools pv)
       (lib.mkIf cfg.enableTools ranger)
       (lib.mkIf cfg.enableTools zellij)
+      (lib.mkIf cfg.enableNixAdmin age)
+      (lib.mkIf cfg.enableNixAdmin colmena)
+      (lib.mkIf cfg.enableNixAdmin deadnix)
+      (lib.mkIf cfg.enableNixAdmin just)
+      (lib.mkIf cfg.enableNixAdmin mkpasswd)
+      (lib.mkIf cfg.enableNixAdmin moreutils) # sponge
+      (lib.mkIf cfg.enableNixAdmin nixfmt-rfc-style)
+      (lib.mkIf cfg.enableNixAdmin php84)
+      (lib.mkIf cfg.enableNixAdmin php84Packages.composer)
+      (lib.mkIf cfg.enableNixAdmin sops)
+      (lib.mkIf cfg.enableNixAdmin statix)
+      (lib.mkIf cfg.enableNixAdmin wakeonlan)
+      (lib.mkIf cfg.enableNixAdmin yq)
     ];
 
     #============================================================================

@@ -58,9 +58,9 @@ class MdxParser
             ];
         }
 
-        if (empty($options)) {
-            throw new MdxException('No option found in module ' . $filePath);
-        }
+        #if (empty($options)) {
+        #    throw new MdxException('No option found in module ' . $filePath);
+        #}
 
         return $options;
     }

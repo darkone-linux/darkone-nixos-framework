@@ -24,7 +24,7 @@
     environment.systemPackages = with pkgs; [ vim ];
     nix.settings = {
       substituters = [
-        "http://gateway.arthur.lan:8501" # TODO
+        #"http://gateway.arthur.lan:8501" # TODO
         "https://cache.nixos.org"
       ];
       experimental-features = [

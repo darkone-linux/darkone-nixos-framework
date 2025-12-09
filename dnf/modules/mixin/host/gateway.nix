@@ -64,10 +64,8 @@ in
         isGateway = true;
         isExitNode = true;
       };
+      fail2ban.enable = cfg.enableFail2ban;
     };
-
-    # Fail2ban
-    services.fail2ban.enable = cfg.enableFail2ban;
 
     #--------------------------------------------------------------------------
     # dnsmasq updates

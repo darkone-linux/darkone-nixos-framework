@@ -32,9 +32,6 @@ class NixZone
     // Updated configuration
     private array $config = [];
 
-    // NCPS service provider
-    private ?string $substituter = null;
-
     private NixNetwork $network;
 
     /**
@@ -75,7 +72,6 @@ class NixZone
                 // Do not works with fqdn configuration of dnsmasq -> address
                 // 'cname' => $this->buildCnames(),
             ],
-            'local-substituter' => $this->substituter,
         ]);
     }
 
@@ -290,20 +286,6 @@ class NixZone
         $this->hosts[$host] = $ip ?? $this->hosts[$host] ?? null;
 
         return $this;
-    }
-
-    /**
-     * @param string $host
-     * @throws NixException
-     */
-    public function setSubstituter(string $host): void
-    {
-        if (!is_null($this->substituter)) {
-            throw new NixException(
-                'Zone ' . $this->getName() . ' already have a substituter: ' . $this->substituter . ' vs ' . $host
-            );
-        }
-        $this->substituter = $host;
     }
 
     /**

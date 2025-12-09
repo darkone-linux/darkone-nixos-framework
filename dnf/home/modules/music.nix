@@ -21,7 +21,7 @@ let
     if isNfsClient then
       "/mnt/nfs/homes/${config.home.username}/Music"
     else
-      "/export/homes/${config.home.username}/Music";
+      "${osConfig.darkone.system.dirs.homes}/${config.home.username}/Music";
 in
 {
   options = {
@@ -130,16 +130,7 @@ in
     };
     programs.ncmpcpp.enable = cfg.enableMpd;
 
-    # Unstable
-    #services.amberol.enable = true;
-
-    # Flatpak packages
-    services.flatpak.packages = [
-      (lib.mkIf cfg.enableDev "org.frescobaldi.Frescobaldi")
-      (lib.mkIf cfg.enableCreator "io.lmms.LMMS")
-    ];
-
-    # TODO: Users in audio group (cannot do than in homemanager?)
+    # TODO: Users in audio group
     # LETIN: all-users = builtins.attrNames config.users.users;
     # LETIN: normal-users = builtins.filter (user: config.users.users.${user}.isNormalUser) all-users;
     #users.groups.audio.members = lib.mkIf cfg.enablePro normal-users;

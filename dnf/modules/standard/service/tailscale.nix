@@ -46,6 +46,7 @@ in
     sops.secrets = lib.mkIf hasHeadscale {
       "tailscale/authKey" = {
         mode = "0400";
+        owner = "root";
         group = "root";
       };
     };

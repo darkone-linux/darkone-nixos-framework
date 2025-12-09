@@ -36,19 +36,12 @@
     disko.url = "github:nix-community/disko";
     disko.inputs.nixpkgs.follows = "nixpkgs";
 
-    raspberry-pi-nix = {
-      url = "github:nix-community/raspberry-pi-nix?ref=v0.4.1";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     firefox-addons = {
       url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
-
-    nix-flatpak.url = "github:gmodena/nix-flatpak";
   };
 
   #----------------------------------------------------------------------------
@@ -61,9 +54,7 @@
       nixpkgs,
       nixpkgs-stable,
       home-manager,
-      raspberry-pi-nix,
       nixos-hardware,
-      nix-flatpak,
       sops-nix,
       disko,
       ...
@@ -118,8 +109,7 @@
         name = login;
         value = {
           imports = [
-            nix-flatpak.homeManagerModules.nix-flatpak
-            ./dnf/home/modules
+            ./dnf/home
             ./usr/users/${login}
             (import ./${users.${login}.profile})
           ];
@@ -164,7 +154,6 @@
             "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
             sops-nix.nixosModules.sops
             disko.nixosModules.disko
-            nix-flatpak.nixosModules.nix-flatpak
             home-manager.nixosModules.home-manager
             {
               home-manager = {
@@ -194,9 +183,6 @@
               };
             }
           ]
-          ++ nixpkgs.lib.optional (
-            getHostArch host == "aarch64-linux"
-          ) raspberry-pi-nix.nixosModules.raspberry-pi
           ++ nixpkgs.lib.optional (
             getHostArch host == "aarch64-linux"
           ) nixos-hardware.nixosModules.raspberry-pi-5

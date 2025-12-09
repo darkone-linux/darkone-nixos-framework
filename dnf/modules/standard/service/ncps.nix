@@ -1,5 +1,7 @@
 # Nix cache proxy with NCPS module.
 #
+# This module is activated by core. Server and clients are automatically detected.
+#
 # :::tip
 # To check if a host contains the local gateway in substituters:
 #
@@ -12,6 +14,7 @@
 {
   lib,
   config,
+  network,
   host,
   zone,
   ...
@@ -19,12 +22,16 @@
 let
   cfg = config.darkone.service.ncps;
   hostIsLocal = host.zone != "www";
+  serverName =
+    (lib.findFirst (s: s.zone == zone.name && s.name == "ncps") null network.services).host;
+  hasServer = hostIsLocal && serverName != null;
+  isServer = hostIsLocal && host.hostname == serverName;
+  isClient = hostIsLocal && hasServer;
   ncpsPort = 8501;
 in
 {
   options = {
     darkone.service.ncps.enable = lib.mkEnableOption "Enable nix cache proxy for packages";
-    darkone.service.ncps.isClient = lib.mkEnableOption "Only enable client configuration";
     darkone.service.ncps.dataPath = lib.mkOption {
       type = lib.types.str;
       default = "/var/cache/ncps";
@@ -59,7 +66,7 @@ in
 
       # Main ncps service
       services.ncps =
-        lib.mkIf (!cfg.isClient) {
+        lib.mkIf isServer {
           enable = true;
           cache = {
             inherit (cfg) dataPath;
@@ -86,7 +93,7 @@ in
       # Check with nix --extra-experimental-features nix-command config show | grep substituters
       nix.settings = {
         substituters = [
-          (lib.mkIf hostIsLocal "http://${zone.gateway.hostname}.${zone.domain}:${toString ncpsPort}")
+          (lib.mkIf isClient "http://${zone.gateway.hostname}.${zone.domain}:${toString ncpsPort}")
           "https://nix-community.cachix.org"
         ];
         trusted-public-keys = [

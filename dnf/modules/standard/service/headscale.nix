@@ -18,6 +18,7 @@ let
     description = "Headscale DNF service";
     ip = srv.address;
     global = true;
+    noRobots = false;
   };
   params = dnfLib.extractServiceParams host network "headscale" defaultParams;
 in

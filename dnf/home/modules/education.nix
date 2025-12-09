@@ -72,8 +72,9 @@ in
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) maxima) # math
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) octaveFull) # math
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) scilab-bin) # math
-      (lib.mkIf (cfg.enableMisc && (cfg.enableChild || cfg.enableStudent)) kdePackages.blinken) # memory training
-      (lib.mkIf (cfg.enableMisc && (cfg.enableChild || cfg.enableStudent)) wike) # wikipedia
+      (lib.mkIf (cfg.enableMisc && cfg.enableChild) kdePackages.blinken) # memory training
+      (lib.mkIf (cfg.enableMisc && cfg.enableStudent) anki) # training cards
+      #(lib.mkIf (cfg.enableMisc && (cfg.enableChild || cfg.enableStudent)) wike) # wikipedia
       (lib.mkIf (cfg.enableMusic && (cfg.enableBaby || cfg.enableChild)) tuxpaint)
       (lib.mkIf (cfg.enableMusic && (cfg.enableChild || cfg.enableStudent)) solfege)
       (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) avogadro2) # molecules

@@ -119,6 +119,11 @@ in
                     default = false;
                     description = "Global service is accessible on Internet";
                   };
+                  noRobots = mkOption {
+                    type = types.bool;
+                    default = true;
+                    description = "Prevent robots from scanning if global is true";
+                  };
                   fqdn = mkOption {
                     type = types.str;
                     default = "";
@@ -299,45 +304,46 @@ in
           srv:
           let
             sPort = config.darkone.system.services.service.${srv.name}.proxy.servicePort;
+            noRobots = lib.optionalString srv.params.noRobots ''
+              @badbots {
+
+                # Regular bots
+                header User-Agent "*bot*"
+                header User-Agent "*crawler*"
+                header User-Agent "*spider*"
+                header User-Agent "*scan*"
+                header User-Agent "*fetch*"
+
+                # Bot SEO
+                header User-Agent "*AhrefsBot*"
+                header User-Agent "*SemrushBot*"
+                header User-Agent "*MJ12bot*"
+                header User-Agent "*DotBot*"
+
+                # Google / Bing / etc.
+                header User-Agent "*Googlebot*"
+                header User-Agent "*bingbot*"
+                header User-Agent "*DuckDuckBot*"
+                header User-Agent "*Baiduspider*"
+                header User-Agent "*YandexBot*"
+
+                # Suspect User-agents
+                header User-Agent "*curl*"
+                header User-Agent "*wget*"
+                header User-Agent "*python*"
+                header User-Agent "*Go-http-client*"
+
+                # No User-Agent
+                header User-Agent ""
+              }
+              handle @badbots {
+                respond 403
+              }
+            '';
           in
           {
             "${srv.params.domain}.${network.domain}" = {
-              # TODO: activate bots or not... (not for headscale!)
-              #  @badbots {
-              #
-              #    # Regular bots
-              #    header User-Agent "*bot*"
-              #    header User-Agent "*crawler*"
-              #    header User-Agent "*spider*"
-              #    header User-Agent "*scan*"
-              #    header User-Agent "*fetch*"
-              #
-              #    # Bot SEO
-              #    header User-Agent "*AhrefsBot*"
-              #    header User-Agent "*SemrushBot*"
-              #    header User-Agent "*MJ12bot*"
-              #    header User-Agent "*DotBot*"
-              #
-              #    # Google / Bing / etc.
-              #    header User-Agent "*Googlebot*"
-              #    header User-Agent "*bingbot*"
-              #    header User-Agent "*DuckDuckBot*"
-              #    header User-Agent "*Baiduspider*"
-              #    header User-Agent "*YandexBot*"
-              #
-              #    # Suspect User-agents
-              #    header User-Agent "*curl*"
-              #    header User-Agent "*wget*"
-              #    header User-Agent "*python*"
-              #    header User-Agent "*Go-http-client*"
-              #
-              #    # No User-Agent
-              #    header User-Agent ""
-              #  }
-              #  handle @badbots {
-              #    respond 403
-              #  }
-              extraConfig = ''
+              extraConfig = noRobots + ''
                 reverse_proxy http://${srv.params.ip}:${toString sPort}
                 ${srv.proxy.extraConfig}
               '';

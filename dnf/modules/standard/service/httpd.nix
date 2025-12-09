@@ -1,4 +1,4 @@
-# Nginx httpd simple server with PHP84 (WIP)
+# Nginx httpd simple server with PHP84 (DEPRECATED)
 
 {
   lib,

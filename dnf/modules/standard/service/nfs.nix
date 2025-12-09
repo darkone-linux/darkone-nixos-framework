@@ -3,7 +3,7 @@
 # :::note
 # This module is enabled if a nfs server is declared in the local network. It creates:
 #
-# - A share (/export/homes) on the server.
+# - A share (${dirs.homes}) on the server.
 # - Mount dirs (/mnt/nfs/homes/[user]) on clients.
 #
 # The nfs home manager script links xdg directories to mount dirs.
@@ -31,6 +31,7 @@ let
   isServer = host.hostname == nfsServer;
   hasServer = nfsServerCount == 1;
   isClient = !isServer && hasServer && host.nfsClient;
+  inherit (config.darkone.system) dirs; # Read only
 in
 assert
   nfsServerCount <= 1
@@ -55,7 +56,10 @@ assert
       darkone.system.services.service.nfs = {
         displayOnHomepage = false;
         persist = {
-          varDirs = lib.optional isServer "/export";
+          dirs = lib.optionals isServer [
+            dirs.homes
+            dirs.common
+          ];
         };
         proxy.enable = false;
       };
@@ -73,20 +77,22 @@ assert
       # Filesystem requirements (server + client)
       #--------------------------------------------------------------------------
 
+      # Enable shared homes + common dirs
+      darkone.system.dirs = lib.mkIf isServer {
+        enableHomes = true;
+        enableCommon = true;
+      };
+
       # Liens symboliques pour chaque utilisateur
       systemd.tmpfiles.rules = lib.optionals isServer (
-        [
-          "d /export/homes 0755 root root -"
-          "d /export/common 0770 nobody users -"
-        ]
-        ++ map (user: "d /export/homes/${user} 0700 ${user} users -") host.users
-        ++ map (user: "d /export/homes/${user}/Documents 0700 ${user} users -") host.users
-        ++ map (user: "d /export/homes/${user}/Pictures 0700 ${user} users -") host.users
-        ++ map (user: "d /export/homes/${user}/Music 0700 ${user} users -") host.users
-        ++ map (user: "d /export/homes/${user}/Videos 0700 ${user} users -") host.users
-        ++ map (user: "d /export/homes/${user}/Downloads 0700 ${user} users -") host.users
-        ++ map (user: "d /export/homes/${user}/Desktop 0700 ${user} users -") host.users
-        ++ map (user: "d /export/homes/${user}/Templates 0700 ${user} users -") host.users
+        map (user: "d ${dirs.homes}/${user} 0700 ${user} users -") host.users
+        ++ map (user: "d ${dirs.homes}/${user}/Documents 0700 ${user} users -") host.users
+        ++ map (user: "d ${dirs.homes}/${user}/Pictures 0700 ${user} users -") host.users
+        ++ map (user: "d ${dirs.homes}/${user}/Music 0700 ${user} users -") host.users
+        ++ map (user: "d ${dirs.homes}/${user}/Videos 0700 ${user} users -") host.users
+        ++ map (user: "d ${dirs.homes}/${user}/Downloads 0700 ${user} users -") host.users
+        ++ map (user: "d ${dirs.homes}/${user}/Desktop 0700 ${user} users -") host.users
+        ++ map (user: "d ${dirs.homes}/${user}/Templates 0700 ${user} users -") host.users
       );
 
       #--------------------------------------------------------------------------
@@ -94,12 +100,14 @@ assert
       #--------------------------------------------------------------------------
 
       # Server
+      # TODO: voir si on peut pas faire fonctionne all_squash en modifiant la config de idmapd:
+      # https://search.nixos.org/options?channel=unstable&show=services.nfs.idmapd.settings&query=idmapd
       services.nfs.server = lib.mkIf isServer {
         enable = true;
         exports = ''
-          /export        ${zone.networkIp}/${toString zone.prefixLength}(rw,fsid=0,no_subtree_check)
-          /export/homes  ${zone.networkIp}/${toString zone.prefixLength}(rw,sync,no_subtree_check,no_root_squash)
-          /export/common ${zone.networkIp}/${toString zone.prefixLength}(rw,nohide,insecure,sync,no_subtree_check,all_squash,anonuid=65534,anongid=100)
+          ${dirs.root}   ${zone.networkIp}/${toString zone.prefixLength}(rw,fsid=0,no_subtree_check)
+          ${dirs.homes}  ${zone.networkIp}/${toString zone.prefixLength}(rw,sync,no_subtree_check,no_root_squash)
+          ${dirs.common} ${zone.networkIp}/${toString zone.prefixLength}(rw,nohide,insecure,sync,no_subtree_check,all_squash,anonuid=65534,anongid=100)
         '';
       };
 
