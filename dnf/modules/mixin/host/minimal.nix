@@ -90,6 +90,11 @@ in
       default = builtins.hasAttr "keycloak" host.services;
       description = "Enable Keycloak service";
     };
+    darkone.host.minimal.enableRestic = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "restic" host.services;
+      description = "Enable Restic service";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -127,6 +132,7 @@ in
       navidrome.enable = cfg.enableNavidrome;
       netdata.enable = cfg.enableNetdata;
       nextcloud.enable = cfg.enableNextcloud;
+      restic.enable = cfg.enableRestic;
       syncthing.enable = cfg.enableSyncthing;
       vaultwarden.enable = cfg.enableVaultwarden;
     };

@@ -59,7 +59,6 @@ in
     darkone.system.core.enableAutoSuspend = lib.mkEnableOption "Enable automatic suspend (for laptops, ignored if disableSuspend is true)";
     darkone.system.core.disableSuspend = lib.mkEnableOption "Full suspend disable (for servers)";
     darkone.system.core.enableCommonFilesUser = lib.mkEnableOption "Enable the common-files user used by several services";
-    darkone.system.core.enableFail2ban = lib.mkEnableOption "Enable fail2ban with DNF specificities";
   };
 
   # Core module for DNF machines

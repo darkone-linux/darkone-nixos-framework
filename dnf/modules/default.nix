@@ -42,6 +42,7 @@
     ./standard/service/nextcloud.nix
     ./standard/service/nfs.nix
     ./standard/service/printing.nix
+    ./standard/service/restic.nix
     ./standard/service/syncthing.nix
     ./standard/service/tailscale.nix
     ./standard/service/users.nix

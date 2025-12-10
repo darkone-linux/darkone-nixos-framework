@@ -123,6 +123,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableJitsiMeet** `bool` Enable jitsi-meet service
 * **enableNavidrome** `bool` Enable Navidrome service
 * **enableKeycloak** `bool` Enable Keycloak service
+* **enableRestic** `bool` Enable Restic service
 ```nix
 darkone.host.minimal = {
   enable = false;
@@ -141,6 +142,7 @@ darkone.host.minimal = {
   enableJitsiMeet = builtins.hasAttr "jitsi-meet" host.services;
   enableNavidrome = builtins.hasAttr "navidrome" host.services;
   enableKeycloak = builtins.hasAttr "keycloak" host.services;
+  enableRestic = builtins.hasAttr "restic" host.services;
 }
 
 ```
@@ -786,6 +788,42 @@ darkone.service.printing = {
 
 <hr/>
 
+### &#x1F48E; darkone.service.restic
+
+Restic backup module with DNF configuration.
+
+Default directories to backup:
+
+```
+/export -> /mnt/backup/export
+<services_dirs> -> /mnt/backup/services/<services_dirs>
+<db_dumps> -> /mnt/backup/databases/<db_dumps>
+```
+
+* **enable** `bool` Enable restic backup service
+* **enableDryRun** `bool` Dry Run (try)
+* **extraBackups** `str` Main backup target root path
+* **enableServicesBackup** `bool` Backup important files of local services (wip)
+* **enableDatabasesBackup** `bool` Backup local services databases (wip)
+* **enableWaitRemoteFs** `bool` Trigger the restic service only if remote-fs service is started
+* **enableSystemDirsBackup** `bool` Backup the /export dir (nfs shared files)
+* **systemDirsPaths** `?` System dirs (exports) to include
+```nix
+darkone.service.restic = {
+  enable = false;
+  enableDryRun = false;
+  extraBackups = "/mnt/backup";
+  enableServicesBackup = true;
+  enableDatabasesBackup = true;
+  enableWaitRemoteFs = true;
+  enableSystemDirsBackup = config.darkone.service.nfs.enable;
+  systemDirsPaths = ;
+}
+
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.service.syncthing
 
 The syncthing service for a device. (WIP)
@@ -869,7 +907,6 @@ It is required for the proper functioning of every NixOS computer on the local n
 * **enableAutoSuspend** `bool` Enable automatic suspend (for laptops, ignored if disableSuspend is true)
 * **disableSuspend** `bool` Full suspend disable (for servers)
 * **enableCommonFilesUser** `bool` Enable the common-files user used by several services
-* **enableFail2ban** `bool` Enable fail2ban with DNF specificities
 * **enable** `bool` Darkone framework core system (activated by default)
 * **enableSystemdBoot** `bool` Enable the default boot loader
 * **enableFstrim** `bool` SSD optimisation with fstrim
@@ -882,7 +919,6 @@ darkone.system.core = {
   enableAutoSuspend = false;
   disableSuspend = false;
   enableCommonFilesUser = false;
-  enableFail2ban = false;
   enable = true;
   enableSystemdBoot = true;
   enableFstrim = true;
