@@ -41,6 +41,7 @@
     ./standard/service/netdata.nix
     ./standard/service/nextcloud.nix
     ./standard/service/nfs.nix
+    ./standard/service/opencloud.nix
     ./standard/service/printing.nix
     ./standard/service/restic.nix
     ./standard/service/syncthing.nix

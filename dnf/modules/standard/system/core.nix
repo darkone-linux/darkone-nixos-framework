@@ -119,7 +119,7 @@ in
         font-size=18
         xkb-layout=fr
         xkb-variant=oss
-        xkb-model=pc104
+        xkb-model=pc105
       '';
       useXkbConfig = false;
     };

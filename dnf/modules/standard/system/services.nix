@@ -219,6 +219,12 @@ in
                 default = "";
                 description = "Extra caddy virtualHost configuration";
               };
+              scheme = mkOption {
+                type = types.str;
+                default = "http";
+                example = "https";
+                description = "Internal service scheme (http / https)";
+              };
             };
           };
         })
@@ -285,7 +291,7 @@ in
             # Reverse proxy to the target service
             "${vhPrefix}${srv.params.fqdn}" = {
               extraConfig = ''
-                ${tls}reverse_proxy http://${srv.params.ip}:${toString srv.proxy.servicePort}
+                ${tls}reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString srv.proxy.servicePort}
                 ${srv.proxy.extraConfig}
               '';
             };
@@ -344,7 +350,7 @@ in
           {
             "${srv.params.domain}.${network.domain}" = {
               extraConfig = noRobots + ''
-                reverse_proxy http://${srv.params.ip}:${toString sPort}
+                reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString sPort}
                 ${srv.proxy.extraConfig}
               '';
             };

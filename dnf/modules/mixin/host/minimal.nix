@@ -40,6 +40,11 @@ in
       default = attrsets.hasAttrByPath [ "services" "nextcloud" ] host;
       description = "Enable pre-configured nextcloud service";
     };
+    darkone.host.minimal.enableOpencloud = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "opencloud" ] host;
+      description = "Enable pre-configured opencloud service";
+    };
     darkone.host.minimal.enableNetdata = mkOption {
       type = types.bool;
       default = attrsets.hasAttrByPath [ "services" "netdata" ] host;
@@ -132,6 +137,7 @@ in
       navidrome.enable = cfg.enableNavidrome;
       netdata.enable = cfg.enableNetdata;
       nextcloud.enable = cfg.enableNextcloud;
+      opencloud.enable = cfg.enableOpencloud;
       restic.enable = cfg.enableRestic;
       syncthing.enable = cfg.enableSyncthing;
       vaultwarden.enable = cfg.enableVaultwarden;

@@ -87,6 +87,18 @@ in
         };
       };
 
+      # Whiteboard server (TODO: automatiser)
+      # nextcloud-occ config:app:set whiteboard collabBackendUrl --value="${params.href}"
+      # nextcloud-occ config:app:set whiteboard jwt_secret_key --value="test123"
+      services.nextcloud-whiteboard-server = {
+        enable = true;
+        settings.NEXTCLOUD_URL = params.href;
+        secrets = [ "/etc/nextcloud-whiteboard-secret" ];
+      };
+      environment.etc."nextcloud-whiteboard-secret".text = ''
+        JWT_SECRET_KEY=test123
+      '';
+
       # Nextcloud main service
       services.nextcloud = {
         enable = true;
@@ -137,6 +149,7 @@ in
             memories
             music
             notes
+            richdocuments
             spreed
             ;
         };
@@ -164,6 +177,7 @@ in
       };
 
       # Assurer que PostgreSQL et Redis sont activés
+      # TODO: activer services.postgresqlBackup
       services.postgresql.enable = lib.mkDefault true;
       services.redis.servers.nextcloud.enable = lib.mkDefault true;
     })

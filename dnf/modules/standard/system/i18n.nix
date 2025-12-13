@@ -38,12 +38,20 @@ in
       keyMap = lib.toLower (builtins.substring 3 2 cfg.locale);
       #useXkbConfig = true;
     };
+
+    # Cf. config gnome
     #services.xserver.xkb = {
     #  layout = config.console.keyMap;
     #  model = "pc104"; # TODO: auto
     #  variant = "oss"; # TODO: auto
     #  options = "terminate:ctrl_alt_bksp"
     #};
+
+    # Fix gnome apps deadkeys for french keyboard (êâë...)
+    i18n.inputMethod = {
+      enable = true;
+      type = "ibus";
+    };
 
     # Set your time zone.
     time.timeZone = cfg.timeZone;

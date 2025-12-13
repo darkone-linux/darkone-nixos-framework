@@ -298,6 +298,7 @@ class NixZone
 
         // www + local zones
         $cfg['locale'] ??= $this->network->getDefaultLocale();
+        $cfg['description'] ??= $this->name . ' network zone';
         $cfg['lang'] ??= substr($cfg['locale'], 0, 2);
         $cfg['timezone'] ??= $this->network->getDefaultTimezone();
         $cfg['domain'] = $isLocal

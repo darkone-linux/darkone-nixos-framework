@@ -19,7 +19,7 @@ in
     darkone.graphic.gnome.enableGsConnect = lib.mkEnableOption "Communication with devices";
     darkone.graphic.gnome.xkbVariant = lib.mkOption {
       type = lib.types.str;
-      default = "";
+      default = "oss";
       description = "Keyboard variant. Layout is extracted from console keymap.";
     };
   };
@@ -41,8 +41,9 @@ in
       # Configure keymap in X11
       # Type `localectl list-x11-keymap-variants` to list variants
       xkb = {
-        layout = "${config.console.keyMap}";
+        layout = config.console.keyMap;
         variant = cfg.xkbVariant;
+        model = "pc105";
       };
 
       # Video drivers
@@ -73,6 +74,12 @@ in
           ];
         };
       };
+    };
+
+    environment.variables = {
+      XKB_DEFAULT_LAYOUT = config.services.xserver.xkb.layout;
+      XKB_DEFAULT_VARIANT = config.services.xserver.xkb.variant;
+      XKB_DEFAULT_MODEL = config.services.xserver.xkb.model;
     };
 
     #==========================================================================

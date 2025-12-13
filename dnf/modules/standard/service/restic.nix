@@ -31,7 +31,6 @@ let
   # Module main params
   #srvPort = 8081;
   defaultParams = {
-    displayOnHomepage = false;
     description = "Local backup strategy";
   };
 in
@@ -74,7 +73,7 @@ in
       default = [
         dirs.homes
         dirs.common
-        dirs.pictures
+        #dirs.pictures
       ];
       description = "System dirs (exports) to include";
     };
@@ -85,6 +84,7 @@ in
       # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.restic = {
         inherit defaultParams;
+        displayOnHomepage = false;
         persist.dirs = [ srv.dataDir ];
         proxy.enable = false;
         #proxy.servicePort = srvPort;
@@ -129,19 +129,36 @@ in
               "tmp"
               "*.tmp"
               "*~"
+              "*.log"
               ".Trash*"
               "node_modules"
               "vendor"
               ".cache"
-              ".git"
             ];
-            initialize = true;
+            initialize = true; # Create the repo if needed
+            runCheck = true; # Check integrity of repo before save
             passwordFile = config.sops.secrets.restic-password.path;
             paths = cfg.systemDirsPaths;
             repository = dirsRepository;
             extraBackupArgs = lib.optionals cfg.enableDryRun [
               "--dry-run"
               "-v"
+            ];
+
+            # https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html
+            timerConfig = {
+              OnCalendar = "daily";
+              Persistent = true;
+            };
+
+            # https://restic.readthedocs.io/en/stable/060_forget.html#removing-snapshots-according-to-a-policy
+            pruneOpts = [
+              "--keep-last 24"
+              "--keep-hourly 24"
+              "--keep-daily 7"
+              "--keep-weekly 5"
+              "--keep-monthly 12"
+              "--keep-yearly 75"
             ];
           };
         };

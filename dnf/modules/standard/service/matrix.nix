@@ -2,7 +2,6 @@
 
 {
   lib,
-  pkgs,
   config,
   network,
   host,
@@ -25,7 +24,7 @@ in
         defaultParams = {
           description = "Communication solution";
         };
-        persist.dirs = [ srv.settings.server_name ];
+        persist.dirs = [ srv.dataDir ];
         proxy.servicePort = (builtins.elemAt srv.settings.listeners 0).port;
       };
     }
@@ -42,16 +41,16 @@ in
       #environment.systemPackages = with pkgs; [ ];
 
       # Matrix DB
-      services.postgresql = {
-        enable = true;
-        initialScript = pkgs.writeText "synapse-init.sql" ''
-          CREATE ROLE "matrix-synapse" WITH LOGIN PASSWORD 'synapse';
-          CREATE DATABASE "matrix-synapse" WITH OWNER "matrix-synapse"
-            TEMPLATE template0
-            LC_COLLATE = "C"
-            LC_CTYPE = "C";
-        '';
-      };
+      # services.postgresql = {
+      #   enable = true;
+      #   initialScript = pkgs.writeText "synapse-init.sql" ''
+      #     CREATE ROLE "matrix-synapse" WITH LOGIN PASSWORD 'synapse';
+      #     CREATE DATABASE "matrix-synapse" WITH OWNER "matrix-synapse"
+      #       TEMPLATE template0
+      #       LC_COLLATE = "C"
+      #       LC_CTYPE = "C";
+      #   '';
+      # };
 
       # Matrix server
       services.matrix-synapse = {

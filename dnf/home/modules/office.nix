@@ -63,7 +63,7 @@ in
     };
     darkone.home.office.enableEmail = mkOption {
       type = types.bool;
-      default = true;
+      default = false;
       description = "Email management packages (thunderbird)";
     };
     darkone.home.office.huntspellLang = mkOption {
