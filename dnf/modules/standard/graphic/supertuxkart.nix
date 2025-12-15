@@ -19,8 +19,8 @@ let
   hasNfsServer = mainNfsHost != "";
   isMainNfsServer = config.darkone.service.nfs.enable && (host.hostname == mainNfsHost);
   nfsServer = "nfs"; # TODO
-  inherit (config.darkone.system) dirs;
-  sharePrefix = if cfg.isNfsServer then dirs.root else "/mnt/nfs";
+  inherit (config.darkone.system) srv-dirs;
+  sharePrefix = if cfg.isNfsServer then srv-dirs.nfs else "/mnt/nfs";
 in
 {
   options = {
@@ -44,8 +44,8 @@ in
     services.nfs.server = lib.mkIf cfg.isNfsServer {
       enable = true;
       exports = ''
-        ${dirs.root}            ${zone.networkIp}/${toString zone.prefixLength}(rw,fsid=0,no_subtree_check)
-        ${dirs.root}/stk-tracks ${zone.networkIp}/${toString zone.prefixLength}(ro,nohide,insecure,async,no_subtree_check,all_squash,anonuid=65534,anongid=100)
+        ${srv-dirs.nfs}            ${zone.networkIp}/${toString zone.prefixLength}(rw,fsid=0,no_subtree_check)
+        ${srv-dirs.nfs}/stk-tracks ${zone.networkIp}/${toString zone.prefixLength}(ro,nohide,insecure,async,no_subtree_check,all_squash,anonuid=65534,anongid=100)
       '';
     };
 

@@ -50,12 +50,12 @@
     ./standard/service/users.nix
     ./standard/service/vaultwarden.nix
     ./standard/system/core.nix
-    ./standard/system/dirs.nix
     ./standard/system/documentation.nix
     ./standard/system/hardware.nix
     ./standard/system/i18n.nix
     ./standard/system/services.nix
     ./standard/system/sops.nix
+    ./standard/system/srv-dirs.nix
     ./standard/user/build.nix
     ./standard/user/root.nix
   ];

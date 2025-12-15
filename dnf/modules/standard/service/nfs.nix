@@ -3,7 +3,7 @@
 # :::note
 # This module is enabled if a nfs server is declared in the local network. It creates:
 #
-# - A share (${dirs.homes}) on the server.
+# - A share (${srv-dirs.homes}) on the server.
 # - Mount dirs (/mnt/nfs/homes/[user]) on clients.
 #
 # The nfs home manager script links xdg directories to mount dirs.
@@ -31,7 +31,7 @@ let
   isServer = host.hostname == nfsServer;
   hasServer = nfsServerCount == 1;
   isClient = !isServer && hasServer && host.nfsClient;
-  inherit (config.darkone.system) dirs; # Read only
+  inherit (config.darkone.system) srv-dirs; # Read only
 in
 assert
   nfsServerCount <= 1
@@ -61,8 +61,8 @@ assert
         displayOnHomepage = false;
         persist = {
           dirs = lib.optionals isServer [
-            dirs.homes
-            dirs.common
+            srv-dirs.homes
+            srv-dirs.common
           ];
         };
         proxy.enable = false;
@@ -82,21 +82,18 @@ assert
       #--------------------------------------------------------------------------
 
       # Enable shared homes + common dirs
-      darkone.system.dirs = lib.mkIf isServer {
-        enableHomes = true;
-        enableCommon = true;
-      };
+      darkone.system.srv-dirs.enableNfs = isServer;
 
       # Liens symboliques pour chaque utilisateur
       systemd.tmpfiles.rules = lib.optionals isServer (
-        map (user: "d ${dirs.homes}/${user} 0700 ${user} users -") host.users
-        ++ map (user: "d ${dirs.homes}/${user}/Documents 0700 ${user} users -") host.users
-        ++ map (user: "d ${dirs.homes}/${user}/Pictures 0700 ${user} users -") host.users
-        ++ map (user: "d ${dirs.homes}/${user}/Music 0700 ${user} users -") host.users
-        ++ map (user: "d ${dirs.homes}/${user}/Videos 0700 ${user} users -") host.users
-        ++ map (user: "d ${dirs.homes}/${user}/Downloads 0700 ${user} users -") host.users
-        ++ map (user: "d ${dirs.homes}/${user}/Desktop 0700 ${user} users -") host.users
-        ++ map (user: "d ${dirs.homes}/${user}/Templates 0700 ${user} users -") host.users
+        map (user: "d ${srv-dirs.homes}/${user} 0700 ${user} users -") host.users
+        ++ map (user: "d ${srv-dirs.homes}/${user}/Documents 0700 ${user} users -") host.users
+        ++ map (user: "d ${srv-dirs.homes}/${user}/Pictures 0700 ${user} users -") host.users
+        ++ map (user: "d ${srv-dirs.homes}/${user}/Music 0700 ${user} users -") host.users
+        ++ map (user: "d ${srv-dirs.homes}/${user}/Videos 0700 ${user} users -") host.users
+        ++ map (user: "d ${srv-dirs.homes}/${user}/Downloads 0700 ${user} users -") host.users
+        ++ map (user: "d ${srv-dirs.homes}/${user}/Desktop 0700 ${user} users -") host.users
+        ++ map (user: "d ${srv-dirs.homes}/${user}/Templates 0700 ${user} users -") host.users
       );
 
       #--------------------------------------------------------------------------
@@ -109,9 +106,9 @@ assert
       services.nfs.server = lib.mkIf isServer {
         enable = true;
         exports = ''
-          ${dirs.root}   ${zone.networkIp}/${toString zone.prefixLength}(rw,fsid=0,no_subtree_check)
-          ${dirs.homes}  ${zone.networkIp}/${toString zone.prefixLength}(rw,sync,no_subtree_check,no_root_squash)
-          ${dirs.common} ${zone.networkIp}/${toString zone.prefixLength}(rw,nohide,insecure,sync,no_subtree_check,all_squash,anonuid=65534,anongid=100)
+          ${srv-dirs.nfs}    ${zone.networkIp}/${toString zone.prefixLength}(rw,fsid=0,no_subtree_check)
+          ${srv-dirs.homes}  ${zone.networkIp}/${toString zone.prefixLength}(rw,sync,no_subtree_check,no_root_squash)
+          ${srv-dirs.common} ${zone.networkIp}/${toString zone.prefixLength}(rw,nohide,insecure,sync,no_subtree_check,all_squash,anonuid=65534,anongid=100)
         '';
       };
 

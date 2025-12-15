@@ -16,7 +16,7 @@ let
     description = "Music browser & player";
   };
   params = dnfLib.extractServiceParams host network "navidrome" defaultParams;
-  musicDir = config.darkone.system.dirs.music;
+  musicDir = config.darkone.system.srv-dirs.music;
 in
 {
   options = {
@@ -58,7 +58,7 @@ in
       # Naviderome dependencies
       #------------------------------------------------------------------------
 
-      # Create common-files account
+      # Create common-files account + beets service
       darkone.service.beets.enable = true;
       #darkone.service.beets.enableService = true;
 

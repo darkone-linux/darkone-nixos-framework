@@ -17,7 +17,7 @@
 }:
 let
   cfg = config.darkone.service.beets;
-  inherit (config.darkone.system) dirs; # Read only
+  inherit (config.darkone.system) srv-dirs; # Read only
 in
 {
   options = {
@@ -32,9 +32,7 @@ in
     #--------------------------------------------------------------------------
 
     # Enable shared music dir and common-files account
-    darkone.system.dirs.enableMusic = true;
-    darkone.system.dirs.enableIncoming = true;
-    darkone.system.dirs.enableIncomingMusic = true;
+    darkone.system.srv-dirs.enableMedias = true;
 
     # Common-files user beets integration
     home-manager.users.common-files = {
@@ -66,7 +64,7 @@ in
       programs.beets = {
         enable = true;
         settings = {
-          directory = dirs.music;
+          directory = srv-dirs.music;
           import = {
             write = true;
             copy = true;
@@ -180,7 +178,7 @@ in
 
         Service = {
           Type = "oneshot";
-          ExecStart = "${pkgs.beets}/bin/beet import -q ${dirs.incomingMusic}";
+          ExecStart = "${pkgs.beets}/bin/beet import -q ${srv-dirs.incomingMusic}";
 
           # Variables d'environnement si nécessaire
           # Environment = "BEETSDIR=/home/common-files/.config/beets";

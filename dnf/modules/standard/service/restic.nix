@@ -3,7 +3,7 @@
 # Default directories to backup:
 #
 # ```
-# /export -> /mnt/backup/export
+# /srv/nfs -> /mnt/backup/restic/srv/nfs
 # <services_dirs> -> /mnt/backup/services/<services_dirs>
 # <db_dumps> -> /mnt/backup/databases/<db_dumps>
 # ```
@@ -14,19 +14,12 @@ let
   srv = config.services.restic;
 
   # Dirs (exports)
-  inherit (config.darkone.system) dirs;
-  hasExport =
-    dirs.enableHomes # TODO -> factoriser avec la même condition dans "dirs"
-    || dirs.enableCommon
-    || dirs.enablePictures
-    || dirs.enableMusic
-    || dirs.enableVideo
-    || dirs.enableIncoming
-    || dirs.enableIncomingMusic;
+  inherit (config.darkone.system) srv-dirs;
+  hasNfsShares = srv-dirs.enableNfs;
 
   # Dirs backup
-  dirsRepository = "${cfg.repositoryRoot}${dirs.root}";
-  enableDirsBackup = cfg.enableSystemDirsBackup && hasExport;
+  nfsBackupRepo = "${cfg.repositoryRoot}${srv-dirs.nfs}";
+  enableNfsBackup = cfg.enableNfsBackup && hasNfsShares;
 
   # Module main params
   #srvPort = 8081;
@@ -37,15 +30,15 @@ in
 {
   options = {
     darkone.service.restic.enable = lib.mkEnableOption "Enable restic backup service";
-    darkone.service.restic.enableDryRun = lib.mkEnableOption "Dry Run (try)";
-    # darkone.service.restic.extraBackups = lib.mkOption {
-    #   type = lib.types.submodule;
-    #   default = { };
-    #   description = "Another services.restic.backups";
-    # };
+    darkone.service.restic.enableDryRun = lib.mkEnableOption "Dry Run mode";
+    darkone.service.restic.enableWaitRemoteFs = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Trigger the restic service only if remote-fs service is started";
+    };
     darkone.service.restic.repositoryRoot = lib.mkOption {
       type = lib.types.str;
-      default = "/mnt/backup";
+      default = "/mnt/backup/restic";
       description = "Main backup target root path";
     };
     darkone.service.restic.enableServicesBackup = lib.mkOption {
@@ -58,24 +51,18 @@ in
       default = true;
       description = "Backup local services databases (wip)";
     };
-    darkone.service.restic.enableWaitRemoteFs = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Trigger the restic service only if remote-fs service is started";
-    };
-    darkone.service.restic.enableSystemDirsBackup = lib.mkOption {
+    darkone.service.restic.enableNfsBackup = lib.mkOption {
       type = lib.types.bool;
       default = config.darkone.service.nfs.enable;
-      description = "Backup the /export dir (nfs shared files)";
+      description = "Backup /srv/nfs/<xxx> dirs (services important files)";
     };
-    darkone.service.restic.systemDirsPaths = lib.mkOption {
+    darkone.service.restic.nfsDirsPaths = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [
-        dirs.homes
-        dirs.common
-        #dirs.pictures
+        srv-dirs.homes
+        srv-dirs.common
       ];
-      description = "System dirs (exports) to include";
+      description = "NFS dirs (/srv/nfs/<xxx>) to include in backup configuration";
     };
   };
 
@@ -100,7 +87,7 @@ in
       # Darkone service: enable
       darkone.system.services = {
         enable = true;
-        service.forgejo.enable = true;
+        service.restic.enable = true;
       };
 
       #------------------------------------------------------------------------
@@ -114,13 +101,13 @@ in
       };
 
       # Trigger the restic service only if remote-fs service is started
-      systemd.services.restic-backups-dirsbackup = lib.mkIf cfg.enableWaitRemoteFs {
+      systemd.services.restic-backups-nfsbackup = lib.mkIf cfg.enableWaitRemoteFs {
         after = [ "remote-fs.target" ];
         wants = [ "remote-fs.target" ];
       };
 
       # Repository targets creations (initialize?)
-      #systemd.tmpfiles.rules = lib.optional enableDirsBackup "d ${dirsbackup} 0700 root root -";
+      #systemd.tmpfiles.rules = lib.optional enableNfsBackup "d ${dirsbackup} 0700 root root -";
 
       #------------------------------------------------------------------------
       # Restic Service
@@ -135,7 +122,7 @@ in
         # };
 
         backups = {
-          dirsbackup = lib.mkIf enableDirsBackup {
+          nfsbackup = lib.mkIf enableNfsBackup {
             exclude = [
               "tmp"
               "*.tmp"
@@ -149,8 +136,8 @@ in
             initialize = true; # Create the repo if needed
             runCheck = true; # Check integrity of repo before save
             passwordFile = config.sops.secrets.restic-password.path;
-            paths = cfg.systemDirsPaths;
-            repository = dirsRepository;
+            paths = cfg.nfsDirsPaths;
+            repository = nfsBackupRepo;
             extraBackupArgs = lib.optionals cfg.enableDryRun [
               "--dry-run"
               "-v"
@@ -159,7 +146,7 @@ in
             # https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html
             timerConfig = {
               OnCalendar = "daily";
-              Persistent = true;
+              Persistent = false;
             };
 
             # https://restic.readthedocs.io/en/stable/060_forget.html#removing-snapshots-according-to-a-policy

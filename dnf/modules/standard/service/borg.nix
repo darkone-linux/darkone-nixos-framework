@@ -3,7 +3,7 @@
 # Default directories to backup:
 #
 # ```
-# /srv -> /mnt/backup/borg/srv
+# /nfs/srv -> /mnt/backup/borg/nfs/srv
 # <services_dirs> -> /mnt/backup/borg/services/
 # <db_dumps> -> /mnt/backup/borg/databases/
 # ```
@@ -18,19 +18,12 @@ let
   cfg = config.darkone.service.borg;
 
   # Dirs (exports)
-  inherit (config.darkone.system) dirs;
-  hasExport =
-    dirs.enableHomes # TODO -> factoriser avec la même condition dans "dirs"
-    || dirs.enableCommon
-    || dirs.enablePictures
-    || dirs.enableMusic
-    || dirs.enableVideo
-    || dirs.enableIncoming
-    || dirs.enableIncomingMusic;
+  inherit (config.darkone.system) srv-dirs;
+  hasExport = srv-dirs.enableNfs; # TODO -> factoriser avec la même condition dans "dirs"
 
   # Dirs backup
-  dirsRepository = "${cfg.repositoryRoot}${dirs.root}";
-  enableDirsBackup = cfg.enableSystemDirsBackup && hasExport;
+  nfsRepository = "${cfg.repositoryRoot}${srv-dirs.nfs}";
+  enableDirsBackup = cfg.enableNfsBackup && hasExport;
 
   # Module main params
   #srvPort = 8081;
@@ -67,17 +60,16 @@ in
       default = true;
       description = "Trigger the borg service only if remote-fs service is started";
     };
-    darkone.service.borg.enableSystemDirsBackup = lib.mkOption {
+    darkone.service.borg.enableNfsBackup = lib.mkOption {
       type = lib.types.bool;
       default = config.darkone.service.nfs.enable;
-      description = "Backup the /export dir (nfs shared files)";
+      description = "Backup the /srv/nfs dir (nfs shared files)";
     };
     darkone.service.borg.systemDirsPaths = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [
-        dirs.homes
-        dirs.common
-        #dirs.pictures
+        srv-dirs.homes
+        srv-dirs.common
       ];
       description = "System dirs (exports) to include";
     };
@@ -116,7 +108,7 @@ in
       };
 
       # Trigger the borg service only if remote-fs service is started
-      systemd.services.borg-backups-dirsbackup = lib.mkIf cfg.enableWaitRemoteFs {
+      systemd.services.borg-backups-nfsbackup = lib.mkIf cfg.enableWaitRemoteFs {
         after = [ "remote-fs.target" ];
         wants = [ "remote-fs.target" ];
       };
@@ -128,15 +120,15 @@ in
       # Borg Repos
       #------------------------------------------------------------------------
 
-      #services.borgbackup.repos.main = lib.mkIf enableDirsBackup { path = dirsRepository; };
+      #services.borgbackup.repos.main = lib.mkIf enableDirsBackup { path = nfsRepository; };
 
       #------------------------------------------------------------------------
       # Borg Jobs
       #------------------------------------------------------------------------
 
-      services.borgbackup.jobs.dirsbackup = lib.mkIf enableDirsBackup {
+      services.borgbackup.jobs.nfsbackup = lib.mkIf enableDirsBackup {
         doInit = true;
-        repo = dirsRepository;
+        repo = nfsRepository;
         paths = cfg.systemDirsPaths;
         startAt = "daily";
         exclude = [

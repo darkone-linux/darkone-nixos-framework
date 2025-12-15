@@ -18,7 +18,8 @@ let
   isServer = nfsServer != null && host.hostname == nfsServer;
   isClient = nfsServer != null && !isServer && host.nfsClient;
   isEnable = hasServer && (isServer || isClient);
-  baseDir = if isServer then "/export" else "/mnt/nfs";
+  inherit (osConfig.darkone.system) srv-dirs;
+  baseDir = if isServer then srv-dirs.nfs else "/mnt/nfs";
 in
 {
   # Home dirs creation
@@ -35,6 +36,12 @@ in
       function createHomeDir() {
         if [ -d "$2" ] && [ ! -L "$2" ]; then
           rmdir "$2" || mv "$2" "$2".bak
+        fi
+        if [ -L "$2" ]; then
+          if [ "$(readlink -- $2)" != "$1" ]; then
+            ln -sfn "$1" "$2"
+          fi
+          return
         fi
         if [ ! -e "$2" ] ;then
           ln -sfn "$1" "$2"

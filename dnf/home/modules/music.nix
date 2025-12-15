@@ -21,7 +21,7 @@ let
     if isNfsClient then
       "/mnt/nfs/homes/${config.home.username}/Music"
     else
-      "${osConfig.darkone.system.dirs.homes}/${config.home.username}/Music";
+      "${osConfig.darkone.system.srv-dirs.homes}/${config.home.username}/Music";
 in
 {
   options = {

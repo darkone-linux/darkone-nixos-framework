@@ -113,7 +113,6 @@ yaml file so that the service is visible across the entire network!**
 * **enableForgejo** `bool` Enable pre-configured forgejo git forge service
 * **enableImmich** `bool` Enable pre-configured immich service
 * **enableNextcloud** `bool` Enable pre-configured nextcloud service
-* **enableOpencloud** `bool` Enable pre-configured opencloud service
 * **enableNetdata** `bool` Enable pre-configured Netdata service
 * **enableMonitoring** `bool` Enable pre-configured monitoring service (prometheus, grafana)
 * **enableVaultwarden** `bool` Enable pre-configured Vaultwarden service
@@ -124,8 +123,6 @@ yaml file so that the service is visible across the entire network!**
 * **enableJitsiMeet** `bool` Enable jitsi-meet service
 * **enableNavidrome** `bool` Enable Navidrome service
 * **enableKeycloak** `bool` Enable Keycloak service
-* **enableRestic** `bool` Enable Restic service
-* **enableBorg** `bool` Enable Borg service
 ```nix
 darkone.host.minimal = {
   enable = false;
@@ -134,7 +131,6 @@ darkone.host.minimal = {
   enableForgejo = attrsets.hasAttrByPath [ "services" "forgejo" ] host;
   enableImmich = attrsets.hasAttrByPath [ "services" "immich" ] host;
   enableNextcloud = attrsets.hasAttrByPath [ "services" "nextcloud" ] host;
-  enableOpencloud = attrsets.hasAttrByPath [ "services" "opencloud" ] host;
   enableNetdata = attrsets.hasAttrByPath [ "services" "netdata" ] host;
   enableMonitoring = attrsets.hasAttrByPath [ "services" "monitoring" ] host;
   enableVaultwarden = attrsets.hasAttrByPath [ "services" "vaultwarden" ] host;
@@ -145,8 +141,6 @@ darkone.host.minimal = {
   enableJitsiMeet = builtins.hasAttr "jitsi-meet" host.services;
   enableNavidrome = builtins.hasAttr "navidrome" host.services;
   enableKeycloak = builtins.hasAttr "keycloak" host.services;
-  enableRestic = builtins.hasAttr "restic" host.services;
-  enableBorg = builtins.hasAttr "borg" host.services;
 }
 
 ```
@@ -325,7 +319,7 @@ darkone.graphic.gnome = {
   enableLightDM = false;
   enableCaffeine = false;
   enableGsConnect = false;
-  xkbVariant = "oss";
+  xkbVariant = "";
 }
 
 ```
@@ -439,47 +433,6 @@ beets import [dir]
 darkone.service.beets = {
   enable = false;
   enableService = false;
-}
-
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.borg
-
-Borg backup module with DNF configuration.
-
-Default directories to backup:
-
-```
-/srv -> /mnt/backup/borg/srv
-<services_dirs> -> /mnt/backup/borg/services/
-<db_dumps> -> /mnt/backup/borg/databases/
-```
-
-:::note
-The officially selected solution is Restic, which will be more appropriate and integrated with DNF.
-If you prefer borg, this module is still operational.
-:::
-
-* **enable** `bool` Enable borg backup service
-* **enableDryRun** `bool` Dry Run (try)
-* **extraBackups** `str` Main backup target root path
-* **enableServicesBackup** `bool` Backup important files of local services (wip)
-* **enableDatabasesBackup** `bool` Backup local services databases (wip)
-* **enableWaitRemoteFs** `bool` Trigger the borg service only if remote-fs service is started
-* **enableSystemDirsBackup** `bool` Backup the /export dir (nfs shared files)
-* **systemDirsPaths** `?` System dirs (exports) to include
-```nix
-darkone.service.borg = {
-  enable = false;
-  enableDryRun = false;
-  extraBackups = "/mnt/backup/borg";
-  enableServicesBackup = true;
-  enableDatabasesBackup = true;
-  enableWaitRemoteFs = true;
-  enableSystemDirsBackup = config.darkone.service.nfs.enable;
-  systemDirsPaths = ;
 }
 
 ```
@@ -811,18 +764,6 @@ darkone.service.nfs = {
 
 <hr/>
 
-### &#x1F48E; darkone.service.opencloud
-
-Opencloud full-configured service (wip - not working).
-
-* **enable** `bool` Enable local opencloud service
-```nix
-darkone.service.opencloud.enable = false;
-
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.service.printing
 
 Printers and scanners.
@@ -839,42 +780,6 @@ darkone.service.printing = {
   enableScanners = false;
   enableHpPrinters = false;
   enableManualInstall = false;
-}
-
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.restic
-
-Restic backup module with DNF configuration.
-
-Default directories to backup:
-
-```
-/export -> /mnt/backup/export
-<services_dirs> -> /mnt/backup/services/<services_dirs>
-<db_dumps> -> /mnt/backup/databases/<db_dumps>
-```
-
-* **enable** `bool` Enable restic backup service
-* **enableDryRun** `bool` Dry Run (try)
-* **extraBackups** `str` Main backup target root path
-* **enableServicesBackup** `bool` Backup important files of local services (wip)
-* **enableDatabasesBackup** `bool` Backup local services databases (wip)
-* **enableWaitRemoteFs** `bool` Trigger the restic service only if remote-fs service is started
-* **enableSystemDirsBackup** `bool` Backup the /export dir (nfs shared files)
-* **systemDirsPaths** `?` System dirs (exports) to include
-```nix
-darkone.service.restic = {
-  enable = false;
-  enableDryRun = false;
-  extraBackups = "/mnt/backup";
-  enableServicesBackup = true;
-  enableDatabasesBackup = true;
-  enableWaitRemoteFs = true;
-  enableSystemDirsBackup = config.darkone.service.nfs.enable;
-  systemDirsPaths = ;
 }
 
 ```
@@ -929,7 +834,7 @@ darkone.service.tailscale = {
 
 ### &#x1F48E; darkone.service.users
 
-LLDAP service for DNF SSO (WIP).
+LLDAP service for DNF SSO.
 
 * **enable** `bool` Enable local user management with LLDAP (SSO)
 ```nix
@@ -964,6 +869,7 @@ It is required for the proper functioning of every NixOS computer on the local n
 * **enableAutoSuspend** `bool` Enable automatic suspend (for laptops, ignored if disableSuspend is true)
 * **disableSuspend** `bool` Full suspend disable (for servers)
 * **enableCommonFilesUser** `bool` Enable the common-files user used by several services
+* **enableFail2ban** `bool` Enable fail2ban with DNF specificities
 * **enable** `bool` Darkone framework core system (activated by default)
 * **enableSystemdBoot** `bool` Enable the default boot loader
 * **enableFstrim** `bool` SSD optimisation with fstrim
@@ -976,6 +882,7 @@ darkone.system.core = {
   enableAutoSuspend = false;
   disableSuspend = false;
   enableCommonFilesUser = false;
+  enableFail2ban = false;
   enable = true;
   enableSystemdBoot = true;
   enableFstrim = true;
@@ -1116,7 +1023,6 @@ This module is used to register and configure DNF modules:
 * **defaultService** `bool` Is the default service
 * **servicePort** `?` Service internal port
 * **extraConfig** `lines` Extra caddy virtualHost configuration
-* **scheme** `str` Internal service scheme (http / https)
 ```nix
 darkone.system.services = {
   enable = false;
@@ -1142,7 +1048,6 @@ darkone.system.services = {
   defaultService = false;
   servicePort = null;
   extraConfig = "";
-  scheme = "https";
 }
 
 ```
@@ -1402,7 +1307,7 @@ darkone.home.office = {
   enableFirefox = true;
   enableChromium = false;
   enableBrave = false;
-  enableEmail = false;
+  enableEmail = true;
   huntspellLang = "en-us";
 }
 
