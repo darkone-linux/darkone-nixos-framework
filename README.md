@@ -19,18 +19,20 @@
 
 ## Main features
 
-- **Easy and full VPN** with [headscale](https://headscale.net/) / [tailscale](https://tailscale.com/).
-- **[Multi-hosts and multi-users](https://darkone-linux.github.io/doc/specifications/#the-generator)**, deployed with [colmena](https://github.com/zhaofengli/colmena) and [just](https://github.com/casey/just).
-- **Full automated host install** with [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) and [disko](https://github.com/nix-community/disko).
-- **[Host profiles](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop)** for servers, containers, network nodes and workstations.
-- **[User profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/homes)** with [home manager](https://github.com/nix-community/home-manager) providing complete configurations for various users.
-- **[High-level modules](https://darkone-linux.github.io/ref/modules)** 100% functional with a simple `.enable = true`.
-- **[Extensible](https://darkone-linux.github.io/doc/introduction/#structure)**, scalable, consistent, customizable architecture.
-- **User profiles management** with [home manager](https://github.com/nix-community/home-manager) + [home profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/homes).
-- **[Automatic homepage + reverse proxy](https://darkone-linux.github.io/ref/modules/#-darkoneservicehomepage)** with [Homepage](https://github.com/gethomepage/homepage) and [Caddy](https://github.com/caddyserver/caddy), based on activated services.
-- **[Cross-configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml)** to ensure network consistency.
-- **Easy and reliable security**, a single password to unlock, with [sops](https://github.com/Mic92/sops-nix).
-- **No-conf DNS, DHCP, reverse-proxy, firewall** and all network plumbing.
+|   | Feature | Description |
+|---|--------|-------------|
+| 🔐 | VPN | Simple full-mesh VPN powered by [headscale](https://headscale.net/) / [tailscale](https://tailscale.com/) |
+| 🧩 | Multi-host & multi-user | [Multi-host and multi-user architecture](https://darkone-linux.github.io/doc/specifications/#the-generator), deployed with [colmena](https://github.com/zhaofengli/colmena) and [just](https://github.com/casey/just) |
+| ⚙️ | Automated install | Fully automated host installation using [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) and [disko](https://github.com/nix-community/disko) |
+| 🖥️ | Host profiles | [Host profiles](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop) for servers, containers, network nodes, and workstations |
+| 👤 | User profiles | [User profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/homes) managed with [Home Manager](https://github.com/nix-community/home-manager) |
+| 🧱 | High-level modules | [High-level NixOS modules](https://darkone-linux.github.io/ref/modules), enabled with a simple `.enable = true` |
+| 📐 | Architecture | [Extensible and scalable architecture](https://darkone-linux.github.io/doc/introduction/#structure), consistent and customizable |
+| 🌐 | Homepage & proxy | [Automatic homepage and reverse proxy](https://darkone-linux.github.io/ref/modules/#-darkoneservicehomepage) using [Homepage](https://github.com/gethomepage/homepage) and [Caddy](https://github.com/caddyserver/caddy) |
+| 🔄 | Cross-configuration | [Cross-configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml) to ensure network and host consistency |
+| 🔑 | Security | Simple and reliable security model with a single unlock password, powered by [sops-nix](https://github.com/Mic92/sops-nix) |
+| 🛜 | Networking | Zero-config DNS, DHCP, reverse proxy, firewall, and all required network plumbing |
+| 💾 | Backups | Comprehensive backup strategy with [Restic](https://restic.net/) or [Borg](https://borgbackup.readthedocs.io/) |
 
 ## One configuration, a full network
 
