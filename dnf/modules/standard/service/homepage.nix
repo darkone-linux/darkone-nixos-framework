@@ -54,8 +54,12 @@ in
   # TODO: widgets automatiques en fonction du service
   # https://gethomepage.dev/widgets
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.homepage = {
         inherit defaultParams;
         displayOnHomepage = false;
@@ -69,10 +73,12 @@ in
       # Darkone service: enable
       darkone.system.services = {
         enable = true;
-        service.homepage = {
-          enable = true;
-        };
+        service.homepage.enable = true;
       };
+
+      #------------------------------------------------------------------------
+      # Homepage Service
+      #------------------------------------------------------------------------
 
       services.homepage-dashboard = {
         enable = true;

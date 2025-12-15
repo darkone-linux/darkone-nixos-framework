@@ -39,8 +39,12 @@ in
   # Prometheus + Grafana + Node Exporter
   # TODO: password access
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.monitoring = {
         inherit defaultParams;
         persist = {

@@ -44,8 +44,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.syncthing = {
         inherit params;
         persist.dirs = [ srv.dataDir ];
@@ -61,6 +65,10 @@ in
         service.syncthing.enable = true;
       };
 
+      #------------------------------------------------------------------------
+      # Networking
+      #------------------------------------------------------------------------
+
       # Specific firewall settings for the gateway
       networking.firewall.interfaces.lan0 = lib.mkIf isGateway {
         allowedTCPPorts = [ 22000 ];
@@ -69,6 +77,10 @@ in
           22000
         ];
       };
+
+      #------------------------------------------------------------------------
+      # Sincthing Service
+      #------------------------------------------------------------------------
 
       services.syncthing = {
         enable = true;

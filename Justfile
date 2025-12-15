@@ -123,7 +123,7 @@ cat host='':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	just clean
-	git add . && git commit --amend --no-edit
+	git add . && git commit --amend --no-edit --allow-empty
 	if [ "{{host}}" == "" ] ;then
 		just apply-local test
 	else
@@ -427,8 +427,10 @@ full-install host user='nix' ip='auto':
 	just configure {{host}}
 	just _log "Let's do that automatically..."
 	just _log "Adding and committing (amend)..." "GIT"
-	git add . && (git diff --cached --quiet || git commit --amend --no-edit) && git reset
+	git add . && (git diff --cached --quiet || git commit --amend --no-edit --allow-empty) && git reset
 	just apply-verbose {{host}}
+	just _log "Cleaning new system..."
+	just gc {{host}}
 	just _log "Last reboot..."
 	colmena exec --on "{{host}}" "nohup bash -c 'sleep 1; systemctl reboot' >/dev/null 2>&1 &"
 	just _done

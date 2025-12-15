@@ -29,8 +29,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.navidrome = {
         inherit defaultParams;
         persist = {
@@ -50,6 +54,10 @@ in
         service.navidrome.enable = true;
       };
 
+      #------------------------------------------------------------------------
+      # Naviderome dependencies
+      #------------------------------------------------------------------------
+
       # Create common-files account
       darkone.service.beets.enable = true;
       #darkone.service.beets.enableService = true;
@@ -59,7 +67,10 @@ in
       systemd.services.navidrome.serviceConfig.UMask = lib.mkForce "0006";
       users.users.navidrome.extraGroups = [ "common-files" ];
 
-      # Main service
+      #------------------------------------------------------------------------
+      # Navidrome Service
+      #------------------------------------------------------------------------
+
       services.navidrome = {
         enable = true;
         openFirewall = false;

@@ -18,8 +18,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.matrix = {
         defaultParams = {
           description = "Communication solution";
@@ -37,6 +41,10 @@ in
         service.matrix.enable = true;
       };
 
+      #------------------------------------------------------------------------
+      # Matrix service dependencies
+      #------------------------------------------------------------------------
+
       # Tools
       #environment.systemPackages = with pkgs; [ ];
 
@@ -52,7 +60,10 @@ in
       #   '';
       # };
 
-      # Matrix server
+      #------------------------------------------------------------------------
+      # Synapse Server
+      #------------------------------------------------------------------------
+
       services.matrix-synapse = {
         enable = true;
         configureRedisLocally = false; # TODO: true

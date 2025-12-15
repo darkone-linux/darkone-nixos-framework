@@ -80,8 +80,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.restic = {
         inherit defaultParams;
         displayOnHomepage = false;
@@ -99,6 +103,10 @@ in
         service.forgejo.enable = true;
       };
 
+      #------------------------------------------------------------------------
+      # Restic service dependencies & configuration
+      #------------------------------------------------------------------------
+
       # Restic password
       sops.secrets.restic-password = {
         mode = "0400";
@@ -114,7 +122,10 @@ in
       # Repository targets creations (initialize?)
       #systemd.tmpfiles.rules = lib.optional enableDirsBackup "d ${dirsbackup} 0700 root root -";
 
-      # Restic service
+      #------------------------------------------------------------------------
+      # Restic Service
+      #------------------------------------------------------------------------
+
       services.restic = {
 
         # TODO: voir si on utilise le rest server...

@@ -20,8 +20,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.netdata = {
         persist.dirs = [ "/var/lib/netdata" ];
         proxy.servicePort = 19999;
@@ -35,6 +39,10 @@ in
         enable = true;
         service.netdata.enable = true;
       };
+
+      #------------------------------------------------------------------------
+      # NetData Service
+      #------------------------------------------------------------------------
 
       #networking.firewall.allowedTCPPorts = [ 19999 ];
       services.netdata = {

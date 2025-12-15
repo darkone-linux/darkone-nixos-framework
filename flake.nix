@@ -253,7 +253,7 @@
       #------------------------------------------------------------------------
 
       # Iso image for first install DNF system
-      # nix build .#nixosConfigurations.iso.config.system.build.isoImage
+      # nix build .#nixosConfigurations.iso-x86_64-linux.config.system.build.isoImage
       nixosConfigurations =
         (builtins.listToAttrs (
           map (system: {

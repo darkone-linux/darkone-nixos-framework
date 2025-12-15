@@ -51,8 +51,12 @@ assert
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service registration
       darkone.system.services.service.nfs = {
         displayOnHomepage = false;
         persist = {

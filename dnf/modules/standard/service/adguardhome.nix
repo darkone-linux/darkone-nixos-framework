@@ -36,8 +36,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.adguardhome = {
         defaultParams = {
           title = "AdGuardHome";
@@ -58,7 +62,7 @@ in
       };
 
       #------------------------------------------------------------------------
-      # adguardhome Service
+      # AdguardHome Service
       #------------------------------------------------------------------------
 
       # TODO: clients from config.yaml + update password

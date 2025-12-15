@@ -23,8 +23,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.jitsi-meet = {
         inherit defaultParams;
         persist.dirs = [ "/var/lib/jitsi-meet" ];
@@ -40,10 +44,17 @@ in
         service.jitsi-meet.enable = true;
       };
 
+      #------------------------------------------------------------------------
+      # Jisti dependencies
+      #------------------------------------------------------------------------
+
       # TMP?
       nixpkgs.config.permittedInsecurePackages = [ "jitsi-meet-1.0.8792" ];
 
-      # Forgejo main service
+      #------------------------------------------------------------------------
+      # Jitsi Service
+      #------------------------------------------------------------------------
+
       services.jitsi-meet = {
         enable = true;
         nginx.enable = false;

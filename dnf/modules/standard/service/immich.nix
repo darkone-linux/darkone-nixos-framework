@@ -29,8 +29,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.immich = {
         defaultParams = {
           description = "Smart media manager";
@@ -64,6 +68,10 @@ in
         service.immich.enable = true;
       };
 
+      #------------------------------------------------------------------------
+      # Immich dependencies
+      #------------------------------------------------------------------------
+
       # Redis for caching (optional but recommended)
       services.redis.servers.immich = lib.mkIf cfg.enableRedis {
         enable = true;
@@ -84,6 +92,10 @@ in
           timeout = 300;
         };
       };
+
+      #------------------------------------------------------------------------
+      # Immich Service
+      #------------------------------------------------------------------------
 
       # Main immich service configuration
       services.immich = {

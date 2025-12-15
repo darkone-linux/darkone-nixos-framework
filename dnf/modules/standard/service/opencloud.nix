@@ -22,8 +22,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.opencloud = {
         inherit defaultParams;
         persist = {
@@ -48,6 +52,10 @@ in
         enable = true;
         service.opencloud.enable = true;
       };
+
+      #------------------------------------------------------------------------
+      # Opencloud Service
+      #------------------------------------------------------------------------
 
       networking.firewall.allowedTCPPorts = [ srv.port ];
 

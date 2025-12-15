@@ -100,6 +100,11 @@ in
       default = builtins.hasAttr "restic" host.services;
       description = "Enable Restic service";
     };
+    darkone.host.minimal.enableBorg = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "borg" host.services;
+      description = "Enable Borg service";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -126,6 +131,7 @@ in
 
     # Enabled services
     darkone.service = {
+      borg.enable = cfg.enableBorg;
       forgejo.enable = cfg.enableForgejo;
       homepage.enable = cfg.enableHomepage;
       immich.enable = cfg.enableImmich;

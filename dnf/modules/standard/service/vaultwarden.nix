@@ -24,8 +24,12 @@ in
 
   # TODO: work in progress, activate TLS + FQDN
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.vaultwarden = {
         inherit defaultParams;
         persist = {
@@ -48,6 +52,10 @@ in
         enable = true;
         service.vaultwarden.enable = true;
       };
+
+      #------------------------------------------------------------------------
+      # Vaultwarden Service
+      #------------------------------------------------------------------------
 
       # The CLI tool
       environment.systemPackages = [ pkgs.vaultwarden ];

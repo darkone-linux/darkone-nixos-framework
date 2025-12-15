@@ -23,6 +23,7 @@
     ./standard/service/audio.nix
     ./standard/service/auth.nix
     ./standard/service/beets.nix
+    ./standard/service/borg.nix
     ./standard/service/dnsmasq.nix
     ./standard/service/fail2ban.nix
     ./standard/service/forgejo.nix

@@ -37,8 +37,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.mattermost = {
         inherit defaultParams;
         persist.varDirs = [ "${cfg.dataDir}/data" ];
@@ -91,7 +95,10 @@ in
       # Tools
       environment.systemPackages = with pkgs; [ mmctl ];
 
-      # Mattermost server
+      #------------------------------------------------------------------------
+      # Mattermost Server
+      #------------------------------------------------------------------------
+
       # TODO: bulk users
       # -> https://docs.mattermost.com/administration-guide/onboard/bulk-loading-data.html
       # -> https://docs.mattermost.com/administration-guide/onboard/user-provisioning-workflows.html

@@ -1,4 +1,4 @@
-# LLDAP service for DNF SSO.
+# LLDAP service for DNF SSO (WIP).
 
 {
   lib,
@@ -24,8 +24,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.users = {
         inherit defaultParams;
         persist.dirs = [ "/var/lib/lldap" ];
@@ -41,6 +45,10 @@ in
         service.users.enable = true;
       };
 
+      #------------------------------------------------------------------------
+      # LLDAP User
+      #------------------------------------------------------------------------
+
       # Access to default password
       users.users.lldap = {
         isSystemUser = true;
@@ -49,7 +57,10 @@ in
       };
       users.groups.lldap = { };
 
-      # Main service
+      #------------------------------------------------------------------------
+      # LLDAP Service
+      #------------------------------------------------------------------------
+
       services.lldap = {
         enable = true;
         settings = {

@@ -45,8 +45,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service registration
       darkone.system.services.service.ncps = {
         displayOnHomepage = false;
         persist = {
@@ -64,7 +68,10 @@ in
         service.ncps.enable = true;
       };
 
-      # Main ncps service
+      #------------------------------------------------------------------------
+      # NCPS Service
+      #------------------------------------------------------------------------
+
       services.ncps =
         lib.mkIf isServer {
           enable = true;

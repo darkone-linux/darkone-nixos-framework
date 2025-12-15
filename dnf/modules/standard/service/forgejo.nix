@@ -20,8 +20,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.forgejo = {
         persist.dirs = [
           "/var/lib/forgejo/custom"
@@ -40,7 +44,10 @@ in
         service.forgejo.enable = true;
       };
 
-      # Forgejo main service
+      #------------------------------------------------------------------------
+      # Forgejo Service
+      #------------------------------------------------------------------------
+
       services.forgejo = {
         enable = true;
         database.type = "postgres";

@@ -50,8 +50,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.keycloak = {
         persist.dirs = [ "/var/lib/keycloak" ];
         proxy.servicePort = srvPort;
@@ -72,6 +76,10 @@ in
         service.keycloak.enable = true;
       };
 
+      #------------------------------------------------------------------------
+      # Keycloak dependencies
+      #------------------------------------------------------------------------
+
       # Sops DB password file
       sops.secrets = {
         keycloak-db-pass = {
@@ -86,6 +94,10 @@ in
         after = [ "sops-nix.service" ];
         wants = [ "sops-nix.service" ];
       };
+
+      #------------------------------------------------------------------------
+      # Keycloak Service
+      #------------------------------------------------------------------------
 
       # Main service
       services.keycloak = {

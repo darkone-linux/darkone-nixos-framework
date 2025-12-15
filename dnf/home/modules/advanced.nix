@@ -13,6 +13,8 @@
 let
   cfg = config.darkone.home.advanced;
   graphic = osConfig.darkone.graphic.gnome.enable;
+  hasBorg = osConfig.darkone.service.borg.enable;
+  hasRestic = osConfig.darkone.service.restic.enable;
 
   # Extraction of current user from host configuration
   user = users.${config.home.username};
@@ -75,6 +77,10 @@ in
       (lib.mkIf (graphic && cfg.enableTools) meld) # Diff tool
       (lib.mkIf (graphic && cfg.enableTools) resources) # Monitor your system resources and processes
       (lib.mkIf (graphic && cfg.enableTools) textpieces) # Swiss knife of text processing
+      (lib.mkIf (hasBorg && cfg.enableAdmin) borgbackup)
+      (lib.mkIf (hasBorg && graphic && cfg.enableAdmin) vorta) # Borg client
+      (lib.mkIf (hasRestic && cfg.enableAdmin) restic)
+      (lib.mkIf (hasRestic && cfg.enableAdmin) restic-browser)
       (lib.mkIf cfg.enableAdmin bridge-utils)
       (lib.mkIf cfg.enableAdmin ccrypt)
       (lib.mkIf cfg.enableAdmin dig)
@@ -91,8 +97,6 @@ in
       (lib.mkIf cfg.enableAdmin pciutils) # lspci pcilmr setpci
       (lib.mkIf cfg.enableAdmin pinentry-curses)
       (lib.mkIf cfg.enableAdmin psmisc) # killall, pstree, pslog, fuser...
-      (lib.mkIf cfg.enableAdmin restic)
-      (lib.mkIf cfg.enableAdmin restic-browser)
       (lib.mkIf cfg.enableAdmin strace)
       (lib.mkIf cfg.enableAdmin tcpdump)
       (lib.mkIf cfg.enableAdmin wirelesstools) # ifrename iwconfig iwevent iwgetid iwlist iwpriv iwspy
@@ -110,11 +114,6 @@ in
       (lib.mkIf cfg.enableEssentials unzip)
       (lib.mkIf cfg.enableEssentials wget)
       (lib.mkIf cfg.enableEssentials zip)
-      (lib.mkIf cfg.enableTools fastfetch)
-      (lib.mkIf cfg.enableTools presenterm)
-      (lib.mkIf cfg.enableTools pv)
-      (lib.mkIf cfg.enableTools ranger)
-      (lib.mkIf cfg.enableTools zellij)
       (lib.mkIf cfg.enableNixAdmin age)
       (lib.mkIf cfg.enableNixAdmin colmena)
       (lib.mkIf cfg.enableNixAdmin deadnix)
@@ -128,6 +127,11 @@ in
       (lib.mkIf cfg.enableNixAdmin statix)
       (lib.mkIf cfg.enableNixAdmin wakeonlan)
       (lib.mkIf cfg.enableNixAdmin yq)
+      (lib.mkIf cfg.enableTools fastfetch)
+      (lib.mkIf cfg.enableTools presenterm)
+      (lib.mkIf cfg.enableTools pv)
+      (lib.mkIf cfg.enableTools ranger)
+      (lib.mkIf cfg.enableTools zellij)
     ];
 
     #============================================================================

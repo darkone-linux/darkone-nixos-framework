@@ -34,8 +34,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.nextcloud = {
         inherit defaultParams;
         persist = {
@@ -72,6 +76,10 @@ in
         service.nextcloud.enable = true;
       };
 
+      #------------------------------------------------------------------------
+      # Nextcloud dependencies
+      #------------------------------------------------------------------------
+
       # Initial admin password
       environment.etc."nextcloud-admin-pass".text = "changeme";
 
@@ -99,7 +107,10 @@ in
         JWT_SECRET_KEY=test123
       '';
 
-      # Nextcloud main service
+      #------------------------------------------------------------------------
+      # Nextcloud Service
+      #------------------------------------------------------------------------
+
       services.nextcloud = {
         enable = true;
         package = pkgs.nextcloud32;

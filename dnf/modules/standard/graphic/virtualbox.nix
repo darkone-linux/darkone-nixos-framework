@@ -1,6 +1,11 @@
 # Virtualbox host installation.
 
-{ lib, config, ... }:
+{
+  lib,
+  config,
+  pkgs-stable,
+  ...
+}:
 let
   cfg = config.darkone.graphic.virtualbox;
   all-users = builtins.attrNames config.users.users;
@@ -16,8 +21,15 @@ in
 
     # Virtualbox module
     nixpkgs.config.allowUnfree = lib.mkForce true;
-    virtualisation.virtualbox.host.enable = lib.mkForce true;
-    virtualisation.virtualbox.host.enableExtensionPack = cfg.enableExtensionPack;
+
+    # Virtualbox module
+    virtualisation.virtualbox.host = {
+      enable = true;
+      #enableKvm = true; # -> Compilation
+      inherit (cfg) enableExtensionPack;
+      addNetworkInterface = false;
+      package = pkgs-stable.virtualbox;
+    };
 
     # Permissions
     users.extraGroups.vboxusers.members = normal-users;

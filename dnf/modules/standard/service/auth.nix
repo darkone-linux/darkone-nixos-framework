@@ -25,8 +25,12 @@ in
   };
 
   config = lib.mkMerge [
+
+    #------------------------------------------------------------------------
+    # DNF Service configuration
+    #------------------------------------------------------------------------
+
     {
-      # Darkone service: httpd + dnsmasq + homepage registration
       darkone.system.services.service.auth = {
         inherit defaultParams;
         persist.dirs = [
@@ -46,6 +50,10 @@ in
         service.auth.enable = true;
       };
 
+      #------------------------------------------------------------------------
+      # Authelia user
+      #------------------------------------------------------------------------
+
       # Require users service
       darkone.service.users.enable = true;
 
@@ -56,6 +64,10 @@ in
         extraGroups = [ "sops" ];
       };
       users.groups.authelia-main = { };
+
+      #------------------------------------------------------------------------
+      # Authelia Service
+      #------------------------------------------------------------------------
 
       # Authelia service configuration
       systemd.services.authelia-main =
@@ -170,6 +182,10 @@ in
           # };
         };
       };
+
+      #------------------------------------------------------------------------
+      # Caddy Service
+      #------------------------------------------------------------------------
 
       # TODO: transférer vers caddy main
       services.caddy = {
