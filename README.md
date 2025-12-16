@@ -21,10 +21,10 @@ Thank you!
 |   | Feature | Description |
 |---|--------|-------------|
 | ⚙️ | Automated install | Fully automated host installation with [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) and [disko](https://github.com/nix-community/disko) |
-| 👤 | User profiles | [User profiles](https://darkone-linux.github.io/ref/modules/#home-manager-modules) with [Home Manager](https://github.com/nix-community/home-manager) (admin, dev, gamer, beginner...) |
+| 👤 | User profiles | User [profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/home/profiles) and [modules](https://darkone-linux.github.io/ref/modules/#home-manager-modules) with [Home Manager](https://github.com/nix-community/home-manager) (admin, gamer, beginner...) |
 | 🔑 | Security | Simple and reliable security strategy powered by [sops-nix](https://github.com/Mic92/sops-nix) |
 | 🧩 | Hosts & Users | [Multi-host and multi-user architecture](https://darkone-linux.github.io/doc/specifications/#the-generator), deployed with [colmena](https://github.com/zhaofengli/colmena) and [just](https://github.com/casey/just) |
-| 🤗 | Smart services | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [KeyCloak](https://www.keycloak.org/) (SSO), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/)... |
+| 🤗 | Smart services | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [KeyCloak](https://www.keycloak.org/) (SSO), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [etc.](https://darkone-linux.github.io/ref/modules/#-darkoneserviceadguardhome) |
 | 📦 | High-level modules | [High-level NixOS modules](https://darkone-linux.github.io/ref/modules), enabled with a simple `.enable = true` |
 | 💾 | 3-2-1 Backups | Comprehensive backup strategy with [Restic](https://restic.net/) or [Borg](https://borgbackup.readthedocs.io/) |
 | 🖥️ | Host profiles | [Host profiles](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop) (servers, containers, network nodes, workstations...) |
