@@ -8,7 +8,12 @@
 # <db_dumps> -> /mnt/backup/databases/<db_dumps>
 # ```
 
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  zone,
+  ...
+}:
 let
   cfg = config.darkone.service.restic;
   srv = config.services.restic;
@@ -20,6 +25,9 @@ let
   # Dirs backup
   nfsBackupRepo = "${cfg.repositoryRoot}${srv-dirs.nfs}";
   enableNfsBackup = cfg.enableNfsBackup && hasNfsShares;
+
+  # Restic zoned password
+  passwdFileName = "restic-password-" + zone.name;
 
   # Module main params
   #srvPort = 8081;
@@ -95,7 +103,7 @@ in
       #------------------------------------------------------------------------
 
       # Restic password
-      sops.secrets.restic-password = {
+      sops.secrets.${passwdFileName} = {
         mode = "0400";
         owner = "root";
       };
@@ -135,7 +143,7 @@ in
             ];
             initialize = true; # Create the repo if needed
             runCheck = true; # Check integrity of repo before save
-            passwordFile = config.sops.secrets.restic-password.path;
+            passwordFile = config.sops.secrets.${passwdFileName}.path;
             paths = cfg.nfsDirsPaths;
             repository = nfsBackupRepo;
             extraBackupArgs = lib.optionals cfg.enableDryRun [
