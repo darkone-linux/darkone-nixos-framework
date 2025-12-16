@@ -133,23 +133,19 @@ Available recipes:
 ### En cours
 
 - [ ] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + configuration multi-postes.
-- [ ] Stratégie de synchronisation avec syncthing (ou autre).
 - [ ] SSO avec [Authelia](https://github.com/authelia/authelia) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.authelia))
   - Intégration du module Authelia (cf. mes notes, fichier `PAM`).
   - Gestion auto `secrets/users_database.yml` de authelia (via module ?).
   - Conf auto pour nginx, immich, nextcloud...
 - [ ] Partages Samba pour windows + linux.
 - [ ] Réseau social à voir : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost), [mastodon](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mastodon), [matrix](https://nixos.wiki/wiki/Matrix), [gotosocial](https://search.nixos.org/options?channel=24.11&from=0&size=50&sort=relevance&type=packages&query=services.gotosocial), [zulip](https://zulip.com/self-hosting/)...
-- [ ] Gestion centralisée des utilisateurs avec [lldap](https://github.com/lldap/lldap).
-
-### Planifié (prioritaire)
-
+- [ ] Gestion centralisée des utilisateurs avec [KeyCloak](https://www.keycloak.org).
 - [ ] Stratégie de sauvegarde, plusieurs options :
   - Ecosystème [Borg](https://github.com/borgbackup/borg) + [Borgmatic](https://github.com/borgmatic-collective/borgmatic) + [BorgWeb](https://github.com/borgbackup/borgweb) (plus maintenu ?) + [BorgWarehouse](https://github.com/ravinou/borgwarehouse) (bien mais pas intégré à nix) + [Vorta](https://vorta.borgbase.com/).
   - Ecosystème [Restic](https://github.com/kopia/kopia), bon module nix, plus simple, plus "CLI", plus de connexions que Borg, moins performant.
   - [Kopia](https://github.com/kopia/kopia) : très prometteur mais pas encore de module officiel pour NixOS.
 
-### Planifié (secondaire)
+### Planifié
 
 - [ ] Intégration de [nixvim](https://nix-community.github.io/nixvim/).
 - [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
