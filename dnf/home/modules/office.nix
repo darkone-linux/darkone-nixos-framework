@@ -70,7 +70,7 @@ in
       type = types.str;
       default = "fr-moderne";
       example = "en-us";
-      description = "Huntspell Lang (https://mynixos.com/nixpkgs/packages/hunspellDicts)";
+      description = "[Huntspell Lang](https://mynixos.com/nixpkgs/packages/hunspellDicts)";
     };
   };
 

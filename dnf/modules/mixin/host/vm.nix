@@ -6,11 +6,9 @@ let
 in
 {
   options = {
-    darkone.host.vm = {
-      enableVirtualbox = lib.mkEnableOption "Virtualbox client";
-      enableQemu = lib.mkEnableOption "Qemu/KVM client";
-      enableXen = lib.mkEnableOption "Xen client";
-    };
+    darkone.host.vm.enableVirtualbox = lib.mkEnableOption "Virtualbox client";
+    darkone.host.vm.enableQemu = lib.mkEnableOption "Qemu/KVM client";
+    darkone.host.vm.enableXen = lib.mkEnableOption "Xen client";
   };
 
   config = lib.mkIf (cfg.enableVirtualbox || cfg.enableXen || cfg.enableQemu) {

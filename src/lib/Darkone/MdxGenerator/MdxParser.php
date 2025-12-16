@@ -2,6 +2,7 @@
 
 namespace Darkone\MdxGenerator;
 
+use Darkone\NixGenerator\NixException;
 use InvalidArgumentException;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -24,45 +25,124 @@ class MdxParser
     }
 
     /**
-     * @throws MdxException
+     * TODO: Ce parseur initial nécessite une écriture spécifique des options. Remplacer par un vrai parseur nix.
+     * @param string $fileContent
+     * @param string $filePath
+     * @return array
+     * @throws NixException
      */
     public static function extractModuleOptions(string $fileContent, string $filePath): array
     {
         $options = [];
+        $lines = explode("\n", trim($fileContent));
 
-        // mkEnableOption
-        preg_match_all('/([a-zA-Z0-9_-]+) *=[^\n]*mkEnableOption +"([^\n]+)"; *\n/', $fileContent, $matches);
-        for ($i = 0; $i < count($matches[0]); $i++) {
-            $options[] = [
-                'name' => $matches[1][$i],
-                'type' => 'bool',
-                'default' => 'false',
-                'desc' => $matches[2][$i],
-                'example' => null,
-            ];
+        $currOpt = [];
+        $levels = [];
+        $inOpt = false;
+        $prefix = '';
+        foreach ($lines as $line) {
+            if (preg_match('/^( *)(' . $prefix . ')?([a-zA-Z0-9._-]+) *=[^\n]*mkEnableOption +"([^\n]+)";$/', $line, $matches)) {
+                if (empty($prefix)) {
+                    $prefix = preg_replace('/^(.+\.)[^.]+/', '$1', $matches[3]);
+                    $matches[3] = substr($matches[3], strlen($prefix));
+                }
+                if (!empty($currOpt)) {
+                    $options[] = $currOpt;
+                    $currOpt = [];
+                }
+                $options[] = array_filter([
+                    'level' => self::extractLevel($levels, strlen($matches[1]), $filePath),
+                    'name' => $matches[3],
+                    'type' => 'bool',
+                    'default' => 'false',
+                    'description' => $matches[4],
+                    'example' => null,
+                ]);
+                $inOpt = false;
+            }
+            if (preg_match('/^( +)(' . $prefix . ')?([a-zA-Z0-9._-]+) *=[^\n]*mkOption +{$/', $line, $matches)) {
+                if (!empty($currOpt)) {
+                    $options[] = $currOpt;
+                }
+                $currOpt = [
+                    'level' => self::extractLevel($levels, strlen($matches[1]), $filePath),
+                    'name' => $matches[3],
+                    'default' => null,
+                ];
+                $inOpt = true;
+            }
+            if (trim($line) == '};') {
+                if (!empty($currOpt)) {
+                    $options[] = $currOpt;
+                    $currOpt = [];
+                }
+                $inOpt = false;
+            }
+            if ($inOpt && preg_match('/^ +(type|default|example|description) = (.*?);?$/s', $line, $matches)) {
+                $currOpt[$matches[1]] = preg_replace('/(lib\.)?types\./', '', $matches[2]);
+            }
+        }
+        if (!empty($currOpt)) {
+            $options[] = $currOpt;
         }
 
-        // mkOption
-        preg_match_all('/([a-zA-Z0-9_-]+) *=[^\n]*mkOption +{(.+?)\n +}; *\n/s', $fileContent, $matches);
-        for ($i = 0; $i < count($matches[0]); $i++) {
-            preg_match('/^.*type = [a-z.]*?([a-z]+);.*$/s', $matches[2][$i], $typeMatches);
-            preg_match('/^.*default = ([^\n]+?);\n.*$/s', $matches[2][$i], $defaultMatches);
-            preg_match('/^.*example = "?([^"]+?)"?;.*$/s', $matches[2][$i], $exampleMatches);
-            preg_match('/^.*description = "([^"]+)";.*$/s', $matches[2][$i], $descMatches);
-            $options[] = [
-                'name' => $matches[1][$i],
-                'type' => $typeMatches[1] ?? '?',
-                'default' => $defaultMatches[1] ?? null,
-                'desc' => $descMatches[1] ?? null,
-                'example' => $exampleMatches[1] ?? null,
-            ];
+        $lastLevel = 0;
+        foreach ($options as &$option) {
+            if (($option['level'] - $lastLevel) > 1) {
+                throw new NixException('Option level gap ' . $option['level'] . '-' . $lastLevel . ' too high for ' . $filePath);
+            }
+            if (!isset($option['type'])) {
+                throw new NixException('No type for option ' . $option['name'] . ' in ' . $filePath);
+            }
+            if (str_starts_with($option['type'], 'list')) {
+                $option['default'] = '[ ]';
+                unset($option['example']);
+            }
+            if (str_starts_with($option['type'], 'attrs')) {
+                $option['type'] = 'attrs';
+                $option['default'] = '{ }';
+                unset($option['example']);
+            }
+            if (str_starts_with($option['type'], 'submodule')) {
+                $option['type'] = 'submodule';
+                $option['default'] = '{ }';
+                unset($option['example']);
+            }
+            if (str_starts_with($option['type'], 'lines')) {
+                $option['type'] = 'lines';
+                $option['default'] = '""';
+                unset($option['example']);
+            }
+            if (preg_match('/^.* (<[a-zA-Z]+>)$/', $option['description'], $matches)) {
+                $option['name'] .= '.' . $matches[1];
+            }
+            $lastLevel = $option['level'];
         }
-
-        #if (empty($options)) {
-        #    throw new MdxException('No option found in module ' . $filePath);
-        #}
 
         return $options;
+    }
+
+    /**
+     * @param array $levels
+     * @param int $spaces
+     * @param string $filePath
+     * @return int
+     * @throws NixException
+     */
+    private static function extractLevel(array &$levels, int $spaces, string $filePath): int
+    {
+        if (empty($levels)) {
+            $levels[$spaces] = 1;
+        }
+        if ($spaces > max(array_keys($levels))) {
+            $levels[$spaces] = count($levels) + 1;
+        }
+        if (isset($levels[$spaces])) {
+            return $levels[$spaces];
+        }
+        print_r($levels);
+        print_r($spaces);
+        throw new NixException('Ambiguous option level in ' . $filePath);
     }
 
     public static function extractNixFiles(string $directory): array

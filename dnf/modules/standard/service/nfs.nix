@@ -3,7 +3,7 @@
 # :::note
 # This module is enabled if a nfs server is declared in the local network. It creates:
 #
-# - A share (${srv-dirs.homes}) on the server.
+# - A share (srv-dirs.homes) on the server.
 # - Mount dirs (/mnt/nfs/homes/[user]) on clients.
 #
 # The nfs home manager script links xdg directories to mount dirs.

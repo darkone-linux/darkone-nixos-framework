@@ -18,9 +18,9 @@ sidebar:
 A full desktop configuration with gnome, multimedia and office tools.
 
 * **enable** `bool` Desktop optimized host configuration
+
 ```nix
 darkone.host.desktop.enable = false;
-
 ```
 
 <hr/>
@@ -41,6 +41,7 @@ gateway and all machines on the local network.
 * **enableAdguardhome** `bool` Enable pre-configured Aguard Home service
 * **enableAuth** `bool` Enable authentication service (Authelia SSO)
 * **enableUsers** `bool` Enable user management with LLDAP for DNF SSO
+
 ```nix
 darkone.host.gateway = {
   enable = false;
@@ -48,8 +49,7 @@ darkone.host.gateway = {
   enableAdguardhome = builtins.hasAttr "adguardhome" host.services;
   enableAuth = builtins.hasAttr "auth" host.services;
   enableUsers = builtins.hasAttr "users" host.services;
-}
-
+};
 ```
 
 <hr/>
@@ -72,6 +72,7 @@ Zsh alias "h" for "headscale".
 * **enableClient** `bool` Enable tailscale client on HCS node (recommande to host services)
 * **enableAuth** `bool` Enable authentication service (Authelia SSO)
 * **enableUsers** `bool` Enable user management with LLDAP for DNF SSO
+
 ```nix
 darkone.host.hcs = {
   enable = false;
@@ -79,8 +80,7 @@ darkone.host.hcs = {
   enableClient = true;
   enableAuth = builtins.hasAttr "auth" host.services;
   enableUsers = builtins.hasAttr "users" host.services;
-}
-
+};
 ```
 
 <hr/>
@@ -90,9 +90,9 @@ darkone.host.hcs = {
 Desktop config + laptop specific tools & configuration.
 
 * **enable** `bool` Laptop optimized host configuration
+
 ```nix
 darkone.host.laptop.enable = false;
-
 ```
 
 <hr/>
@@ -126,6 +126,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableKeycloak** `bool` Enable Keycloak service
 * **enableRestic** `bool` Enable Restic service
 * **enableBorg** `bool` Enable Borg service
+
 ```nix
 darkone.host.minimal = {
   enable = false;
@@ -147,8 +148,7 @@ darkone.host.minimal = {
   enableKeycloak = builtins.hasAttr "keycloak" host.services;
   enableRestic = builtins.hasAttr "restic" host.services;
   enableBorg = builtins.hasAttr "borg" host.services;
-}
-
+};
 ```
 
 <hr/>
@@ -158,9 +158,9 @@ darkone.host.minimal = {
 Portable configuration for a bootable USB drive containing a NixOS machine from the local network.
 
 * **enable** `bool` Portable host configuration for usb keys
+
 ```nix
 darkone.host.portable.enable = false;
-
 ```
 
 <hr/>
@@ -176,12 +176,12 @@ that we can hopefully still access it remotely. (cf. srvos)
 
 * **enable** `bool` Server host minimal configuration
 * **enableWatchdog** `bool` Enable systemd watchdog
+
 ```nix
 darkone.host.server = {
   enable = false;
   enableWatchdog = true;
-}
-
+};
 ```
 
 <hr/>
@@ -193,13 +193,13 @@ Virtual machines guest tools.
 * **enableVirtualbox** `bool` Virtualbox client
 * **enableQemu** `bool` Qemu/KVM client
 * **enableXen** `bool` Xen client
+
 ```nix
 darkone.host.vm = {
   enableVirtualbox = false;
   enableQemu = false;
   enableXen = false;
-}
-
+};
 ```
 
 <hr/>
@@ -214,9 +214,9 @@ Use HomeManager profiles to provide software tailored to each user (admin, advan
 :::
 
 * **enable** `bool` Advanced user (admin sys, developper)
+
 ```nix
 darkone.profile.advanced.enable = false;
-
 ```
 
 <hr/>
@@ -235,12 +235,12 @@ NixOS configuration for the local LAN administrator computer.
 
 * **enable** `bool` Enable NIX configuration builder tools
 * **enableNh** `bool` Enable nix helper (nh) management tool
+
 ```nix
 darkone.admin.nix = {
   enable = false;
   enableNh = false;
-}
-
+};
 ```
 
 <hr/>
@@ -258,9 +258,9 @@ A pre-configured git environment.
 :::
 
 * **enable** `bool` Pre-configured git environment
+
 ```nix
 darkone.console.git.enable = false;
-
 ```
 
 <hr/>
@@ -270,9 +270,9 @@ darkone.console.git.enable = false;
 Pandoc with texlive and exiftool utils + gentium fonts.
 
 * **enable** `bool` Pre-configured pandoc environment
+
 ```nix
 darkone.console.pandoc.enable = false;
-
 ```
 
 <hr/>
@@ -298,12 +298,12 @@ For nix/dnf admin profile:
 
 * **enable** `bool` ZSH environment
 * **enableForRoot** `bool` Root home manager ZSH configuration
+
 ```nix
 darkone.console.zsh = {
   enable = false;
   enableForRoot = false;
-}
-
+};
 ```
 
 <hr/>
@@ -318,6 +318,7 @@ Pre-configured gnome environment with dependences.
 * **enableCaffeine** `bool` Disable auto-suspend
 * **enableGsConnect** `bool` Communication with devices
 * **xkbVariant** `str` Keyboard variant. Layout is extracted from console keymap.
+
 ```nix
 darkone.graphic.gnome = {
   enable = false;
@@ -326,8 +327,7 @@ darkone.graphic.gnome = {
   enableCaffeine = false;
   enableGsConnect = false;
   xkbVariant = "oss";
-}
-
+};
 ```
 
 <hr/>
@@ -342,12 +342,12 @@ To use in conjonction with homemanager games module!
 
 * **enable** `bool` SuperTuxKart + firewall config + tracks share
 * **isNfsServer** `bool` NFS server (share tracks), default is the main NFS server. (wip, enable on main server)
+
 ```nix
 darkone.graphic.supertuxkart = {
   enable = false;
   isNfsServer = isMainNfsServer;
-}
-
+};
 ```
 
 <hr/>
@@ -357,9 +357,9 @@ darkone.graphic.supertuxkart = {
 Virt manager + viewer with spice, win-virtio and ovmf.
 
 * **enable** `bool` Virt manager with dependencies
+
 ```nix
 darkone.graphic.virt-manager.enable = false;
-
 ```
 
 <hr/>
@@ -370,12 +370,12 @@ Virtualbox host installation.
 
 * **enable** `bool` Pre-configured virtualbox installation
 * **enableExtensionPack** `bool` Enable extension pack (causes recompilations)
+
 ```nix
 darkone.graphic.virtualbox = {
   enable = false;
   enableExtensionPack = false;
-}
-
+};
 ```
 
 <hr/>
@@ -390,9 +390,9 @@ It uses the [DNF dnsmasq module](/ref/modules/#-darkoneservicednsmasq) as upstre
 :::
 
 * **enable** `bool` Enable local adguardhome service
+
 ```nix
 darkone.service.adguardhome.enable = false;
-
 ```
 
 <hr/>
@@ -402,9 +402,9 @@ darkone.service.adguardhome.enable = false;
 Audio services: alsa, pulse (not jack for the moment).
 
 * **enable** `bool` Enable sound system
+
 ```nix
 darkone.service.audio.enable = false;
-
 ```
 
 <hr/>
@@ -414,9 +414,9 @@ darkone.service.audio.enable = false;
 DNF SSO with Authelia.
 
 * **enable** `bool` Enable local SSO with Authelia (and LLDAP)
+
 ```nix
 darkone.service.auth.enable = false;
-
 ```
 
 <hr/>
@@ -435,12 +435,12 @@ beets import [dir]
 
 * **enable** `bool` Enable beets for common-files
 * **enableService** `bool` Enable beets service (incoming music -&gt; shared music dir)
+
 ```nix
 darkone.service.beets = {
   enable = false;
   enableService = false;
-}
-
+};
 ```
 
 <hr/>
@@ -464,24 +464,24 @@ If you prefer borg, this module is still operational.
 
 * **enable** `bool` Enable borg backup service
 * **enableDryRun** `bool` Dry Run (try)
-* **extraBackups** `str` Main backup target root path
+* **repositoryRoot** `str` Main backup target root path
 * **enableServicesBackup** `bool` Backup important files of local services (wip)
 * **enableDatabasesBackup** `bool` Backup local services databases (wip)
 * **enableWaitRemoteFs** `bool` Trigger the borg service only if remote-fs service is started
 * **enableNfsBackup** `bool` Backup the /srv/nfs dir (nfs shared files)
-* **systemDirsPaths** `?` System dirs (exports) to include
+* **systemDirsPaths** `listOf str` System dirs (exports) to include
+
 ```nix
 darkone.service.borg = {
   enable = false;
   enableDryRun = false;
-  extraBackups = "/mnt/backup/borg";
+  repositoryRoot = "/mnt/backup/borg";
   enableServicesBackup = true;
   enableDatabasesBackup = true;
   enableWaitRemoteFs = true;
   enableNfsBackup = config.darkone.service.nfs.enable;
-  systemDirsPaths = ;
-}
-
+  systemDirsPaths = [ ];
+};
 ```
 
 <hr/>
@@ -496,9 +496,9 @@ It is the essential functionality of the local gateway.
 :::
 
 * **enable** `bool` Enable local dnsmasq service
+
 ```nix
 darkone.service.dnsmasq.enable = false;
-
 ```
 
 <hr/>
@@ -508,9 +508,9 @@ darkone.service.dnsmasq.enable = false;
 Fail2ban DNF specific module.
 
 * **enable** `bool` Enable fail2ban with DNF specificities
+
 ```nix
 darkone.service.fail2ban.enable = false;
-
 ```
 
 <hr/>
@@ -520,9 +520,9 @@ darkone.service.fail2ban.enable = false;
 A full-configured forgejo git forge.
 
 * **enable** `bool` Enable local forgejo service
+
 ```nix
 darkone.service.forgejo.enable = false;
-
 ```
 
 <hr/>
@@ -533,12 +533,12 @@ A full-configured headscale service for HCS.
 
 * **enable** `bool` Enable headscale DNF service
 * **enableGRPC** `bool` Open GRPC TCP port
+
 ```nix
 darkone.service.headscale = {
   enable = false;
   enableGRPC = false;
-}
-
+};
 ```
 
 <hr/>
@@ -548,9 +548,9 @@ darkone.service.headscale = {
 A Home Assistant with some plugins (wip).
 
 * **enable** `bool` Enable home assitant
+
 ```nix
 darkone.service.home-assistant.enable = false;
-
 ```
 
 <hr/>
@@ -564,10 +564,11 @@ For each DNF service enabled, an entry is automatically added to the homepage co
 :::
 
 * **enable** `bool` Enable homepage dashboard + httpd + host
-* **localServices** `?` Services to add in Local Applications section
-* **remoteServices** `?` Services to add in Remote Applications section
-* **bookmarks** `?` Replace default bookmarks (links)
-* **widgets** `?` Replace default widgets
+* **localServices** `listOf attrs` Services to add in Local Applications section
+* **remoteServices** `listOf attrs` Services to add in Remote Applications section
+* **bookmarks** `listOf attrs` Replace default bookmarks (links)
+* **widgets** `listOf attrs` Replace default widgets
+
 ```nix
 darkone.service.homepage = {
   enable = false;
@@ -575,8 +576,7 @@ darkone.service.homepage = {
   remoteServices = [ ];
   bookmarks = [ ];
   widgets = [ ];
-}
-
+};
 ```
 
 <hr/>
@@ -589,14 +589,14 @@ Nginx httpd simple server with PHP84 (DEPRECATED)
 * **enableUserDir** `bool` Enable user dir configuration
 * **enablePhp** `bool` Enable PHP 8.4 with useful modules
 * **enableVarWww** `bool` Enable http root on /var/www
+
 ```nix
 darkone.service.httpd = {
   enable = false;
   enableUserDir = false;
   enablePhp = false;
   enableVarWww = false;
-}
-
+};
 ```
 
 <hr/>
@@ -608,13 +608,13 @@ Immich (photo management) full-configured service.
 * **enable** `bool` Enable local immich service
 * **enableMachineLearning** `bool` Enable machine learning features (face recognition, object detection)
 * **enableRedis** `bool` Enable Redis for caching (recommended for performance)
+
 ```nix
 darkone.service.immich = {
   enable = false;
   enableMachineLearning = false;
   enableRedis = false;
-}
-
+};
 ```
 
 <hr/>
@@ -624,9 +624,9 @@ darkone.service.immich = {
 A full-configured jitsi-meet service.
 
 * **enable** `bool` Enable local jitsi-meet service
+
 ```nix
 darkone.service.jitsi-meet.enable = false;
-
 ```
 
 <hr/>
@@ -637,12 +637,12 @@ A full-configured keycloak IAM service.
 
 * **enable** `bool` Enable keycloak service
 * **enableBootstrap** `bool` Enable bootstrap state to set admin password
+
 ```nix
 darkone.service.keycloak = {
   enable = false;
   enableBootstrap = false;
-}
-
+};
 ```
 
 <hr/>
@@ -652,9 +652,9 @@ darkone.service.keycloak = {
 A matrix (synapse) server. (WIP)
 
 * **enable** `bool` Enable matrix (synapse) service
+
 ```nix
 darkone.service.matrix.enable = false;
-
 ```
 
 <hr/>
@@ -671,12 +671,12 @@ from the open-source version.
 
 * **enable** `bool` Enable mattermost service
 * **enableSmtp** `bool` Enable SMTP to send emails (recommended)
+
 ```nix
 darkone.service.mattermost = {
   enable = false;
   enableSmtp = true;
-}
-
+};
 ```
 
 <hr/>
@@ -692,12 +692,12 @@ to monitor the operating system, network activity, resources, and performance.
 
 * **enable** `bool` Enable monitoring with prometheus, grafana and node exporter
 * **retentionTime** `str` Durée de rétention des métriques Prometheus
+
 ```nix
 darkone.service.monitoring = {
   enable = false;
   retentionTime = "15d";
-}
-
+};
 ```
 
 <hr/>
@@ -707,13 +707,9 @@ darkone.service.monitoring = {
 A full-configured navidrome service.
 
 * **enable** `bool` Enable navidrome service
-* **enableNfsShare** `bool` Enable music directory NFS share
-```nix
-darkone.service.navidrome = {
-  enable = false;
-  enableNfsShare = true;
-}
 
+```nix
+darkone.service.navidrome.enable = false;
 ```
 
 <hr/>
@@ -736,13 +732,13 @@ telnet <your-gateway> 8501
 * **enable** `bool` Enable nix cache proxy for packages
 * **dataPath** `str` Nix cache proxy cache folder
 * **extraOptions** `attrs` services.ncps extra options
+
 ```nix
 darkone.service.ncps = {
   enable = false;
   dataPath = "/var/cache/ncps";
   extraOptions = { };
-}
-
+};
 ```
 
 <hr/>
@@ -757,9 +753,9 @@ to use the “pro” version, so it is better to use the “monitoring” module
 :::
 
 * **enable** `bool` Enable netdata application
+
 ```nix
 darkone.service.netdata.enable = false;
-
 ```
 
 <hr/>
@@ -771,13 +767,13 @@ Nextcloud full-configured service.
 * **enable** `bool` Enable local nextcloud service
 * **adminUser** `str` Admin username for Nextcloud
 * **adminPassword** `str` Admin password for Nextcloud (change this!)
+
 ```nix
 darkone.service.nextcloud = {
   enable = false;
   adminUser = "admin";
   adminPassword = "changeme";
-}
-
+};
 ```
 
 <hr/>
@@ -789,7 +785,7 @@ NFS server + client for home shares.
 :::note
 This module is enabled if a nfs server is declared in the local network. It creates:
 
-- A share (${srv-dirs.homes}) on the server.
+- A share (srv-dirs.homes) on the server.
 - Mount dirs (/mnt/nfs/homes/[user]) on clients.
 
 The nfs home manager script links xdg directories to mount dirs.
@@ -799,14 +795,14 @@ In config.yaml file (hosts):
 - Clients need `nfsClient = true`.
 :::
 
-* **enable** `bool` Enable NFS DNF server (avoid enable manually)
-* **serverDomain** `str` NFS Server FQDN
+* **darkone.service.nfs.enable** `bool` Enable NFS DNF server (avoid enable manually)
+* **darkone.service.nfs.serverDomain** `str` NFS Server FQDN
+
 ```nix
 darkone.service.nfs = {
-  enable = hasServer && (isServer || isClient);
-  serverDomain = "nfs";
-}
-
+  darkone.service.nfs.enable = hasServer && (isServer || isClient);
+  darkone.service.nfs.serverDomain = "nfs";
+};
 ```
 
 <hr/>
@@ -816,9 +812,9 @@ darkone.service.nfs = {
 Opencloud full-configured service (wip - not working).
 
 * **enable** `bool` Enable local opencloud service
+
 ```nix
 darkone.service.opencloud.enable = false;
-
 ```
 
 <hr/>
@@ -832,6 +828,7 @@ Printers and scanners.
 * **enableScanners** `bool` Enable scanners
 * **enableHpPrinters** `bool` HP printers only
 * **enableManualInstall** `bool` Manual drivers installation
+
 ```nix
 darkone.service.printing = {
   enable = false;
@@ -839,8 +836,7 @@ darkone.service.printing = {
   enableScanners = false;
   enableHpPrinters = false;
   enableManualInstall = false;
-}
-
+};
 ```
 
 <hr/>
@@ -864,7 +860,8 @@ Default directories to backup:
 * **enableServicesBackup** `bool` Backup important files of local services (wip)
 * **enableDatabasesBackup** `bool` Backup local services databases (wip)
 * **enableNfsBackup** `bool` Backup /srv/nfs/&lt;xxx&gt; dirs (services important files)
-* **nfsDirsPaths** `?` NFS dirs (/srv/nfs/&lt;xxx&gt;) to include in backup configuration
+* **nfsDirsPaths** `listOf str` NFS dirs (/srv/nfs/&lt;xxx&gt;) to include in backup configuration
+
 ```nix
 darkone.service.restic = {
   enable = false;
@@ -874,9 +871,8 @@ darkone.service.restic = {
   enableServicesBackup = true;
   enableDatabasesBackup = true;
   enableNfsBackup = config.darkone.service.nfs.enable;
-  nfsDirsPaths = ;
-}
-
+  nfsDirsPaths = [ ];
+};
 ```
 
 <hr/>
@@ -893,13 +889,13 @@ to allow users to use syncthing with their account.
 * **enable** `bool` Enable local syncthing service
 * **ldapServerHost** `str` Users service (lldap)
 * **ldapServerPort** `str` Users service (lldap)
+
 ```nix
 darkone.service.syncthing = {
   enable = false;
   ldapServerHost = "${zone.gateway.hostname}.${zone.domain}";
   ldapServerPort = "3890";
-}
-
+};
 ```
 
 <hr/>
@@ -916,13 +912,13 @@ Do not use it to connect a gateway for a tailnet subnet.
 * **enable** `bool` Enable tailscale client to connect HCS
 * **isGateway** `bool` This tailscale node is a subnet gateway
 * **isExitNode** `bool` Configure this client as exit node
+
 ```nix
 darkone.service.tailscale = {
   enable = false;
   isGateway = false;
   isExitNode = false;
-}
-
+};
 ```
 
 <hr/>
@@ -932,9 +928,9 @@ darkone.service.tailscale = {
 LLDAP service for DNF SSO (WIP).
 
 * **enable** `bool` Enable local user management with LLDAP (SSO)
+
 ```nix
 darkone.service.users.enable = false;
-
 ```
 
 <hr/>
@@ -944,9 +940,9 @@ darkone.service.users.enable = false;
 A full-configured vaultwarden server (wip).
 
 * **enable** `bool` Enable local Vaultwarden service
+
 ```nix
 darkone.service.vaultwarden.enable = false;
-
 ```
 
 <hr/>
@@ -960,30 +956,30 @@ This module is enabled by default (required by DNF configuration).
 It is required for the proper functioning of every NixOS computer on the local network.
 :::
 
+* **darkone.system.core.enable** `bool` Darkone framework core system (activated by default)
+* **darkone.system.core.enableSystemdBoot** `bool` Enable the default boot loader
+* **darkone.system.core.enableFstrim** `bool` SSD optimisation with fstrim
+* **darkone.system.core.enableFirewall** `bool` Enable firewall (default true)
+* **darkone.system.core.enableSops** `bool` Enable sops dnf module (default true)
+* **darkone.system.core.enableFlatpak** `bool` Enable flatpak DNF configuration (only for graphic environments)
 * **enableBoost** `bool` Enable overclocking, corectl
 * **enableAutoSuspend** `bool` Enable automatic suspend (for laptops, ignored if disableSuspend is true)
 * **disableSuspend** `bool` Full suspend disable (for servers)
 * **enableCommonFilesUser** `bool` Enable the common-files user used by several services
-* **enable** `bool` Darkone framework core system (activated by default)
-* **enableSystemdBoot** `bool` Enable the default boot loader
-* **enableFstrim** `bool` SSD optimisation with fstrim
-* **enableFirewall** `bool` Enable firewall (default true)
-* **enableSops** `bool` Enable sops dnf module (default true)
-* **enableFlatpak** `bool` Enable flatpak DNF configuration (only for graphic environments)
+
 ```nix
 darkone.system.core = {
+  darkone.system.core.enable = true;
+  darkone.system.core.enableSystemdBoot = true;
+  darkone.system.core.enableFstrim = true;
+  darkone.system.core.enableFirewall = true;
+  darkone.system.core.enableSops = true;
+  darkone.system.core.enableFlatpak = true;
   enableBoost = false;
   enableAutoSuspend = false;
   disableSuspend = false;
   enableCommonFilesUser = false;
-  enable = true;
-  enableSystemdBoot = true;
-  enableFstrim = true;
-  enableFirewall = true;
-  enableSops = true;
-  enableFlatpak = true;
-}
-
+};
 ```
 
 <hr/>
@@ -993,9 +989,9 @@ darkone.system.core = {
 Documentation (man) for developers and admins.
 
 * **enable** `bool` Enable useful technical documentation (man, nixos)
+
 ```nix
 darkone.system.documentation.enable = false;
-
 ```
 
 <hr/>
@@ -1007,13 +1003,13 @@ Hardware configuration improvements.
 * **enable** `bool` Enable hardware optimisations
 * **enableIntel** `bool` Enable intel microcode updates
 * **enableAmd** `bool` Enable amd microcode updates
+
 ```nix
 darkone.system.hardware = {
   enable = false;
   enableIntel = false;
   enableAmd = false;
-}
-
+};
 ```
 
 <hr/>
@@ -1029,13 +1025,13 @@ By default, the configuration of this module adapts to the global configuration 
 * **enable** `bool` Enable i18n with network zone configuration by default
 * **locale** `str` Network locale
 * **timeZone** `str` Network time zone
+
 ```nix
 darkone.system.i18n = {
   enable = false;
   locale = "fr_FR.UTF-8";
   timeZone = "Europe/Paris";
-}
-
+};
 ```
 
 <hr/>
@@ -1054,57 +1050,57 @@ This module is used to register and configure DNF modules:
 :::
 
 * **enable** `bool` Enable DNF services manager to register and expose services
-* **enable** `bool` Enable service proxy
-* **isPublic** `bool` Public service accessed from internet
-* **service** `str` Domain name for the service
-* **title** `str` Display name in homepage
-* **description** `str` Service description for homepage
-* **icon** `str` Icon name for homepage (https://gethomepage.dev/configs/services/#icons)
-* **global** `bool` Global service is accessible on Internet
-* **noRobots** `bool` Prevent robots from scanning if global is true
-* **fqdn** `str` Calculated FQDN or the service before the reverse proxy
-* **href** `str` Calculated URL of the service before the reverse proxy
-* **ip** `str` Calculated IP to contact the service
-* **displayOnHomepage** `bool` Display a link on homepage
-* **dirs** `?` Service persistant dirs
-* **files** `?` Service persistant files
-* **dbDirs** `?` Service persistant dirs with database(s)
-* **dbFiles** `?` Service database file(s)
-* **varDirs** `?` Variable secondary files (log, cache, etc.)
-* **mediaDirs** `?` Service media dirs (pictures, videos, big files)
-* **enable** `bool` Whether to create virtualHost configuration (false for services that manage their own)
-* **defaultService** `bool` Is the default service
-* **servicePort** `?` Service internal port
-* **extraConfig** `lines` Extra caddy virtualHost configuration
-* **scheme** `str` Internal service scheme (http / https)
+* **service** `attrs` Global services configuration &lt;name&gt;
+  * **enable** `bool` Enable service proxy
+  * **defaultParams** `submodule` Theses options are calculated by dnfLib.srv.extractServiceParams
+    * **domain** `str` Domain name for the service
+    * **title** `str` Display name in homepage
+    * **description** `str` Service description for homepage
+    * **icon** `str` [Icon name for homepage](https://gethomepage.dev/configs/services/#icons)
+    * **global** `bool` Global service is accessible on Internet
+    * **noRobots** `bool` Prevent robots from scanning if global is true
+    * **fqdn** `str` Calculated FQDN or the service before the reverse proxy
+    * **href** `str` Calculated URL of the service before the reverse proxy
+    * **ip** `str` Calculated IP to contact the service
+  * **displayOnHomepage** `bool` Display a link on homepage
+  * **persist.dirs** `listOf str` Service persistant dirs
+  * **persist.files** `listOf str` Service persistant files
+  * **persist.dbDirs** `listOf str` Service persistant dirs with database(s)
+  * **persist.dbFiles** `listOf str` Service database file(s)
+  * **persist.varDirs** `listOf str` Variable secondary files (log, cache, etc.)
+  * **persist.mediaDirs** `listOf str` Service media dirs (pictures, videos, big files)
+  * **proxy.enable** `bool` Whether to create virtualHost configuration (false for services that manage their own)
+  * **proxy.defaultService** `bool` Is the default service
+  * **proxy.servicePort** `nullOr port` Service internal port
+  * **proxy.extraConfig** `lines` Extra caddy virtualHost configuration
+  * **proxy.scheme** `str` Internal service scheme (http / https)
+
 ```nix
 darkone.system.services = {
   enable = false;
-  enable = false;
-  isPublic = false;
-  service = "";
-  title = "";
-  description = "";
-  icon = "";
-  global = false;
-  noRobots = true;
-  fqdn = "";
-  href = "";
-  ip = "";
-  displayOnHomepage = true;
-  dirs = [ ];
-  files = [ ];
-  dbDirs = [ ];
-  dbFiles = [ ];
-  varDirs = [ ];
-  mediaDirs = [ ];
-  enable = true;
-  defaultService = false;
-  servicePort = null;
-  extraConfig = "";
-  scheme = "https";
-}
-
+  service.enable = false;
+  service.defaultParams.domain = "";
+  service.defaultParams.title = "";
+  service.defaultParams.description = "";
+  service.defaultParams.icon = "";
+  service.defaultParams.global = false;
+  service.defaultParams.noRobots = true;
+  service.defaultParams.fqdn = "";
+  service.defaultParams.href = "";
+  service.defaultParams.ip = "";
+  service.defaultParams.displayOnHomepage = true;
+  service.persist.dirs = [ ];
+  service.persist.files = [ ];
+  service.persist.dbDirs = [ ];
+  service.persist.dbFiles = [ ];
+  service.persist.varDirs = [ ];
+  service.persist.mediaDirs = [ ];
+  service.proxy.enable = true;
+  service.proxy.defaultService = false;
+  service.proxy.servicePort = null;
+  service.proxy.extraConfig = "";
+  service.proxy.scheme = "https";
+};
 ```
 
 <hr/>
@@ -1119,18 +1115,18 @@ It is recommended to keep it enabled and configure it (`just passwd*` commands).
 :::
 
 * **enable** `bool` Enable sops automated configuration for DNF
+
 ```nix
 darkone.system.sops.enable = false;
-
 ```
 
 <hr/>
 
 ### &#x1F48E; darkone.system.srv-dirs
 
+* **darkone.system.srv-dirs.enable** `bool` Enable srv dirs, create the root dir (default /srv)
 * **enableNfs** `bool` Enable nfs service paths (nfs/common, nfs/homes)
 * **enableMedias** `bool` Enable media services paths (medias/[videos|music|incomming/...])
-* **enable** `bool` Enable srv dirs, create the root dir (default /srv)
 * **root** `str` Root dir for persistant data (/srv)
 * **nfs** `str` NFS root directory (/srv/nfs)
 * **homes** `str` Directory for shared homes (/srv/nfs/homes)
@@ -1141,23 +1137,23 @@ darkone.system.sops.enable = false;
 * **incoming** `str` Shared incoming directory (/srv/medias/incoming write access)
 * **incomingMusic** `str` Shared incoming directory (/srv/medias/incoming/music write access)
 * **incomingVideos** `str` Shared incoming directory (/srv/medias/incoming/videos write access)
+
 ```nix
 darkone.system.srv-dirs = {
+  darkone.system.srv-dirs.enable = cfg.enableNfs || cfg.enableMedias;
   enableNfs = false;
   enableMedias = false;
-  enable = cfg.enableNfs || cfg.enableMedias;
   root = "/srv";
-  nfs = "";
-  homes = "";
-  common = "";
-  medias = "";
-  music = "";
-  videos = "";
-  incoming = "";
-  incomingMusic = "";
-  incomingVideos = "";
-}
-
+  nfs = ;
+  homes = ;
+  common = ;
+  medias = ;
+  music = ;
+  videos = ;
+  incoming = ;
+  incomingMusic = ;
+  incomingVideos = ;
+};
 ```
 
 <hr/>
@@ -1170,20 +1166,26 @@ Build users from DNF configuration.
 This module is enabled by default (required by DNF configuration).
 :::
 
-* **enable** `bool` Users common builder (enabled by default)
-```nix
-darkone.user.build.enable = true;
+* **darkone.user.build.enable** `bool` Users common builder (enabled by default)
 
+```nix
+darkone.user.build.darkone.user.build.enable = true;
 ```
 
 <hr/>
 
 ### &#x1F48E; darkone.user.root
 
-Root user specific settings
+Root user specific settings.
+
+:::danger[Required module]
+This module is enabled by default (required by DNF configuration).
+:::
+
+* **darkone.user.root.enable** `bool` Root user specific configuration
 
 ```nix
-
+darkone.user.root.darkone.user.root.enable = true;
 ```
 
 <hr/>
@@ -1206,6 +1208,7 @@ Home profile for advanced users (computer scientists, developers, admins).
 * **enableNixAdmin** `bool` Enable nix administration features
 * **enableDeveloper** `bool` Enable tools for developer
 * **enableEssentials** `bool` Frequently used tools
+
 ```nix
 darkone.home.advanced = {
   enable = false;
@@ -1214,8 +1217,7 @@ darkone.home.advanced = {
   enableNixAdmin = false;
   enableDeveloper = true;
   enableEssentials = true;
-}
-
+};
 ```
 
 <hr/>
@@ -1234,6 +1236,7 @@ Several graphical education packages.
 * **enableLang** `bool` Lang tools and apps
 * **enableMisc** `bool` Misc tools and apps (general, training...)
 * **enableComputer** `bool` Computing tools and apps (klavaro, etc.)
+
 ```nix
 darkone.home.education = {
   enableBaby = false;
@@ -1246,8 +1249,7 @@ darkone.home.education = {
   enableLang = true;
   enableMisc = true;
   enableComputer = true;
-}
-
+};
 ```
 
 <hr/>
@@ -1263,6 +1265,7 @@ Several graphical game packages.
 * **enableCli** `bool` Cli Games
 * **enableStk** `bool` SuperTuxKart (only)
 * **stkServer** `str` STK server domain name
+
 ```nix
 darkone.home.games = {
   enableBaby = false;
@@ -1271,9 +1274,8 @@ darkone.home.games = {
   enable3D = false;
   enableCli = false;
   enableStk = false;
-  stkServer = "osConfig.darkone.service.nfs.serverDomain";
-}
-
+  stkServer = osConfig.darkone.service.nfs.serverDomain;
+};
 ```
 
 <hr/>
@@ -1284,12 +1286,12 @@ Gnome tweaks for home manager.
 
 * **enable** `bool` Enable gnome settings for home manager
 * **hideTechnicalIcons** `bool` Hide some icons for beginners / children / babies
+
 ```nix
 darkone.home.gnome = {
   enable = false;
   hideTechnicalIcons = false;
-}
-
+};
 ```
 
 <hr/>
@@ -1303,6 +1305,7 @@ Image processing softwares (gimp, geeqie, pinta + blender, inkscape, krita...).
 * **enableBeginner** `bool` Additional image processing software for beginners
 * **enable3D** `bool` 3D softwares
 * **enableCAD** `bool` CAD softwares
+
 ```nix
 darkone.home.imagery = {
   enable = false;
@@ -1310,8 +1313,7 @@ darkone.home.imagery = {
   enableBeginner = false;
   enable3D = false;
   enableCAD = false;
-}
-
+};
 ```
 
 <hr/>
@@ -1327,13 +1329,9 @@ This module define default applications depending on user profile. For example, 
 :::
 
 * **enable** `bool` Enable DNF default applications update
-* **enableAdvanced** `bool` Update the default applications for advanced profiles
-```nix
-darkone.home.mime = {
-  enable = false;
-  enableAdvanced = false;
-}
 
+```nix
+darkone.home.mime.enable = false;
 ```
 
 <hr/>
@@ -1352,6 +1350,7 @@ Graphical music and sound creation apps.
 * **enableTools** `bool` Audio tools / editors (audacity...)
 * **enableScore** `bool` Score softwares (musescore...)
 * **enableCreator** `bool` Creation tools for beginners (lmms, hydrogen...)
+
 ```nix
 darkone.home.music = {
   enable = false;
@@ -1364,8 +1363,7 @@ darkone.home.music = {
   enableTools = false;
   enableScore = false;
   enableCreator = false;
-}
-
+};
 ```
 
 <hr/>
@@ -1385,7 +1383,8 @@ Common tools for office desktop.
 * **enableChromium** `bool` Enable chromium
 * **enableBrave** `bool` Enable Brave Browser
 * **enableEmail** `bool` Email management packages (thunderbird)
-* **huntspellLang** `str` Huntspell Lang (https://mynixos.com/nixpkgs/packages/hunspellDicts)
+* **huntspellLang** `str` [Huntspell Lang](https://mynixos.com/nixpkgs/packages/hunspellDicts)
+
 ```nix
 darkone.home.office = {
   enable = false;
@@ -1400,8 +1399,7 @@ darkone.home.office = {
   enableBrave = false;
   enableEmail = false;
   huntspellLang = "en-us";
-}
-
+};
 ```
 
 <hr/>
@@ -1412,12 +1410,12 @@ Home sync module. (WIP)
 
 * **enable** `bool` Enable local syncthing service
 * **enableTray** `bool` Enable syncthing tray app / icon
+
 ```nix
 darkone.home.syncthing = {
   enable = false;
   enableTray = true;
-}
-
+};
 ```
 
 <hr/>
@@ -1431,6 +1429,7 @@ Video tools and apps.
 * **enableEditing** `bool` Video editing tools (kdenlive...)
 * **enableCreator** `bool` Video creator tools (obs...)
 * **enableUnfree** `bool` Unfree video apps (davinci...)
+
 ```nix
 darkone.home.video = {
   enable = false;
@@ -1438,8 +1437,7 @@ darkone.home.video = {
   enableEditing = false;
   enableCreator = false;
   enableUnfree = false;
-}
-
+};
 ```
 
 <hr/>
@@ -1448,12 +1446,12 @@ darkone.home.video = {
 
 * **enable** `bool` Preconfigured ZED editor
 * **enableAssistant** `bool` Enable AI Assistant
+
 ```nix
 darkone.home.zed = {
   enable = false;
   enableAssistant = false;
-}
-
+};
 ```
 
 <hr/>

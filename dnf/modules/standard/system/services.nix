@@ -85,6 +85,8 @@ in
     # Service registration options
     # TODO: implementation for "persist" files and dirs
     darkone.system.services.service = mkOption {
+      default = { };
+      description = "Global services configuration <name>";
       type = types.attrsOf (
         types.submodule (_: {
           options = {
@@ -92,6 +94,8 @@ in
             # TODO: isPublic = mkEnableOption "Public service accessed from internet";
 
             defaultParams = mkOption {
+              default = { };
+              description = "Theses options are calculated by dnfLib.srv.extractServiceParams";
               type = types.submodule {
                 options = {
                   domain = mkOption {
@@ -112,7 +116,7 @@ in
                   icon = mkOption {
                     type = types.str;
                     default = "";
-                    description = "Icon name for homepage (https://gethomepage.dev/configs/services/#icons)";
+                    description = "[Icon name for homepage](https://gethomepage.dev/configs/services/#icons)";
                   };
                   global = mkOption {
                     type = types.bool;
@@ -141,8 +145,6 @@ in
                   };
                 };
               };
-              default = { };
-              description = "Theses options are calculated by dnfLib.srv.extractServiceParams";
             };
 
             # Homepage settings
@@ -153,84 +155,78 @@ in
             };
 
             # Folders and files to persist
-            persist = {
-              dirs = mkOption {
-                type = types.listOf types.str;
-                default = [ ];
-                example = [ "/var/lib/immich" ];
-                description = "Service persistant dirs";
-              };
-              files = mkOption {
-                type = types.listOf types.str;
-                default = [ ];
-                description = "Service persistant files";
-              };
-              dbDirs = mkOption {
-                type = types.listOf types.str;
-                default = [ ];
-                example = [ "/var/lib/postgresql" ];
-                description = "Service persistant dirs with database(s)";
-              };
-              dbFiles = mkOption {
-                type = types.listOf types.str;
-                default = [ ];
-                description = "Service database file(s)";
-              };
-              varDirs = mkOption {
-                type = types.listOf types.str;
-                default = [ ];
-                example = [
-                  "/var/cache"
-                  "/var/log"
-                ];
-                description = "Variable secondary files (log, cache, etc.)";
-              };
-              mediaDirs = mkOption {
-                type = types.listOf types.str;
-                default = [ ];
-                example = [
-                  "/var/lib/immich/encoded-video"
-                  "/var/lib/immich/library"
-                  "/var/lib/immich/upload"
-                ];
-                description = "Service media dirs (pictures, videos, big files)";
-              };
+            persist.dirs = mkOption {
+              type = types.listOf types.str;
+              default = [ ];
+              example = [ "/var/lib/immich" ];
+              description = "Service persistant dirs";
+            };
+            persist.files = mkOption {
+              type = types.listOf types.str;
+              default = [ ];
+              description = "Service persistant files";
+            };
+            persist.dbDirs = mkOption {
+              type = types.listOf types.str;
+              default = [ ];
+              example = [ "/var/lib/postgresql" ];
+              description = "Service persistant dirs with database(s)";
+            };
+            persist.dbFiles = mkOption {
+              type = types.listOf types.str;
+              default = [ ];
+              description = "Service database file(s)";
+            };
+            persist.varDirs = mkOption {
+              type = types.listOf types.str;
+              default = [ ];
+              example = [
+                "/var/cache"
+                "/var/log"
+              ];
+              description = "Variable secondary files (log, cache, etc.)";
+            };
+            persist.mediaDirs = mkOption {
+              type = types.listOf types.str;
+              default = [ ];
+              example = [
+                "/var/lib/immich/encoded-video"
+                "/var/lib/immich/library"
+                "/var/lib/immich/upload"
+              ];
+              description = "Service media dirs (pictures, videos, big files)";
             };
 
             # Reverse proxy settings
-            proxy = {
-              enable = mkOption {
-                type = types.bool;
-                default = true;
-                description = "Whether to create virtualHost configuration (false for services that manage their own)";
-              };
-              defaultService = mkOption {
-                type = types.bool;
-                default = false;
-                description = "Is the default service";
-              };
-              servicePort = mkOption {
-                type = types.nullOr types.port;
-                default = null;
-                description = "Service internal port";
-              };
-              extraConfig = mkOption {
-                type = types.lines;
-                default = "";
-                description = "Extra caddy virtualHost configuration";
-              };
-              scheme = mkOption {
-                type = types.str;
-                default = "http";
-                example = "https";
-                description = "Internal service scheme (http / https)";
-              };
+            proxy.enable = mkOption {
+              type = types.bool;
+              default = true;
+              description = "Whether to create virtualHost configuration (false for services that manage their own)";
+            };
+            proxy.defaultService = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Is the default service";
+            };
+            proxy.servicePort = mkOption {
+              type = types.nullOr types.port;
+              default = null;
+              description = "Service internal port";
+            };
+            proxy.extraConfig = mkOption {
+              type = types.lines;
+              default = "";
+              description = "Extra caddy virtualHost configuration";
+            };
+            proxy.scheme = mkOption {
+              type = types.str;
+              default = "http";
+              example = "https";
+              description = "Internal service scheme (http / https)";
             };
           };
         })
       );
-      default = { };
-      description = "Global services configuration";
     };
   };
 

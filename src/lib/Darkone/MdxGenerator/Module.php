@@ -2,6 +2,8 @@
 
 namespace Darkone\MdxGenerator;
 
+use Darkone\NixGenerator\NixException;
+
 class Module
 {
     private static array $moduleCategories = [
@@ -29,7 +31,8 @@ class Module
     ];
 
     /**
-     * @throws MdxException
+     * @return string
+     * @throws NixException
      */
     public static function generateMdx(): string
     {
@@ -46,7 +49,9 @@ sidebar:
     }
 
     /**
-     * @throws MdxException
+     * @param array $category
+     * @return string
+     * @throws NixException
      */
     private static function parseModules(array $category): string
     {
@@ -60,7 +65,10 @@ sidebar:
     }
 
     /**
-     * @throws MdxException
+     * @param string $filePath
+     * @param array $category
+     * @return string
+     * @throws NixException
      */
     private static function parseAndGenerateMdx(string $filePath, array $category): string
     {
@@ -69,28 +77,48 @@ sidebar:
         $moduleContent['comment'] = MdxParser::extractFirstComment($fileContent);
         $moduleContent['path'] = MdxParser::extractModulePath($filePath, $category);
         $moduleContent['options'] = MdxParser::extractModuleOptions($fileContent, $filePath);
+        #print_r($moduleContent['options']);
 
         return self::moduleToMd($moduleContent, $category['icon']);
     }
 
+    /**
+     * @param array $moduleContent
+     * @param string $icon
+     * @return string
+     */
     private static function moduleToMd(array $moduleContent, string $icon): string
     {
         $options = '';
         $optionCount = count($moduleContent['options']);
-        $code = "```nix\n" . ($optionCount > 1 ? $moduleContent['path'] . " = {\n" : "");
+        $code = "\n```nix\n" . ($optionCount > 1 ? $moduleContent['path'] . " = {\n" : "");
         $prefix = $optionCount > 1 ? '  ' : $moduleContent['path'] . '.';
-        foreach ($moduleContent['options'] as $option) {
-            $options .= '* **' . $option['name'] . '**';
+        $openedLevels = [];
+        $lastLevel = 1;
+        $namesByLevel = [];
+        foreach ($moduleContent['options'] as $i => $option) {
+            if ($option['level'] > $lastLevel) {
+                $openedLevels[$lastLevel] = $namesByLevel[$lastLevel] . '.';
+            } else {
+                unset($openedLevels[$lastLevel]);
+            }
+            $lastLevel = $option['level'];
+            $namesByLevel[$option['level']] = $option['name'];
+            $levelSpaces = str_repeat('  ', $option['level'] - 1);
+            $options .= $levelSpaces . '* **' . htmlentities($option['name']) . '**';
             $options .= $option['type'] ? ' `' . $option['type'] . '`' : '';
-            $options .= $option['desc'] ? ' ' . htmlspecialchars($option['desc']) : '';
+            $options .= $option['description'] ? ' ' . htmlspecialchars(trim($option['description'], ' "')) : '';
             $options .= "\n";
+
             $codeValue = empty($option['example']) ? $option['default'] : $option['example'];
-            $codeValue = str_ends_with(strtolower($option['type']), 'str')
-                ? '"' . trim((string) $codeValue, '"') . '"'
-                : $codeValue;
-            $code .= $prefix . $option['name'] . ' = ' . $codeValue . ';' . "\n";
+
+            if ($codeValue == '{ }' && isset($moduleContent['options'][$i + 1]) && $moduleContent['options'][$i + 1]['level'] > $lastLevel) {
+                continue;
+            }
+
+            $code .= $prefix . implode('', $openedLevels) . $option['name'] . ' = ' . $codeValue . ';' . "\n";
         }
-        $code .= ($optionCount > 1 ? "}\n" : "") . "\n```\n\n";
+        $code .= ($optionCount > 1 ? "};\n" : "") . "```\n\n";
 
         return '### ' . $icon . ' ' . $moduleContent['path'] . "\n\n"
         . (is_null($moduleContent['comment']) ? '' : $moduleContent['comment'] . "\n\n") . $options . $code . "<hr/>\n\n";
@@ -105,7 +133,7 @@ sidebar:
         foreach ($moduleContent['options'] as $option) {
             $options .= '|`' . $option['name'] . '`';
             $options .= '|`' . htmlspecialchars($option['default'] ?? '') . '`';
-            $options .= '|' . htmlspecialchars($option['desc'] ?? '') . "|\n";
+            $options .= '|' . htmlspecialchars($option['description'] ?? '') . "|\n";
         }
 
         return '### ' . $icon . ' ' . $moduleContent['path'] . "\n\n"
@@ -119,7 +147,7 @@ sidebar:
     {
         $options = '';
         foreach ($moduleContent['options'] as $option) {
-            $options .= '<TabItem label="' . $option['name'] . '">' . "\n" . htmlspecialchars($option['desc']) . "\n";
+            $options .= '<TabItem label="' . $option['name'] . '">' . "\n" . htmlspecialchars($option['description']) . "\n";
             $options .= "```nix\n# Default\n" . $option['default'];
             $options .= $option['example'] ? "\n\n# Example\n" . $option['example'] : '';
             $options .= "\n```\n</TabItem>\n";

@@ -271,8 +271,7 @@ class Generate
      */
     private function generateDoc(bool $debug): string
     {
-        $debug || Generator::generateAll();
-        return $debug ? "No debug mode for documentation generation.\n" : '';
+        return Generator::generateAll($debug);
     }
 
     /**
