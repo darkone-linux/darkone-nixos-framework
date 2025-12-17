@@ -4,7 +4,15 @@
 # This module is enabled by default (required by DNF configuration).
 # :::
 
-{ pkgs, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
+let
+  cfg = config.darkone.user.root;
+in
 {
   options = {
     darkone.user.root.enable = lib.mkOption {

@@ -86,8 +86,8 @@
         import nixpkgs {
           inherit system;
           config.allowUnfree = true;
-          config.allowUnfreePredicate = _: true;
-          overlays = [ ];
+          #config.allowUnfreePredicate = _: true;
+          #overlays = [ ];
         }
       );
 
@@ -147,7 +147,7 @@
       mkHost = host: {
         name = host.hostname;
         value = host.colmena // {
-          nixpkgs.system = getHostArch host;
+          nixpkgs.hostPlatform.system = getHostArch host;
           imports = [
             ./dnf/modules
             ./usr/modules
@@ -283,7 +283,7 @@
             (
               name: node:
               (nixpkgs.lib.nixosSystem {
-                inherit (node.nixpkgs) system;
+                inherit (node.nixpkgs.stdenv.hostPlatform) system;
                 specialArgs = nodeSpecialArgs.${name};
                 modules = node.imports;
               })
