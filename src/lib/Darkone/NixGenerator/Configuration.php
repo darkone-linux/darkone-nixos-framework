@@ -286,7 +286,7 @@ class Configuration extends NixAttrSet
 
             // Add gateway
             $host->getZone() !== self::EXTERNAL_ZONE_KEY
-                && str_ends_with($host->getIp() ?? '', '.1.1')
+                && (str_ends_with($host->getIp() ?? '', '.1.1'))
                 && $this->zones[$host->getZone()]->setGateway($host);
 
             // External hosts access
@@ -295,6 +295,9 @@ class Configuration extends NixAttrSet
                     if ($zone->getName() !== self::EXTERNAL_ZONE_KEY) {
                         $zone->registerHost($host->getHostname(), $host->getIp());
                     }
+                }
+                if ($host->getVpnIp() !== null) {
+                    $this->zones[$host->getZone()]->setGateway($host);
                 }
             }
         }

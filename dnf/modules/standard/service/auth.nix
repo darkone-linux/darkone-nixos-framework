@@ -16,6 +16,7 @@ let
     title = "Authentification";
     description = "Global authentication for DNF services";
     icon = "authelia";
+    ip = "127.0.0.1";
   };
   params = dnfLib.extractServiceParams host network "auth" defaultParams;
 in
@@ -38,7 +39,17 @@ in
           "/var/lib/authelia-main"
         ];
         proxy.servicePort = autheliaPort;
-        proxy.enable = false; # tmp
+
+        # A Caddy snippet that can be imported to enable Authelia in front of a service
+        # Cf. https://www.authelia.com/integration/proxies/caddy/#subdomain
+        # proxy.extraConfig = ''
+        #   (auth) {
+        #     forward_auth 127.0.0.1:${toString autheliaPort} {
+        #       uri /api/authz/forward-auth
+        #       copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+        #     }
+        #   }
+        # '';
       };
     }
 
@@ -65,6 +76,27 @@ in
       };
       users.groups.authelia-main = { };
 
+      # Authelia secrets auths
+      # WARNING: Authelia DO NOT UPDATE theses keys if we change it (for the moment)
+      sops.secrets = builtins.listToAttrs (
+        map
+          (item: {
+            name = item;
+            value = {
+              mode = "0400";
+              owner = "authelia-main";
+              group = "authelia-main";
+            };
+          })
+          [
+            "authelia-jwt_secret"
+            "authelia-jwks"
+            "authelia-hmac_secret"
+            "authelia-session_secret"
+            "authelia-storage_encryption_key"
+          ]
+      );
+
       #------------------------------------------------------------------------
       # Authelia Service
       #------------------------------------------------------------------------
@@ -90,8 +122,23 @@ in
       # Authelia main instance
       services.authelia.instances.main = {
         enable = true;
-        secrets.jwtSecretFile = "/etc/authelia/jwtsecret";
-        secrets.storageEncryptionKeyFile = "/etc/authelia/encryptionkey";
+
+        # Générer et mettre ces secrets dans secrets.yaml
+        # Pour jwks : openssl genrsa -out authelia-oidc-private-key.pem 4096
+        # Pour les autres : openssl rand -base64 32
+        # TODO: générer ça automatiquement
+        secrets = {
+          jwtSecretFile = config.sops.secrets.authelia-jwt_secret.path;
+
+          # TODO: OpenID
+          #oidcIssuerPrivateKeyFile = config.sops.secrets.authelia-jwks.path;
+          #oidcHmacSecretFile = config.sops.secrets.authelia-hmac_secret.path;
+
+          sessionSecretFile = config.sops.secrets.authelia-session_secret.path;
+          storageEncryptionKeyFile = config.sops.secrets.authelia-storage_encryption_key.path;
+        };
+
+        # TODO: utiliser un password différent pour l'authentification Authelia -> LLDAP
         environmentVariables = {
           AUTHELIA_AUTHENTICATION_BACKEND_LDAP_PASSWORD_FILE = config.sops.secrets.default-password.path;
         };
@@ -101,11 +148,7 @@ in
           log.level = "info";
 
           server = {
-            address = "tcp://:${toString autheliaPort}/";
-            # tls = {
-            #   key = "/etc/authelia/certs/authelia.key";
-            #   certificate = "/etc/authelia/certs/authelia.crt";
-            # };
+            address = "tcp://${params.ip}:${toString autheliaPort}/";
             endpoints = {
               authz = {
                 forward-auth = {
@@ -117,7 +160,7 @@ in
 
           authentication_backend.ldap = {
             implementation = "lldap";
-            address = "ldap://${params.fqdn}:${toString lldapSettings.ldap_port}";
+            address = "ldap://${lldapSettings.ldap_host}:${toString lldapSettings.ldap_port}";
             base_dn = lldapSettings.ldap_base_dn;
             user = "uid=admin,ou=people,${lldapSettings.ldap_base_dn}"; # Bind user
             users_filter = "(&({username_attribute}={input})(objectClass=person))";
@@ -140,7 +183,6 @@ in
           };
 
           session = {
-            secret = "un_secret_session_test";
             expiration = "1h";
             inactivity = "5m";
             cookies = [
@@ -181,47 +223,6 @@ in
           #   sender = "${params.domain}@${network.domain}";
           # };
         };
-      };
-
-      #------------------------------------------------------------------------
-      # Caddy Service
-      #------------------------------------------------------------------------
-
-      # TODO: transférer vers caddy main
-      services.caddy = {
-        enable = true;
-
-        virtualHosts."${params.fqdn}" = {
-          extraConfig = ''
-            tls /etc/authelia/certs/authelia.crt /etc/authelia/certs/authelia.key
-            reverse_proxy 127.0.0.1:${toString autheliaPort}
-          '';
-        };
-
-        # A Caddy snippet that can be imported to enable Authelia in front of a service
-        # Cf. https://www.authelia.com/integration/proxies/caddy/#subdomain
-        extraConfig = ''
-          (auth) {
-            forward_auth 127.0.0.1:${toString autheliaPort} {
-              uri /api/authz/forward-auth
-              copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
-            }
-          }
-        '';
-
-        virtualHosts."test-app.${params.fqdn}" = {
-          extraConfig = ''
-            import auth
-            tls /etc/authelia/certs/test-app.crt /etc/authelia/certs/test-app.key
-            reverse_proxy 127.0.0.1:3000
-          '';
-        };
-      };
-
-      # Networking (TMP)
-      networking.firewall = {
-        allowedTCPPorts = [ 443 ];
-        interfaces.lan0.allowedTCPPorts = [ autheliaPort ];
       };
     })
   ];

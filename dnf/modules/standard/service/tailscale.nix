@@ -20,12 +20,7 @@ let
   hasHeadscale = coord.enable;
   isHcsSubnetGateway = hasHeadscale && cfg.isGateway;
   hcsFqdn = "${coord.domain}.${network.domain}";
-
-  # NOTE: ce n'est pas une adresse interne pour le moment, on
-  # résoud l'adresse externe.
-  # TODO: adresse interne via magic dns.
-  hcsInternalFqdn = "${coord.hostname}.${network.domain}";
-
+  hcsInternalFqdn = network.zones.www.gateway.vpn.ipv4;
   caddyStorage = "/var/lib/caddy/storage"; # TODO: factorize with services.nix
   caddyStorTmp = "/tmp/caddy-storage-sync";
 in
@@ -117,10 +112,7 @@ in
     ];
 
     # Caddy storage directory creation if needed
-    systemd.tmpfiles.rules = lib.mkIf isHcsSubnetGateway [
-      "d ${caddyStorTmp} 0700 nix users -"
-      "d ${caddyStorage} 0750 caddy caddy -"
-    ];
+    systemd.tmpfiles.rules = lib.mkIf isHcsSubnetGateway [ "d ${caddyStorage} 0750 caddy caddy -" ];
 
     # TLS certificates (caddy storage) sync service
     # TODO: sometimes not working (permissions on /tmp/xxx)
@@ -133,15 +125,21 @@ in
         User = "nix";
         ExecStart = pkgs.writeShellScript "sync-hcs-caddy-certs" ''
 
+          # Sync from HCS with nix user
+          /run/current-system/sw/bin/mkdir -p ${caddyStorTmp}
+          /run/wrappers/bin/sudo ${pkgs.coreutils}/bin/chown -R nix ${caddyStorTmp}
+
           # Certificates extraction
           ${pkgs.rsync}/bin/rsync \
             -avz \
+            --delete \
             --timeout=30 \
             -e "${pkgs.openssh}/bin/ssh -o StrictHostKeyChecking=accept-new" \
             --rsync-path="sudo -u caddy rsync" \
             nix@${hcsInternalFqdn}:${caddyStorage}/ \
             ${caddyStorTmp}/
 
+          # Sync to caddy data dir with caddy user
           /run/wrappers/bin/sudo ${pkgs.coreutils}/bin/chown -R caddy:caddy ${caddyStorTmp}
             
           # Sync with local tailscale

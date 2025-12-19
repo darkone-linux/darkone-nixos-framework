@@ -925,7 +925,12 @@ darkone.service.tailscale = {
 
 ### &#x1F48E; darkone.service.users
 
-LLDAP service for DNF SSO (WIP).
+LLDAP service for DNF SSO.
+
+:::note
+In a tailscale context, the master lldap instance is store in the HCS.
+Zones gateways synchronize user database from the headscale coordination server.
+:::
 
 * **enable** `bool` Enable local user management with LLDAP (SSO)
 

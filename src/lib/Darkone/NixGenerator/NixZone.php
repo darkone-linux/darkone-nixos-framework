@@ -412,8 +412,13 @@ class NixZone
                 . $host->getHostname() . '"'
             );
         }
+
         $this->config['gateway']['hostname'] = $host->getHostname();
-        $this->config['gateway']['lan']['ip'] = $host->getIp();
+        if ($host->getZone() === Configuration::EXTERNAL_ZONE_KEY) {
+            $this->config['gateway']['vpn']['ipv4'] = $host->getVpnIp();
+        } else {
+            $this->config['gateway']['lan']['ip'] = $host->getIp();
+        }
 
         return $this;
     }
