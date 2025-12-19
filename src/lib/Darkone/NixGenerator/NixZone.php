@@ -54,7 +54,8 @@ class NixZone
         return [
             'name' => $this->name,
         ] + ($this->name === Configuration::EXTERNAL_ZONE_KEY ? [
-            'address' => $this->buildAddressList() ?? (new NixList()),
+            'tls-builder-hosts' => $this->buildAddressList() ?? (new NixList()),
+            'unbound' => ['local-data' => $this->buildLocalServices($globalConfig)],
         ] : [
             'extraDnsmasqSettings' => [
                 'dhcp-host' => array_values($this->macAddresses),
@@ -124,9 +125,9 @@ class NixZone
                 continue;
             }
 
-            // Pas besoin du HCS
-            // TODO: voir si le HCS ne pourrait pas récupérer la résolution du domaine principal
+            // Le HCS sert de pivot pour résoudre le domaine principal
             if ($zone->getName() === Configuration::EXTERNAL_ZONE_KEY) {
+                $servers[] = '/' . $zone->getDomain() . '/' . $zone->getConfig()['gateway']['vpn']['ipv4'];
                 continue;
             }
 
@@ -138,7 +139,30 @@ class NixZone
     }
 
     /**
-     * TODO: voir si on étend aux global services des autres zones...
+     * @param Configuration $config
+     * @return array
+     */
+    private function buildLocalServices(Configuration $config): array
+    {
+        $records = [];
+
+        foreach ($this->network->getServices() as $service) {
+            $srvZone = $this->network->getZones()[$service->getZone()];
+            $srvHost = $config->getHosts()[$service->getHost()];
+
+            // On élimite les services globaux, car le DNS upstream (pivot) qui les gèrent.
+            if ($srvZone->getName() === Configuration::EXTERNAL_ZONE_KEY
+                && !in_array($service->getName(), NixService::EXTERNAL_ACCESS_SERVICES)) {
+                $records[] =  '"' . $service->getFqdn($this->network) . '. IN A ' . $srvHost->getVpnIp() . '"';
+            }
+        }
+
+        sort($records);
+
+        return $records;
+    }
+
+    /**
      * @param Configuration $config
      * @return array
      * @throws NixException
@@ -151,19 +175,22 @@ class NixZone
             $domain = $service->getDomain() ?? $service->getName();
             $srvZone = $this->network->getZones()[$service->getZone()];
             $srvHost = $config->getHosts()[$service->getHost()];
-            $needVpnIp = $srvZone->getName() === Configuration::EXTERNAL_ZONE_KEY
-                && !in_array($service->getName(), NixService::EXTERNAL_ACCESS_SERVICES);
+
+            // On élimite les services globaux, car le DNS upstream (pivot) qui les gèrent.
+            if ($srvZone->getName() === Configuration::EXTERNAL_ZONE_KEY
+                && !in_array($service->getName(), NixService::EXTERNAL_ACCESS_SERVICES)) {
+                continue; # $srvHost->getVpnIp()
+            }
+
             $targetIsGateway = $srvZone->getName() !== Configuration::EXTERNAL_ZONE_KEY
                 && in_array($service->getName(), NixService::REVERSE_PROXY_SERVICES);
 
             // Les services à proxier pointent vers le gateway tandis que les services
-            // à accès direct qui hébergés à l'extérieur doivent être résolus vers l'hôte qui les hébergent.
+            // à accès direct qui sont hébergés à l'extérieur doivent être résolus par l'hôte qui les hébergent.
             // 1. Dans une zone et la cible doit être le gateway -> gateway de la zone
-            // 2. A l'extérieur d'une zone mais dans le tailnet -> adresse interne du VPN / Tailnet
-            // 3. Sinon -> adresse interne de l'hôte qui héberge le service
-            $ip = $targetIsGateway
-                ? $srvZone->getConfig()['ipPrefix'] . '.1.1'
-                : ($needVpnIp ? $srvHost->getVpnIp() : $srvHost->getIp());
+            // (2. A l'extérieur d'une zone mais dans le tailnet -> adresse interne du VPN / Tailnet)
+            // 2. Sinon -> adresse interne de l'hôte qui héberge le service
+            $ip = $targetIsGateway ? $srvZone->getConfig()['ipPrefix'] . '.1.1' : $srvHost->getIp();
 
             // Unqualified names for services of current zone
             $hr = $this->getName() == $srvZone->getName() ? $domain . ',' : '';

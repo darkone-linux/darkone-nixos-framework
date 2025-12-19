@@ -8,6 +8,7 @@
   config,
   network,
   host,
+  zone,
   ...
 }:
 let
@@ -20,6 +21,7 @@ let
     global = true;
     noRobots = false;
   };
+  hcsTailnetIpv4 = network.zones.www.gateway.vpn.ipv4;
   params = dnfLib.extractServiceParams host network "headscale" defaultParams;
 in
 {
@@ -49,6 +51,62 @@ in
       darkone.system.services = {
         enable = true;
         service.headscale.enable = true;
+      };
+
+      #------------------------------------------------------------------------
+      # Unbound (pivot DNS)
+      #------------------------------------------------------------------------
+
+      # Unbound is required by headscale
+      systemd.services.headscale = {
+        wants = [ "unbound.service" ];
+        after = [ "unbound.service" ];
+      };
+
+      services.unbound = {
+        enable = true;
+        settings = {
+          server = {
+            interface = [
+              "127.0.0.1"
+              hcsTailnetIpv4
+            ];
+            access-control = [
+              "127.0.0.1 allow"
+              "100.64.0.0/10 allow"
+            ];
+            inherit (zone.unbound) local-data;
+            harden-glue = true;
+            harden-dnssec-stripped = true;
+            use-caps-for-id = false;
+            prefetch = true;
+            edns-buffer-size = 1232;
+            hide-identity = true;
+            hide-version = true;
+          };
+          forward-zone =
+            lib.mapAttrsToList
+              (_: z: {
+                name = "${z.domain}.";
+                forward-addr = [ "${z.gateway.vpn.ipv4}" ];
+              })
+              (
+                lib.filterAttrs (n: z: (lib.hasAttrByPath [ "gateway" "vpn" "ipv4" ] z) && n != "www") network.zones
+              )
+            ++ [
+              {
+                name = ".";
+                forward-addr = [
+                  "9.9.9.9#dns.quad9.net"
+                  "149.112.112.112#dns.quad9.net"
+                ];
+                forward-tls-upstream = true; # Protected DNS
+              }
+            ];
+
+          # Syntax error
+          # local-zone = "\"tailnet.internal.\" static";
+        };
       };
 
       #------------------------------------------------------------------------
@@ -93,6 +151,7 @@ in
             # -> On ne résoud pas de NDD externes sur headscale pour le moment.
             nameservers = {
               global = [
+                hcsTailnetIpv4
                 # "1.1.1.1"
                 # "1.0.0.1"
                 # "2606:4700:4700::1111"
@@ -101,9 +160,12 @@ in
 
               # A chaque suffixe de zone son IP tailnet
               # { "zone.domain.tld" = [ "100.64.x.x" ]; (...) };
-              split = lib.concatMapAttrs (_: z: { "${z.domain}" = [ "${z.gateway.vpn.ipv4}" ]; }) (
-                lib.filterAttrs (_: z: lib.hasAttrByPath [ "gateway" "vpn" "ipv4" ] z) network.zones
-              );
+              # NOTE : le split-DNS de Headscale sert uniquement à dire aux clients quel DNS interroger
+              #        pour quelle zone, pas à résoudre ni à chaîner les DNS eux-mêmes.
+              #        Désormais c'est unbound qui sert de serveur DNS pivot pour les zones.
+              # split = lib.concatMapAttrs (_: z: { "${z.domain}" = [ "${z.gateway.vpn.ipv4}" ]; }) (
+              #   lib.filterAttrs (_: z: lib.hasAttrByPath [ "gateway" "vpn" "ipv4" ] z) network.zones
+              # );
             };
 
             # Domaines de recherche

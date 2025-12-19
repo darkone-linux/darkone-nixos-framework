@@ -33,7 +33,7 @@ let
     lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
 
   # Sync target
-  hcsInternalFqdn = network.zones.www.gateway.vpn.ipv4;
+  hcsInternalIpv4 = network.zones.www.gateway.vpn.ipv4;
   lldapStorTmp = "/tmp/lldap";
 
   # Service params
@@ -106,8 +106,7 @@ in
           http_host = params.ip;
 
           # Sur headscale, il ne faut pas un fqdn qui pointe vers l'adresse externe.
-          # TODO: binder sur l'ip du serveur headscale ou sur fqdn si pas headscale.
-          ldap_host = if isHcs then "127.0.0.1" else params.fqdn;
+          ldap_host = if isHcs then hcsInternalIpv4 else params.fqdn;
 
           ldap_user_dn = lldapUserDn;
           ldap_user_email = "${lldapUserDn}@${network.domain}";
@@ -151,7 +150,7 @@ in
               --timeout=30 \
               -e "${pkgs.openssh}/bin/ssh -o StrictHostKeyChecking=accept-new" \
               --rsync-path="sudo -u root rsync" \
-              nix@${hcsInternalFqdn}:${lldapStorage}/ \
+              nix@${hcsInternalIpv4}:${lldapStorage}/ \
               ${lldapStorTmp}/
 
             # LLDAP use nobody / nogroup to store its data

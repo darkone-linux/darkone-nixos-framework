@@ -94,8 +94,28 @@ in
             "authelia-hmac_secret"
             "authelia-session_secret"
             "authelia-storage_encryption_key"
+            "smtp/server"
+            "smtp/port"
+            "smtp/username"
+            "smtp/password"
+            "smtp/sender"
           ]
       );
+
+      # Construction d'un fichier de configuration pour les données SMTP
+      sops.templates."authelia-main-smtp.yaml" = {
+        content = ''
+          notifier:
+            smtp:
+              address: 'smtp://${config.sops.placeholder."smtp/server"}:${
+                config.sops.placeholder."smtp/port"
+              }'
+              username: '${config.sops.placeholder."smtp/username"}'
+              password: '${config.sops.placeholder."smtp/password"}'
+              sender: '${config.sops.placeholder."smtp/sender"}'
+        '';
+        owner = "authelia-main";
+      };
 
       #------------------------------------------------------------------------
       # Authelia Service
@@ -143,6 +163,10 @@ in
           AUTHELIA_AUTHENTICATION_BACKEND_LDAP_PASSWORD_FILE = config.sops.secrets.default-password.path;
         };
 
+        # Conf SMTP
+        settingsFiles = [ config.sops.templates."authelia-main-smtp.yaml".path ];
+
+        # https://www.authelia.com/configuration/
         settings = {
           theme = "auto";
           log.level = "info";
@@ -216,12 +240,8 @@ in
             ];
           };
 
-          notifier.filesystem.filename = "/var/lib/authelia-main/notification.txt";
-          # notifier.smtp = {
-          #   address = "smtp://TODO";
-          #   username = "TODO";
-          #   sender = "${params.domain}@${network.domain}";
-          # };
+          # If no SMTP
+          # notifier.filesystem.filename = "/var/lib/authelia-main/notification.txt";
         };
       };
     })

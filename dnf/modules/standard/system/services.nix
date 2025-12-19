@@ -40,7 +40,9 @@ let
   # Global services to expose to internet, only for HCS
   globalServices =
     if isHcs then (filter (s: (hasAttr "global" s.params) && s.params.global) services) else [ ];
-  globalAddress = if isHcs then zone.address else [ ];
+
+  # Hosts to expose in order to generate TLS certificates
+  hostsForTls = if isHcs then zone.tls-builder-hosts else [ ];
 
   # Full list of registered services for the local zone
   localZoneServices =
@@ -48,7 +50,7 @@ let
 
   # Has service
   hasServicesToExpose =
-    ((localZoneServices != [ ]) || (globalServices != [ ]) || (globalAddress != [ ]))
+    ((localZoneServices != [ ]) || (globalServices != [ ]) || (hostsForTls != [ ]))
     && (isGateway || isHcs);
 
   # Services to display on homepage dashboard
@@ -360,7 +362,7 @@ in
               respond "${address}"
             '';
           };
-        }) globalAddress
+        }) hostsForTls
       );
     };
 
