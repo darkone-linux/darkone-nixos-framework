@@ -1,12 +1,13 @@
 # Home profile for advanced users (computer scientists, developers, admins).
 
 {
-  pkgs,
   lib,
+  pkgs,
   config,
   osConfig,
   network,
   users,
+  inputs,
   ...
 }:
 
@@ -15,6 +16,9 @@ let
   graphic = osConfig.darkone.graphic.gnome.enable;
   hasBorg = osConfig.darkone.service.borg.enable;
   hasRestic = osConfig.darkone.service.restic.enable;
+
+  # Last colmena release
+  inherit (inputs.colmena.packages.${pkgs.stdenv.hostPlatform.system}) colmena;
 
   # Extraction of current user from host configuration
   user = users.${config.home.username};

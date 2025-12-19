@@ -5,15 +5,16 @@
   # CACHING
   #----------------------------------------------------------------------------
 
-  # nixConfig = {
-  #   extra-trusted-substituters = [
-  #     "https://cache.garnix.io"
-  #     "https://nix-community.cachix.org"
-  #   ];
-  #   extra-trusted-public-keys = [
-  #     "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-  #   ];
-  # };
+  nixConfig = {
+    extra-trusted-substituters = [
+      "https://cache.garnix.io"
+      "https://nix-community.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+    ];
+  };
 
   #----------------------------------------------------------------------------
   # FLAKE INPUTS
@@ -66,7 +67,7 @@
       #------------------------------------------------------------------------
 
       # Unstable state version for new hosts / homes installations
-      unstableStateVersion = "25.11";
+      unstableStateVersion = "26.05";
 
       # DNF local library
 
@@ -195,6 +196,7 @@
         system:
         let
           pkgs = nixpkgsFor.${system};
+          inherit (inputs.colmena.packages.${system}) colmena;
         in
         pkgs.mkShell {
           buildInputs = with pkgs; [
@@ -230,7 +232,7 @@
       # HOSTS MANAGEMENT WITH COLMENA
       #------------------------------------------------------------------------
 
-      #colmenaHive = colmena.lib.makeHive self.outputs.colmena;
+      colmenaHive = inputs.colmena.lib.makeHive self.outputs.colmena;
       colmena = {
         meta = {
           description = "Darkone Framework Network";
