@@ -170,6 +170,7 @@ class Configuration extends NixAttrSet
                 ->setNfsClient($host['nfsClient'] ?? false)
                 ->setUsers($this->extractAllUsers($host['users'] ?? [], $host['groups'] ?? []))
                 ->setGroups($host['groups'] ?? [])
+                ->setFeatures($host['features'] ?? [])
                 ->setTags($host['tags'] ?? [])
                 ->registerAliases($zone, $host['aliases'] ?? [])
                 ->registerHostInZone($zone, $host, $ip)

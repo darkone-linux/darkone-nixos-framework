@@ -27,10 +27,15 @@ let
   inLocalZone = zone.name != "www";
   hasHeadscale = network.coordination.enable;
   isHcs = (!inLocalZone) && hasHeadscale && network.coordination.hostname == host.hostname;
-  isMainServer = isHcs || !hasHeadscale;
-  needSync = hasHeadscale && !isHcs;
   isGateway =
     lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
+
+  # Détection du main server pour une configuration avec synchronisation.
+  # TODO: voir si c'est utile...
+  #isMainServer = ...;
+  #needSync = hasHeadscale && !isHcs;
+  isMainServer = true;
+  needSync = false;
 
   # Sync target
   hcsInternalIpv4 = network.zones.www.gateway.vpn.ipv4;
@@ -119,7 +124,7 @@ in
 
       # Ldap access to local network
       networking.firewall.interfaces.lan0.allowedTCPPorts =
-        lib.optional inLocalZone lldapSettings.ldap_port;
+        lib.optional isGateway lldapSettings.ldap_port;
 
       #------------------------------------------------------------------------
       # Users sync

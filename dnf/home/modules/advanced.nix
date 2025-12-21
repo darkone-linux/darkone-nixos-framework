@@ -17,6 +17,9 @@ let
   hasBorg = osConfig.darkone.service.borg.enable;
   hasRestic = osConfig.darkone.service.restic.enable;
 
+  # Nix administrator host (additional tools)
+  onAdminHost = osConfig.darkone.admin.nix.enable;
+
   # Last colmena release
   inherit (inputs.colmena.packages.${pkgs.stdenv.hostPlatform.system}) colmena;
 
@@ -85,6 +88,16 @@ in
       (lib.mkIf (hasBorg && graphic && cfg.enableAdmin) vorta) # Borg client
       (lib.mkIf (hasRestic && cfg.enableAdmin) restic)
       (lib.mkIf (hasRestic && cfg.enableAdmin) restic-browser)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) age)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) colmena)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) deadnix)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) just)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) moreutils) # sponge
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nixfmt-rfc-style)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) php84)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) php84Packages.composer)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) sops)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) statix)
       (lib.mkIf cfg.enableAdmin bridge-utils)
       (lib.mkIf cfg.enableAdmin ccrypt)
       (lib.mkIf cfg.enableAdmin dig)
@@ -118,17 +131,7 @@ in
       (lib.mkIf cfg.enableEssentials unzip)
       (lib.mkIf cfg.enableEssentials wget)
       (lib.mkIf cfg.enableEssentials zip)
-      (lib.mkIf cfg.enableNixAdmin age)
-      (lib.mkIf cfg.enableNixAdmin colmena)
-      (lib.mkIf cfg.enableNixAdmin deadnix)
-      (lib.mkIf cfg.enableNixAdmin just)
       (lib.mkIf cfg.enableNixAdmin mkpasswd)
-      (lib.mkIf cfg.enableNixAdmin moreutils) # sponge
-      (lib.mkIf cfg.enableNixAdmin nixfmt-rfc-style)
-      (lib.mkIf cfg.enableNixAdmin php84)
-      (lib.mkIf cfg.enableNixAdmin php84Packages.composer)
-      (lib.mkIf cfg.enableNixAdmin sops)
-      (lib.mkIf cfg.enableNixAdmin statix)
       (lib.mkIf cfg.enableNixAdmin wakeonlan)
       (lib.mkIf cfg.enableNixAdmin yq)
       (lib.mkIf cfg.enableTools fastfetch)

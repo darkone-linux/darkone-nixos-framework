@@ -509,13 +509,13 @@ build-iso arch="x86_64-linux":
 [group('apply')]
 apply on what='switch':
 	@just _log "Applying nix configuration on {{on}} ({{what}})..."
-	colmena apply --eval-node-limit 3 --evaluator streaming --build-on-target --force-replace-unknown-profiles --on "{{on}}" {{what}}
+	colmena apply --build-on-target --on "{{on}}" {{what}}
 
 # Apply force with verbose options
 [group('apply')]
 apply-verbose on what='switch':
 	@just _log "Applying (verbose) nix configuration on {{on}} ({{what}})..."
-	colmena apply --build-on-target --force-replace-unknown-profiles --verbose --show-trace --on "{{on}}" {{what}}
+	colmena apply --build-on-target --verbose --show-trace --on "{{on}}" {{what}}
 
 # Apply the local host configuration
 [group('apply')]

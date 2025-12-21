@@ -41,6 +41,9 @@ let
   globalServices =
     if isHcs then (filter (s: (hasAttr "global" s.params) && s.params.global) services) else [ ];
 
+  # Extra configuration for global caddy section
+  servicesExtraGlobalConfigs = map (s: s.proxy.extraGlobalConfig) services;
+
   # Hosts to expose in order to generate TLS certificates
   hostsForTls = if isHcs then zone.tls-builder-hosts else [ ];
 
@@ -215,10 +218,20 @@ in
               default = null;
               description = "Service internal port";
             };
+            proxy.preExtraConfig = mkOption {
+              type = types.lines;
+              default = "";
+              description = "Extra caddy virtualHost configuration (prefix)";
+            };
             proxy.extraConfig = mkOption {
               type = types.lines;
               default = "";
               description = "Extra caddy virtualHost configuration";
+            };
+            proxy.extraGlobalConfig = mkOption {
+              type = types.lines;
+              default = "";
+              description = "Extra caddy configuration";
             };
             proxy.scheme = mkOption {
               type = types.str;
@@ -261,7 +274,10 @@ in
         auto_https off
       '';
 
-      logFormat = "level INFO";
+      # Extra global config from services
+      extraConfig = concatStringsSep "\n" servicesExtraGlobalConfigs;
+
+      logFormat = "level ERROR"; # INFO
 
       # Configure virtual hosts (TODO: https + redir permanent)
       virtualHosts = mkMerge (
@@ -289,6 +305,7 @@ in
             # Reverse proxy to the target service
             "${vhPrefix}${srv.params.fqdn}" = {
               extraConfig = ''
+                ${srv.proxy.preExtraConfig}
                 ${tls}reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString srv.proxy.servicePort}
                 ${srv.proxy.extraConfig}
               '';

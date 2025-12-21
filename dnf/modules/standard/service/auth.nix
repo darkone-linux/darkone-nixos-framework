@@ -19,6 +19,9 @@ let
     ip = "127.0.0.1";
   };
   params = dnfLib.extractServiceParams host network "auth" defaultParams;
+
+  # On ne peut pas aller chercher ça dans 'params' quand on l'utilise dans
+  # extraGlobalConfig car ce dernier est utilisé pour construire les params...
 in
 {
   options = {
@@ -42,9 +45,11 @@ in
 
         # A Caddy snippet that can be imported to enable Authelia in front of a service
         # Cf. https://www.authelia.com/integration/proxies/caddy/#subdomain
-        # proxy.extraConfig = ''
+        # forward_auth ${authServiceFqdn} {
+        # NE MARCHE PAS -> forward_auth doit se faire sur le même serveur caddy...
+        # proxy.extraGlobalConfig = ''
         #   (auth) {
-        #     forward_auth 127.0.0.1:${toString autheliaPort} {
+        #     forward_auth ${authServiceFqdn} {
         #       uri /api/authz/forward-auth
         #       copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
         #     }
@@ -62,7 +67,7 @@ in
       };
 
       #------------------------------------------------------------------------
-      # Authelia user
+      # Authelia user & secrets
       #------------------------------------------------------------------------
 
       # Require users service
@@ -94,8 +99,7 @@ in
             "authelia-hmac_secret"
             "authelia-session_secret"
             "authelia-storage_encryption_key"
-            "smtp/server"
-            "smtp/port"
+            "smtp/address"
             "smtp/username"
             "smtp/password"
             "smtp/sender"
@@ -103,13 +107,11 @@ in
       );
 
       # Construction d'un fichier de configuration pour les données SMTP
-      sops.templates."authelia-main-smtp.yaml" = {
+      sops.templates."authelia-main-smtp.yml" = {
         content = ''
           notifier:
             smtp:
-              address: 'smtp://${config.sops.placeholder."smtp/server"}:${
-                config.sops.placeholder."smtp/port"
-              }'
+              address: '${config.sops.placeholder."smtp/address"}'
               username: '${config.sops.placeholder."smtp/username"}'
               password: '${config.sops.placeholder."smtp/password"}'
               sender: '${config.sops.placeholder."smtp/sender"}'
@@ -164,7 +166,7 @@ in
         };
 
         # Conf SMTP
-        settingsFiles = [ config.sops.templates."authelia-main-smtp.yaml".path ];
+        settingsFiles = [ config.sops.templates."authelia-main-smtp.yml".path ];
 
         # https://www.authelia.com/configuration/
         settings = {

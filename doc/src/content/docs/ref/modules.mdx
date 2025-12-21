@@ -688,15 +688,21 @@ Supervision module with prometheus, grafana and node exporter.
 :::tip
 This module is preconfigured with a configuration that allows you
 to monitor the operating system, network activity, resources, and performance.
+For each zone:
+
+- All nodes with tag "monitoring-node" contains prometheus + node exporter.
+- The node with service "monitoring" contains grafana.
 :::
 
 * **enable** `bool` Enable monitoring with prometheus, grafana and node exporter
+* **isNode** `bool` Is a monitoring node
 * **retentionTime** `str` Durée de rétention des métriques Prometheus
 
 ```nix
 darkone.service.monitoring = {
   enable = false;
-  retentionTime = "15d";
+  isNode = lib.hasAttr "features" host && lib.elem "monitoring-node" host.features;
+  retentionTime = "30d";
 };
 ```
 
@@ -925,7 +931,12 @@ darkone.service.tailscale = {
 
 ### &#x1F48E; darkone.service.users
 
-LLDAP service for DNF SSO (WIP).
+LLDAP service for DNF SSO.
+
+:::note
+In a tailscale context, the master lldap instance is store in the HCS.
+Zones gateways synchronize user database from the headscale coordination server.
+:::
 
 * **enable** `bool` Enable local user management with LLDAP (SSO)
 
@@ -1072,7 +1083,9 @@ This module is used to register and configure DNF modules:
   * **proxy.enable** `bool` Whether to create virtualHost configuration (false for services that manage their own)
   * **proxy.defaultService** `bool` Is the default service
   * **proxy.servicePort** `nullOr port` Service internal port
+  * **proxy.preExtraConfig** `lines` Extra caddy virtualHost configuration (prefix)
   * **proxy.extraConfig** `lines` Extra caddy virtualHost configuration
+  * **proxy.extraGlobalConfig** `lines` Extra caddy configuration
   * **proxy.scheme** `str` Internal service scheme (http / https)
 
 ```nix
@@ -1098,7 +1111,9 @@ darkone.system.services = {
   service.proxy.enable = true;
   service.proxy.defaultService = false;
   service.proxy.servicePort = null;
+  service.proxy.preExtraConfig = "";
   service.proxy.extraConfig = "";
+  service.proxy.extraGlobalConfig = "";
   service.proxy.scheme = "https";
 };
 ```

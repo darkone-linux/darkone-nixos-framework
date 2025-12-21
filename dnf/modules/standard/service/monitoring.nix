@@ -3,14 +3,21 @@
 # :::tip
 # This module is preconfigured with a configuration that allows you
 # to monitor the operating system, network activity, resources, and performance.
+# For each zone:
+#
+# - All nodes with tag "monitoring-node" contains prometheus + node exporter.
+# - The node with service "monitoring" contains grafana.
 # :::
 
 {
   lib,
   config,
   dnfLib,
+  hosts,
   host,
   network,
+  zone,
+  pkgs,
   ...
 }:
 let
@@ -20,6 +27,15 @@ let
     nodeExporter = 9100;
     prometheus = config.services.prometheus.port;
   };
+  isGateway =
+    lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
+
+  # Grafana host configuration
+  nodes = lib.filter (
+    h: h.zone == zone.name && lib.hasAttr "features" h && lib.elem "monitoring-node" h.features
+  ) hosts;
+
+  # Service params
   defaultParams = {
     description = "System and Network Statistics";
     icon = "grafana";
@@ -29,9 +45,14 @@ in
 {
   options = {
     darkone.service.monitoring.enable = lib.mkEnableOption "Enable monitoring with prometheus, grafana and node exporter";
+    darkone.service.monitoring.isNode = lib.mkOption {
+      type = lib.types.bool;
+      default = lib.hasAttr "features" host && lib.elem "monitoring-node" host.features;
+      description = "Is a monitoring node";
+    };
     darkone.service.monitoring.retentionTime = lib.mkOption {
       type = lib.types.str;
-      default = "15d";
+      default = "30d";
       description = "Durée de rétention des métriques Prometheus";
     };
   };
@@ -48,19 +69,23 @@ in
       darkone.system.services.service.monitoring = {
         inherit defaultParams;
         persist = {
-          dbFiles = [ "/var/lib/grafana/grafana.db" ];
+          dbFiles = lib.optional cfg.enable "/var/lib/grafana/grafana.db";
           varDirs = [
             "/var/lib/prometheus2"
+          ]
+          + lib.optionals cfg.enable [
             "/var/lib/grafana/plugins"
             "/var/lib/grafana/data"
           ];
         };
-        proxy.servicePort = port.grafana;
-        proxy.extraConfig = "redir / /d/rYdddlPWk/node-exporter-full?kiosk";
+        proxy.enable = cfg.enable;
+        proxy.servicePort = lib.mkIf cfg.enable port.grafana;
+        #proxy.preExtraConfig = "import auth"; # Authelia
+        proxy.extraConfig = lib.optionalString cfg.enable "redir / /d/rYdddlPWk/node-exporter-full?kiosk";
       };
     }
 
-    (lib.mkIf cfg.enable {
+    (lib.mkIf (cfg.enable || cfg.isNode) {
 
       #--------------------------------------------------------------------------
       # Home page + virtualhost
@@ -73,67 +98,68 @@ in
       };
 
       #--------------------------------------------------------------------------
+      # Node exporter
+      #--------------------------------------------------------------------------
+
+      # https://github.com/prometheus/node_exporter
+      services.prometheus.exporters.node = lib.mkIf cfg.isNode {
+        enable = true;
+        port = port.nodeExporter;
+        openFirewall = !isGateway;
+        listenAddress = host.ip;
+        enabledCollectors = [
+          "ethtool"
+          "interrupts"
+          "ksmd"
+          "logind"
+          "netstat"
+          "softirqs"
+          "systemd"
+          "tcpstat"
+          "wifi"
+        ];
+        disabledCollectors = [
+          "bonding"
+          "edac"
+          "entropy"
+          "infiniband"
+          "ipvs"
+          "powersupplyclass"
+          "rapl"
+          "schedstat"
+          "selinux"
+          "xfs"
+          "zfs"
+        ];
+      };
+
+      # Open gateway port
+      networking.firewall.interfaces.lan0.allowedTCPPorts = lib.optional (
+        isGateway && cfg.isNode
+      ) port.nodeExporter;
+
+      # Additional packages
+      environment.systemPackages = lib.optionals cfg.isNode [
+        pkgs.ethtool
+        pkgs.unixtools.netstat
+      ];
+
+      #--------------------------------------------------------------------------
       # Prometheus
       #--------------------------------------------------------------------------
 
       # Prometheus (scraping du node exporter)
       services.prometheus = {
-        enable = true;
+        inherit (cfg) enable;
         inherit (cfg) retentionTime;
-        scrapeConfigs = [
-          {
-            job_name = "node";
-            static_configs = [ { targets = [ "localhost:${toString port.nodeExporter}" ]; } ];
-            scrape_interval = "15s";
-          }
-        ];
-        globalConfig = {
+        scrapeConfigs = lib.optional cfg.enable {
+          job_name = "node";
+          static_configs = [ { targets = map (h: "${h.ip}:${toString port.nodeExporter}") nodes; } ];
+          scrape_interval = "15s";
+        };
+        globalConfig = lib.mkIf cfg.enable {
           scrape_interval = "15s";
           evaluation_interval = "15s";
-        };
-        exporters.node = {
-          enable = true;
-          port = port.nodeExporter;
-          enabledCollectors = [
-            "arp"
-            "btrfs"
-            "conntrack"
-            "filesystem"
-            "interrupts"
-            "ksmd"
-            "loadavg"
-            "logind"
-            "meminfo"
-            "netdev"
-            "netstat"
-            "pressure"
-            "sockstat"
-            "stat"
-            "systemd"
-            "textfile"
-            "time"
-            "vmstat"
-            "wifi"
-          ];
-          disabledCollectors = [
-            "bonding"
-            "edac"
-            "entropy"
-            "hwmon"
-            "infiniband"
-            "ipvs"
-            "mdadm"
-            "nfs"
-            "nfsd"
-            "powersupplyclass"
-            "rapl"
-            "schedstat"
-            "selinux"
-            "thermal_zone"
-            "timex"
-            "xfs"
-            "zfs"
-          ];
         };
       };
 
@@ -142,7 +168,7 @@ in
       #--------------------------------------------------------------------------
 
       # Grafana avec datasource + dashboard
-      services.grafana = {
+      services.grafana = lib.mkIf cfg.enable {
         enable = true;
 
         settings = {
@@ -207,7 +233,9 @@ in
       # Dashboards
       #--------------------------------------------------------------------------
 
-      environment.etc."grafana-dashboards/node-explorer.json".source = ./monitoring/node-explorer.json;
+      environment.etc = lib.mkIf cfg.enable {
+        "grafana-dashboards/node-explorer.json".source = ./monitoring/node-explorer.json;
+      };
 
       # Ouverture des ports dans le firewall
       #networking.firewall.allowedTCPPorts = [

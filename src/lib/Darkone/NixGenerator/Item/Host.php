@@ -34,6 +34,11 @@ class Host
     private array $groups = [];
 
     /**
+     * Host features (to enable some specific features)
+     */
+    private array $features = [];
+
+    /**
      * Host tags (for colmena deployments)
      */
     private array $tags = [];
@@ -152,6 +157,17 @@ class Host
     public function setGroups(array $groups): Host
     {
         $this->groups = $groups;
+        return $this;
+    }
+
+    public function getFeatures(): array
+    {
+        return $this->features;
+    }
+
+    public function setFeatures(array $features): Host
+    {
+        $this->features = $features;
         return $this;
     }
 
