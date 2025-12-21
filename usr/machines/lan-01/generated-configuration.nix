@@ -2,8 +2,4 @@
 # from the configuration file usr/config.yaml
 # --> DO NOT EDIT <--
 
-{ ... }:
-{
-  imports = [ ./../../../usr/machines/my-laptop ];
-  networking.hostName = "my-laptop";
-}
+{ config, lib, ... }: { }

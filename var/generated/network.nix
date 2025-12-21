@@ -9,21 +9,163 @@
     timezone = "Europe/Paris";
   };
   coordination = {
+    enable = true;
     hostname = "hcs";
+    domain = "headscale";
   };
+  services = [
+    {
+      name = "headscale";
+      host = "hcs";
+      zone = "www";
+      global = true;
+    }
+    {
+      name = "vaultwarden";
+      host = "hcs";
+      zone = "www";
+      description = "Password & Keys";
+      global = true;
+    }
+    {
+      name = "mattermost";
+      host = "hcs";
+      zone = "www";
+      description = "Our messaging tool";
+      global = true;
+    }
+    {
+      name = "adguardhome";
+      host = "gw-local";
+      zone = "local";
+    }
+    {
+      name = "homepage";
+      host = "gw-local";
+      zone = "local";
+    }
+    {
+      name = "ncps";
+      host = "gw-local";
+      zone = "local";
+    }
+    {
+      name = "auth";
+      host = "gw-local";
+      zone = "local";
+    }
+    {
+      name = "users";
+      host = "gw-local";
+      zone = "local";
+    }
+    {
+      name = "forgejo";
+      host = "gw-local";
+      zone = "local";
+    }
+    {
+      name = "monitoring";
+      host = "gw-local";
+      zone = "local";
+    }
+    {
+      name = "nfs";
+      host = "homelab";
+      zone = "local";
+    }
+    {
+      name = "nextcloud";
+      host = "homelab";
+      zone = "local";
+    }
+    {
+      name = "restic";
+      host = "homelab";
+      zone = "local";
+    }
+    {
+      name = "immich";
+      domain = "photos";
+      host = "homelab";
+      zone = "local";
+      title = "Local common photos";
+      description = "Shared pictures application";
+      icon = "google-photos";
+    }
+    {
+      name = "adguardhome";
+      host = "gw-lan";
+      zone = "lan";
+    }
+    {
+      name = "homepage";
+      host = "gw-lan";
+      zone = "lan";
+    }
+    {
+      name = "ncps";
+      host = "gw-lan";
+      zone = "lan";
+    }
+    {
+      name = "forgejo";
+      host = "gw-lan";
+      zone = "lan";
+    }
+    {
+      name = "monitoring";
+      host = "gw-lan";
+      zone = "lan";
+    }
+    {
+      name = "nfs";
+      host = "gw-lan";
+      zone = "lan";
+    }
+  ];
   zones = {
     www = {
       locale = "fr_FR.UTF-8";
+      description = "www network zone";
       lang = "fr";
       timezone = "Europe/Paris";
-      sharedServices = [
-        {
-          host = "hcs";
-          service = "headscale";
-        }
+      domain = "darkone.yt";
+      gateway = {
+        hostname = "hcs";
+        vpn = {
+          ipv4 = "100.64.0.2";
+        };
+      };
+      name = "www";
+      tls-builder-hosts = [
+        "adguardhome.local.darkone.yt"
+        "homepage.local.darkone.yt"
+        "ncps.local.darkone.yt"
+        "auth.local.darkone.yt"
+        "users.local.darkone.yt"
+        "forgejo.local.darkone.yt"
+        "monitoring.local.darkone.yt"
+        "nfs.local.darkone.yt"
+        "nextcloud.local.darkone.yt"
+        "restic.local.darkone.yt"
+        "photos.local.darkone.yt"
+        "adguardhome.lan.darkone.yt"
+        "homepage.lan.darkone.yt"
+        "ncps.lan.darkone.yt"
+        "forgejo.lan.darkone.yt"
+        "monitoring.lan.darkone.yt"
+        "nfs.lan.darkone.yt"
       ];
+      unbound = {
+        local-data = [
+          "\"mattermost.darkone.yt. IN A 100.64.0.2\""
+          "\"vaultwarden.darkone.yt. IN A 100.64.0.2\""
+        ];
+      };
     };
     local = {
+      description = "My main network zone";
       locale = "fr_FR.UTF-8";
       timezone = "America/Miquelon";
       ipPrefix = "10.1";
@@ -36,149 +178,146 @@
             "enp2s0"
             "wlp0s20f0u1u3"
           ];
-          dhcp-range = [ "10.1.3.200,10.1.3.250,24h" ];
           ip = "10.1.1.1";
         };
-        hostname = "gateway";
+        vpn = {
+          ipv4 = "100.64.0.2";
+        };
+        hostname = "gw-local";
       };
       lang = "fr";
+      domain = "local.darkone.yt";
       networkIp = "10.1.0.0";
       prefixLength = 16;
-      domain = "local.darkone.yt";
+      name = "local";
       extraDnsmasqSettings = {
         dhcp-host = [
+          "38:ff:dd:cd:8b:45,10.1.1.2"
           "f0:1f:af:14:62:a5,bc:82:56:25:b8:45,10.1.2.1"
-          "38:ff:dd:cd:8b:45,10.1.2.2"
-          "8c:dc:d4:3e:be:d1,10.1.11.1"
-          "8c:dc:d4:3e:be:d2,10.1.11.2"
-          "8c:dc:d4:3e:be:d3,10.1.11.3"
-          "8c:dc:d4:3e:be:d4,10.1.11.4"
-          "f0:1f:af:13:61:c1,10.1.10.1"
-          "f0:1f:af:13:61:c2,10.1.10.2"
+          "8c:dc:d4:3e:be:d1,10.1.3.1"
+          "8c:dc:d4:3e:be:d2,10.1.3.2"
+          "8c:dc:d4:3e:be:d3,10.1.3.3"
+          "8c:dc:d4:3e:be:d4,10.1.3.4"
+          "f0:1f:af:13:61:c1,10.1.4.1"
+          "f0:1f:af:13:61:c2,10.1.4.2"
         ];
-        dhcp-option = [
-          "option:router,10.1.1.1"
-          "option:dns-server,10.1.1.1"
-          "option:domain-name,local.darkone.yt"
-          "option:domain-search,local.darkone.yt"
+        dhcp-range = [ "10.1.3.200,10.1.3.249,24h" ];
+        address = [ "/local.darkone.yt/10.1.1.1" ];
+        server = [
+          "/darkone.yt/100.64.0.2"
+          "/lan.darkone.yt/10.2.1.1"
         ];
-        dhcp-range = [ "10.1.3.200,10.1.3.250,24h" ];
-        address = [
-          "/adguardhome.darkone.yt/10.1.1.1"
-          "/adguardhome.local.darkone.yt/10.1.1.1"
-          "/adguardhome/10.1.1.1"
-          "/auth.darkone.yt/10.1.1.1"
-          "/auth.local.darkone.yt/10.1.1.1"
-          "/auth/10.1.1.1"
-          "/desktop-01.darkone.yt/10.1.11.1"
-          "/desktop-01.local.darkone.yt/10.1.11.1"
-          "/desktop-01/10.1.11.1"
-          "/desktop-02.darkone.yt/10.1.11.2"
-          "/desktop-02.local.darkone.yt/10.1.11.2"
-          "/desktop-02/10.1.11.2"
-          "/desktop-03.darkone.yt/10.1.11.3"
-          "/desktop-03.local.darkone.yt/10.1.11.3"
-          "/desktop-03/10.1.11.3"
-          "/desktop-04.darkone.yt/10.1.11.4"
-          "/desktop-04.local.darkone.yt/10.1.11.4"
-          "/desktop-04/10.1.11.4"
-          "/forgejo.darkone.yt/10.1.1.1"
-          "/forgejo.local.darkone.yt/10.1.1.1"
-          "/forgejo/10.1.1.1"
-          "/gateway.darkone.yt/10.1.1.1"
-          "/gateway.local.darkone.yt/10.1.1.1"
-          "/gateway/10.1.1.1"
-          "/gw.darkone.yt/10.1.1.1"
-          "/gw.local.darkone.yt/10.1.1.1"
-          "/gw/10.1.1.1"
-          "/hcs.darkone.yt/222.222.222.222"
-          "/hcs.local.darkone.yt/222.222.222.222"
-          "/hcs/222.222.222.222"
-          "/home-lab.darkone.yt/10.1.2.2"
-          "/home-lab.local.darkone.yt/10.1.2.2"
-          "/home-lab/10.1.2.2"
-          "/homelab.darkone.yt/10.1.2.2"
-          "/homelab.local.darkone.yt/10.1.2.2"
-          "/homelab/10.1.2.2"
-          "/homepage.darkone.yt/10.1.1.1"
-          "/homepage.local.darkone.yt/10.1.1.1"
-          "/homepage/10.1.1.1"
-          "/monitoring.darkone.yt/10.1.1.1"
-          "/monitoring.local.darkone.yt/10.1.1.1"
-          "/monitoring/10.1.1.1"
-          "/my-laptop.darkone.yt/10.1.2.1"
-          "/my-laptop.local.darkone.yt/10.1.2.1"
-          "/my-laptop/10.1.2.1"
-          "/ncps.darkone.yt/10.1.1.1"
-          "/ncps.local.darkone.yt/10.1.1.1"
-          "/ncps/10.1.1.1"
-          "/nextcloud.darkone.yt/10.1.2.2"
-          "/nextcloud.local.darkone.yt/10.1.2.2"
-          "/nextcloud/10.1.2.2"
-          "/nfs.darkone.yt/10.1.2.2"
-          "/nfs.local.darkone.yt/10.1.2.2"
-          "/nfs/10.1.2.2"
-          "/office-laptop.darkone.yt/10.1.10.1"
-          "/office-laptop.local.darkone.yt/10.1.10.1"
-          "/office-laptop/10.1.10.1"
-          "/photos.darkone.yt/10.1.2.2"
-          "/photos.local.darkone.yt/10.1.2.2"
-          "/photos/10.1.2.2"
-          "/saloon-laptop.darkone.yt/10.1.10.2"
-          "/saloon-laptop.local.darkone.yt/10.1.10.2"
-          "/saloon-laptop/10.1.10.2"
-          "/users.darkone.yt/10.1.1.1"
-          "/users.local.darkone.yt/10.1.1.1"
-          "/users/10.1.1.1"
+        host-record = [
+          "adguardhome,adguardhome.local.darkone.yt,10.1.1.1"
+          "adguardhome.lan.darkone.yt,10.2.1.1"
+          "auth,auth.local.darkone.yt,10.1.1.1"
+          "desktop-01,desktop-01.local.darkone.yt,10.1.3.1"
+          "desktop-02,desktop-02.local.darkone.yt,10.1.3.2"
+          "desktop-03,desktop-03.local.darkone.yt,10.1.3.3"
+          "desktop-04,desktop-04.local.darkone.yt,10.1.3.4"
+          "forgejo,forgejo.local.darkone.yt,10.1.1.1"
+          "forgejo.lan.darkone.yt,10.2.1.1"
+          "gw,gw.local.darkone.yt,10.1.1.1"
+          "gw-lan,gw-lan.lan.darkone.yt,10.2.1.1"
+          "gw-local,gw-local.local.darkone.yt,10.1.1.1"
+          "hcs,hcs.darkone.yt,222.222.222.222"
+          "headscale.darkone.yt,222.222.222.222"
+          "home-lab,home-lab.local.darkone.yt,10.1.1.2"
+          "homelab,homelab.local.darkone.yt,10.1.1.2"
+          "homepage,homepage.local.darkone.yt,10.1.1.1"
+          "homepage.lan.darkone.yt,10.2.1.1"
+          "lan-01,lan-01.lan.darkone.yt,10.2.2.1"
+          "lan-02,lan-02.lan.darkone.yt,10.2.2.2"
+          "lan-03,lan-03.lan.darkone.yt,10.2.2.3"
+          "lan-04,lan-04.lan.darkone.yt,10.2.2.4"
+          "monitoring,monitoring.local.darkone.yt,10.1.1.1"
+          "monitoring.lan.darkone.yt,10.2.1.1"
+          "my-laptop,my-laptop.local.darkone.yt,10.1.2.1"
+          "ncps,ncps.local.darkone.yt,10.1.1.1"
+          "ncps.lan.darkone.yt,10.2.1.1"
+          "nextcloud,nextcloud.local.darkone.yt,10.1.1.1"
+          "nfs,nfs.local.darkone.yt,10.1.1.2"
+          "nfs.lan.darkone.yt,10.2.1.1"
+          "office-laptop,office-laptop.local.darkone.yt,10.1.4.1"
+          "photos,photos.local.darkone.yt,10.1.1.1"
+          "restic,restic.local.darkone.yt,10.1.1.2"
+          "saloon-laptop,saloon-laptop.local.darkone.yt,10.1.4.2"
+          "users,users.local.darkone.yt,10.1.1.1"
         ];
       };
-      sharedServices = [
-        {
-          host = "gateway";
-          service = "homepage";
-        }
-        {
-          host = "gateway";
-          service = "ncps";
-        }
-        {
-          host = "gateway";
-          service = "auth";
-        }
-        {
-          host = "gateway";
-          service = "users";
-        }
-        {
-          host = "gateway";
-          service = "forgejo";
-        }
-        {
-          host = "gateway";
-          service = "adguardhome";
-        }
-        {
-          host = "gateway";
-          service = "monitoring";
-        }
-        {
-          host = "homelab";
-          service = "nfs";
-        }
-        {
-          host = "homelab";
-          service = "nextcloud";
-        }
-        {
-          host = "homelab";
-          service = "immich";
-          domainName = "photos";
-          displayName = "Local common photos";
-          description = "Shared pictures application";
-          icon = "google-photos";
-        }
-      ];
-      local-substituter = "gateway";
+    };
+    lan = {
+      description = "A network for may LAN party";
+      locale = "fr_FR.UTF-8";
+      timezone = "America/Miquelon";
+      ipPrefix = "10.2";
+      gateway = {
+        wan = {
+          interface = "enp1s0";
+        };
+        lan = {
+          interfaces = [ "enp2s0" ];
+          ip = "10.2.1.1";
+        };
+        vpn = {
+          ipv4 = "100.64.0.3";
+        };
+        hostname = "gw-lan";
+      };
+      lang = "fr";
+      domain = "lan.darkone.yt";
+      networkIp = "10.2.0.0";
+      prefixLength = 16;
+      name = "lan";
+      extraDnsmasqSettings = {
+        dhcp-host = [
+          "08:00:27:03:bb:21,10.2.2.1"
+          "08:00:27:03:bb:22,10.2.2.2"
+          "08:00:27:03:bb:23,10.2.2.3"
+          "08:00:27:03:bb:24,10.2.2.4"
+        ];
+        dhcp-range = [ "10.2.3.200,10.2.3.249,24h" ];
+        address = [ "/lan.darkone.yt/10.2.1.1" ];
+        server = [
+          "/darkone.yt/100.64.0.2"
+          "/local.darkone.yt/10.1.1.1"
+        ];
+        host-record = [
+          "adguardhome,adguardhome.lan.darkone.yt,10.2.1.1"
+          "adguardhome.local.darkone.yt,10.1.1.1"
+          "auth.local.darkone.yt,10.1.1.1"
+          "desktop-01,desktop-01.local.darkone.yt,10.1.3.1"
+          "desktop-02,desktop-02.local.darkone.yt,10.1.3.2"
+          "desktop-03,desktop-03.local.darkone.yt,10.1.3.3"
+          "desktop-04,desktop-04.local.darkone.yt,10.1.3.4"
+          "forgejo,forgejo.lan.darkone.yt,10.2.1.1"
+          "forgejo.local.darkone.yt,10.1.1.1"
+          "gw-lan,gw-lan.lan.darkone.yt,10.2.1.1"
+          "gw-local,gw-local.local.darkone.yt,10.1.1.1"
+          "hcs,hcs.darkone.yt,222.222.222.222"
+          "headscale.darkone.yt,222.222.222.222"
+          "homelab,homelab.local.darkone.yt,10.1.1.2"
+          "homepage,homepage.lan.darkone.yt,10.2.1.1"
+          "homepage.local.darkone.yt,10.1.1.1"
+          "lan-01,lan-01.lan.darkone.yt,10.2.2.1"
+          "lan-02,lan-02.lan.darkone.yt,10.2.2.2"
+          "lan-03,lan-03.lan.darkone.yt,10.2.2.3"
+          "lan-04,lan-04.lan.darkone.yt,10.2.2.4"
+          "monitoring,monitoring.lan.darkone.yt,10.2.1.1"
+          "monitoring.local.darkone.yt,10.1.1.1"
+          "my-laptop,my-laptop.local.darkone.yt,10.1.2.1"
+          "ncps,ncps.lan.darkone.yt,10.2.1.1"
+          "ncps.local.darkone.yt,10.1.1.1"
+          "nextcloud.local.darkone.yt,10.1.1.1"
+          "nfs,nfs.lan.darkone.yt,10.2.1.1"
+          "nfs.local.darkone.yt,10.1.1.2"
+          "office-laptop,office-laptop.local.darkone.yt,10.1.4.1"
+          "photos.local.darkone.yt,10.1.1.1"
+          "restic.local.darkone.yt,10.1.1.2"
+          "saloon-laptop,saloon-laptop.local.darkone.yt,10.1.4.2"
+          "users.local.darkone.yt,10.1.1.1"
+        ];
+      };
     };
   };
 }

@@ -11,8 +11,11 @@
     name = "Headscale Coordination Server";
     profile = "headscale";
     ip = "222.222.222.222";
+    vpnIp = "100.64.0.2";
+    zoneDomain = "darkone.yt";
     networkDomain = "darkone.yt";
     groups = [ ];
+    features = [ ];
     users = [ "nix" ];
     colmena = {
       deployment = {
@@ -21,36 +24,90 @@
     };
     services = {
       headscale = { };
+      vaultwarden = {
+        description = "Password & Keys";
+      };
+      mattermost = {
+        description = "Our messaging tool";
+      };
     };
   }
   {
-    hostname = "gateway";
+    hostname = "gw-local";
     zone = "local";
-    fqdn = "gateway.local.darkone.yt";
-    qdn = "gateway.darkone.yt";
+    fqdn = "gw-local.local.darkone.yt";
+    qdn = "gw-local.darkone.yt";
     name = "Local gateway";
     profile = "gateway";
     ip = "10.1.1.1";
     arch = "x86_64-linux";
-    networkDomain = "local.darkone.yt";
+    zoneDomain = "local.darkone.yt";
+    networkDomain = "darkone.yt";
     groups = [ ];
+    features = [
+      "monitoring-node"
+      "nfs-client"
+    ];
     users = [ "nix" ];
     colmena = {
       deployment = {
         tags = [
           "local"
+          "feature-monitoring-node"
+          "feature-nfs-client"
           "zone-local"
         ];
       };
     };
     services = {
+      adguardhome = { };
       homepage = { };
       ncps = { };
       auth = { };
       users = { };
       forgejo = { };
-      adguardhome = { };
       monitoring = { };
+    };
+  }
+  {
+    hostname = "homelab";
+    zone = "local";
+    fqdn = "homelab.local.darkone.yt";
+    qdn = "homelab.darkone.yt";
+    name = "My HomeLab";
+    profile = "server";
+    ip = "10.1.1.2";
+    zoneDomain = "local.darkone.yt";
+    networkDomain = "darkone.yt";
+    groups = [ "global" ];
+    features = [ "monitoring-node" ];
+    users = [
+      "alice"
+      "darkone"
+      "nix"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "local"
+          "group-global"
+          "feature-monitoring-node"
+          "user-alice"
+          "user-darkone"
+          "zone-local"
+        ];
+      };
+    };
+    services = {
+      nfs = { };
+      nextcloud = { };
+      restic = { };
+      immich = {
+        title = "Local common photos";
+        description = "Shared pictures application";
+        domain = "photos";
+        icon = "google-photos";
+      };
     };
   }
   {
@@ -61,11 +118,13 @@
     name = "My Laptop";
     profile = "laptop";
     ip = "10.1.2.1";
-    networkDomain = "local.darkone.yt";
+    zoneDomain = "local.darkone.yt";
+    networkDomain = "darkone.yt";
     groups = [
       "zone-local"
       "guests"
     ];
+    features = [ "nfs-client" ];
     users = [
       "alice"
       "darkone"
@@ -82,6 +141,7 @@
           "local"
           "group-zone-local"
           "group-guests"
+          "feature-nfs-client"
           "user-alice"
           "user-darkone"
           "user-guest"
@@ -96,51 +156,16 @@
     services = { };
   }
   {
-    hostname = "homelab";
-    zone = "local";
-    fqdn = "homelab.local.darkone.yt";
-    qdn = "homelab.darkone.yt";
-    name = "My HomeLab";
-    profile = "server";
-    ip = "10.1.2.2";
-    networkDomain = "local.darkone.yt";
-    groups = [ "global" ];
-    users = [
-      "alice"
-      "darkone"
-      "nix"
-    ];
-    colmena = {
-      deployment = {
-        tags = [
-          "local"
-          "group-global"
-          "user-alice"
-          "user-darkone"
-          "zone-local"
-        ];
-      };
-    };
-    services = {
-      nfs = { };
-      nextcloud = { };
-      immich = {
-        title = "Local common photos";
-        description = "Shared pictures application";
-        domain = "photos";
-        icon = "google-photos";
-      };
-    };
-  }
-  {
     hostname = "usb-key";
     zone = "local";
     fqdn = "usb-key.local.darkone.yt";
     qdn = "usb-key.darkone.yt";
     name = "My usb key";
     profile = "portable";
-    networkDomain = "local.darkone.yt";
+    zoneDomain = "local.darkone.yt";
+    networkDomain = "darkone.yt";
     groups = [ ];
+    features = [ ];
     users = [
       "darkone"
       "nix"
@@ -156,18 +181,50 @@
     services = { };
   }
   {
+    hostname = "gw-lan";
+    zone = "lan";
+    fqdn = "gw-lan.lan.darkone.yt";
+    qdn = "gw-lan.darkone.yt";
+    name = "LAN gateway";
+    profile = "gateway";
+    ip = "10.2.1.1";
+    zoneDomain = "lan.darkone.yt";
+    networkDomain = "darkone.yt";
+    groups = [ ];
+    features = [ "monitoring-node" ];
+    users = [ "nix" ];
+    colmena = {
+      deployment = {
+        tags = [
+          "feature-monitoring-node"
+          "zone-lan"
+        ];
+      };
+    };
+    services = {
+      adguardhome = { };
+      homepage = { };
+      ncps = { };
+      forgejo = { };
+      monitoring = { };
+      nfs = { };
+    };
+  }
+  {
     hostname = "desktop-01";
     zone = "local";
     fqdn = "desktop-01.local.darkone.yt";
     qdn = "desktop-01.darkone.yt";
     name = "Common Desktop #01";
     profile = "desktop";
-    ip = "10.1.11.1";
-    networkDomain = "local.darkone.yt";
+    ip = "10.1.3.1";
+    zoneDomain = "local.darkone.yt";
+    networkDomain = "darkone.yt";
     groups = [
       "zone-local"
       "guests"
     ];
+    features = [ ];
     users = [
       "alice"
       "darkone"
@@ -204,12 +261,14 @@
     qdn = "desktop-02.darkone.yt";
     name = "Common Desktop #02";
     profile = "desktop";
-    ip = "10.1.11.2";
-    networkDomain = "local.darkone.yt";
+    ip = "10.1.3.2";
+    zoneDomain = "local.darkone.yt";
+    networkDomain = "darkone.yt";
     groups = [
       "zone-local"
       "guests"
     ];
+    features = [ ];
     users = [
       "alice"
       "darkone"
@@ -246,12 +305,14 @@
     qdn = "desktop-03.darkone.yt";
     name = "Common Desktop #03";
     profile = "desktop";
-    ip = "10.1.11.3";
-    networkDomain = "local.darkone.yt";
+    ip = "10.1.3.3";
+    zoneDomain = "local.darkone.yt";
+    networkDomain = "darkone.yt";
     groups = [
       "zone-local"
       "guests"
     ];
+    features = [ ];
     users = [
       "alice"
       "darkone"
@@ -288,12 +349,14 @@
     qdn = "desktop-04.darkone.yt";
     name = "Common Desktop #04";
     profile = "desktop";
-    ip = "10.1.11.4";
-    networkDomain = "local.darkone.yt";
+    ip = "10.1.3.4";
+    zoneDomain = "local.darkone.yt";
+    networkDomain = "darkone.yt";
     groups = [
       "zone-local"
       "guests"
     ];
+    features = [ ];
     users = [
       "alice"
       "darkone"
@@ -324,18 +387,180 @@
     services = { };
   }
   {
+    hostname = "lan-01";
+    zone = "lan";
+    fqdn = "lan-01.lan.darkone.yt";
+    qdn = "lan-01.darkone.yt";
+    name = "LAN host #01";
+    profile = "lan";
+    ip = "10.2.2.1";
+    zoneDomain = "lan.darkone.yt";
+    networkDomain = "darkone.yt";
+    groups = [ "guests" ];
+    features = [
+      "nfs-client"
+      "monitoring-node"
+    ];
+    users = [
+      "guest"
+      "guest-baby"
+      "guest-child"
+      "guest-student"
+      "guest-teen"
+      "nix"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "group-guests"
+          "feature-nfs-client"
+          "feature-monitoring-node"
+          "user-guest"
+          "user-guest-baby"
+          "user-guest-child"
+          "user-guest-student"
+          "user-guest-teen"
+          "zone-lan"
+        ];
+      };
+    };
+    services = { };
+  }
+  {
+    hostname = "lan-02";
+    zone = "lan";
+    fqdn = "lan-02.lan.darkone.yt";
+    qdn = "lan-02.darkone.yt";
+    name = "LAN host #02";
+    profile = "lan";
+    ip = "10.2.2.2";
+    zoneDomain = "lan.darkone.yt";
+    networkDomain = "darkone.yt";
+    groups = [ "guests" ];
+    features = [
+      "nfs-client"
+      "monitoring-node"
+    ];
+    users = [
+      "guest"
+      "guest-baby"
+      "guest-child"
+      "guest-student"
+      "guest-teen"
+      "nix"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "group-guests"
+          "feature-nfs-client"
+          "feature-monitoring-node"
+          "user-guest"
+          "user-guest-baby"
+          "user-guest-child"
+          "user-guest-student"
+          "user-guest-teen"
+          "zone-lan"
+        ];
+      };
+    };
+    services = { };
+  }
+  {
+    hostname = "lan-03";
+    zone = "lan";
+    fqdn = "lan-03.lan.darkone.yt";
+    qdn = "lan-03.darkone.yt";
+    name = "LAN host #03";
+    profile = "lan";
+    ip = "10.2.2.3";
+    zoneDomain = "lan.darkone.yt";
+    networkDomain = "darkone.yt";
+    groups = [ "guests" ];
+    features = [
+      "nfs-client"
+      "monitoring-node"
+    ];
+    users = [
+      "guest"
+      "guest-baby"
+      "guest-child"
+      "guest-student"
+      "guest-teen"
+      "nix"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "group-guests"
+          "feature-nfs-client"
+          "feature-monitoring-node"
+          "user-guest"
+          "user-guest-baby"
+          "user-guest-child"
+          "user-guest-student"
+          "user-guest-teen"
+          "zone-lan"
+        ];
+      };
+    };
+    services = { };
+  }
+  {
+    hostname = "lan-04";
+    zone = "lan";
+    fqdn = "lan-04.lan.darkone.yt";
+    qdn = "lan-04.darkone.yt";
+    name = "LAN host #04";
+    profile = "lan";
+    ip = "10.2.2.4";
+    zoneDomain = "lan.darkone.yt";
+    networkDomain = "darkone.yt";
+    groups = [ "guests" ];
+    features = [
+      "nfs-client"
+      "monitoring-node"
+    ];
+    users = [
+      "guest"
+      "guest-baby"
+      "guest-child"
+      "guest-student"
+      "guest-teen"
+      "nix"
+    ];
+    colmena = {
+      deployment = {
+        tags = [
+          "group-guests"
+          "feature-nfs-client"
+          "feature-monitoring-node"
+          "user-guest"
+          "user-guest-baby"
+          "user-guest-child"
+          "user-guest-student"
+          "user-guest-teen"
+          "zone-lan"
+        ];
+      };
+    };
+    services = { };
+  }
+  {
     hostname = "office-laptop";
     zone = "local";
     fqdn = "office-laptop.local.darkone.yt";
     qdn = "office-laptop.darkone.yt";
     name = "Ordi portable Office Laptop";
     profile = "laptop";
-    ip = "10.1.10.1";
-    networkDomain = "local.darkone.yt";
+    ip = "10.1.4.1";
+    zoneDomain = "local.darkone.yt";
+    networkDomain = "darkone.yt";
     groups = [
       "zone-local"
       "guests"
     ];
+    features = [ ];
     users = [
       "alice"
       "darkone"
@@ -371,12 +596,14 @@
     qdn = "saloon-laptop.darkone.yt";
     name = "Ordi portable Saloon Laptop";
     profile = "laptop";
-    ip = "10.1.10.2";
-    networkDomain = "local.darkone.yt";
+    ip = "10.1.4.2";
+    zoneDomain = "local.darkone.yt";
+    networkDomain = "darkone.yt";
     groups = [
       "zone-local"
       "guests"
     ];
+    features = [ ];
     users = [
       "alice"
       "darkone"
