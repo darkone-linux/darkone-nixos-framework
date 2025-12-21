@@ -16,7 +16,7 @@ let
   #graphic = osConfig.darkone.graphic.gnome.enable;
   hasNfsServer = osConfig.darkone.service.nfs.enable;
   nfsServer = (lib.findFirst (s: s.name == "nfs" && s.zone == zone.name) null network.services).host;
-  isNfsClient = host.hostname != nfsServer;
+  isNfsClient = host.hostname != nfsServer && lib.elem "nfs-client" host.features;
   mpdMusicDir =
     if isNfsClient then
       "/mnt/nfs/homes/${config.home.username}/Music"

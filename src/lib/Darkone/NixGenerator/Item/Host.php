@@ -21,7 +21,6 @@ class Host
     private ?string $arch;
     private string $zoneDomain;
     private string $networkDomain;
-    private bool $nfsClient = false;
 
     /**
      * @var array of string (logins)
@@ -281,17 +280,6 @@ class Host
     public function setNetworkDomain(string $networkDomain): Host
     {
         $this->networkDomain = $networkDomain;
-        return $this;
-    }
-
-    public function isNfsClient(): bool
-    {
-        return $this->nfsClient;
-    }
-
-    public function setNfsClient(bool $nfsClient): Host
-    {
-        $this->nfsClient = $nfsClient;
         return $this;
     }
 

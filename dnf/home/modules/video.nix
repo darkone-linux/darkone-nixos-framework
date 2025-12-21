@@ -17,19 +17,20 @@ in
     darkone.home.video.enableEditing = lib.mkEnableOption "Video editing tools (kdenlive...)";
     darkone.home.video.enableCreator = lib.mkEnableOption "Video creator tools (obs...)";
     darkone.home.video.enableUnfree = lib.mkEnableOption "Unfree video apps (davinci...)";
+    darkone.home.video.enableAlternative = lib.mkEnableOption "Alternative video apps (mpv...)";
   };
 
   config = lib.mkIf cfg.enable {
 
     home.packages = with pkgs; [
+      showtime
+      (lib.mkIf cfg.enableAlternative mpv)
       (lib.mkIf cfg.enableEditing kdePackages.kdenlive)
-      #(lib.mkIf cfg.enableEditing natron) # Broken
       (lib.mkIf cfg.enableEditing shotcut)
       (lib.mkIf cfg.enableTools ffmpeg)
       (lib.mkIf cfg.enableTools handbrake)
       (lib.mkIf cfg.enableTools mlt)
-      (lib.mkIf cfg.enableTools mpv)
-      (lib.mkIf cfg.enableTools totem)
+      (lib.mkIf cfg.enableTools video-trimmer)
       (lib.mkIf cfg.enableTools vlc)
       (lib.mkIf cfg.enableUnfree davinci-resolve)
     ];

@@ -43,8 +43,9 @@ let
       "dev.zed.Zed.desktop"
     ];
     vid = [
-      "org.gnome.Totem.desktop"
+      "org.gnome.Showtime.desktop"
       "vlc.desktop"
+      "org.gnome.Totem.desktop"
       "mpv.desktop"
     ];
     mp3 = [

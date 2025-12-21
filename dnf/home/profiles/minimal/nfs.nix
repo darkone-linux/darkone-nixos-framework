@@ -16,7 +16,7 @@ let
     else
       null;
   isServer = nfsServer != null && host.hostname == nfsServer;
-  isClient = nfsServer != null && !isServer && host.nfsClient;
+  isClient = nfsServer != null && !isServer && lib.elem "nfs-client" host.features;
   isEnable = hasServer && (isServer || isClient);
   inherit (osConfig.darkone.system) srv-dirs;
   baseDir = if isServer then srv-dirs.nfs else "/mnt/nfs";

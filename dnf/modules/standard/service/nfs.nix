@@ -10,7 +10,7 @@
 # In config.yaml file (hosts):
 #
 # - Only one host have a service `service.nfs`.
-# - Clients need `nfsClient = true`.
+# - Clients need `features = [ "nfs-client" ]`.
 # :::
 
 {
@@ -30,7 +30,7 @@ let
   nfsServer = (lib.findFirst (s: s.name == "nfs" && s.zone == zone.name) "" network.services).host;
   isServer = host.hostname == nfsServer;
   hasServer = nfsServerCount == 1;
-  isClient = !isServer && hasServer && host.nfsClient;
+  isClient = !isServer && hasServer && lib.elem "nfs-client" host.features;
   inherit (config.darkone.system) srv-dirs; # Read only
 in
 assert

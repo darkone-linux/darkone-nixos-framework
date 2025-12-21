@@ -139,6 +139,7 @@ in
       loupe
       simple-scan
       snapshot
+      showtime
       tali
       totem
       xterm

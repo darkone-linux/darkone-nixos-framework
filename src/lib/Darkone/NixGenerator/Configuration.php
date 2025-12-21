@@ -167,7 +167,6 @@ class Configuration extends NixAttrSet
                 ->setArch($host['arch'] ?? null)
                 ->setZoneDomain($zone->getName() == self::EXTERNAL_ZONE_KEY ? $this->network->getDomain() : $zone->getDomain())
                 ->setNetworkDomain($this->network->getDomain())
-                ->setNfsClient($host['nfsClient'] ?? false)
                 ->setUsers($this->extractAllUsers($host['users'] ?? [], $host['groups'] ?? []))
                 ->setGroups($host['groups'] ?? [])
                 ->setFeatures($host['features'] ?? [])
@@ -230,9 +229,9 @@ class Configuration extends NixAttrSet
                 'profile' => $rangeHostGroup['profile'],
                 'users' => $rangeHostGroup['users'] ?? [],
                 'groups' => $rangeHostGroup['groups'] ?? [],
+                'features' => $rangeHostGroup['features'] ?? [],
                 'tags' => $rangeHostGroup['tags'] ?? [],
                 'disko' => $rangeHostGroup['disko'] ?? [],
-                'nfsClient' => $rangeHostGroup['nfsClient'] ?? false,
             ];
             if (!empty($rangeHostGroup['mac'][$i])) {
                 $hosts[$i]['mac'] = $rangeHostGroup['mac'][$i];
@@ -270,9 +269,9 @@ class Configuration extends NixAttrSet
                 'profile' => $listHostGroup['profile'],
                 'users' => $listHostGroup['users'] ?? [],
                 'groups' => $listHostGroup['groups'] ?? [],
+                'features' => $listHostGroup['features'] ?? [],
                 'tags' => $listHostGroup['tags'] ?? [],
                 'disko' => $listHostGroup['disko'] ?? [],
-                'nfsClient' => $listHostGroup['nfsClient'] ?? false,
             ]);
         }
         $this->loadStaticHosts($hosts);
