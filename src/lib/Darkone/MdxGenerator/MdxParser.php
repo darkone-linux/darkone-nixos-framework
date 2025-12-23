@@ -61,6 +61,10 @@ class MdxParser
                 $inOpt = false;
             }
             if (preg_match('/^( +)(' . $prefix . ')?([a-zA-Z0-9._-]+) *=[^\n]*mkOption +{$/', $line, $matches)) {
+                if (empty($prefix)) {
+                    $prefix = preg_replace('/^(.+\.)[^.]+/', '$1', $matches[3]);
+                    $matches[3] = substr($matches[3], strlen($prefix));
+                }
                 if (!empty($currOpt)) {
                     $options[] = $currOpt;
                 }

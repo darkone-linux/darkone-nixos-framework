@@ -57,7 +57,7 @@ in
       default = true;
       description = "Enable flatpak DNF configuration (only for graphic environments)";
     };
-    darkone.system.core.enableKmscon = lib.mkEnableOption {
+    darkone.system.core.enableKmscon = lib.mkOption {
       type = lib.types.bool;
       default = true;
       description = "Enable nerd font for TTY";

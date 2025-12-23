@@ -819,13 +819,13 @@ In config.yaml file (hosts):
 - Clients need `features = [ "nfs-client" ]`.
 :::
 
-* **darkone.service.nfs.enable** `bool` Enable NFS DNF server (avoid enable manually)
-* **darkone.service.nfs.serverDomain** `str` NFS Server FQDN
+* **enable** `bool` Enable NFS DNF server (avoid enable manually)
+* **serverDomain** `str` NFS Server FQDN
 
 ```nix
 darkone.service.nfs = {
-  darkone.service.nfs.enable = hasServer && (isServer || isClient);
-  darkone.service.nfs.serverDomain = "nfs";
+  enable = hasServer && (isServer || isClient);
+  serverDomain = "nfs";
 };
 ```
 
@@ -991,12 +991,13 @@ This module is enabled by default (required by DNF configuration).
 It is required for the proper functioning of every NixOS computer on the local network.
 :::
 
-* **darkone.system.core.enable** `bool` Darkone framework core system (activated by default)
-* **darkone.system.core.enableSystemdBoot** `bool` Enable the default boot loader
-* **darkone.system.core.enableFstrim** `bool` SSD optimisation with fstrim
-* **darkone.system.core.enableFirewall** `bool` Enable firewall (default true)
-* **darkone.system.core.enableSops** `bool` Enable sops dnf module (default true)
-* **darkone.system.core.enableFlatpak** `bool` Enable flatpak DNF configuration (only for graphic environments)
+* **enable** `bool` Darkone framework core system (activated by default)
+* **enableSystemdBoot** `bool` Enable the default boot loader
+* **enableFstrim** `bool` SSD optimisation with fstrim
+* **enableFirewall** `bool` Enable firewall (default true)
+* **enableSops** `bool` Enable sops dnf module (default true)
+* **enableFlatpak** `bool` Enable flatpak DNF configuration (only for graphic environments)
+* **enableKmscon** `bool` Enable nerd font for TTY
 * **enableBoost** `bool` Enable overclocking, corectl
 * **enableAutoSuspend** `bool` Enable automatic suspend (for laptops, ignored if disableSuspend is true)
 * **disableSuspend** `bool` Full suspend disable (for servers)
@@ -1004,12 +1005,13 @@ It is required for the proper functioning of every NixOS computer on the local n
 
 ```nix
 darkone.system.core = {
-  darkone.system.core.enable = true;
-  darkone.system.core.enableSystemdBoot = true;
-  darkone.system.core.enableFstrim = true;
-  darkone.system.core.enableFirewall = true;
-  darkone.system.core.enableSops = true;
-  darkone.system.core.enableFlatpak = true;
+  enable = true;
+  enableSystemdBoot = true;
+  enableFstrim = true;
+  enableFirewall = true;
+  enableSops = true;
+  enableFlatpak = true;
+  enableKmscon = true;
   enableBoost = false;
   enableAutoSuspend = false;
   disableSuspend = false;
@@ -1163,7 +1165,7 @@ darkone.system.sops.enable = false;
 
 ### &#x1F48E; darkone.system.srv-dirs
 
-* **darkone.system.srv-dirs.enable** `bool` Enable srv dirs, create the root dir (default /srv)
+* **enable** `bool` Enable srv dirs, create the root dir (default /srv)
 * **enableNfs** `bool` Enable nfs service paths (nfs/common, nfs/homes)
 * **enableMedias** `bool` Enable media services paths (medias/[videos|music|incomming/...])
 * **root** `str` Root dir for persistant data (/srv)
@@ -1179,7 +1181,7 @@ darkone.system.sops.enable = false;
 
 ```nix
 darkone.system.srv-dirs = {
-  darkone.system.srv-dirs.enable = cfg.enableNfs || cfg.enableMedias;
+  enable = cfg.enableNfs || cfg.enableMedias;
   enableNfs = false;
   enableMedias = false;
   root = "/srv";
@@ -1205,10 +1207,10 @@ Build users from DNF configuration.
 This module is enabled by default (required by DNF configuration).
 :::
 
-* **darkone.user.build.enable** `bool` Users common builder (enabled by default)
+* **enable** `bool` Users common builder (enabled by default)
 
 ```nix
-darkone.user.build.darkone.user.build.enable = true;
+darkone.user.build.enable = true;
 ```
 
 <hr/>
@@ -1221,10 +1223,10 @@ Root user specific settings.
 This module is enabled by default (required by DNF configuration).
 :::
 
-* **darkone.user.root.enable** `bool` Root user specific configuration
+* **enable** `bool` Root user specific configuration
 
 ```nix
-darkone.user.root.darkone.user.root.enable = true;
+darkone.user.root.enable = true;
 ```
 
 <hr/>
