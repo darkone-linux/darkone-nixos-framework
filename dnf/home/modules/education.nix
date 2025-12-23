@@ -83,6 +83,8 @@ in
       (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) kdePackages.kalzium) # periodic elements
       (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) kdePackages.kgeography) # geography
       (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) atomix) # Atom puzzle
+      (lib.mkIf (cfg.enableDraw && (cfg.enableChild || cfg.enableStudent)) pencil2d)
+      (lib.mkIf (cfg.enableDraw && (cfg.enableChild || cfg.enableStudent)) synfigstudio)
     ];
   };
 }

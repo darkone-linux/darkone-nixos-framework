@@ -71,12 +71,16 @@ let
     map (
       srv:
       let
-        pubPriv = if srv.params.global then " 🔵" else ""; # " 🟡";
-        mention = " (" + srv.params.zone + ":" + srv.params.host + ")" + pubPriv;
+        pubPriv =
+          if srv.params.global then
+            (if srv.params.zone == "www" then "🟢" else "🟡")
+          else
+            (if srv.params.zone == zone.name then "🔵" else "🟠");
+        mention = " (" + srv.params.zone + ":" + srv.params.host + ")";
       in
       {
-        ${srv.params.title} = mkIf srv.displayOnHomepage {
-          description = srv.params.description + mention;
+        "${srv.params.title}" = mkIf srv.displayOnHomepage {
+          description = srv.params.description + mention + " " + pubPriv;
           inherit (srv.params) href;
           inherit (srv.params) icon;
         };
@@ -174,7 +178,7 @@ in
             persist.dbDirs = mkOption {
               type = types.listOf types.str;
               default = [ ];
-              example = [ "/var/lib/postgresql" ];
+              example = [ config.services.postgresql.dataDir ];
               description = "Service persistant dirs with database(s)";
             };
             persist.dbFiles = mkOption {
@@ -390,8 +394,13 @@ in
     # Add services to homepage
     # TODO: widgets params integration in service params / sops
     darkone.service.homepage = mkIf isGateway {
-      localServices = mkHomeSection (filter (srv: srv.params.zone == zone.name) homepageServices);
-      remoteServices = mkHomeSection (filter (srv: srv.params.zone != zone.name) homepageServices);
+      localServices = mkHomeSection (
+        filter (srv: srv.params.zone == zone.name && !srv.params.global) homepageServices
+      );
+      globalServices = mkHomeSection (filter (srv: srv.params.global) homepageServices);
+      remoteServices = mkHomeSection (
+        filter (srv: srv.params.zone != zone.name && !srv.params.global) homepageServices
+      );
     };
 
     #--------------------------------------------------------------------------

@@ -3,6 +3,7 @@
   pkgs,
   config,
   osConfig,
+  hosts,
   host,
   zone,
   network,
@@ -16,7 +17,11 @@ let
     else
       null;
   isServer = nfsServer != null && host.hostname == nfsServer;
-  isClient = nfsServer != null && !isServer && lib.elem "nfs-client" host.features;
+  isClient =
+    nfsServer != null
+    && !isServer
+    && lib.hasAttr "nfs-client" host.features
+    && host.features.nfs-client == (lib.findFirst (h: h.hostname == nfsServer) null hosts).zone;
   isEnable = hasServer && (isServer || isClient);
   inherit (osConfig.darkone.system) srv-dirs;
   baseDir = if isServer then srv-dirs.nfs else "/mnt/nfs";

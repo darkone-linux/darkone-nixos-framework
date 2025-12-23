@@ -32,6 +32,7 @@
     ./standard/service/homepage.nix
     ./standard/service/httpd.nix
     ./standard/service/immich.nix
+    ./standard/service/jellyfin.nix
     ./standard/service/jitsi-meet.nix
     ./standard/service/keycloak.nix
     ./standard/service/matrix.nix

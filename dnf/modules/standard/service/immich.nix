@@ -44,7 +44,7 @@ in
             "/var/lib/immich/profile"
             "/var/lib/immich/backups"
           ];
-          dbDirs = [ "/var/lib/postgresql" ];
+          dbDirs = [ config.services.postgresql.dataDir ];
           mediaDirs = [ "/var/lib/immich/library" ];
           varDirs = [
             "/var/lib/immich/encoded-video"

@@ -54,7 +54,7 @@ in
       darkone.system.services.service.ncps = {
         displayOnHomepage = false;
         persist = {
-          varDirs = [ config.services.ncps.dataPath ];
+          varDirs = [ config.services.ncps.cache.dataPath ];
         };
         proxy.enable = false;
       };
@@ -65,7 +65,7 @@ in
       # Darkone service: enable
       darkone.system.services = {
         enable = true;
-        service.ncps.enable = true;
+        service.ncps.enable = isServer;
       };
 
       #------------------------------------------------------------------------

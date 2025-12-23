@@ -18,6 +18,8 @@ class Configuration extends NixAttrSet
     public const string TYPE_EMAIL = 'email';
 
     public const string REGEX_HOSTNAME = '/^[a-zA-Z][a-zA-Z0-9_-]{1,59}$/';
+    public const string REGEX_FQDN = '/^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[A-Za-z]{2,63}$/';
+    public const string REGEX_SMTP_PROTOCOL = '/^(http|https|submission|submissions)$/';
     public const string REGEX_LOGIN = '/^[a-zA-Z][a-zA-Z0-9_-]{1,59}$/';
     public const string REGEX_IDENTIFIER = '/^[a-z][a-zA-Z0-9-]{0,62}[a-zA-Z0-9]$/';
     public const string REGEX_DEVICE = '#^/dev(/[a-zA-Z0-9]+){1,3}$#';

@@ -8,36 +8,90 @@
 # <db_dumps> -> /mnt/backup/databases/<db_dumps>
 # ```
 
+# TODO: sauvegarde via rest + voir si sauvegarde tout /var ou /var/lib plutôt que des petites parties...
 {
   config,
   lib,
+  dnfLib,
+  network,
   zone,
+  host,
+  pkgs,
   ...
 }:
 let
   cfg = config.darkone.service.restic;
-  srv = config.services.restic;
+  srv = config.services.restic.server;
+  bkps = config.services.restic.backups;
 
-  # Dirs (exports)
+  # NFS dirs (/srv/nfs)
   inherit (config.darkone.system) srv-dirs;
   hasNfsShares = srv-dirs.enableNfs;
 
+  # Media dirs (/srv/medias)
+  hasMediasShares = srv-dirs.enableMedias;
+
   # Dirs backup
   nfsBackupRepo = "${cfg.repositoryRoot}${srv-dirs.nfs}";
+  mediasBackupRepo = "${cfg.repositoryRoot}${srv-dirs.medias}";
+  servicesBackupRepo = "${cfg.repositoryRoot}/services";
   enableNfsBackup = cfg.enableNfsBackup && hasNfsShares;
+  enableMediasBackup = cfg.enableMediasBackup && hasMediasShares;
 
   # Restic zoned password
   passwdFileName = "restic-password-" + zone.name;
 
+  # Common backup configuration
+  commonBkpConfig = {
+    initialize = true; # Create the repo if needed
+    runCheck = true; # Check integrity of repo before save
+    passwordFile = config.sops.secrets.${passwdFileName}.path;
+    extraBackupArgs = lib.optionals cfg.enableDryRun [
+      "--dry-run"
+      "-v"
+    ];
+
+    exclude = [
+      "tmp"
+      "*.tmp"
+      "*~"
+      "*.log"
+      ".Trash*"
+      "node_modules"
+      "vendor"
+      ".cache"
+      "cache/*"
+    ];
+
+    # https://restic.readthedocs.io/en/stable/060_forget.html#removing-snapshots-according-to-a-policy
+    pruneOpts = [
+      # On conserve...
+      "--keep-last 24" # Les 24 derniers snapshots
+      "--keep-hourly 24" # Un par heure pendant 24 heures (le plus récent de chaque heure)
+      "--keep-daily 7" # Un par jour pendant 7 jours
+      "--keep-weekly 8" # Un par semaine pendant 8 semaines
+      "--keep-monthly 24" # Un par mois pendant 24 mois
+      "--keep-yearly 75" # Un par an pendant 75 ans
+    ];
+  };
+
   # Module main params
-  #srvPort = 8081;
+  srvPort = 8081;
   defaultParams = {
     description = "Local backup strategy";
   };
+  params = dnfLib.extractServiceParams host network "restic" defaultParams;
 in
 {
   options = {
-    darkone.service.restic.enable = lib.mkEnableOption "Enable restic backup service";
+
+    #------------------------------------------------------------------------
+    # Options
+    #------------------------------------------------------------------------
+
+    # General options
+    darkone.service.restic.enable = lib.mkEnableOption "Enable main restic backup service";
+    darkone.service.restic.enableServer = lib.mkEnableOption "Enable restic rest server";
     darkone.service.restic.enableDryRun = lib.mkEnableOption "Dry Run mode";
     darkone.service.restic.enableWaitRemoteFs = lib.mkOption {
       type = lib.types.bool;
@@ -46,31 +100,51 @@ in
     };
     darkone.service.restic.repositoryRoot = lib.mkOption {
       type = lib.types.str;
-      default = "/mnt/backup/restic";
+      default = "/mnt/backup/restic/${host.hostname}";
+      example = "rest:nix@backup.${zone.domain}:/mnt/backup/restic/${host.hostname}";
       description = "Main backup target root path";
     };
+
+    # Services options
     darkone.service.restic.enableServicesBackup = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Backup important files of local services (wip)";
+      description = "Backup important files of local services (persist dirs)";
     };
-    darkone.service.restic.enableDatabasesBackup = lib.mkOption {
+    darkone.service.restic.enableServicesVarBackup = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Backup local services databases (wip)";
+      description = "Backup variable files of local services (persist varDirs)";
     };
+
+    # NFS options
     darkone.service.restic.enableNfsBackup = lib.mkOption {
       type = lib.types.bool;
       default = config.darkone.service.nfs.enable;
-      description = "Backup /srv/nfs/<xxx> dirs (services important files)";
+      description = "Backup /srv/nfs/<xxx> dirs";
     };
-    darkone.service.restic.nfsDirsPaths = lib.mkOption {
+    darkone.service.restic.nfsPaths = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [
         srv-dirs.homes
         srv-dirs.common
       ];
       description = "NFS dirs (/srv/nfs/<xxx>) to include in backup configuration";
+    };
+
+    # Medias options
+    darkone.service.restic.enableMediasBackup = lib.mkOption {
+      type = lib.types.bool;
+      default = config.darkone.service.jellyfin.enable;
+      description = "Backup /srv/medias/<xxx> dirs";
+    };
+    darkone.service.restic.mediasPaths = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [
+        srv-dirs.music
+        srv-dirs.videos
+      ];
+      description = "NFS dirs (/srv/medias/<xxx>) to include in backup configuration";
     };
   };
 
@@ -86,7 +160,6 @@ in
         displayOnHomepage = false;
         persist.dirs = [ srv.dataDir ];
         proxy.enable = false;
-        #proxy.servicePort = srvPort;
       };
     }
 
@@ -102,6 +175,9 @@ in
       # Restic service dependencies & configuration
       #------------------------------------------------------------------------
 
+      # Restic executable
+      environment.systemPackages = with pkgs; [ restic ];
+
       # Restic password
       sops.secrets.${passwdFileName} = {
         mode = "0400";
@@ -114,61 +190,111 @@ in
         wants = [ "remote-fs.target" ];
       };
 
-      # Repository targets creations (initialize?)
-      #systemd.tmpfiles.rules = lib.optional enableNfsBackup "d ${dirsbackup} 0700 root root -";
-
       #------------------------------------------------------------------------
       # Restic Service
       #------------------------------------------------------------------------
 
       services.restic = {
 
-        # TODO: voir si on utilise le rest server...
-        # server = {
-        #   enable = true;
-        #   listenAddress = "${params.ip}:${toString srvPort}";
-        # };
+        # Restic REST server
+        server = lib.mkIf cfg.enableServer {
+          enable = true;
+          listenAddress = "${params.ip}:${toString srvPort}";
+        };
+
+        #----------------------------------------------------------------------
+        # Backups
+        #----------------------------------------------------------------------
 
         backups = {
-          nfsbackup = lib.mkIf enableNfsBackup {
-            exclude = [
-              "tmp"
-              "*.tmp"
-              "*~"
-              "*.log"
-              ".Trash*"
-              "node_modules"
-              "vendor"
-              ".cache"
-            ];
-            initialize = true; # Create the repo if needed
-            runCheck = true; # Check integrity of repo before save
-            passwordFile = config.sops.secrets.${passwdFileName}.path;
-            paths = cfg.nfsDirsPaths;
-            repository = nfsBackupRepo;
-            extraBackupArgs = lib.optionals cfg.enableDryRun [
-              "--dry-run"
-              "-v"
-            ];
 
-            # https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html
-            timerConfig = {
-              OnCalendar = "daily";
-              Persistent = false;
-            };
+          # NFS
+          # -> /srv/nfs/(home|common)
+          nfsbackup = lib.mkIf enableNfsBackup (
+            lib.mkMerge [
+              {
+                paths = cfg.nfsPaths;
+                repository = nfsBackupRepo;
 
-            # https://restic.readthedocs.io/en/stable/060_forget.html#removing-snapshots-according-to-a-policy
-            pruneOpts = [
-              "--keep-last 24"
-              "--keep-hourly 24"
-              "--keep-daily 7"
-              "--keep-weekly 5"
-              "--keep-monthly 12"
-              "--keep-yearly 75"
-            ];
-          };
+                # https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html
+                timerConfig = {
+                  OnCalendar = "01:00";
+                  Persistent = false;
+                };
+              }
+              commonBkpConfig
+            ]
+          );
+
+          # Medias
+          # -> /srv/medias/(videos|music)
+          mediasbackup = lib.mkIf enableMediasBackup (
+            lib.mkMerge [
+              {
+                paths = cfg.mediasPaths;
+                repository = mediasBackupRepo;
+                timerConfig = {
+                  OnCalendar = "04:00";
+                  Persistent = false;
+                };
+              }
+              commonBkpConfig
+            ]
+          );
+
+          # Services
+          # -> All "persist" dirs of local enabled services except var (files, databases, medias)
+          servicesbackup =
+            let
+              alreadyBackupedPaths =
+                (lib.optionals (lib.hasAttrByPath [ "nfsbackup" "paths" ] bkps) bkps.nfsbackup.paths)
+                ++ (lib.optionals (lib.hasAttrByPath [ "mediasbackup" "paths" ] bkps) bkps.mediasbackup.paths);
+            in
+            lib.mkIf cfg.enableServicesBackup (
+              lib.mkMerge [
+                {
+                  paths = lib.subtractLists alreadyBackupedPaths (
+                    lib.unique (
+                      lib.concatLists (
+                        lib.mapAttrsToList (_: s: s.persist.dirs ++ s.persist.dbDirs ++ s.persist.mediaDirs) (
+                          lib.filterAttrs (_: s: s.enable) config.darkone.system.services.service
+                        )
+                      )
+                    )
+                  );
+                  exclude = alreadyBackupedPaths;
+                  repository = servicesBackupRepo;
+                  timerConfig = {
+                    OnCalendar = "05:00";
+                    Persistent = false;
+                  };
+                }
+                commonBkpConfig
+              ]
+            );
+
+          # Variable files (services)
+          # -> All "persist" dirs of local enabled services except var (files, databases, medias)
+          servicesvarbackup = lib.mkIf cfg.enableServicesVarBackup (
+            lib.mkMerge [
+              {
+                paths = lib.unique (
+                  lib.concatLists (
+                    lib.mapAttrsToList (_: s: s.persist.varDirs) (
+                      lib.filterAttrs (_: s: s.enable) config.darkone.system.services.service
+                    )
+                  )
+                );
+                repository = servicesBackupRepo;
+                timerConfig = {
+                  OnCalendar = "06:00";
+                  Persistent = false;
+                };
+              }
+              commonBkpConfig
+            ]
+          );
         };
-        # // cfg.extraBackups;
       };
     })
   ];

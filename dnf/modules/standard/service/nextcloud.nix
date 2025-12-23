@@ -12,7 +12,16 @@
 }:
 let
   cfg = config.darkone.service.nextcloud;
+  srv = config.services.nextcloud;
   port = 8089;
+
+  # TODO: Factoriser les détections de ports firewall
+  isVpnClient = lib.hasAttr "vpnIp" host;
+  isGateway =
+    !isVpnClient
+    && lib.hasAttrByPath [ "gateway" "hostname" ] zone
+    && host.hostname == zone.gateway.hostname;
+
   defaultParams = {
     description = "Local personal cloud";
   };
@@ -43,12 +52,9 @@ in
       darkone.system.services.service.nextcloud = {
         inherit defaultParams;
         persist = {
-          dirs = [ "/var/lib/nextcloud/data" ];
-          dbDirs = [ "/var/lib/postgresql" ];
-          varDirs = [
-            "/var/lib/nextcloud/store-apps"
-            "/var/lib/redis-nextcloud"
-          ];
+          dirs = [ srv.home ];
+          dbDirs = [ config.services.postgresql.dataDir ];
+          varDirs = [ "/var/lib/redis-nextcloud" ];
         };
         proxy.servicePort = port;
         proxy.extraConfig = ''
@@ -108,6 +114,19 @@ in
       '';
 
       #------------------------------------------------------------------------
+      # Firewall
+      #------------------------------------------------------------------------
+
+      # Open gateway port
+      networking.firewall.interfaces.lan0 = lib.mkIf isGateway { allowedTCPPorts = [ port ]; };
+
+      # Open tailscale client port
+      networking.firewall.interfaces.tailscale0 = lib.mkIf isVpnClient { allowedTCPPorts = [ port ]; };
+
+      # Open tailscale client port
+      networking.firewall.allowedTCPPorts = lib.optional (!isVpnClient && !isGateway) port;
+
+      #------------------------------------------------------------------------
       # Nextcloud Service
       #------------------------------------------------------------------------
 
@@ -133,9 +152,9 @@ in
 
         # Configuration PHP et cache
         phpOptions = {
-          "opcache.interned_strings_buffer" = "16";
+          "opcache.interned_strings_buffer" = "64";
           "opcache.max_accelerated_files" = "10000";
-          "opcache.memory_consumption" = "128";
+          "opcache.memory_consumption" = "256";
           "opcache.revalidate_freq" = "1";
           "opcache.fast_shutdown" = "1";
         };
@@ -144,7 +163,7 @@ in
         configureRedis = true;
 
         # Déverrouillage du app store
-        #appstoreEnable = true;
+        appstoreEnable = false;
 
         # Applications par défaut
         extraApps = with config.services.nextcloud.package.packages.apps; {
@@ -155,10 +174,10 @@ in
             calendar
             contacts
             cospend
-            deck
+            #deck
             groupfolders
-            memories
-            music
+            #memories
+            #music
             notes
             richdocuments
             spreed
@@ -167,6 +186,10 @@ in
 
         # Apps config
         autoUpdateApps.enable = true;
+
+        # Client Push
+        # TODO: service à part, accessible en HTTPS
+        #notify_push.enable = true;
 
         # Paramètres supplémentaires
         settings = {
@@ -183,7 +206,19 @@ in
             "::1"
           ];
           default_phone_region = lib.toUpper (builtins.substring 3 2 zone.locale);
-          mail_domain = "admin@${network.domain}";
+
+          # SMTP params
+          # Ne fonctionne que si l'adresse email de l'administrateur est renseignée dans son compte !
+          mail_domain = network.domain;
+          mail_smtpmode = "smtp";
+          mail_sendmailmode = "smtp";
+          mail_smtpport = network.smtp.port or 25;
+          mail_smtpname = network.smtp.username or "";
+          mail_smtphost = network.smtp.server or "";
+          mail_smtpauth = true;
+          mail_smtpsecure = lib.optionalString network.smtp.tls "ssl";
+          mail_smtptimeout = 30;
+          mail_from_address = "noreply";
         };
       };
 

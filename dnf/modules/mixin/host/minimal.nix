@@ -105,6 +105,11 @@ in
       default = builtins.hasAttr "borg" host.services;
       description = "Enable Borg service";
     };
+    darkone.host.minimal.enableJellyfin = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "jellyfin" host.services;
+      description = "Enable Jellyfin server";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -135,6 +140,7 @@ in
       forgejo.enable = cfg.enableForgejo;
       homepage.enable = cfg.enableHomepage;
       immich.enable = cfg.enableImmich;
+      jellyfin.enable = cfg.enableJellyfin;
       jitsi-meet.enable = cfg.enableJitsiMeet;
       keycloak.enable = cfg.enableKeycloak;
       matrix.enable = cfg.enableMatrix;

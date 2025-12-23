@@ -126,6 +126,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableKeycloak** `bool` Enable Keycloak service
 * **enableRestic** `bool` Enable Restic service
 * **enableBorg** `bool` Enable Borg service
+* **enableJellyfin** `bool` Enable Jellyfin server
 
 ```nix
 darkone.host.minimal = {
@@ -148,6 +149,7 @@ darkone.host.minimal = {
   enableKeycloak = builtins.hasAttr "keycloak" host.services;
   enableRestic = builtins.hasAttr "restic" host.services;
   enableBorg = builtins.hasAttr "borg" host.services;
+  enableJellyfin = builtins.hasAttr "jellyfin" host.services;
 };
 ```
 
@@ -565,6 +567,7 @@ For each DNF service enabled, an entry is automatically added to the homepage co
 
 * **enable** `bool` Enable homepage dashboard + httpd + host
 * **localServices** `listOf attrs` Services to add in Local Applications section
+* **globalServices** `listOf attrs` Full network common &amp; public-accessible services
 * **remoteServices** `listOf attrs` Services to add in Remote Applications section
 * **bookmarks** `listOf attrs` Replace default bookmarks (links)
 * **widgets** `listOf attrs` Replace default widgets
@@ -573,6 +576,7 @@ For each DNF service enabled, an entry is automatically added to the homepage co
 darkone.service.homepage = {
   enable = false;
   localServices = [ ];
+  globalServices = [ ];
   remoteServices = [ ];
   bookmarks = [ ];
   widgets = [ ];
@@ -615,6 +619,18 @@ darkone.service.immich = {
   enableMachineLearning = false;
   enableRedis = false;
 };
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.jellyfin
+
+A full-configured jellyfin server.
+
+* **enable** `bool` Enable jellyfin service
+
+```nix
+darkone.service.jellyfin.enable = false;
 ```
 
 <hr/>
@@ -692,6 +708,8 @@ For each zone:
 
 - All nodes with tag "monitoring-node" contains prometheus + node exporter.
 - The node with service "monitoring" contains grafana.
+- Only one monitoring host per zone is accepted.
+- A tag "monitoring-node:[zone]" is attached to a monitoring host of the designed zone.
 :::
 
 * **enable** `bool` Enable monitoring with prometheus, grafana and node exporter
@@ -701,7 +719,7 @@ For each zone:
 ```nix
 darkone.service.monitoring = {
   enable = false;
-  isNode = lib.hasAttr "features" host && lib.elem "monitoring-node" host.features;
+  isNode = lib.hasAttrByPath [ "features" "monitoring-node" ] host;
   retentionTime = "30d";
 };
 ```
@@ -798,7 +816,7 @@ The nfs home manager script links xdg directories to mount dirs.
 In config.yaml file (hosts):
 
 - Only one host have a service `service.nfs`.
-- Clients need `nfsClient = true`.
+- Clients need `features = [ "nfs-client" ]`.
 :::
 
 * **darkone.service.nfs.enable** `bool` Enable NFS DNF server (avoid enable manually)
@@ -859,25 +877,31 @@ Default directories to backup:
 <db_dumps> -> /mnt/backup/databases/<db_dumps>
 ```
 
-* **enable** `bool` Enable restic backup service
+* **enable** `bool` Enable main restic backup service
+* **enableServer** `bool` Enable restic rest server
 * **enableDryRun** `bool` Dry Run mode
 * **enableWaitRemoteFs** `bool` Trigger the restic service only if remote-fs service is started
 * **repositoryRoot** `str` Main backup target root path
-* **enableServicesBackup** `bool` Backup important files of local services (wip)
-* **enableDatabasesBackup** `bool` Backup local services databases (wip)
-* **enableNfsBackup** `bool` Backup /srv/nfs/&lt;xxx&gt; dirs (services important files)
-* **nfsDirsPaths** `listOf str` NFS dirs (/srv/nfs/&lt;xxx&gt;) to include in backup configuration
+* **enableServicesBackup** `bool` Backup important files of local services (persist dirs)
+* **enableServicesVarBackup** `bool` Backup variable files of local services (persist varDirs)
+* **enableNfsBackup** `bool` Backup /srv/nfs/&lt;xxx&gt; dirs
+* **nfsPaths** `listOf str` NFS dirs (/srv/nfs/&lt;xxx&gt;) to include in backup configuration
+* **enableMediasBackup** `bool` Backup /srv/medias/&lt;xxx&gt; dirs
+* **mediasPaths** `listOf str` NFS dirs (/srv/medias/&lt;xxx&gt;) to include in backup configuration
 
 ```nix
 darkone.service.restic = {
   enable = false;
+  enableServer = false;
   enableDryRun = false;
   enableWaitRemoteFs = true;
-  repositoryRoot = "/mnt/backup/restic";
+  repositoryRoot = "rest:nix@backup.${zone.domain}:/mnt/backup/restic/${host.hostname}";
   enableServicesBackup = true;
-  enableDatabasesBackup = true;
+  enableServicesVarBackup = true;
   enableNfsBackup = config.darkone.service.nfs.enable;
-  nfsDirsPaths = [ ];
+  nfsPaths = [ ];
+  enableMediasBackup = config.darkone.service.jellyfin.enable;
+  mediasPaths = [ ];
 };
 ```
 
@@ -1279,6 +1303,7 @@ Several graphical game packages.
 * **enable3D** `bool` More 3D Games
 * **enableCli** `bool` Cli Games
 * **enableStk** `bool` SuperTuxKart (only)
+* **enableMore** `bool` More (secondary) games in each categories
 * **stkServer** `str` STK server domain name
 
 ```nix
@@ -1289,6 +1314,7 @@ darkone.home.games = {
   enable3D = false;
   enableCli = false;
   enableStk = false;
+  enableMore = false;
   stkServer = osConfig.darkone.service.nfs.serverDomain;
 };
 ```
@@ -1320,6 +1346,7 @@ Image processing softwares (gimp, geeqie, pinta + blender, inkscape, krita...).
 * **enableBeginner** `bool` Additional image processing software for beginners
 * **enable3D** `bool` 3D softwares
 * **enableCAD** `bool` CAD softwares
+* **enableCli** `bool` CLI tools (imagemagick, jhead...)
 
 ```nix
 darkone.home.imagery = {
@@ -1328,6 +1355,7 @@ darkone.home.imagery = {
   enableBeginner = false;
   enable3D = false;
   enableCAD = false;
+  enableCli = false;
 };
 ```
 
@@ -1444,6 +1472,7 @@ Video tools and apps.
 * **enableEditing** `bool` Video editing tools (kdenlive...)
 * **enableCreator** `bool` Video creator tools (obs...)
 * **enableUnfree** `bool` Unfree video apps (davinci...)
+* **enableAlternative** `bool` Alternative video apps (mpv...)
 
 ```nix
 darkone.home.video = {
@@ -1452,6 +1481,7 @@ darkone.home.video = {
   enableEditing = false;
   enableCreator = false;
   enableUnfree = false;
+  enableAlternative = false;
 };
 ```
 

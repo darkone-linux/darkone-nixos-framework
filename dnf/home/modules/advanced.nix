@@ -86,7 +86,7 @@ in
       (lib.mkIf (graphic && cfg.enableTools) textpieces) # Swiss knife of text processing
       (lib.mkIf (hasBorg && cfg.enableAdmin) borgbackup)
       (lib.mkIf (hasBorg && graphic && cfg.enableAdmin) vorta) # Borg client
-      (lib.mkIf (hasRestic && cfg.enableAdmin) restic)
+      (lib.mkIf (hasRestic && cfg.enableAdmin) restic) # Already in nixos configuration...
       (lib.mkIf (hasRestic && cfg.enableAdmin) restic-browser)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) age)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) colmena)
@@ -130,6 +130,8 @@ in
       (lib.mkIf cfg.enableEssentials tree)
       (lib.mkIf cfg.enableEssentials unzip)
       (lib.mkIf cfg.enableEssentials wget)
+      (lib.mkIf cfg.enableEssentials wipe)
+      (lib.mkIf cfg.enableEssentials zellij)
       (lib.mkIf cfg.enableEssentials zip)
       (lib.mkIf cfg.enableNixAdmin mkpasswd)
       (lib.mkIf cfg.enableNixAdmin wakeonlan)
@@ -138,7 +140,6 @@ in
       (lib.mkIf cfg.enableTools presenterm)
       (lib.mkIf cfg.enableTools pv)
       (lib.mkIf cfg.enableTools ranger)
-      (lib.mkIf cfg.enableTools zellij)
     ];
 
     #============================================================================

@@ -4,6 +4,7 @@
   pkgs,
   lib,
   host,
+  hosts,
   zone,
   network,
   config,
@@ -16,7 +17,10 @@ let
   #graphic = osConfig.darkone.graphic.gnome.enable;
   hasNfsServer = osConfig.darkone.service.nfs.enable;
   nfsServer = (lib.findFirst (s: s.name == "nfs" && s.zone == zone.name) null network.services).host;
-  isNfsClient = host.hostname != nfsServer && lib.elem "nfs-client" host.features;
+  isNfsClient =
+    host.hostname != nfsServer
+    && lib.hasAttr "nfs-client" host.features
+    && host.features.nfs-client == (lib.findFirst (h: h.hostname == nfsServer) null hosts).zone;
   mpdMusicDir =
     if isNfsClient then
       "/mnt/nfs/homes/${config.home.username}/Music"

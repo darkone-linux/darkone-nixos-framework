@@ -6,6 +6,8 @@ use Darkone\NixGenerator\Configuration;
 use Darkone\NixGenerator\NixException;
 use Darkone\NixGenerator\NixNetwork;
 use Darkone\NixGenerator\NixZone;
+use Darkone\NixGenerator\Token\NixAttrSet;
+use Darkone\NixGenerator\Token\NixValue;
 
 class Host
 {
@@ -35,7 +37,7 @@ class Host
     /**
      * Host features (to enable some specific features)
      */
-    private array $features = [];
+    private NixAttrSet $features;
 
     /**
      * Host tags (for colmena deployments)
@@ -159,14 +161,32 @@ class Host
         return $this;
     }
 
-    public function getFeatures(): array
+    public function getFeatures(): NixAttrSet
     {
-        return $this->features;
+        return isset($this->features) ? $this->features : new NixAttrSet();
+    }
+
+    public function getFeaturesKeys(): array
+    {
+        $keys = [];
+
+        foreach ($this->features as $key => $value) {
+            $keys[] = $key;
+        }
+
+        return $keys;
     }
 
     public function setFeatures(array $features): Host
     {
-        $this->features = $features;
+        $this->features = new NixAttrSet();
+        foreach ($features as $feature) {
+            $values = explode(':', $feature);
+            $key = $values[0];
+            $value = $values[1] ?? $this->getZone();
+            $this->features->set($key, new NixValue($value));
+        }
+
         return $this;
     }
 

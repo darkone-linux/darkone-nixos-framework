@@ -7,7 +7,6 @@
   osConfig,
   ...
 }:
-
 let
   cfg = config.darkone.home.games;
   enableStk = cfg.enableChild || cfg.enableTeenager || cfg.enableStk;
@@ -23,6 +22,7 @@ in
     darkone.home.games.enable3D = lib.mkEnableOption "More 3D Games";
     darkone.home.games.enableCli = lib.mkEnableOption "Cli Games";
     darkone.home.games.enableStk = lib.mkEnableOption "SuperTuxKart (only)";
+    darkone.home.games.enableMore = lib.mkEnableOption "More (secondary) games in each categories";
     darkone.home.games.stkServer = lib.mkOption {
       type = lib.types.str;
       default = osConfig.darkone.service.nfs.serverDomain;
@@ -59,12 +59,16 @@ in
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-sudoku)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) lenmus) # LenMus Phonascus is a program for learning music
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) leocad) # Virt lego
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) ltris) # Tetris
-      (lib.mkIf cfg.enableCli bsdgames)
-      (lib.mkIf cfg.enableCli chess-tui)
-      (lib.mkIf cfg.enableCli solitaire-tui)
+      #(lib.mkIf (cfg.enableChild || cfg.enableTeenager) ltris) # Tetris (bof)
+      (lib.mkIf (cfg.enableMore && cfg.enableCli) _2048-in-terminal)
+      (lib.mkIf (cfg.enableMore && cfg.enableCli) bsdgames)
+      (lib.mkIf (cfg.enableMore && cfg.enableCli) chess-tui)
+      (lib.mkIf (cfg.enableMore && cfg.enableCli) crawl) # role-playing roguelike game
+      (lib.mkIf (cfg.enableMore && cfg.enableCli) nethack) # Rogue-like game
+      (lib.mkIf (cfg.enableMore && cfg.enableCli) solitaire-tui)
+      (lib.mkIf cfg.enableCli sssnake)
       (lib.mkIf cfg.enableCli tetris)
-      (lib.mkIf enableStk superTuxKart)
+      (lib.mkIf cfg.enableStk superTuxKart)
     ];
 
     #--------------------------------------------------------------------------

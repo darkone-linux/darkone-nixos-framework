@@ -23,6 +23,8 @@
   ...
 }:
 let
+
+  # TODO: clients dont les serveurs ne sont pas dans la même zone (host.features.nfs-client -> zone externe)
   cfg = config.darkone.service.nfs;
   isGateway =
     lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
@@ -30,7 +32,7 @@ let
   nfsServer = (lib.findFirst (s: s.name == "nfs" && s.zone == zone.name) "" network.services).host;
   isServer = host.hostname == nfsServer;
   hasServer = nfsServerCount == 1;
-  isClient = !isServer && hasServer && lib.elem "nfs-client" host.features;
+  isClient = !isServer && hasServer && lib.hasAttr "nfs-client" host.features;
   inherit (config.darkone.system) srv-dirs; # Read only
 in
 assert

@@ -26,6 +26,7 @@ in
       enable = true;
       enablePro = true;
       enableCAD = true;
+      enableCli = true;
     };
     video = {
       enable = true;

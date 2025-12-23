@@ -172,6 +172,12 @@ class NixNetwork
         Configuration::assert(Configuration::TYPE_STRING, $config['coordination']['hostname'] ?? '', 'Bad coordination hostname type', Configuration::REGEX_HOSTNAME);
         Configuration::assert(Configuration::TYPE_STRING, $config['coordination']['domain'] ?? '', 'Bad Headscale domaine name', Configuration::REGEX_HOSTNAME);
         Configuration::assert(Configuration::TYPE_BOOL, $config['coordination']['enable'], 'Bad coordination enable type');
+        isset($config['smtp']['protocol']) && Configuration::assert(Configuration::TYPE_STRING, $config['smtp']['protocol'], 'Bad SMTP protocol', Configuration::REGEX_SMTP_PROTOCOL);
+        isset($config['smtp']['server']) && Configuration::assert(Configuration::TYPE_STRING, $config['smtp']['server'] ?? '', 'Bad SMTP Server', Configuration::REGEX_FQDN);
+        isset($config['smtp']['port']) && Configuration::assert(Configuration::TYPE_INT, $config['smtp']['port'] ?? '', 'Bad SMTP Port');
+        isset($config['smtp']['username']) && Configuration::assert(Configuration::TYPE_STRING, $config['smtp']['username'] ?? '', 'Bad SMTP Email'); # TODO regex
+        isset($config['smtp']['sender']) && Configuration::assert(Configuration::TYPE_STRING, $config['smtp']['sender'] ?? '', 'Bad SMTP Sender'); # TODO regex
+        isset($config['smtp']['tls']) && Configuration::assert(Configuration::TYPE_BOOL, $config['smtp']['tls'], 'Bad SMTP tls type');
 
         // Unknown keys detection
         $testConfig = $config;
@@ -183,6 +189,12 @@ class NixNetwork
             $testConfig['coordination']['hostname'],
             $testConfig['coordination']['enable'],
             $testConfig['coordination']['domain'],
+            $testConfig['smtp']['protocol'],
+            $testConfig['smtp']['server'],
+            $testConfig['smtp']['port'],
+            $testConfig['smtp']['username'],
+            $testConfig['smtp']['sender'],
+            $testConfig['smtp']['tls'],
         );
         if (!empty($testConfig['default'])) {
             throw new NixException('Unknown keys in "network.default" section: ' . json_encode($testConfig['default']));
@@ -192,6 +204,10 @@ class NixNetwork
             throw new NixException('Unknown keys in "network.default" section: ' . json_encode($testConfig['coordination']));
         }
         unset($testConfig['coordination']);
+        if (!empty($testConfig['smtp'])) {
+            throw new NixException('Unknown keys in "network.smtp" section: ' . json_encode($testConfig['smtp']));
+        }
+        unset($testConfig['smtp']);
         if (!empty($testConfig)) {
             throw new NixException('Unknown keys in "network" section: ' . json_encode($testConfig));
         }

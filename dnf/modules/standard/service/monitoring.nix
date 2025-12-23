@@ -7,6 +7,8 @@
 #
 # - All nodes with tag "monitoring-node" contains prometheus + node exporter.
 # - The node with service "monitoring" contains grafana.
+# - Only one monitoring host per zone is accepted.
+# - A tag "monitoring-node:[zone]" is attached to a monitoring host of the designed zone.
 # :::
 
 {
@@ -27,12 +29,19 @@ let
     nodeExporter = 9100;
     prometheus = config.services.prometheus.port;
   };
-  isGateway =
-    lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
 
-  # Grafana host configuration
+  # Ce host est un client VPN qui est forcément à l'extérieur, ou alors c'est le HCS
+  isVpnClient = lib.hasAttr "vpnIp" host;
+
+  # Ce host est le gateway d'une zone
+  isGateway =
+    !isVpnClient
+    && lib.hasAttrByPath [ "gateway" "hostname" ] zone
+    && host.hostname == zone.gateway.hostname;
+
+  # Nodes supervisés par la zone courante
   nodes = lib.filter (
-    h: h.zone == zone.name && lib.hasAttr "features" h && lib.elem "monitoring-node" h.features
+    h: lib.hasAttr "monitoring-node" h.features && h.features.monitoring-node == zone.name
   ) hosts;
 
   # Service params
@@ -47,7 +56,7 @@ in
     darkone.service.monitoring.enable = lib.mkEnableOption "Enable monitoring with prometheus, grafana and node exporter";
     darkone.service.monitoring.isNode = lib.mkOption {
       type = lib.types.bool;
-      default = lib.hasAttr "features" host && lib.elem "monitoring-node" host.features;
+      default = lib.hasAttrByPath [ "features" "monitoring-node" ] host;
       description = "Is a monitoring node";
     };
     darkone.service.monitoring.retentionTime = lib.mkOption {
@@ -73,7 +82,7 @@ in
           varDirs = [
             "/var/lib/prometheus2"
           ]
-          + lib.optionals cfg.enable [
+          ++ lib.optionals cfg.enable [
             "/var/lib/grafana/plugins"
             "/var/lib/grafana/data"
           ];
@@ -105,8 +114,8 @@ in
       services.prometheus.exporters.node = lib.mkIf cfg.isNode {
         enable = true;
         port = port.nodeExporter;
-        openFirewall = !isGateway;
-        listenAddress = host.ip;
+        openFirewall = !(isGateway || isVpnClient);
+        listenAddress = host.vpnIp or host.ip;
         enabledCollectors = [
           "ethtool"
           "interrupts"
@@ -134,9 +143,14 @@ in
       };
 
       # Open gateway port
-      networking.firewall.interfaces.lan0.allowedTCPPorts = lib.optional (
-        isGateway && cfg.isNode
-      ) port.nodeExporter;
+      networking.firewall.interfaces.lan0 = lib.mkIf (isGateway && cfg.isNode) {
+        allowedTCPPorts = [ port.nodeExporter ];
+      };
+
+      # Open tailscale client port
+      networking.firewall.interfaces.tailscale0 = lib.mkIf (isVpnClient && cfg.isNode) {
+        allowedTCPPorts = [ port.nodeExporter ];
+      };
 
       # Additional packages
       environment.systemPackages = lib.optionals cfg.isNode [
@@ -154,7 +168,9 @@ in
         inherit (cfg) retentionTime;
         scrapeConfigs = lib.optional cfg.enable {
           job_name = "node";
-          static_configs = [ { targets = map (h: "${h.ip}:${toString port.nodeExporter}") nodes; } ];
+          static_configs = [
+            { targets = map (h: "${h.vpnIp or h.ip}:${toString port.nodeExporter}") nodes; }
+          ];
           scrape_interval = "15s";
         };
         globalConfig = lib.mkIf cfg.enable {

@@ -6,7 +6,10 @@ let
 in
 {
   darkone.home = {
-    games.enableChild = lib.mkDefault graphic;
+    games = {
+      enableChild = lib.mkDefault graphic;
+      enableCli = lib.mkDefault true;
+    };
     education.enableChild = lib.mkDefault graphic;
     music = {
       enable = lib.mkDefault true;

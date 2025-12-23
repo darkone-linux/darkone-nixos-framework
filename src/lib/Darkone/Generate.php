@@ -100,7 +100,7 @@ class Generate
                 ->setString('zoneDomain', $host->getZoneDomain())
                 ->setString('networkDomain', $host->getNetworkDomain())
                 ->set('groups', (new NixList())->populateStrings($host->getGroups()))
-                ->set('features', (new NixList())->populateStrings($host->getFeatures()))
+                ->set('features', $host->getFeatures())
                 ->set('users', (new NixList())->populateStrings($host->getUsers()))
                 ->set('colmena', $colmena)
                 ->set('services', NixBuilder::arrayToNix($host->getServices()));
@@ -161,7 +161,7 @@ class Generate
         return array_merge(
             $host->getTags(),
             array_map(fn (string $group): string => 'group-' . $group, $host->getGroups()),
-            array_map(fn (string $group): string => 'feature-' . $group, $host->getFeatures()),
+            array_map(fn (string $group): string => 'feature-' . $group, $host->getFeaturesKeys()),
             array_map(fn (string $user): string => 'user-' . $user, array_filter($host->getUsers(), fn (string $user): bool => $user !== 'nix')),
             ['zone-' . $host->getZone()],
         );

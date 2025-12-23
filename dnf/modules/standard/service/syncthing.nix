@@ -7,7 +7,6 @@
 
 {
   lib,
-  dnfLib,
   config,
   host,
   network,
@@ -24,7 +23,8 @@ let
   #usersService = config.darkone.service.users;
   ldapBaseDn =
     "dc=" + (lib.concatStringsSep ",dc=" (builtins.match "^([^.]+)\.([^.]+)$" "${network.domain}"));
-  params = dnfLib.extractServiceParams host network "syncthing" {
+
+  defaultParams = {
     description = "Synchronization solution";
   };
 in
@@ -51,7 +51,7 @@ in
 
     {
       darkone.system.services.service.syncthing = {
-        inherit params;
+        inherit defaultParams;
         persist.dirs = [ srv.dataDir ];
         proxy.servicePort = guiPort;
       };

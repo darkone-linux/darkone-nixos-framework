@@ -15,8 +15,15 @@
 }:
 let
   cfg = config.darkone.system.core;
+
+  # Ce host est un client VPN qui est forcément à l'extérieur, ou alors c'est le HCS
+  isVpnClient = lib.hasAttr "vpnIp" host;
+
+  # Ce host est le gateway d'une zone
   isGateway =
-    lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
+    !isVpnClient
+    && lib.hasAttrByPath [ "gateway" "hostname" ] zone
+    && host.hostname == zone.gateway.hostname;
 in
 {
   options = {
@@ -87,8 +94,9 @@ in
       firewall = {
         enable = cfg.enableFirewall;
         allowPing = lib.mkDefault true;
-        allowedTCPPorts = lib.optional (!isGateway) 22;
-        interfaces.lan0.allowedTCPPorts = lib.optional isGateway 22;
+        allowedTCPPorts = lib.optional (!isGateway && !isVpnClient) 22;
+        interfaces.lan0 = lib.mkIf isGateway { allowedTCPPorts = [ 22 ]; };
+        interfaces.tailscale0 = lib.mkIf isVpnClient { allowedTCPPorts = [ 22 ]; };
       };
     };
 

@@ -15,7 +15,7 @@
     zoneDomain = "darkone.yt";
     networkDomain = "darkone.yt";
     groups = [ ];
-    features = [ ];
+    features = { };
     users = [ "nix" ];
     colmena = {
       deployment = {
@@ -44,10 +44,10 @@
     zoneDomain = "local.darkone.yt";
     networkDomain = "darkone.yt";
     groups = [ ];
-    features = [
-      "monitoring-node"
-      "nfs-client"
-    ];
+    features = {
+      monitoring-node = "local";
+      nfs-client = "local";
+    };
     users = [ "nix" ];
     colmena = {
       deployment = {
@@ -80,7 +80,9 @@
     zoneDomain = "local.darkone.yt";
     networkDomain = "darkone.yt";
     groups = [ "global" ];
-    features = [ "monitoring-node" ];
+    features = {
+      monitoring-node = "local";
+    };
     users = [
       "alice"
       "darkone"
@@ -124,7 +126,9 @@
       "zone-local"
       "guests"
     ];
-    features = [ "nfs-client" ];
+    features = {
+      nfs-client = "local";
+    };
     users = [
       "alice"
       "darkone"
@@ -165,7 +169,7 @@
     zoneDomain = "local.darkone.yt";
     networkDomain = "darkone.yt";
     groups = [ ];
-    features = [ ];
+    features = { };
     users = [
       "darkone"
       "nix"
@@ -191,7 +195,9 @@
     zoneDomain = "lan.darkone.yt";
     networkDomain = "darkone.yt";
     groups = [ ];
-    features = [ "monitoring-node" ];
+    features = {
+      monitoring-node = "lan";
+    };
     users = [ "nix" ];
     colmena = {
       deployment = {
@@ -224,7 +230,7 @@
       "zone-local"
       "guests"
     ];
-    features = [ ];
+    features = { };
     users = [
       "alice"
       "darkone"
@@ -268,7 +274,7 @@
       "zone-local"
       "guests"
     ];
-    features = [ ];
+    features = { };
     users = [
       "alice"
       "darkone"
@@ -312,7 +318,7 @@
       "zone-local"
       "guests"
     ];
-    features = [ ];
+    features = { };
     users = [
       "alice"
       "darkone"
@@ -356,7 +362,7 @@
       "zone-local"
       "guests"
     ];
-    features = [ ];
+    features = { };
     users = [
       "alice"
       "darkone"
@@ -397,10 +403,10 @@
     zoneDomain = "lan.darkone.yt";
     networkDomain = "darkone.yt";
     groups = [ "guests" ];
-    features = [
-      "nfs-client"
-      "monitoring-node"
-    ];
+    features = {
+      nfs-client = "lan";
+      monitoring-node = "lan";
+    };
     users = [
       "guest"
       "guest-baby"
@@ -437,10 +443,10 @@
     zoneDomain = "lan.darkone.yt";
     networkDomain = "darkone.yt";
     groups = [ "guests" ];
-    features = [
-      "nfs-client"
-      "monitoring-node"
-    ];
+    features = {
+      nfs-client = "lan";
+      monitoring-node = "lan";
+    };
     users = [
       "guest"
       "guest-baby"
@@ -477,10 +483,10 @@
     zoneDomain = "lan.darkone.yt";
     networkDomain = "darkone.yt";
     groups = [ "guests" ];
-    features = [
-      "nfs-client"
-      "monitoring-node"
-    ];
+    features = {
+      nfs-client = "lan";
+      monitoring-node = "lan";
+    };
     users = [
       "guest"
       "guest-baby"
@@ -517,10 +523,10 @@
     zoneDomain = "lan.darkone.yt";
     networkDomain = "darkone.yt";
     groups = [ "guests" ];
-    features = [
-      "nfs-client"
-      "monitoring-node"
-    ];
+    features = {
+      nfs-client = "lan";
+      monitoring-node = "lan";
+    };
     users = [
       "guest"
       "guest-baby"
@@ -560,7 +566,7 @@
       "zone-local"
       "guests"
     ];
-    features = [ ];
+    features = { };
     users = [
       "alice"
       "darkone"
@@ -603,7 +609,7 @@
       "zone-local"
       "guests"
     ];
-    features = [ ];
+    features = { };
     users = [
       "alice"
       "darkone"

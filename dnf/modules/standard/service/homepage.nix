@@ -24,7 +24,11 @@ let
 
   # TODO: internationalisation
   localTitle = "1. Applications Locales";
-  remoteTitle = "2. Applications Distantes";
+  globalTitle = "2. Applications Globales";
+  remoteTitle = "3. Applications Distantes";
+
+  isGateway =
+    lib.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
 in
 {
   options = {
@@ -33,6 +37,11 @@ in
       type = lib.types.listOf lib.types.attrs;
       default = [ ];
       description = "Services to add in Local Applications section";
+    };
+    darkone.service.homepage.globalServices = lib.mkOption {
+      type = lib.types.listOf lib.types.attrs;
+      default = [ ];
+      description = "Full network common & public-accessible services";
     };
     darkone.service.homepage.remoteServices = lib.mkOption {
       type = lib.types.listOf lib.types.attrs;
@@ -82,7 +91,7 @@ in
 
       services.homepage-dashboard = {
         enable = true;
-        openFirewall = true;
+        openFirewall = !isGateway;
         listenPort = 8082;
         allowedHosts = params.fqdn;
 
@@ -96,6 +105,10 @@ in
           target = "_self";
           layout = {
             ${localTitle} = {
+              style = "row";
+              columns = 3;
+            };
+            ${globalTitle} = {
               style = "row";
               columns = 3;
             };
@@ -173,6 +186,7 @@ in
         # https://gethomepage.dev/latest/configs/services/
         services = [
           { ${localTitle} = cfg.localServices; }
+          { ${globalTitle} = cfg.globalServices; }
           { ${remoteTitle} = cfg.remoteServices; }
         ];
 

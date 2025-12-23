@@ -63,7 +63,7 @@ in
       #darkone.service.beets.enableService = true;
 
       # Music directory
-      systemd.tmpfiles.rules = [ "d ${musicDir} 0770 root common-files -" ];
+      darkone.system.srv-dirs.enableMedias = true;
       systemd.services.navidrome.serviceConfig.UMask = lib.mkForce "0006";
       users.users.navidrome.extraGroups = [ "common-files" ];
 
