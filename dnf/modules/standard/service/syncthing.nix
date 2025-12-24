@@ -7,6 +7,7 @@
 
 {
   lib,
+  dnfLib,
   config,
   host,
   network,
@@ -16,14 +17,11 @@
 let
   cfg = config.darkone.service.syncthing;
   srv = config.services.syncthing;
-  isGateway =
-    lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
   guiPort = builtins.fromJSON (builtins.elemAt (lib.splitString ":" srv.guiAddress) 1);
   lldapSettings = config.services.lldap.settings;
   #usersService = config.darkone.service.users;
   ldapBaseDn =
     "dc=" + (lib.concatStringsSep ",dc=" (builtins.match "^([^.]+)\.([^.]+)$" "${network.domain}"));
-
   defaultParams = {
     description = "Synchronization solution";
   };
@@ -70,7 +68,8 @@ in
       #------------------------------------------------------------------------
 
       # Specific firewall settings for the gateway
-      networking.firewall.interfaces.lan0 = lib.mkIf isGateway {
+      # https://github.com/NixOS/nixpkgs/blob/nixos-unstable/nixos/modules/services/networking/syncthing.nix#L943
+      networking.firewall = lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
         allowedTCPPorts = [ 22000 ];
         allowedUDPPorts = [
           21027
@@ -79,14 +78,14 @@ in
       };
 
       #------------------------------------------------------------------------
-      # Sincthing Service
+      # Syncthing Service
       #------------------------------------------------------------------------
 
       services.syncthing = {
         enable = true;
 
         # Open ports for sync (not gui)
-        openDefaultPorts = !isGateway;
+        openDefaultPorts = false;
 
         # Delete the devices which are not configured via the devices option
         overrideDevices = lib.mkDefault false;

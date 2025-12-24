@@ -20,9 +20,13 @@ in
 {
   options = {
     darkone.service.vaultwarden.enable = lib.mkEnableOption "Enable local Vaultwarden service";
+    darkone.service.vaultwarden.enableSmtp = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Enable SMTP to send emails (recommended)";
+    };
   };
 
-  # TODO: work in progress, activate TLS + FQDN
   config = lib.mkMerge [
 
     #------------------------------------------------------------------------
@@ -53,6 +57,18 @@ in
         service.vaultwarden.enable = true;
       };
 
+      #--------------------------------------------------------------------------
+      # Security
+      #--------------------------------------------------------------------------
+
+      # Données d'environnement critiques hébergée par sops
+      # https://github.com/NixOS/nixpkgs/blob/a6531044f6d0bef691ea18d4d4ce44d0daa6e816/nixos/modules/services/security/vaultwarden/default.nix#L11
+      sops.secrets.vaultwarden-env = lib.mkIf cfg.enableSmtp {
+        mode = "0400";
+        owner = config.users.users.vaultwarden.name;
+        group = config.users.groups.vaultwarden.name;
+      };
+
       #------------------------------------------------------------------------
       # Vaultwarden Service
       #------------------------------------------------------------------------
@@ -63,20 +79,23 @@ in
       # The service
       services.vaultwarden = {
         enable = true;
+        environmentFile = lib.mkIf cfg.enableSmtp config.sops.secrets.vaultwarden-env.path;
         config = {
 
           DOMAIN = params.href;
-          SIGNUPS_ALLOWED = false; # TODO: false + SSO (change to true the first time)
+          SIGNUPS_ALLOWED = false; # TODO: SSO (change to true the first time)
           ROCKET_ADDRESS = params.ip;
           ROCKET_PORT = 8222;
           ROCKET_LOG = "critical";
 
-          # TODO: Mail server
-          #SMTP_HOST = "127.0.0.1";
-          #SMTP_PORT = 25;
-          #SMTP_SSL = false;
-          #SMTP_FROM = "${params.domain}@${network.domain}";
-          #SMTP_FROM_NAME = "${network.domain} Vaultwarden server";
+          # Put SMTP_PASSWORD in sops environmentFile
+          SMTP_HOST = network.smtp.server;
+          SMTP_PORT = network.smtp.port;
+          SMTP_SSL = network.smtp.tls;
+          SMTP_USERNAME = network.smtp.username;
+          SMTP_SECURITY = lib.mkIf network.smtp.tls "force_tls";
+          SMTP_FROM = "no-reply@${network.domain}";
+          SMTP_FROM_NAME = "Vaultwarden ${params.fqdn}";
         };
 
         # TODO: local backup strategy

@@ -975,9 +975,13 @@ darkone.service.users.enable = false;
 A full-configured vaultwarden server (wip).
 
 * **enable** `bool` Enable local Vaultwarden service
+* **enableSmtp** `bool` Enable SMTP to send emails (recommended)
 
 ```nix
-darkone.service.vaultwarden.enable = false;
+darkone.service.vaultwarden = {
+  enable = false;
+  enableSmtp = true;
+};
 ```
 
 <hr/>

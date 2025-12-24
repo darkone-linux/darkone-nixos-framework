@@ -153,6 +153,7 @@ in
       (lib.mkIf cfg.enableGsConnect gnomeExtensions.gsconnect)
       bibata-cursors
       gnomeExtensions.appindicator
+      gnomeExtensions.just-perfection
       papirus-icon-theme
       adwaita-qt
       qgnomeplatform-qt6

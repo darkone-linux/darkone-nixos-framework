@@ -114,8 +114,6 @@
             ./usr/users/${login}
             (import ./${users.${login}.profile})
           ];
-
-          # Home profiles loading - TODO: stateVersion must be fixed for each user at creation
           home = {
             username = login;
             homeDirectory = nixpkgs.lib.mkDefault "/home/${login}";
@@ -126,8 +124,7 @@
 
       # Generate common args for each architecture
       mkCommonNodeArgs = system: {
-        inherit users;
-        inherit network;
+        inherit network users;
         pkgs-stable = nixpkgsStableFor.${system};
         dnfLib = mkDnfLib system;
       };
@@ -135,9 +132,7 @@
       mkNodeSpecialArgs = host: {
         name = host.hostname;
         value = {
-          inherit host;
-          inherit hosts;
-          inherit network;
+          inherit host hosts network;
           zone = network.zones.${host.zone};
         }
         // mkCommonNodeArgs (getHostArch host);
@@ -173,11 +168,13 @@
                 users = builtins.listToAttrs (map mkHome host.users);
 
                 extraSpecialArgs = {
-                  inherit network;
-                  inherit host;
-                  inherit hosts;
-                  inherit users;
-                  inherit inputs;
+                  inherit
+                    network
+                    host
+                    hosts
+                    users
+                    inputs
+                    ;
                   zone = network.zones.${host.zone};
                   pkgs-stable = nixpkgsStableFor.${getHostArch host};
                   dnfLib = mkDnfLib (getHostArch host);
@@ -208,7 +205,7 @@
             just
             mkpasswd
             moreutils # sponge
-            nixfmt-rfc-style
+            nixfmt
             php84
             php84Packages.composer
             sops

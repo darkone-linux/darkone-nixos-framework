@@ -22,12 +22,12 @@ in
     education.enableStudent = lib.mkDefault graphic;
     music.enable = lib.mkDefault false;
     imagery = {
-      enable = true;
+      enable = lib.mkDefault graphic;
       enablePro = false;
       enableCAD = false;
     };
     video = {
-      enable = true;
+      enable = lib.mkDefault graphic;
       enableTools = false;
       enableEditing = false;
     };

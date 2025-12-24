@@ -2,6 +2,7 @@
 
 {
   lib,
+  dnfLib,
   config,
   host,
   zone,
@@ -12,10 +13,12 @@ let
   cfg = config.darkone.service.jellyfin;
   srv = config.services.jellyfin;
   httpPort = 8096;
-  isGateway =
-    lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
+  discoveryPorts = [
+    1900
+    7359
+  ];
   musicDir = config.darkone.system.srv-dirs.music;
-  videoDir = config.darkone.system.srv-dirs.video;
+  videosDir = config.darkone.system.srv-dirs.videos;
 in
 {
   options = {
@@ -34,7 +37,7 @@ in
         persist.varDirs = [ srv.cacheDir ];
         persist.mediaDirs = [
           musicDir
-          videoDir
+          videosDir
         ];
         proxy.servicePort = httpPort;
       };
@@ -54,7 +57,7 @@ in
 
       services.jellyfin = {
         enable = true;
-        openFirewall = !isGateway;
+        openFirewall = false;
         group = "common-files";
       };
 
@@ -71,10 +74,12 @@ in
       # jellyfin-web
       environment.systemPackages = with pkgs; [ jellyfin-ffmpeg ];
 
-      # https://jellyfin.org/docs/general/networking/index.html
-      networking.firewall.interfaces.lan0 = lib.mkIf isGateway {
-        allowedTCPPorts = [ httpPort ];
-        allowedUDPPorts = [ 7359 ]; # Service discovery
+      # Ouvre le port HTTP uniquement si on est pas sur le gateway (qui contient le reverse proxy)
+      # et ouvre les ports de discovery sur l'interface interne uniquement.
+      # https://github.com/NixOS/nixpkgs/blob/nixos-unstable/nixos/modules/services/misc/jellyfin.nix#L181
+      networking.firewall = lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
+        allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [ httpPort ];
+        allowedUDPPorts = discoveryPorts;
       };
     })
   ];

@@ -14,14 +14,6 @@ let
   cfg = config.darkone.service.nextcloud;
   srv = config.services.nextcloud;
   port = 8089;
-
-  # TODO: Factoriser les détections de ports firewall
-  isVpnClient = lib.hasAttr "vpnIp" host;
-  isGateway =
-    !isVpnClient
-    && lib.hasAttrByPath [ "gateway" "hostname" ] zone
-    && host.hostname == zone.gateway.hostname;
-
   defaultParams = {
     description = "Local personal cloud";
   };
@@ -117,14 +109,9 @@ in
       # Firewall
       #------------------------------------------------------------------------
 
-      # Open gateway port
-      networking.firewall.interfaces.lan0 = lib.mkIf isGateway { allowedTCPPorts = [ port ]; };
-
-      # Open tailscale client port
-      networking.firewall.interfaces.tailscale0 = lib.mkIf isVpnClient { allowedTCPPorts = [ port ]; };
-
-      # Open tailscale client port
-      networking.firewall.allowedTCPPorts = lib.optional (!isVpnClient && !isGateway) port;
+      networking.firewall = lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
+        allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [ port ];
+      };
 
       #------------------------------------------------------------------------
       # Nextcloud Service
@@ -177,7 +164,7 @@ in
             #deck
             groupfolders
             #memories
-            #music
+            music
             notes
             richdocuments
             spreed

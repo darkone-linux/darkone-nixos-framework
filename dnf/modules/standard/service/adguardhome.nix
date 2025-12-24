@@ -17,7 +17,6 @@ let
   cfg = config.darkone.service.adguardhome;
   agh = config.services.adguardhome;
 
-  # TODO: find dnsmasq IP and port if not in the same machine, or consider
   # ADH and DNSMASQ are on the same host.
   dnsmasqAddr = "127.0.0.1:" + (toString config.services.dnsmasq.settings.port);
 

@@ -1,11 +1,6 @@
 # Teenager profile features
 
-{
-  pkgs,
-  lib,
-  osConfig,
-  ...
-}:
+{ lib, osConfig, ... }:
 let
   graphic = osConfig.darkone.graphic.gnome.enable;
 in
@@ -13,10 +8,10 @@ in
   darkone.home = {
     office = {
       enable = lib.mkDefault graphic;
-      enableTools = lib.mkDefault true;
+      enableTools = lib.mkDefault graphic;
       enableEmail = lib.mkDefault false;
-      enableOffice = lib.mkDefault true;
-      enableProductivity = lib.mkDefault true;
+      enableOffice = lib.mkDefault graphic;
+      enableProductivity = lib.mkDefault graphic;
     };
     games = {
       enableTeenager = lib.mkDefault graphic;
@@ -32,17 +27,15 @@ in
       enableCreator = lib.mkDefault graphic;
     };
     imagery = {
-      enable = true;
-      enablePro = true;
-      enableCAD = true;
-      enableCli = true;
+      enable = lib.mkDefault graphic;
+      enablePro = lib.mkDefault graphic;
+      enableCAD = lib.mkDefault graphic;
+      enableCli = lib.mkDefault graphic;
     };
     video = {
-      enable = true;
-      enableTools = true;
-      enableEditing = true;
+      enable = lib.mkDefault graphic;
+      enableTools = lib.mkDefault graphic;
+      enableEditing = lib.mkDefault graphic;
     };
   };
-
-  home.packages = with pkgs; [ super-productivity ];
 }

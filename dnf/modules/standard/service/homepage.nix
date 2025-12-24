@@ -26,9 +26,6 @@ let
   localTitle = "1. Applications Locales";
   globalTitle = "2. Applications Globales";
   remoteTitle = "3. Applications Distantes";
-
-  isGateway =
-    lib.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
 in
 {
   options = {
@@ -91,7 +88,7 @@ in
 
       services.homepage-dashboard = {
         enable = true;
-        openFirewall = !isGateway;
+        openFirewall = false; # Homepage is in the reverse proxy server
         listenPort = 8082;
         allowedHosts = params.fqdn;
 

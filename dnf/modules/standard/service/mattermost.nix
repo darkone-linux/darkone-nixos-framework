@@ -45,7 +45,7 @@ in
     {
       darkone.system.services.service.mattermost = {
         inherit defaultParams;
-        persist.varDirs = [ "${cfg.dataDir}/data" ];
+        persist.varDirs = [ "${srv.dataDir}/data" ];
         persist.dbDirs = [ config.services.postgresql.dataDir ];
         proxy.servicePort = srv.port;
         proxy.extraConfig = ''

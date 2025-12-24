@@ -15,6 +15,7 @@
 
 {
   lib,
+  dnfLib,
   host,
   pkgs,
   config,
@@ -26,8 +27,6 @@ let
 
   # TODO: clients dont les serveurs ne sont pas dans la même zone (host.features.nfs-client -> zone externe)
   cfg = config.darkone.service.nfs;
-  isGateway =
-    lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
   nfsServerCount = lib.count (s: s.name == "nfs" && s.zone == zone.name) network.services;
   nfsServer = (lib.findFirst (s: s.name == "nfs" && s.zone == zone.name) "" network.services).host;
   isServer = host.hostname == nfsServer;
@@ -116,10 +115,9 @@ assert
 
       # Open NFS port, only for lan0 on gateway
       networking.firewall = lib.mkIf isServer (
-        if isGateway then
-          { interfaces.lan0.allowedTCPPorts = [ 2049 ]; }
-        else
-          { allowedTCPPorts = [ 2049 ]; }
+        lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
+          allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [ 2049 ];
+        }
       );
 
       # NFS tools

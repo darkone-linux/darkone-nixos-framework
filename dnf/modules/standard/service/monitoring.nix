@@ -30,15 +30,6 @@ let
     prometheus = config.services.prometheus.port;
   };
 
-  # Ce host est un client VPN qui est forcément à l'extérieur, ou alors c'est le HCS
-  isVpnClient = lib.hasAttr "vpnIp" host;
-
-  # Ce host est le gateway d'une zone
-  isGateway =
-    !isVpnClient
-    && lib.hasAttrByPath [ "gateway" "hostname" ] zone
-    && host.hostname == zone.gateway.hostname;
-
   # Nodes supervisés par la zone courante
   nodes = lib.filter (
     h: lib.hasAttr "monitoring-node" h.features && h.features.monitoring-node == zone.name
@@ -114,7 +105,7 @@ in
       services.prometheus.exporters.node = lib.mkIf cfg.isNode {
         enable = true;
         port = port.nodeExporter;
-        openFirewall = !(isGateway || isVpnClient);
+        openFirewall = false;
         listenAddress = host.vpnIp or host.ip;
         enabledCollectors = [
           "ethtool"
@@ -142,15 +133,12 @@ in
         ];
       };
 
-      # Open gateway port
-      networking.firewall.interfaces.lan0 = lib.mkIf (isGateway && cfg.isNode) {
-        allowedTCPPorts = [ port.nodeExporter ];
-      };
-
-      # Open tailscale client port
-      networking.firewall.interfaces.tailscale0 = lib.mkIf (isVpnClient && cfg.isNode) {
-        allowedTCPPorts = [ port.nodeExporter ];
-      };
+      # Open the node explorer port if needed
+      networking.firewall = lib.mkIf cfg.isNode (
+        lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
+          allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [ port.nodeExporter ];
+        }
+      );
 
       # Additional packages
       environment.systemPackages = lib.optionals cfg.isNode [

@@ -24,22 +24,23 @@ let
   lldapStorage = "/var/lib/lldap";
 
   # LLDAP server location variables
-  inLocalZone = zone.name != "www";
-  hasHeadscale = network.coordination.enable;
-  isHcs = (!inLocalZone) && hasHeadscale && network.coordination.hostname == host.hostname;
-  isGateway =
-    lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
+  isHcs = dnfLib.isHcs host zone network;
+  isGateway = dnfLib.isGateway host zone;
 
   # Détection du main server pour une configuration avec synchronisation.
   # TODO: voir si c'est utile...
   #isMainServer = ...;
-  #needSync = hasHeadscale && !isHcs;
+  #needSync = network.coordination.enable && !isHcs;
   isMainServer = true;
   needSync = false;
 
   # Sync target
   hcsInternalIpv4 = network.zones.www.gateway.vpn.ipv4;
   lldapStorTmp = "/tmp/lldap";
+
+  # Défini manuellement car lldapSettings.http_port n'est pas accessible si le service n'est pas enabled
+  # https://search.nixos.org/options?channel=unstable&show=services.lldap.settings.http_port&query=services.lldap
+  lldapHttpPort = 17170;
 
   # Service params
   defaultParams = {
@@ -65,7 +66,7 @@ in
         displayOnHomepage = isMainServer;
         persist.dirs = [ lldapStorage ];
         proxy.enable = isMainServer;
-        proxy.servicePort = lldapSettings.http_port; # Default is 17170
+        proxy.servicePort = lldapHttpPort;
       };
     }
 
@@ -84,7 +85,7 @@ in
       # Assertions for path prefixes
       assertions = [
         {
-          assertion = isGateway || isHcs;
+          assertion = isHcs || isGateway;
           message = "Users lldap service must be in HCS or Gateway";
         }
       ];
@@ -109,6 +110,7 @@ in
         enable = true;
         settings = {
           http_host = params.ip;
+          http_port = lldapHttpPort;
 
           # Sur headscale, il ne faut pas un fqdn qui pointe vers l'adresse externe.
           ldap_host = if isHcs then hcsInternalIpv4 else params.fqdn;
@@ -122,9 +124,14 @@ in
         };
       };
 
-      # Ldap access to local network
-      networking.firewall.interfaces.lan0.allowedTCPPorts =
-        lib.optional isGateway lldapSettings.ldap_port;
+      # Ldap access to local network only
+      # TODO: lldapSettings.ldap_port n'a pas d'effet, corriger ça dans le module lldap de nixpkgs ?
+      networking.firewall = lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
+        allowedTCPPorts = [
+          (lib.mkIf (!isGateway) lldapSettings.http_port)
+          lldapSettings.ldap_port
+        ];
+      };
 
       #------------------------------------------------------------------------
       # Users sync
@@ -134,7 +141,6 @@ in
       systemd.tmpfiles.rules = lib.optional needSync "d ${lldapStorage} 0750 nobody nogroup -";
 
       # TLS certificates (caddy storage) sync service
-      # TODO: sometimes not working (permissions on /tmp/xxx)
       systemd.services.sync-lldap = lib.mkIf needSync {
         description = "Sync Caddy certificates from VPS via Tailscale";
         after = [ "tailscaled.service" ];

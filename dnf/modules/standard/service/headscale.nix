@@ -1,7 +1,6 @@
 # A full-configured headscale service for HCS.
 
 # TODO: ça marche mais on peut simplifier / optimiser.
-
 {
   lib,
   dnfLib,

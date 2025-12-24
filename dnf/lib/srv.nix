@@ -3,6 +3,7 @@
 { lib, strings }:
 with lib;
 rec {
+
   # Extract params to use in the service.
   extractServiceParams =
     serviceHost: network: serviceName: defaults:
@@ -103,4 +104,43 @@ rec {
       inherit href;
       inherit ip;
     };
+
+  # If "vpnIp" exists, it is a headscale client but not a gateway.
+  isVpnClient = host: lib.hasAttr "vpnIp" host;
+
+  # Is a gateway of a local zone.
+  isGateway =
+    host: zone:
+    !(isVpnClient host)
+    && lib.hasAttrByPath [ "gateway" "hostname" ] zone
+    && host.hostname == zone.gateway.hostname;
+
+  # Zone is a local zone, not the global one
+  inLocalZone = zone: zone.name != "www";
+
+  # This configuration have a headscale coordination server
+  isHcs =
+    host: zone: network:
+    (!(inLocalZone zone))
+    && network.coordination.enable
+    && network.coordination.hostname == host.hostname;
+
+  # Usage : ${dnfLib.getInternalInterface networking host zone} = { allowedTCPPorts = [ port ]; };
+  getInternalInterfaceFwPath =
+    host: zone:
+    if (isGateway host zone) then
+      [
+        "interfaces"
+        "lan0"
+      ]
+    else
+      (
+        if (isVpnClient host) then
+          [
+            "interfaces"
+            "tailscale0"
+          ]
+        else
+          [ ]
+      );
 }

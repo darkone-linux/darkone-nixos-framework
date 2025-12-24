@@ -9,5 +9,6 @@ in
     office.enable = lib.mkDefault graphic;
     imagery.enable = lib.mkDefault graphic;
     music.enable = lib.mkDefault graphic;
+    video.enable = lib.mkDefault graphic;
   };
 }

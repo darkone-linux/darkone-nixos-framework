@@ -37,11 +37,14 @@ in
     {
       darkone.system.services.service.navidrome = {
         inherit defaultParams;
-        persist = {
-          mediaDirs = [ srv.MusicFolder ];
-          varDirs = lib.mkIf (lib.hasAttr "CacheFolder" srv) [ srv.CacheFolder ];
-          dirs = lib.mkIf (lib.hasAttr "DataFolder" srv) [ srv.DataFolder ];
-        };
+
+        # TODO: définir manuellement
+        # persist = {
+        #   mediaDirs = [ srv.MusicFolder ];
+        #   varDirs = lib.mkIf (lib.hasAttr "CacheFolder" srv) [ srv.CacheFolder ];
+        #   dirs = lib.mkIf (lib.hasAttr "DataFolder" srv) [ srv.DataFolder ];
+        # };
+
         proxy.servicePort = srv.Port;
       };
     }

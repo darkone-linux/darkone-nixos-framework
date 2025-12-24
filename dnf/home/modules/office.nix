@@ -84,6 +84,8 @@ in
       (mkIf cfg.enableEmail thunderbird)
       (mkIf cfg.enableEssentials evince) # Reader
       (mkIf cfg.enableEssentials gnome-calculator)
+      (mkIf cfg.enableEssentials gnome-clocks)
+      (mkIf cfg.enableEssentials gnome-usage)
       (mkIf cfg.enableOffice hunspell)
       (mkIf cfg.enableOffice hunspellDicts.${cfg.huntspellLang})
       (mkIf cfg.enableOffice libreoffice-fresh) # Force visible icon theme

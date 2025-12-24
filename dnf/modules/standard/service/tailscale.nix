@@ -115,7 +115,6 @@ in
     systemd.tmpfiles.rules = lib.mkIf isHcsSubnetGateway [ "d ${caddyStorage} 0750 caddy caddy -" ];
 
     # TLS certificates (caddy storage) sync service
-    # TODO: sometimes not working (permissions on /tmp/xxx)
     systemd.services.sync-caddy-certs = lib.mkIf isHcsSubnetGateway {
       description = "Sync Caddy certificates from VPS via Tailscale";
       after = [ "tailscaled.service" ];

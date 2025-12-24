@@ -114,6 +114,7 @@ in
       (lib.mkIf cfg.enableAdmin pciutils) # lspci pcilmr setpci
       (lib.mkIf cfg.enableAdmin pinentry-curses)
       (lib.mkIf cfg.enableAdmin psmisc) # killall, pstree, pslog, fuser...
+      (lib.mkIf cfg.enableAdmin rmlint)
       (lib.mkIf cfg.enableAdmin strace)
       (lib.mkIf cfg.enableAdmin tcpdump)
       (lib.mkIf cfg.enableAdmin wirelesstools) # ifrename iwconfig iwevent iwgetid iwlist iwpriv iwspy

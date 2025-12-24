@@ -18,7 +18,7 @@ let
   mainNfsHost = (lib.findFirst (s: s.name == "nfs" && s.zone == zone.name) "" network.services).host;
   hasNfsServer = mainNfsHost != "";
   isMainNfsServer = config.darkone.service.nfs.enable && (host.hostname == mainNfsHost);
-  nfsServer = "nfs"; # TODO
+  nfsServer = "nfs"; # TODO: find a way to obtain the right service fqdn
   inherit (config.darkone.system) srv-dirs;
   sharePrefix = if cfg.isNfsServer then srv-dirs.nfs else "/mnt/nfs";
 in

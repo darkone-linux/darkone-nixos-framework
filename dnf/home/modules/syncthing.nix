@@ -9,7 +9,6 @@
 }:
 let
   cfg = config.darkone.home.syncthing;
-  #isGateway = host.hostname == network.gateway.hostname;
 in
 {
   options = {
@@ -23,15 +22,7 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # Specific firewall settings for the gateway
-    # osConfig.networking.firewall.interfaces.lan0 = lib.mkIf isGateway {
-    #   allowedTCPPorts = [ 22000 ];
-    #   allowedUDPPorts = [
-    #     21027
-    #     22000
-    #   ];
-    # };
-
+    # TODO: syncthing service ports must be open in nixos configuration
     services.syncthing = {
       enable = true;
 

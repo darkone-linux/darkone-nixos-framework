@@ -29,8 +29,9 @@ in
       enableEmail = lib.mkDefault false;
     };
     imagery = {
-      enable = true;
-      enableBeginner = true;
+      enable = lib.mkDefault graphic;
+      enableBeginner = lib.mkDefault graphic;
     };
+    video.enable = lib.mkDefault graphic;
   };
 }

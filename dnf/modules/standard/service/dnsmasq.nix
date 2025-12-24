@@ -25,7 +25,6 @@ in
     darkone.service.dnsmasq.enable = lib.mkEnableOption "Enable local dnsmasq service";
   };
 
-  # TODO: IPv6 (cf. arthur gw conf)
   config = lib.mkIf cfg.enable {
 
     #--------------------------------------------------------------------------

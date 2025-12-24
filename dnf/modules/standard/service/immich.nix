@@ -2,6 +2,7 @@
 
 {
   lib,
+  dnfLib,
   config,
   pkgs,
   host,
@@ -10,8 +11,7 @@
 }:
 let
   cfg = config.darkone.service.immich;
-  isGateway =
-    lib.attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
+  srv = config.services.immich;
 in
 {
   options = {
@@ -56,7 +56,7 @@ in
             (lib.mkIf cfg.enableRedis "/var/lib/redis-immich")
           ];
         };
-        proxy.servicePort = config.services.immich.port;
+        proxy.servicePort = srv.port;
       };
     }
 
@@ -93,6 +93,15 @@ in
         };
       };
 
+      # Open internal port only if necessary on the right interface
+      # https://github.com/NixOS/nixpkgs/blob/a6531044f6d0bef691ea18d4d4ce44d0daa6e816/nixos/modules/services/web-apps/immich.nix#L362C68-L362C71
+      networking.firewall = lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
+        allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [ srv.port ];
+      };
+
+      # Medias pour bibliothèques externes
+      darkone.system.srv-dirs.enableMedias = true;
+
       #------------------------------------------------------------------------
       # Immich Service
       #------------------------------------------------------------------------
@@ -102,7 +111,7 @@ in
         enable = true;
         port = 2283;
         host = host.ip;
-        openFirewall = !isGateway;
+        openFirewall = false;
 
         # Redis configuration
         redis = lib.mkIf cfg.enableRedis {
@@ -134,11 +143,12 @@ in
         };
       };
 
-      # Machine learning fix
+      # Machine learning fix + common-files
       # https://discourse.nixos.org/t/immich-machine-learning-not-working/69208
       users.users.immich = {
         home = "/var/lib/immich";
         createHome = true;
+        extraGroups = [ "common-files" ];
       };
 
       # System packages needed for immich functionality
@@ -150,12 +160,19 @@ in
       ];
 
       # Permet l'accès à /home (si les images sont dans des homes directories)
+      # Et UMask pour écriture par groupe common-files
       systemd.services = {
         immich-server.serviceConfig = {
           ProtectHome = lib.mkForce false;
+          UMask = lib.mkForce "0006";
+          Group = lib.mkForce "common-files";
+          SupplementaryGroups = "immich";
         };
         immich-microservices.serviceConfig = {
           ProtectHome = lib.mkForce false;
+          UMask = lib.mkForce "0006";
+          Group = lib.mkForce "common-files";
+          SupplementaryGroups = "immich";
         };
       };
     })

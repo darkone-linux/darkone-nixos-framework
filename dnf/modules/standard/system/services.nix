@@ -22,9 +22,9 @@
 with lib;
 let
   cfg = config.darkone.system.services;
-  inLocalZone = zone.name != "www";
+  inLocalZone = dnfLib.inLocalZone zone;
   hasHeadscale = network.coordination.enable;
-  isHcs = (!inLocalZone) && hasHeadscale && network.coordination.hostname == host.hostname;
+  isHcs = dnfLib.isHcs host zone network;
 
   # Build services list from real and default values
   services = map (service: {
@@ -51,6 +51,9 @@ let
   localZoneServices =
     if inLocalZone then filter (s: s.params.zone == zone.name && s.proxy.enable) services else [ ];
 
+  # If current host is a gateway, open only internal interfaces
+  isGateway = dnfLib.isGateway host zone;
+
   # Has service
   hasServicesToExpose =
     ((localZoneServices != [ ]) || (globalServices != [ ]) || (hostsForTls != [ ]))
@@ -58,10 +61,6 @@ let
 
   # Services to display on homepage dashboard
   homepageServices = filter (s: s.displayOnHomepage) services;
-
-  # If current host is a gateway, open only internal interfaces
-  isGateway =
-    attrsets.hasAttrByPath [ "gateway" "hostname" ] zone && host.hostname == zone.gateway.hostname;
 
   # TODO: factorize with tailscale.nix
   caddyStorage = "/var/lib/caddy/storage";
@@ -92,7 +91,6 @@ in
     darkone.system.services.enable = mkEnableOption "Enable DNF services manager to register and expose services";
 
     # Service registration options
-    # TODO: implementation for "persist" files and dirs
     darkone.system.services.service = mkOption {
       default = { };
       description = "Global services configuration <name>";
@@ -100,8 +98,6 @@ in
         types.submodule (_: {
           options = {
             enable = mkEnableOption "Enable service proxy";
-            # TODO: isPublic = mkEnableOption "Public service accessed from internet";
-
             defaultParams = mkOption {
               default = { };
               description = "Theses options are calculated by dnfLib.srv.extractServiceParams";
