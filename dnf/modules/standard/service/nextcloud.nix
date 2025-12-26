@@ -213,6 +213,9 @@ in
       # TODO: activer services.postgresqlBackup
       services.postgresql.enable = lib.mkDefault true;
       services.redis.servers.nextcloud.enable = lib.mkDefault true;
+
+      # Sauvegarde postgresql (par défaut toutes les bases)
+      services.postgresqlBackup.enable = true;
     })
   ];
 }

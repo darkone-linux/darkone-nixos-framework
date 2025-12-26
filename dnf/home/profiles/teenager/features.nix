@@ -12,6 +12,7 @@ in
       enableEmail = lib.mkDefault false;
       enableOffice = lib.mkDefault graphic;
       enableProductivity = lib.mkDefault graphic;
+      enableCommunication = lib.mkDefault graphic;
     };
     games = {
       enableTeenager = lib.mkDefault graphic;

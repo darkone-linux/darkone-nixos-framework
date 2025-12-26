@@ -95,6 +95,9 @@ in
       # Tools
       environment.systemPackages = with pkgs; [ mmctl ];
 
+      # Sauvegarde postgresql (par défaut toutes les bases)
+      services.postgresqlBackup.enable = true;
+
       #------------------------------------------------------------------------
       # Mattermost Server
       #------------------------------------------------------------------------

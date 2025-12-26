@@ -4,6 +4,7 @@
   lib,
   config,
   zone,
+  network,
   inputs,
   pkgs,
   ...
@@ -12,10 +13,12 @@ with lib;
 let
   cfg = config.darkone.home.office;
   hasGateway = attrsets.hasAttrByPath [ "gateway" "hostname" ] zone;
+  hasMattermost = (findFirst (s: s.name == "mattermost") null network.services) != null;
 in
 {
   options = {
     darkone.home.office.enable = mkEnableOption "Default useful packages";
+    darkone.home.office.enableMore = mkEnableOption "More alternative packages";
     darkone.home.office.enableEssentials = mkOption {
       type = types.bool;
       default = true;
@@ -78,7 +81,11 @@ in
 
     # Packages
     home.packages = with pkgs; [
-      (mkIf (cfg.enableTools && cfg.enableCommunication) tuba) # Browse the Fediverse
+      (mkIf (cfg.enableCommunication && cfg.enableMore) tuba) # Browse the Fediverse
+      (mkIf (cfg.enableCommunication && cfg.enableMore) zoom-us)
+      (mkIf (cfg.enableCommunication && hasMattermost) mattermost-desktop)
+      (mkIf (cfg.enableTools && cfg.enableMore) pika-backup) # Simple backups based on borg -> Security ?
+      (mkIf (cfg.enableTools && cfg.enableMore) simple-scan)
       (mkIf cfg.enableCalendarContacts gnome-calendar)
       (mkIf cfg.enableCalendarContacts gnome-contacts)
       (mkIf cfg.enableEmail thunderbird)
@@ -99,11 +106,8 @@ in
       (mkIf cfg.enableTools gnome-secrets)
       (mkIf cfg.enableTools gnome-weather)
       (mkIf cfg.enableTools iotas) # Simple note taking with mobile-first design and Nextcloud sync
-      (mkIf cfg.enableTools pika-backup) # Simple backups based on borg -> Security ?
-      (mkIf cfg.enableTools simple-scan)
       (mkIf cfg.enableTools snapshot) # Webcam
       (mkIf cfg.enableProductivity obsidian)
-      (mkIf cfg.enableCommunication zoom-us)
       (mkIf cfg.enableBrave brave)
     ];
 
