@@ -136,22 +136,22 @@ in
 
     # Enabled services
     darkone.service = {
-      borg.enable = cfg.enableBorg;
+      #borg.enable = cfg.enableBorg;
+      #keycloak.enable = cfg.enableKeycloak;
+      #matrix.enable = cfg.enableMatrix;
+      #navidrome.enable = cfg.enableNavidrome;
+      #netdata.enable = cfg.enableNetdata;
+      #opencloud.enable = cfg.enableOpencloud;
+      #syncthing.enable = cfg.enableSyncthing;
       forgejo.enable = cfg.enableForgejo;
       homepage.enable = cfg.enableHomepage;
       immich.enable = cfg.enableImmich;
       jellyfin.enable = cfg.enableJellyfin;
       jitsi-meet.enable = cfg.enableJitsiMeet;
-      keycloak.enable = cfg.enableKeycloak;
-      matrix.enable = cfg.enableMatrix;
       mattermost.enable = cfg.enableMattermost;
       monitoring.enable = cfg.enableMonitoring;
-      navidrome.enable = cfg.enableNavidrome;
-      netdata.enable = cfg.enableNetdata;
       nextcloud.enable = cfg.enableNextcloud;
-      opencloud.enable = cfg.enableOpencloud;
       restic.enable = cfg.enableRestic;
-      syncthing.enable = cfg.enableSyncthing;
       vaultwarden.enable = cfg.enableVaultwarden;
     };
   };

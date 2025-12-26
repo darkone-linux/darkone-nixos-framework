@@ -14,7 +14,7 @@
 let
   cfg = config.darkone.home.advanced;
   graphic = osConfig.darkone.graphic.gnome.enable;
-  hasBorg = osConfig.darkone.service.borg.enable;
+  #hasBorg = osConfig.darkone.service.borg.enable;
   hasRestic = osConfig.darkone.service.restic.enable;
 
   # Nix administrator host (additional tools)
@@ -66,6 +66,8 @@ in
       #findutils # locate
       #powerline
       #powerline-fonts
+      #(lib.mkIf (hasBorg && cfg.enableAdmin) borgbackup)
+      #(lib.mkIf (hasBorg && graphic && cfg.enableAdmin) vorta) # Borg client
       (lib.mkIf (graphic && (cfg.enableDeveloper || cfg.enableAdmin)) vscode) # TODO: module
       (lib.mkIf (graphic && cfg.enableAdmin) filezilla)
       (lib.mkIf (graphic && cfg.enableAdmin) gparted)
@@ -84,8 +86,6 @@ in
       (lib.mkIf (graphic && cfg.enableTools) meld) # Diff tool
       (lib.mkIf (graphic && cfg.enableTools) resources) # Monitor your system resources and processes
       (lib.mkIf (graphic && cfg.enableTools) textpieces) # Swiss knife of text processing
-      (lib.mkIf (hasBorg && cfg.enableAdmin) borgbackup)
-      (lib.mkIf (hasBorg && graphic && cfg.enableAdmin) vorta) # Borg client
       (lib.mkIf (hasRestic && cfg.enableAdmin) restic) # Already in nixos configuration...
       (lib.mkIf (hasRestic && cfg.enableAdmin) restic-browser)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) age)

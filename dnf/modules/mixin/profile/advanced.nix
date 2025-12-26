@@ -30,9 +30,6 @@ in
         pandoc.enable = lib.mkDefault false;
         zsh.enable = lib.mkDefault true;
       };
-
-      # Daemons
-      service.httpd.enable = lib.mkDefault false;
     };
 
     # Additional tools
