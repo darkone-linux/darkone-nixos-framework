@@ -447,47 +447,6 @@ darkone.service.beets = {
 
 <hr/>
 
-### &#x1F48E; darkone.service.borg
-
-Borg backup module with DNF configuration.
-
-Default directories to backup:
-
-```
-/nfs/srv -> /mnt/backup/borg/nfs/srv
-<services_dirs> -> /mnt/backup/borg/services/
-<db_dumps> -> /mnt/backup/borg/databases/
-```
-
-:::note
-The officially selected solution is Restic, which will be more appropriate and integrated with DNF.
-If you prefer borg, this module is still operational.
-:::
-
-* **enable** `bool` Enable borg backup service
-* **enableDryRun** `bool` Dry Run (try)
-* **repositoryRoot** `str` Main backup target root path
-* **enableServicesBackup** `bool` Backup important files of local services (wip)
-* **enableDatabasesBackup** `bool` Backup local services databases (wip)
-* **enableWaitRemoteFs** `bool` Trigger the borg service only if remote-fs service is started
-* **enableNfsBackup** `bool` Backup the /srv/nfs dir (nfs shared files)
-* **systemDirsPaths** `listOf str` System dirs (exports) to include
-
-```nix
-darkone.service.borg = {
-  enable = false;
-  enableDryRun = false;
-  repositoryRoot = "/mnt/backup/borg";
-  enableServicesBackup = true;
-  enableDatabasesBackup = true;
-  enableWaitRemoteFs = true;
-  enableNfsBackup = config.darkone.service.nfs.enable;
-  systemDirsPaths = [ ];
-};
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.service.dnsmasq
 
 Pre-configured dnsmasq for local gateway / router.
@@ -585,26 +544,6 @@ darkone.service.homepage = {
 
 <hr/>
 
-### &#x1F48E; darkone.service.httpd
-
-Nginx httpd simple server with PHP84 (DEPRECATED)
-
-* **enable** `bool` Enable httpd (nginx)
-* **enableUserDir** `bool` Enable user dir configuration
-* **enablePhp** `bool` Enable PHP 8.4 with useful modules
-* **enableVarWww** `bool` Enable http root on /var/www
-
-```nix
-darkone.service.httpd = {
-  enable = false;
-  enableUserDir = false;
-  enablePhp = false;
-  enableVarWww = false;
-};
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.service.immich
 
 Immich (photo management) full-configured service.
@@ -643,34 +582,6 @@ A full-configured jitsi-meet service.
 
 ```nix
 darkone.service.jitsi-meet.enable = false;
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.keycloak
-
-A full-configured keycloak IAM service.
-
-* **enable** `bool` Enable keycloak service
-* **enableBootstrap** `bool` Enable bootstrap state to set admin password
-
-```nix
-darkone.service.keycloak = {
-  enable = false;
-  enableBootstrap = false;
-};
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.matrix
-
-A matrix (synapse) server. (WIP)
-
-* **enable** `bool` Enable matrix (synapse) service
-
-```nix
-darkone.service.matrix.enable = false;
 ```
 
 <hr/>
@@ -726,18 +637,6 @@ darkone.service.monitoring = {
 
 <hr/>
 
-### &#x1F48E; darkone.service.navidrome
-
-A full-configured navidrome service.
-
-* **enable** `bool` Enable navidrome service
-
-```nix
-darkone.service.navidrome.enable = false;
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.service.ncps
 
 Nix cache proxy with NCPS module.
@@ -763,23 +662,6 @@ darkone.service.ncps = {
   dataPath = "/var/cache/ncps";
   extraOptions = { };
 };
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.netdata
-
-Netdata supervision module.
-
-:::caution
-The interface of this application contains too much encouragement
-to use the “pro” version, so it is better to use the “monitoring” module.
-:::
-
-* **enable** `bool` Enable netdata application
-
-```nix
-darkone.service.netdata.enable = false;
 ```
 
 <hr/>
@@ -831,18 +713,6 @@ darkone.service.nfs = {
 
 <hr/>
 
-### &#x1F48E; darkone.service.opencloud
-
-Opencloud full-configured service (wip - not working).
-
-* **enable** `bool` Enable local opencloud service
-
-```nix
-darkone.service.opencloud.enable = false;
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.service.printing
 
 Printers and scanners.
@@ -869,21 +739,32 @@ darkone.service.printing = {
 
 Restic backup module with DNF configuration.
 
-Default directories to backup:
+:::tip
+Enabling "restic" in host services (config.yaml) launch the REST server.
+Put the local backup settings in nix configuration (machine conf for example).
+
+```nix
+usr/machines/my-desktop/default.nix
+darkone.service.restic = {
+  enable = true;
+  enableSystemBackup = true;
+};
+:::
+
+Default settings:
 
 ```
-/srv/nfs -> /mnt/backup/restic/srv/nfs
-<services_dirs> -> /mnt/backup/services/<services_dirs>
-<db_dumps> -> /mnt/backup/databases/<db_dumps>
+/srv/nfs/(homes|common) -> /mnt/backup/restic/[host]/srv/nfs
+/mnt/medias/(music|videos) -> /mnt/backup/restic/[host]/mnt/medias
+/ -> /mnt/backup/restic/[host]/system
 ```
 
 * **enable** `bool` Enable main restic backup service
 * **enableServer** `bool` Enable restic rest server
 * **enableDryRun** `bool` Dry Run mode
+* **enableSystemBackup** `bool` Enable full system backup excepted /srv, /mnt and cache files
 * **enableWaitRemoteFs** `bool` Trigger the restic service only if remote-fs service is started
 * **repositoryRoot** `str` Main backup target root path
-* **enableServicesBackup** `bool` Backup important files of local services (persist dirs)
-* **enableServicesVarBackup** `bool` Backup variable files of local services (persist varDirs)
 * **enableNfsBackup** `bool` Backup /srv/nfs/&lt;xxx&gt; dirs
 * **nfsPaths** `listOf str` NFS dirs (/srv/nfs/&lt;xxx&gt;) to include in backup configuration
 * **enableMediasBackup** `bool` Backup /srv/medias/&lt;xxx&gt; dirs
@@ -894,37 +775,13 @@ darkone.service.restic = {
   enable = false;
   enableServer = false;
   enableDryRun = false;
-  enableWaitRemoteFs = true;
-  repositoryRoot = "rest:nix@backup.${zone.domain}:/mnt/backup/restic/${host.hostname}";
-  enableServicesBackup = true;
-  enableServicesVarBackup = true;
+  enableSystemBackup = false;
+  enableWaitRemoteFs = false;
+  repositoryRoot = "rest:my-server.${zone.fqdn}:8888/${host.hostname}/";
   enableNfsBackup = config.darkone.service.nfs.enable;
   nfsPaths = [ ];
   enableMediasBackup = config.darkone.service.jellyfin.enable;
   mediasPaths = [ ];
-};
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.syncthing
-
-The syncthing service for a device. (WIP)
-
-:::note
-Enable the [home manager syncthing module](https://darkone-linux.github.io/ref/modules/#-darkonehomesyncthing)
-to allow users to use syncthing with their account.
-:::
-
-* **enable** `bool` Enable local syncthing service
-* **ldapServerHost** `str` Users service (lldap)
-* **ldapServerPort** `str` Users service (lldap)
-
-```nix
-darkone.service.syncthing = {
-  enable = false;
-  ldapServerHost = "${zone.gateway.hostname}.${zone.domain}";
-  ldapServerPort = "3890";
 };
 ```
 
@@ -975,9 +832,13 @@ darkone.service.users.enable = false;
 A full-configured vaultwarden server (wip).
 
 * **enable** `bool` Enable local Vaultwarden service
+* **enableSmtp** `bool` Enable SMTP to send emails (recommended)
 
 ```nix
-darkone.service.vaultwarden.enable = false;
+darkone.service.vaultwarden = {
+  enable = false;
+  enableSmtp = true;
+};
 ```
 
 <hr/>
@@ -1418,6 +1279,7 @@ darkone.home.music = {
 Common tools for office desktop.
 
 * **enable** `bool` Default useful packages
+* **enableMore** `bool` More alternative packages
 * **enableEssentials** `bool` Essential tools
 * **enableTools** `bool` Little (gnome) tools (iotas, dialect, etc.)
 * **enableProductivity** `bool` Productivity apps (obsidian, time management, projects, etc.)
@@ -1433,6 +1295,7 @@ Common tools for office desktop.
 ```nix
 darkone.home.office = {
   enable = false;
+  enableMore = false;
   enableEssentials = true;
   enableTools = false;
   enableProductivity = false;

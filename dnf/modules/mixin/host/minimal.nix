@@ -151,7 +151,10 @@ in
       mattermost.enable = cfg.enableMattermost;
       monitoring.enable = cfg.enableMonitoring;
       nextcloud.enable = cfg.enableNextcloud;
-      restic.enable = cfg.enableRestic;
+      restic = lib.mkIf cfg.enableRestic {
+        enable = true;
+        enableServer = true;
+      };
       vaultwarden.enable = cfg.enableVaultwarden;
     };
   };
