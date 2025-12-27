@@ -744,7 +744,7 @@ Enabling "restic" in host services (config.yaml) launch the REST server.
 Put the local backup settings in nix configuration (machine conf for example).
 
 ```nix
-usr/machines/my-desktop/default.nix
+# usr/machines/my-desktop/default.nix
 darkone.service.restic = {
   enable = true;
   enableSystemBackup = true;
@@ -760,27 +760,35 @@ Default settings:
 ```
 
 * **enable** `bool` Enable main restic backup service
-* **enableServer** `bool` Enable restic rest server
 * **enableDryRun** `bool` Dry Run mode
-* **enableSystemBackup** `bool` Enable full system backup excepted /srv, /mnt and cache files
+* **enableServer** `bool` Enable restic rest server
 * **enableWaitRemoteFs** `bool` Trigger the restic service only if remote-fs service is started
-* **repositoryRoot** `str` Main backup target root path
+* **enableSystemBackup** `bool` Enable full system backup excepted /srv, /mnt and cache files
+* **enableExtraSystemBackup** `bool` Enable system backup on extra repository
+* **repositoryRoot** `str` Main backup target root path (default is local)
+* **extraRepositoryRoot** `str` Extra backup target root path
 * **enableNfsBackup** `bool` Backup /srv/nfs/&lt;xxx&gt; dirs
+* **enableExtraNfsBackup** `bool` Enable NFS backup on extra repository
 * **nfsPaths** `listOf str` NFS dirs (/srv/nfs/&lt;xxx&gt;) to include in backup configuration
 * **enableMediasBackup** `bool` Backup /srv/medias/&lt;xxx&gt; dirs
+* **enableExtraMediasBackup** `bool` Enable medias backup on extra repository
 * **mediasPaths** `listOf str` NFS dirs (/srv/medias/&lt;xxx&gt;) to include in backup configuration
 
 ```nix
 darkone.service.restic = {
   enable = false;
-  enableServer = false;
   enableDryRun = false;
-  enableSystemBackup = false;
+  enableServer = false;
   enableWaitRemoteFs = false;
-  repositoryRoot = "rest:my-server.${zone.fqdn}:8888/${host.hostname}/";
-  enableNfsBackup = config.darkone.service.nfs.enable;
+  enableSystemBackup = false;
+  enableExtraSystemBackup = false;
+  repositoryRoot = "rest:my-server.${zone.domain}:8888";
+  extraRepositoryRoot = "rest:my-server.${zone.domain}:8888";
+  enableNfsBackup = false;
+  enableExtraNfsBackup = false;
   nfsPaths = [ ];
-  enableMediasBackup = config.darkone.service.jellyfin.enable;
+  enableMediasBackup = false;
+  enableExtraMediasBackup = false;
   mediasPaths = [ ];
 };
 ```

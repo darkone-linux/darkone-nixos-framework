@@ -5,7 +5,7 @@
 # Put the local backup settings in nix configuration (machine conf for example).
 #
 # ```nix
-# usr/machines/my-desktop/default.nix
+# # usr/machines/my-desktop/default.nix
 # darkone.service.restic = {
 #   enable = true;
 #   enableSystemBackup = true;
@@ -43,11 +43,22 @@ let
   hasMediasShares = srv-dirs.enableMedias;
 
   # Dirs backup
+  hasRootRepo = cfg.repositoryRoot != "";
   nfsBackupRepo = "${cfg.repositoryRoot}/${host.hostname}${srv-dirs.nfs}";
   mediasBackupRepo = "${cfg.repositoryRoot}/${host.hostname}${srv-dirs.medias}";
   systemBackupRepo = "${cfg.repositoryRoot}/${host.hostname}/system";
-  enableNfsBackup = cfg.enableNfsBackup && hasNfsShares;
-  enableMediasBackup = cfg.enableMediasBackup && hasMediasShares;
+  enableNfsBackup = hasRootRepo && cfg.enableNfsBackup && hasNfsShares;
+  enableMediasBackup = hasRootRepo && cfg.enableMediasBackup && hasMediasShares;
+  enableSystemBackup = hasRootRepo && cfg.enableSystemBackup;
+
+  # Extra dirs backup
+  hasExtraRootRepo = cfg.extraRepositoryRoot != "";
+  extraNfsBackupRepo = "${cfg.extraRepositoryRoot}/${host.hostname}${srv-dirs.nfs}";
+  extraMediasBackupRepo = "${cfg.extraRepositoryRoot}/${host.hostname}${srv-dirs.medias}";
+  extraSystemBackupRepo = "${cfg.extraRepositoryRoot}/${host.hostname}/system";
+  enableExtraNfsBackup = hasExtraRootRepo && cfg.enableExtraNfsBackup && hasNfsShares;
+  enableExtraMediasBackup = hasExtraRootRepo && cfg.enableExtraMediasBackup && hasMediasShares;
+  enableExtraSystemBackup = hasExtraRootRepo && cfg.enableExtraSystemBackup;
 
   # Restic zoned password
   passwdFileName = "restic-password-" + zone.name;
@@ -71,6 +82,7 @@ let
       "*.log"
       ".Trash*"
       ".swapfile"
+      ".~*"
       "node_modules"
       "vendor"
       ".cache"
@@ -86,6 +98,29 @@ let
       "--keep-weekly 8" # Un par semaine pendant 8 semaines
       "--keep-monthly 24" # Un par mois pendant 24 mois
       "--keep-yearly 75" # Un par an pendant 75 ans
+    ];
+  };
+
+  # Specific options for system backups
+  systemCommonBkpConfig = {
+    paths = [ "/" ];
+    exclude = [
+      "/dev"
+      "/etc/nixos"
+      "/export"
+      "/lib*"
+      "/mnt"
+      "/nix"
+      "/proc"
+      "/run"
+      "/srv"
+      "/sys"
+      "/tmp"
+      "/var/cache/*"
+      "/var/log/*"
+      "/var/spool/*"
+      "/var/run"
+      "/var/lock"
     ];
   };
 
@@ -105,25 +140,33 @@ in
 
     # General options
     darkone.service.restic.enable = lib.mkEnableOption "Enable main restic backup service";
-    darkone.service.restic.enableServer = lib.mkEnableOption "Enable restic rest server";
     darkone.service.restic.enableDryRun = lib.mkEnableOption "Dry Run mode";
-    darkone.service.restic.enableSystemBackup = lib.mkEnableOption "Enable full system backup excepted /srv, /mnt and cache files";
+
+    # Server options
+    darkone.service.restic.enableServer = lib.mkEnableOption "Enable restic rest server";
     darkone.service.restic.enableWaitRemoteFs = lib.mkEnableOption "Trigger the restic service only if remote-fs service is started";
+
+    # System backup
+    darkone.service.restic.enableSystemBackup = lib.mkEnableOption "Enable full system backup excepted /srv, /mnt and cache files";
+    darkone.service.restic.enableExtraSystemBackup = lib.mkEnableOption "Enable system backup on extra repository";
 
     # Common root repository for local backup
     darkone.service.restic.repositoryRoot = lib.mkOption {
       type = lib.types.str;
       default = "/mnt/backup/restic";
-      example = "rest:my-server.${zone.fqdn}:8888/${host.hostname}/";
-      description = "Main backup target root path";
+      example = "rest:my-server.${zone.domain}:8888";
+      description = "Main backup target root path (default is local)";
+    };
+    darkone.service.restic.extraRepositoryRoot = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      example = "rest:my-server.${zone.domain}:8888";
+      description = "Extra backup target root path";
     };
 
-    # NFS options
-    darkone.service.restic.enableNfsBackup = lib.mkOption {
-      type = lib.types.bool;
-      default = config.darkone.service.nfs.enable;
-      description = "Backup /srv/nfs/<xxx> dirs";
-    };
+    # NFS backup
+    darkone.service.restic.enableNfsBackup = lib.mkEnableOption "Backup /srv/nfs/<xxx> dirs";
+    darkone.service.restic.enableExtraNfsBackup = lib.mkEnableOption "Enable NFS backup on extra repository";
     darkone.service.restic.nfsPaths = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [
@@ -134,11 +177,8 @@ in
     };
 
     # Medias options
-    darkone.service.restic.enableMediasBackup = lib.mkOption {
-      type = lib.types.bool;
-      default = config.darkone.service.jellyfin.enable;
-      description = "Backup /srv/medias/<xxx> dirs";
-    };
+    darkone.service.restic.enableMediasBackup = lib.mkEnableOption "Backup /srv/medias/<xxx> dirs";
+    darkone.service.restic.enableExtraMediasBackup = lib.mkEnableOption "Enable medias backup on extra repository";
     darkone.service.restic.mediasPaths = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [
@@ -196,10 +236,26 @@ in
       };
 
       # Trigger the restic service only if remote-fs service is started
-      systemd.services.restic-backups-nfs = lib.mkIf cfg.enableWaitRemoteFs {
-        after = [ "remote-fs.target" ];
-        wants = [ "remote-fs.target" ];
-      };
+      systemd.services = lib.mkIf cfg.enableWaitRemoteFs (
+        builtins.listToAttrs (
+          map
+            (item: {
+              name = item;
+              value = {
+                after = [ "remote-fs.target" ];
+                wants = [ "remote-fs.target" ];
+              };
+            })
+            [
+              "restic-backups-nfs-main"
+              "restic-backups-nfs-extra"
+              "restic-backups-medias-main"
+              "restic-backups-medias-extra"
+              "restic-backups-system-main"
+              "restic-backups-system-extra"
+            ]
+        )
+      );
 
       # Firewall
       networking.firewall = lib.mkIf cfg.enableServer (
@@ -228,14 +284,23 @@ in
 
           # NFS
           # -> /srv/nfs/(home|common)
-          nfs = lib.mkIf enableNfsBackup (
+          # timer: https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html
+          nfs-main = lib.mkIf enableNfsBackup (
             lib.mkMerge [
               {
                 paths = cfg.nfsPaths;
                 repository = nfsBackupRepo;
-
-                # https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html
                 timerConfig.OnCalendar = "01:00";
+              }
+              commonBkpConfig
+            ]
+          );
+          nfs-extra = lib.mkIf enableExtraNfsBackup (
+            lib.mkMerge [
+              {
+                paths = cfg.nfsPaths;
+                repository = extraNfsBackupRepo;
+                timerConfig.OnCalendar = "02:00";
               }
               commonBkpConfig
             ]
@@ -243,7 +308,7 @@ in
 
           # Medias
           # -> /srv/medias/(videos|music)
-          medias = lib.mkIf enableMediasBackup (
+          medias-main = lib.mkIf enableMediasBackup (
             lib.mkMerge [
               {
                 paths = cfg.mediasPaths;
@@ -253,34 +318,40 @@ in
               commonBkpConfig
             ]
           );
+          medias-extra = lib.mkIf enableExtraMediasBackup (
+            lib.mkMerge [
+              {
+                paths = cfg.mediasPaths;
+                repository = extraMediasBackupRepo;
+                timerConfig.OnCalendar = "04:00";
+              }
+              commonBkpConfig
+            ]
+          );
 
           # System
           # -> /, without /srv, /mnt and cache / log files
-          system = lib.mkIf cfg.enableSystemBackup (
+          system-main = lib.mkIf enableSystemBackup (
             lib.mkMerge [
-              {
-                paths = [ "/" ];
-                exclude = [
-                  "/dev"
-                  "/etc/nixos"
-                  "/export"
-                  "/lib*"
-                  "/mnt"
-                  "/nix"
-                  "/proc"
-                  "/run"
-                  "/srv"
-                  "/sys"
-                  "/tmp"
-                  "/var/cache/*"
-                  "/var/log/*"
-                  "/var/spool/*"
-                  "/var/run"
-                  "/var/lock"
-                ];
-                repository = systemBackupRepo;
-                timerConfig.OnCalendar = "04:00";
-              }
+              (
+                systemCommonBkpConfig
+                // {
+                  repository = systemBackupRepo;
+                  timerConfig.OnCalendar = "05:00";
+                }
+              )
+              commonBkpConfig
+            ]
+          );
+          system-extra = lib.mkIf enableExtraSystemBackup (
+            lib.mkMerge [
+              (
+                systemCommonBkpConfig
+                // {
+                  repository = extraSystemBackupRepo;
+                  timerConfig.OnCalendar = "06:00";
+                }
+              )
               commonBkpConfig
             ]
           );
