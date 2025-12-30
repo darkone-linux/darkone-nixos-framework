@@ -78,6 +78,7 @@ in
       (lib.mkIf (graphic && cfg.enableTools && cfg.enableDeveloper) eyedropper) # Pick and format colors
       (lib.mkIf (graphic && cfg.enableTools && cfg.enableDeveloper) forge-sparks) # Get Git forges notifications
       (lib.mkIf (graphic && cfg.enableTools && cfg.enableDeveloper) lorem) # Generate placeholder text
+      (lib.mkIf (graphic && cfg.enableTools && cfg.enableDeveloper) sqlitebrowser)
       (lib.mkIf (graphic && cfg.enableTools && cfg.enableNixAdmin) bustle) # Graphical D-Bus message analyser and profiler
       (lib.mkIf (graphic && cfg.enableTools) apostrophe) # Distraction free Markdown editor
       (lib.mkIf (graphic && cfg.enableTools) collision) # Check hashes for your files

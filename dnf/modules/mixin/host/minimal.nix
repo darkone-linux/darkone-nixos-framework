@@ -110,6 +110,11 @@ in
       default = builtins.hasAttr "jellyfin" host.services;
       description = "Enable Jellyfin server";
     };
+    darkone.host.minimal.enableDex = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "dex" host.services;
+      description = "Enable Dex service";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -137,17 +142,18 @@ in
     # Enabled services
     darkone.service = {
       #borg.enable = cfg.enableBorg;
-      #keycloak.enable = cfg.enableKeycloak;
       #matrix.enable = cfg.enableMatrix;
       #navidrome.enable = cfg.enableNavidrome;
       #netdata.enable = cfg.enableNetdata;
       #opencloud.enable = cfg.enableOpencloud;
       #syncthing.enable = cfg.enableSyncthing;
+      dex.enable = cfg.enableDex;
       forgejo.enable = cfg.enableForgejo;
       homepage.enable = cfg.enableHomepage;
       immich.enable = cfg.enableImmich;
       jellyfin.enable = cfg.enableJellyfin;
       jitsi-meet.enable = cfg.enableJitsiMeet;
+      keycloak.enable = cfg.enableKeycloak;
       mattermost.enable = cfg.enableMattermost;
       monitoring.enable = cfg.enableMonitoring;
       nextcloud.enable = cfg.enableNextcloud;

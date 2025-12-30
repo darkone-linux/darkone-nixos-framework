@@ -23,6 +23,7 @@
     ./standard/service/audio.nix
     ./standard/service/auth.nix
     ./standard/service/beets.nix
+    ./standard/service/dex.nix
     ./standard/service/dnsmasq.nix
     ./standard/service/fail2ban.nix
     ./standard/service/forgejo.nix
@@ -32,6 +33,7 @@
     ./standard/service/immich.nix
     ./standard/service/jellyfin.nix
     ./standard/service/jitsi-meet.nix
+    ./standard/service/keycloak.nix
     ./standard/service/mattermost.nix
     ./standard/service/monitoring.nix
     ./standard/service/ncps.nix

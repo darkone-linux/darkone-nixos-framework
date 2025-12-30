@@ -61,13 +61,13 @@ let
   enableExtraSystemBackup = hasExtraRootRepo && cfg.enableExtraSystemBackup;
 
   # Restic zoned password
-  passwdFileName = "restic-password-" + zone.name;
+  passwdFileName = "restic-password-" + cfg.mainBackupZone;
+  extraPasswdFileName = "restic-password-" + cfg.extraBackupZone;
 
   # Common backup configuration
   commonBkpConfig = {
     initialize = true; # Create the repo if needed
     runCheck = true; # Check integrity of repo before save
-    passwordFile = config.sops.secrets.${passwdFileName}.path;
     environmentFile = config.sops.secrets.restic-env.path;
     timerConfig.Persistent = false;
     extraBackupArgs = lib.optionals cfg.enableDryRun [
@@ -121,6 +121,8 @@ let
       "/var/spool/*"
       "/var/run"
       "/var/lock"
+      "/var/lib/immich/thumbs/*"
+      "/var/lib/immich/encoded-video/*"
     ];
   };
 
@@ -150,17 +152,29 @@ in
     darkone.service.restic.enableSystemBackup = lib.mkEnableOption "Enable full system backup excepted /srv, /mnt and cache files";
     darkone.service.restic.enableExtraSystemBackup = lib.mkEnableOption "Enable system backup on extra repository";
 
+    # Zones
+    darkone.service.restic.mainBackupZone = lib.mkOption {
+      type = lib.types.str;
+      default = zone.name;
+      description = "Zone of main backup (to select the right password)";
+    };
+    darkone.service.restic.extraBackupZone = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = "Zone of extra backup (to select the right password)";
+    };
+
     # Common root repository for local backup
     darkone.service.restic.repositoryRoot = lib.mkOption {
       type = lib.types.str;
       default = "/mnt/backup/restic";
-      example = "rest:my-server.${zone.domain}:8888";
+      example = "rest:restic.${zone.domain}:8888";
       description = "Main backup target root path (default is local)";
     };
     darkone.service.restic.extraRepositoryRoot = lib.mkOption {
       type = lib.types.str;
       default = "";
-      example = "rest:my-server.${zone.domain}:8888";
+      example = "rest:restic.${network.zones.other-zone.domain}:8888";
       description = "Extra backup target root path";
     };
 
@@ -220,10 +234,16 @@ in
       environment.systemPackages = with pkgs; [ restic ];
 
       # Restic password
-      sops.secrets.${passwdFileName} = {
+      sops.secrets.${passwdFileName} = lib.mkIf (cfg.mainBackupZone != "") {
         mode = "0400";
         owner = "root";
       };
+      sops.secrets.${extraPasswdFileName} =
+        lib.mkIf ((cfg.extraBackupZone != "") && (cfg.mainBackupZone != cfg.extraBackupZone))
+          {
+            mode = "0400";
+            owner = "root";
+          };
 
       # htpasswd
       sops.secrets.restic-htpasswd = lib.mkIf cfg.enableServer {
@@ -289,6 +309,7 @@ in
             lib.mkMerge [
               {
                 paths = cfg.nfsPaths;
+                passwordFile = config.sops.secrets.${passwdFileName}.path;
                 repository = nfsBackupRepo;
                 timerConfig.OnCalendar = "01:00";
               }
@@ -299,6 +320,7 @@ in
             lib.mkMerge [
               {
                 paths = cfg.nfsPaths;
+                passwordFile = config.sops.secrets.${extraPasswdFileName}.path;
                 repository = extraNfsBackupRepo;
                 timerConfig.OnCalendar = "02:00";
               }
@@ -312,6 +334,7 @@ in
             lib.mkMerge [
               {
                 paths = cfg.mediasPaths;
+                passwordFile = config.sops.secrets.${passwdFileName}.path;
                 repository = mediasBackupRepo;
                 timerConfig.OnCalendar = "03:00";
               }
@@ -322,6 +345,7 @@ in
             lib.mkMerge [
               {
                 paths = cfg.mediasPaths;
+                passwordFile = config.sops.secrets.${extraPasswdFileName}.path;
                 repository = extraMediasBackupRepo;
                 timerConfig.OnCalendar = "04:00";
               }
@@ -336,6 +360,7 @@ in
               (
                 systemCommonBkpConfig
                 // {
+                  passwordFile = config.sops.secrets.${passwdFileName}.path;
                   repository = systemBackupRepo;
                   timerConfig.OnCalendar = "05:00";
                 }
@@ -348,6 +373,7 @@ in
               (
                 systemCommonBkpConfig
                 // {
+                  passwordFile = config.sops.secrets.${extraPasswdFileName}.path;
                   repository = extraSystemBackupRepo;
                   timerConfig.OnCalendar = "06:00";
                 }

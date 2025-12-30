@@ -127,6 +127,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableRestic** `bool` Enable Restic service
 * **enableBorg** `bool` Enable Borg service
 * **enableJellyfin** `bool` Enable Jellyfin server
+* **enableDex** `bool` Enable Dex service
 
 ```nix
 darkone.host.minimal = {
@@ -150,6 +151,7 @@ darkone.host.minimal = {
   enableRestic = builtins.hasAttr "restic" host.services;
   enableBorg = builtins.hasAttr "borg" host.services;
   enableJellyfin = builtins.hasAttr "jellyfin" host.services;
+  enableDex = builtins.hasAttr "dex" host.services;
 };
 ```
 
@@ -447,6 +449,22 @@ darkone.service.beets = {
 
 <hr/>
 
+### &#x1F48E; darkone.service.dex
+
+A full-configured dex OIDC service.
+
+* **enable** `bool` Enable dex service
+* **enableBootstrap** `bool` Enable bootstrap state to set admin password
+
+```nix
+darkone.service.dex = {
+  enable = false;
+  enableBootstrap = false;
+};
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.service.dnsmasq
 
 Pre-configured dnsmasq for local gateway / router.
@@ -582,6 +600,22 @@ A full-configured jitsi-meet service.
 
 ```nix
 darkone.service.jitsi-meet.enable = false;
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.keycloak
+
+A full-configured keycloak IAM service.
+
+* **enable** `bool` Enable keycloak service
+* **enableBootstrap** `bool` Enable bootstrap state to set admin password
+
+```nix
+darkone.service.keycloak = {
+  enable = false;
+  enableBootstrap = false;
+};
 ```
 
 <hr/>
@@ -765,6 +799,8 @@ Default settings:
 * **enableWaitRemoteFs** `bool` Trigger the restic service only if remote-fs service is started
 * **enableSystemBackup** `bool` Enable full system backup excepted /srv, /mnt and cache files
 * **enableExtraSystemBackup** `bool` Enable system backup on extra repository
+* **mainBackupZone** `str` Zone of main backup (to select the right password)
+* **extraBackupZone** `str` Zone of extra backup (to select the right password)
 * **repositoryRoot** `str` Main backup target root path (default is local)
 * **extraRepositoryRoot** `str` Extra backup target root path
 * **enableNfsBackup** `bool` Backup /srv/nfs/&lt;xxx&gt; dirs
@@ -782,8 +818,10 @@ darkone.service.restic = {
   enableWaitRemoteFs = false;
   enableSystemBackup = false;
   enableExtraSystemBackup = false;
-  repositoryRoot = "rest:my-server.${zone.domain}:8888";
-  extraRepositoryRoot = "rest:my-server.${zone.domain}:8888";
+  mainBackupZone = zone.name;
+  extraBackupZone = "";
+  repositoryRoot = "rest:restic.${zone.domain}:8888";
+  extraRepositoryRoot = "rest:restic.${network.zones.other-zone.domain}:8888";
   enableNfsBackup = false;
   enableExtraNfsBackup = false;
   nfsPaths = [ ];
