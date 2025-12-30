@@ -128,6 +128,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableBorg** `bool` Enable Borg service
 * **enableJellyfin** `bool` Enable Jellyfin server
 * **enableDex** `bool` Enable Dex service
+* **enableOutline** `bool` Enable Outline WIKI service
 
 ```nix
 darkone.host.minimal = {
@@ -152,6 +153,7 @@ darkone.host.minimal = {
   enableBorg = builtins.hasAttr "borg" host.services;
   enableJellyfin = builtins.hasAttr "jellyfin" host.services;
   enableDex = builtins.hasAttr "dex" host.services;
+  enableOutline = builtins.hasAttr "outline" host.services;
 };
 ```
 
@@ -743,6 +745,18 @@ darkone.service.nfs = {
   enable = hasServer && (isServer || isClient);
   serverDomain = "nfs";
 };
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.outline
+
+A full-configured outline wiki.
+
+* **enable** `bool` Enable local outline service
+
+```nix
+darkone.service.outline.enable = false;
 ```
 
 <hr/>

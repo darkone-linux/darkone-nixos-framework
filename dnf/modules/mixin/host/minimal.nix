@@ -115,6 +115,11 @@ in
       default = builtins.hasAttr "dex" host.services;
       description = "Enable Dex service";
     };
+    darkone.host.minimal.enableOutline = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "outline" host.services;
+      description = "Enable Outline WIKI service";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -157,6 +162,7 @@ in
       mattermost.enable = cfg.enableMattermost;
       monitoring.enable = cfg.enableMonitoring;
       nextcloud.enable = cfg.enableNextcloud;
+      outline.enable = cfg.enableOutline;
       restic = lib.mkIf cfg.enableRestic {
         enable = true;
         enableServer = true;

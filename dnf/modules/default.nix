@@ -39,6 +39,7 @@
     ./standard/service/ncps.nix
     ./standard/service/nextcloud.nix
     ./standard/service/nfs.nix
+    ./standard/service/outline.nix
     ./standard/service/printing.nix
     ./standard/service/restic.nix
     ./standard/service/tailscale.nix
