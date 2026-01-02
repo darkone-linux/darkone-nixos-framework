@@ -30,6 +30,7 @@
     ./standard/service/headscale.nix
     ./standard/service/home-assistant.nix
     ./standard/service/homepage.nix
+    ./standard/service/idm.nix
     ./standard/service/immich.nix
     ./standard/service/jellyfin.nix
     ./standard/service/jitsi-meet.nix
@@ -40,6 +41,7 @@
     ./standard/service/nextcloud.nix
     ./standard/service/nfs.nix
     ./standard/service/outline.nix
+    ./standard/service/postfix.nix
     ./standard/service/printing.nix
     ./standard/service/restic.nix
     ./standard/service/tailscale.nix

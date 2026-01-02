@@ -133,13 +133,13 @@ in
     services.openssh.enable = true;
 
     # Write installed packages in /etc/installed-packages
-    environment.etc."installed-packages".text =
-      let
-        packages = builtins.map (p: "${p.name}") config.environment.systemPackages;
-        sortedUnique = builtins.sort builtins.lessThan (pkgs.lib.lists.unique packages);
-        formatted = builtins.concatStringsSep "\n" sortedUnique;
-      in
-      formatted;
+    # environment.etc."installed-packages".text =
+    #   let
+    #     packages = builtins.map (p: "${p.name}") config.environment.systemPackages;
+    #     sortedUnique = builtins.sort builtins.lessThan (pkgs.lib.lists.unique packages);
+    #     formatted = builtins.concatStringsSep "\n" sortedUnique;
+    #   in
+    #   formatted;
 
     # SOPS DNF module
     darkone.system.sops.enable = cfg.enableSops;

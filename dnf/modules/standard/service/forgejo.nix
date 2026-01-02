@@ -45,6 +45,23 @@ in
         service.forgejo.enable = true;
       };
 
+      # SMTP Relay
+      darkone.service.postfix.enable = true;
+
+      # Sendmail permissions & service updates to send emails
+      systemd.services.forgejo.path = [
+        pkgs.postfix
+        pkgs.coreutils
+      ];
+      systemd.services.forgejo.serviceConfig = {
+        RestrictAddressFamilies = [ "AF_NETLINK" ];
+        ReadWritePaths = [ "/var/spool/mail" ];
+        ProtectSystem = lib.mkForce "full";
+      };
+      users.users.forgejo = {
+        extraGroups = [ "postdrop" ];
+      };
+
       #------------------------------------------------------------------------
       # Forgejo Service
       #------------------------------------------------------------------------
@@ -85,31 +102,20 @@ in
             ENABLE_OPENID_SIGNUP = true;
           };
 
+          # TODO: lien déclaratif vers l'idm (pour l'instant obligé de faire ça dans l'interface)
           oauth2_client = {
-            USERNAME = "nickname";
             ENABLE_AUTO_REGISTRATION = true;
-            REGISTER_EMAIL_CONFIRM = false;
-            ACCOUNT_LINKING = "disabled"; # auto / login
-            # OPENID_CONNECT_SCOPES = "openid email profile groups";
-            # OPENID_CONNECT_AUTO_DISCOVER_URL = "https://dex.ag.poncon.fr/.well-known/openid-configuration";
-            # OPENID_CONNECT_CLIENT_ID = "forgejo";
-            # OPENID_CONNECT_CLIENT_SECRET = "test42";
-            # OPENID_CONNECT_USERNAME = "preferred_username";
-            # OPENID_CONNECT_EMAIL = "email";
-            # GROUP_CLAIM_NAME = "groups";
           };
-
-          # TODO: Sending emails is completely optional
-          # You can send a test email from the web UI at:
-          # Profile Picture > Site Administration > Configuration >  Mailer Configuration
-          # mailer = {
-          #   ENABLED = false;
-          #   SMTP_ADDR = "mail.cheznoo.net";
-          #   FROM = "noreply@${params.fqdn}";
-          #   USER = "noreply@${params.fqdn}";
-          # };
+          mailer = {
+            ENABLED = true;
+            PROTOCOL = "sendmail";
+            FROM = "noreply@${network.domain}";
+            SENDMAIL_PATH = "${pkgs.system-sendmail}/bin/sendmail";
+          };
+          other = {
+            SHOW_FOOTER_VERSION = false;
+          };
         };
-        #mailerPasswordFile = config.age.secrets.forgejo-mailer-password.path;
       };
     })
   ];

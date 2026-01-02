@@ -42,6 +42,11 @@ in
       default = builtins.hasAttr "users" host.services;
       description = "Enable user management with LLDAP for DNF SSO";
     };
+    darkone.host.gateway.enableIdm = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "idm" host.services;
+      description = "Enable identity manager (kanidm)";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -58,6 +63,7 @@ in
       dnsmasq.enable = true;
       adguardhome.enable = cfg.enableAdguardhome;
       auth.enable = cfg.enableAuth;
+      idm.enable = cfg.enableIdm;
       users.enable = cfg.enableUsers;
       tailscale = lib.mkIf hasHeadscale {
         enable = true;

@@ -57,26 +57,33 @@ in
         enable = true;
         settings = {
           issuer = params.href;
-          storage.type = "memory";
+          storage.type = "sqlite3";
           web.http = "${params.ip}:${toString srvPort}";
           enablePasswordDB = true;
+          oauth2 = {
+            responseTypes = [ "code" ];
+            skipApprovalScreen = true;
+            alwaysShowLoginScreen = false;
+          };
           staticClients = [
             {
               id = "forgejo-test";
               name = "Forgejo Client";
-              redirectURIs = [ "https://git.${zone.domain}/user/oauth2/dex/callback" ];
+              redirectURIs = [ "https://git.${network.domain}/user/oauth2/dex/callback" ];
               secretFile = config.sops.secrets.tmp-pwd.path;
+              responseTypes = [ "code" ];
             }
             {
               id = "outline";
               name = "Outline Client";
               redirectURIs = [ "https://outline.${zone.domain}/auth/oidc.callback" ];
               secretFile = config.sops.secrets.tmp-pwd.path;
+              responseTypes = [ "code" ];
             }
           ];
           staticPasswords = [
             {
-              email = "test@${zone.domain}";
+              email = "test@${network.domain}";
               hash = network.default.password-hash;
               username = "test";
               userID = "0ccb0be8-d515-4835-8188-a3d20bbcc3d8"; # uuidgen

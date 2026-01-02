@@ -295,13 +295,6 @@ in
           in
           mkIf isValid {
 
-            # Short name -> FQDN
-            # "${vhPrefix}${srv.params.domain}" = mkIf inLocalZone {
-            #   extraConfig = ''
-            #     redir ${srv.params.href}{uri}
-            #   '';
-            # };
-
             # Reverse proxy to the target service
             "${vhPrefix}${srv.params.fqdn}" = {
               extraConfig = ''
@@ -352,7 +345,9 @@ in
                 header User-Agent "*curl*"
                 header User-Agent "*wget*"
                 header User-Agent "*python*"
-                header User-Agent "*Go-http-client*"
+
+                # This one is used by forgejo!
+                #header User-Agent "*Go-http-client*"
 
                 # No User-Agent
                 header User-Agent ""

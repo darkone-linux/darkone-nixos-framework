@@ -41,6 +41,11 @@ in
       default = builtins.hasAttr "users" host.services;
       description = "Enable user management with LLDAP for DNF SSO";
     };
+    darkone.host.hcs.enableIdm = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "idm" host.services;
+      description = "Enable identity manager (kanidm)";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -50,14 +55,15 @@ in
 
     # Enabled services
     darkone.service = {
+      auth.enable = cfg.enableAuth;
+      fail2ban.enable = cfg.enableFail2ban;
       headscale.enable = true;
+      idm.enable = cfg.enableIdm;
       tailscale = lib.mkIf cfg.enableClient {
         enable = true;
         isExitNode = true;
       };
-      auth.enable = cfg.enableAuth;
       users.enable = cfg.enableUsers;
-      fail2ban.enable = cfg.enableFail2ban;
     };
 
     # Zsh aliases

@@ -41,6 +41,7 @@ gateway and all machines on the local network.
 * **enableAdguardhome** `bool` Enable pre-configured Aguard Home service
 * **enableAuth** `bool` Enable authentication service (Authelia SSO)
 * **enableUsers** `bool` Enable user management with LLDAP for DNF SSO
+* **enableIdm** `bool` Enable identity manager (kanidm)
 
 ```nix
 darkone.host.gateway = {
@@ -49,6 +50,7 @@ darkone.host.gateway = {
   enableAdguardhome = builtins.hasAttr "adguardhome" host.services;
   enableAuth = builtins.hasAttr "auth" host.services;
   enableUsers = builtins.hasAttr "users" host.services;
+  enableIdm = builtins.hasAttr "idm" host.services;
 };
 ```
 
@@ -72,6 +74,7 @@ Zsh alias "h" for "headscale".
 * **enableClient** `bool` Enable tailscale client on HCS node (recommande to host services)
 * **enableAuth** `bool` Enable authentication service (Authelia SSO)
 * **enableUsers** `bool` Enable user management with LLDAP for DNF SSO
+* **enableIdm** `bool` Enable identity manager (kanidm)
 
 ```nix
 darkone.host.hcs = {
@@ -80,6 +83,7 @@ darkone.host.hcs = {
   enableClient = true;
   enableAuth = builtins.hasAttr "auth" host.services;
   enableUsers = builtins.hasAttr "users" host.services;
+  enableIdm = builtins.hasAttr "idm" host.services;
 };
 ```
 
@@ -419,10 +423,14 @@ darkone.service.audio.enable = false;
 
 DNF SSO with Authelia.
 
-* **enable** `bool` Enable local SSO with Authelia (and LLDAP)
+* **enable** `bool` Enable local SSO with Authelia
+* **enableLdapBackend** `bool` Enable the LLDAP backend with Authelia
 
 ```nix
-darkone.service.auth.enable = false;
+darkone.service.auth = {
+  enable = false;
+  enableLdapBackend = false;
+};
 ```
 
 <hr/>
@@ -560,6 +568,18 @@ darkone.service.homepage = {
   bookmarks = [ ];
   widgets = [ ];
 };
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.idm
+
+Kanidm (identity manager) DNF Service.
+
+* **enable** `bool` Enable local SSO with Kanidm
+
+```nix
+darkone.service.idm.enable = false;
 ```
 
 <hr/>
@@ -757,6 +777,18 @@ A full-configured outline wiki.
 
 ```nix
 darkone.service.outline.enable = false;
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.postfix
+
+Postfix SMTP Relay.
+
+* **enable** `bool` Enable Postfix SMTP Relay
+
+```nix
+darkone.service.postfix.enable = false;
 ```
 
 <hr/>
