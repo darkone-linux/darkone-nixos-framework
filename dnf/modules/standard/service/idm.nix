@@ -17,6 +17,35 @@ let
   inherit (config.sops) secrets;
   isHcs = dnfLib.isHcs host zone network;
   isMainReplica = isHcs || !network.coordination.enable;
+
+  scopeMaps = {
+    admins = [
+      "openid"
+      "email"
+      "profile"
+      "groups"
+    ];
+    devs = [
+      "openid"
+      "email"
+      "profile"
+      "groups"
+    ];
+    users = [
+      "openid"
+      "email"
+      "profile"
+      "groups"
+    ];
+  };
+  valuesByGroup = {
+    admins = [ "darkone" ];
+    devs = [
+      "darkone"
+      "guest"
+    ];
+  };
+
   defaultParams = {
     title = "Authentification";
     description = "Global authentication for DNF services";
@@ -84,8 +113,8 @@ in
             "kanidm-admin-password"
             "kanidm-tls-chain"
             "kanidm-tls-key"
+            "oidc-secret-outline"
             "oidc-secret-forgejo"
-            #"smtp/password"
           ]
       );
 
@@ -208,12 +237,11 @@ in
           };
 
           #----------------------------------------------------------------------
-          # Oauth2 provisioning
+          # Oauth2 provisioning (TODO: automatiser ?)
           #----------------------------------------------------------------------
 
           systems.oauth2 = {
 
-            # TODO: automatiser
             # https://forgejo.org/docs/next/user/oauth2-provider/
             forgejo = {
               displayName = "Forgejo Git Service";
@@ -232,36 +260,23 @@ in
               originLanding = "https://git.${network.domain}/explore/repos";
 
               # https://forgejo.org/docs/next/user/oauth2-provider/#public-client-pkce
-              allowInsecureClientDisablePkce = true;
+              allowInsecureClientDisablePkce = false;
 
               basicSecretFile = secrets.oidc-secret-forgejo.path;
+              inherit scopeMaps;
+              claimMaps.forgejo.valuesByGroup = valuesByGroup;
+            };
 
-              scopeMaps = {
-                admins = [
-                  "openid"
-                  "email"
-                  "profile"
-                  "groups"
-                ];
-                devs = [
-                  "openid"
-                  "email"
-                  "profile"
-                  "groups"
-                ];
-              };
-
-              claimMaps = {
-                forgejo = {
-                  valuesByGroup = {
-                    admins = [ "darkone" ];
-                    devs = [
-                      "darkone"
-                      "guest"
-                    ];
-                  };
-                };
-              };
+            # Outline WIKI
+            outline = {
+              displayName = "Outline Documentation";
+              imageFile = ./../../../assets/app-icons/outline.svg;
+              originUrl = "https://outline.${zone.domain}/auth/oidc.callback";
+              originLanding = "https://outline.${zone.domain}/";
+              basicSecretFile = secrets.oidc-secret-outline.path;
+              allowInsecureClientDisablePkce = true;
+              inherit scopeMaps;
+              claimMaps.outline.valuesByGroup = valuesByGroup;
             };
           };
 

@@ -53,9 +53,10 @@ in
       #------------------------------------------------------------------------
 
       # password
-      sops.secrets.tmp-pwd = {
+      sops.secrets.oidc-secret-outline-service = {
         mode = "0400";
         owner = "outline";
+        key = "oidc-secret-outline";
       };
 
       services.outline = {
@@ -65,18 +66,12 @@ in
         forceHttps = false;
         storage.storageType = "local";
         oidcAuthentication = {
-          authUrl = "https://dex.${zone.domain}/auth";
-          tokenUrl = "https://dex.${zone.domain}/token";
-          userinfoUrl = "https://dex.${zone.domain}/userinfo";
+          authUrl = "https://idm.${zone.domain}/ui/oauth2";
+          tokenUrl = "https://idm.${zone.domain}/oauth2/token";
+          userinfoUrl = "https://idm.${zone.domain}/oauth2/openid/outline/userinfo";
           clientId = "outline";
-          clientSecretFile = config.sops.secrets.tmp-pwd.path;
-          scopes = [
-            "openid"
-            "email"
-            "profile"
-          ];
-          usernameClaim = "preferred_username";
-          displayName = "dex";
+          clientSecretFile = config.sops.secrets.oidc-secret-outline-service.path;
+          displayName = "idm";
         };
       };
     })

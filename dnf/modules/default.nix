@@ -21,9 +21,7 @@
     ./standard/graphic/virtualbox.nix
     ./standard/service/adguardhome.nix
     ./standard/service/audio.nix
-    ./standard/service/auth.nix
     ./standard/service/beets.nix
-    ./standard/service/dex.nix
     ./standard/service/dnsmasq.nix
     ./standard/service/fail2ban.nix
     ./standard/service/forgejo.nix
@@ -34,7 +32,6 @@
     ./standard/service/immich.nix
     ./standard/service/jellyfin.nix
     ./standard/service/jitsi-meet.nix
-    ./standard/service/keycloak.nix
     ./standard/service/mattermost.nix
     ./standard/service/monitoring.nix
     ./standard/service/ncps.nix
@@ -45,7 +42,6 @@
     ./standard/service/printing.nix
     ./standard/service/restic.nix
     ./standard/service/tailscale.nix
-    ./standard/service/users.nix
     ./standard/service/vaultwarden.nix
     ./standard/system/core.nix
     ./standard/system/documentation.nix

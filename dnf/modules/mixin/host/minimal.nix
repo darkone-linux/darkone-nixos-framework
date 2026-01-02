@@ -152,13 +152,13 @@ in
       #netdata.enable = cfg.enableNetdata;
       #opencloud.enable = cfg.enableOpencloud;
       #syncthing.enable = cfg.enableSyncthing;
-      dex.enable = cfg.enableDex;
+      #dex.enable = cfg.enableDex;
+      #keycloak.enable = cfg.enableKeycloak;
       forgejo.enable = cfg.enableForgejo;
       homepage.enable = cfg.enableHomepage;
       immich.enable = cfg.enableImmich;
       jellyfin.enable = cfg.enableJellyfin;
       jitsi-meet.enable = cfg.enableJitsiMeet;
-      keycloak.enable = cfg.enableKeycloak;
       mattermost.enable = cfg.enableMattermost;
       monitoring.enable = cfg.enableMonitoring;
       nextcloud.enable = cfg.enableNextcloud;

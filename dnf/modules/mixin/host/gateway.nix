@@ -60,11 +60,11 @@ in
 
     # Enabled services
     darkone.service = {
+      #auth.enable = cfg.enableAuth;
+      #users.enable = cfg.enableUsers;
       dnsmasq.enable = true;
       adguardhome.enable = cfg.enableAdguardhome;
-      auth.enable = cfg.enableAuth;
       idm.enable = cfg.enableIdm;
-      users.enable = cfg.enableUsers;
       tailscale = lib.mkIf hasHeadscale {
         enable = true;
         isGateway = true;

@@ -55,7 +55,8 @@ in
 
     # Enabled services
     darkone.service = {
-      auth.enable = cfg.enableAuth;
+      #auth.enable = cfg.enableAuth;
+      #users.enable = cfg.enableUsers;
       fail2ban.enable = cfg.enableFail2ban;
       headscale.enable = true;
       idm.enable = cfg.enableIdm;
@@ -63,7 +64,6 @@ in
         enable = true;
         isExitNode = true;
       };
-      users.enable = cfg.enableUsers;
     };
 
     # Zsh aliases

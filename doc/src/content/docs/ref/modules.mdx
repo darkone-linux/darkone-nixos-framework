@@ -419,22 +419,6 @@ darkone.service.audio.enable = false;
 
 <hr/>
 
-### &#x1F48E; darkone.service.auth
-
-DNF SSO with Authelia.
-
-* **enable** `bool` Enable local SSO with Authelia
-* **enableLdapBackend** `bool` Enable the LLDAP backend with Authelia
-
-```nix
-darkone.service.auth = {
-  enable = false;
-  enableLdapBackend = false;
-};
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.service.beets
 
 Media library management system for obsessive music geeks.
@@ -454,22 +438,6 @@ beets import [dir]
 darkone.service.beets = {
   enable = false;
   enableService = false;
-};
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.dex
-
-A full-configured dex OIDC service.
-
-* **enable** `bool` Enable dex service
-* **enableBootstrap** `bool` Enable bootstrap state to set admin password
-
-```nix
-darkone.service.dex = {
-  enable = false;
-  enableBootstrap = false;
 };
 ```
 
@@ -622,22 +590,6 @@ A full-configured jitsi-meet service.
 
 ```nix
 darkone.service.jitsi-meet.enable = false;
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.keycloak
-
-A full-configured keycloak IAM service.
-
-* **enable** `bool` Enable keycloak service
-* **enableBootstrap** `bool` Enable bootstrap state to set admin password
-
-```nix
-darkone.service.keycloak = {
-  enable = false;
-  enableBootstrap = false;
-};
 ```
 
 <hr/>
@@ -898,23 +850,6 @@ darkone.service.tailscale = {
   isGateway = false;
   isExitNode = false;
 };
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.users
-
-LLDAP service for DNF SSO.
-
-:::note
-In a tailscale context, the master lldap instance is store in the HCS.
-Zones gateways synchronize user database from the headscale coordination server.
-:::
-
-* **enable** `bool` Enable local user management with LLDAP (SSO)
-
-```nix
-darkone.service.users.enable = false;
 ```
 
 <hr/>
