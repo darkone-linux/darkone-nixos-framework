@@ -186,7 +186,10 @@ in
             #   type = "A";
             #   value = "100.64.${z.ipPrefix}";
             # }) hcsClientZones;
-          };
+          }; # dns
+
+          # TODO: https://search.nixos.org/options?channel=unstable&query=services.headscale.settings.oidc
+          #oidc = {};
         };
       };
 

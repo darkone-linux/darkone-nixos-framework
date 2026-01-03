@@ -11,6 +11,7 @@
   pkgs,
   ...
 }:
+with lib;
 let
   cfg = config.darkone.service.idm;
   srvPort = 8443;
@@ -18,6 +19,7 @@ let
   isHcs = dnfLib.isHcs host zone network;
   isMainReplica = isHcs || !network.coordination.enable;
 
+  # https://kanidm.github.io/kanidm/stable/integrations/oauth2.html#configuration
   scopeMaps = {
     admins = [
       "openid"
@@ -56,10 +58,10 @@ let
 in
 {
   options = {
-    darkone.service.idm.enable = lib.mkEnableOption "Enable local SSO with Kanidm";
+    darkone.service.idm.enable = mkEnableOption "Enable local SSO with Kanidm";
   };
 
-  config = lib.mkMerge [
+  config = mkMerge [
 
     #========================================================================
     # DNF Service configuration
@@ -83,7 +85,7 @@ in
       };
     }
 
-    (lib.mkIf cfg.enable {
+    (mkIf cfg.enable {
 
       # Darkone service: enable
       darkone.system.services = {
@@ -115,6 +117,7 @@ in
             "kanidm-tls-key"
             "oidc-secret-outline"
             "oidc-secret-forgejo"
+            "oidc-secret-internal"
           ]
       );
 
@@ -122,7 +125,7 @@ in
       # Kanidm service
       #========================================================================
 
-      systemd.services.kanidmd.serviceConfig = lib.mkIf (!isHcs) {
+      systemd.services.kanidmd.serviceConfig = mkIf (!isHcs) {
 
         # On autorise l'accès en lecture aux chemins système vitaux
         # -> https://github.com/kanidm/kanidm/blob/392a10afbc19759d1431025a2daee0dd903b2733/examples/unixd#L77
@@ -165,7 +168,7 @@ in
           origin = params.href;
 
           # Address and port the LDAP server is bound to. Setting this to null disables the LDAP interface.
-          ldapbindaddress = lib.mkIf isMainReplica "${host.vpnIp}:636";
+          ldapbindaddress = mkIf isMainReplica "${host.vpnIp}:636";
 
           # The role of this server. This affects the replication relationship and thereby available features.
           # -> N'existe pas dans la conf kanidm...
@@ -196,7 +199,7 @@ in
 
         # Configuration du démon Unix pour PAM/NSS (remplace SSSD)
         enablePam = !isHcs;
-        unixSettings = lib.mkIf (!isHcs) {
+        unixSettings = mkIf (!isHcs) {
           default_shell = "/etc/profiles/per-user/nix/bin/zsh";
           pam_allowed_login_groups = [ "posix" ];
         };
@@ -217,7 +220,7 @@ in
           groups = {
             posix = {
               present = true; # default
-              members = lib.mapAttrsToList (name: _: name) users;
+              members = mapAttrsToList (name: _: name) users;
 
               # Optional. Defaults to true if not given.
               # Whether groups should be appended (false) or overwritten (true).
@@ -227,12 +230,12 @@ in
               # to be reflected manually!
               overwriteMembers = true;
             };
-            users.members = lib.mapAttrsToList (name: _: name) users;
-            admins.members = lib.mapAttrsToList (name: _: name) (
-              lib.filterAttrs (_: u: lib.any (g: g == "idm-admins") u.groups) users
+            users.members = mapAttrsToList (name: _: name) users;
+            admins.members = mapAttrsToList (name: _: name) (
+              filterAttrs (_: u: any (g: g == "idm-admins") u.groups) users
             );
-            devs.members = lib.mapAttrsToList (name: _: name) (
-              lib.filterAttrs (_: u: lib.any (g: g == "idm-devs") u.groups) users
+            devs.members = mapAttrsToList (name: _: name) (
+              filterAttrs (_: u: any (g: g == "idm-devs") u.groups) users
             );
           };
 
@@ -278,13 +281,26 @@ in
               inherit scopeMaps;
               claimMaps.outline.valuesByGroup = valuesByGroup;
             };
+
+            # Internal Service (TODO)
+            # internal-service = {
+            #   present = true;
+            #   displayName = "Internal Service Proxy";
+            #   imageFile = ./../../../assets/app-icons/oauth2-proxy.svg;
+            #   originUrl = "https://auth.${zone.domain}/oauth2/callback";
+            #   originLanding = "https://auth.${zone.domain}/";
+            #   basicSecretFile = secrets.oidc-secret-internal.path;
+            #   allowInsecureClientDisablePkce = true;
+            #   inherit scopeMaps;
+            #   claimMaps.outline.valuesByGroup = valuesByGroup;
+            # };
           };
 
           #----------------------------------------------------------------------
           # Users provisioning
           #----------------------------------------------------------------------
 
-          persons = lib.mapAttrs (_: u: {
+          persons = mapAttrs (_: u: {
             present = true; # default
             displayName = u.name;
             mailAddresses = [ u.email ];

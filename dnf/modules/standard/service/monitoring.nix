@@ -11,6 +11,8 @@
 # - A tag "monitoring-node:[zone]" is attached to a monitoring host of the designed zone.
 # :::
 
+# TODO: access with https://search.nixos.org/options?channel=unstable&query=services.oauth2-proxy
+
 {
   lib,
   config,
@@ -80,7 +82,7 @@ in
         };
         proxy.enable = cfg.enable;
         proxy.servicePort = lib.mkIf cfg.enable port.grafana;
-        #proxy.preExtraConfig = "import auth"; # Authelia
+        proxy.isProtected = false; # TODO: true; # Oauth2 Proxy
         proxy.extraConfig = lib.optionalString cfg.enable "redir / /d/rYdddlPWk/node-exporter-full?kiosk";
       };
     }

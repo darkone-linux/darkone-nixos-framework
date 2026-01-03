@@ -37,6 +37,17 @@ let
     inherit (cfg.service.${service.name}) proxy;
   }) network.services;
 
+  # Need Oauth2 proxy if has protected service
+  hasProtectedServices = any (s: s.proxy.isProtected) services;
+
+  # Forward auth : vérifie l'auth à chaque requête
+  protectedServiceForwardSection = ''
+    forward_auth http://127.0.0.1:4180 {
+      uri /oauth2/auth
+      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
+    }
+  '';
+
   # Global services to expose to internet, only for HCS
   globalServices =
     if isHcs then (filter (s: (hasAttr "global" s.params) && s.params.global) services) else [ ];
@@ -208,6 +219,11 @@ in
               default = true;
               description = "Whether to create virtualHost configuration (false for services that manage their own)";
             };
+            proxy.isProtected = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Oauth2 protected service";
+            };
             proxy.defaultService = mkOption {
               type = types.bool;
               default = false;
@@ -281,11 +297,29 @@ in
 
       # Configure virtual hosts (TODO: https + redir permanent)
       virtualHosts = mkMerge (
-        map (
+
+        # Oauth2 proxy
+        # Expose oauth2-proxy publiquement (paths /oauth2/*)
+        # TODO: zonable proxy
+        optional hasProtectedServices {
+          "auth.${network.domain}" = {
+            extraConfig = ''
+              route /oauth2/* {
+                uri strip_prefix /oauth2
+                reverse_proxy http://127.0.0.1:4180
+              }
+              redir / /oauth2/sign_in
+            '';
+          };
+        }
+
+        # Local services virtualhosts
+        ++ map (
           srv:
           let
             isValid = srv.proxy.enable && (srv.proxy.servicePort != null);
             isDefault = isValid && srv.proxy.defaultService;
+            prefix = optionalString srv.proxy.isProtected protectedServiceForwardSection;
             vhPrefix = optionalString (!hasHeadscale) "http://";
             tls = optionalString (hasHeadscale && inLocalZone) ''
               tls {
@@ -298,6 +332,7 @@ in
             # Reverse proxy to the target service
             "${vhPrefix}${srv.params.fqdn}" = {
               extraConfig = ''
+                ${prefix}
                 ${srv.proxy.preExtraConfig}
                 ${tls}reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString srv.proxy.servicePort}
                 ${srv.proxy.extraConfig}
@@ -318,7 +353,8 @@ in
           srv:
           let
             sPort = config.darkone.system.services.service.${srv.name}.proxy.servicePort;
-            noRobots = lib.optionalString srv.params.noRobots ''
+            prefix = optionalString srv.proxy.isProtected protectedServiceForwardSection;
+            noRobots = optionalString srv.params.noRobots ''
               @badbots {
 
                 # Regular bots
@@ -359,10 +395,14 @@ in
           in
           {
             "${srv.params.domain}.${network.domain}" = {
-              extraConfig = noRobots + ''
-                reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString sPort}
-                ${srv.proxy.extraConfig}
-              '';
+              extraConfig =
+                noRobots
+                + prefix
+                + ''
+                  ${srv.proxy.preExtraConfig}
+                  reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString sPort}
+                  ${srv.proxy.extraConfig}
+                '';
             };
           }
         ) globalServices
@@ -376,6 +416,60 @@ in
           };
         }) hostsForTls
       );
+    };
+
+    #--------------------------------------------------------------------------
+    # Oauth2-proxy (protected services)
+    #--------------------------------------------------------------------------
+
+    # TODO: zonable proxy
+
+    sops.secrets.oidc-secret-internal-service = mkIf hasProtectedServices {
+      mode = "0400";
+      owner = "oauth2-proxy";
+      key = "oidc-secret-internal";
+    };
+    sops.secrets.oauth2-proxy-cookie-internal-service = mkIf hasProtectedServices {
+      mode = "0400";
+      owner = "oauth2-proxy";
+    };
+
+    sops.secrets.oidc-secret-internal = mkIf hasProtectedServices { };
+    sops.templates."oauth2-proxy-keyfile" = mkIf hasProtectedServices {
+      mode = "0400";
+      owner = "oauth2-proxy";
+      content = ''
+        OAUTH2_PROXY_CLIENT_SECRET=${config.sops.placeholder.oidc-secret-internal}
+      '';
+    };
+
+    services.oauth2-proxy = mkIf hasProtectedServices {
+      enable = true;
+      httpAddress = "127.0.0.1:4180"; # Écoute locale seulement
+      provider = "oidc";
+      oidcIssuerUrl = "https://idm.${network.domain}/oauth2/openid/internal-service";
+      clientID = "internal-service";
+      keyFile = config.sops.templates.postfix-sasl-password.path;
+      redirectURL = "https://auth.${network.domain}/oauth2/callback"; # Doit matcher Kanidm
+      scope = "openid email";
+      cookie = {
+        #secretFile = config.sops.secrets.oauth2-proxy-cookie-internal-service.path;
+        #domain = ".${network.domain}"; # Pour partager le cookie entre sous-domaines
+        secure = true;
+      };
+
+      setXauthrequest = true; # Envoie X-Auth-Request-User, X-Auth-Request-Email, X-Auth-Request-Groups
+      passAccessToken = false; # Optionnel : passe le token aux upstreams
+      reverseProxy = true; # Important pour forward_auth
+
+      upstream = [ "static://200" ]; # Répond 200 OK après auth (mode forward_auth)
+      extraConfig = {
+        allowed-group = [ "admins" ];
+        client-secret-file = config.sops.secrets.oidc-secret-internal-service.path;
+        cookie-secret-file = config.sops.secrets.oauth2-proxy-cookie-internal-service.path;
+        skip-provider-button = true; # Directement vers Kanidm
+        email-domain = "*"; # Accepte tous les emails
+      };
     };
 
     #--------------------------------------------------------------------------

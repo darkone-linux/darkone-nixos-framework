@@ -28,7 +28,7 @@ in
     #--------------------------------------------------------------------------
 
     sops.secrets."smtp/password" = { };
-    sops.templates."postfix-sasl-password" = {
+    sops.templates.postfix-sasl-password = {
       mode = "0400";
       owner = "postfix";
       content = ''
@@ -67,7 +67,7 @@ in
         # Authentification SASL
         smtp_sasl_auth_enable = lib.mkIf smtp.tls "yes";
         smtp_sasl_security_options = "noanonymous";
-        smtp_sasl_password_maps = "texthash:${config.sops.templates."postfix-sasl-password".path}";
+        smtp_sasl_password_maps = "texthash:${config.sops.templates.postfix-sasl-password.path}";
 
         # Paramètres de sécurité additionnels
         smtputf8_enable = "no";

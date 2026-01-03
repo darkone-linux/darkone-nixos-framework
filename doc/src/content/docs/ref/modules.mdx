@@ -995,6 +995,7 @@ This module is used to register and configure DNF modules:
   * **persist.varDirs** `listOf str` Variable secondary files (log, cache, etc.)
   * **persist.mediaDirs** `listOf str` Service media dirs (pictures, videos, big files)
   * **proxy.enable** `bool` Whether to create virtualHost configuration (false for services that manage their own)
+  * **proxy.isProtected** `bool` Oauth2 protected service
   * **proxy.defaultService** `bool` Is the default service
   * **proxy.servicePort** `nullOr port` Service internal port
   * **proxy.preExtraConfig** `lines` Extra caddy virtualHost configuration (prefix)
@@ -1023,6 +1024,7 @@ darkone.system.services = {
   service.persist.varDirs = [ ];
   service.persist.mediaDirs = [ ];
   service.proxy.enable = true;
+  service.proxy.isProtected = false;
   service.proxy.defaultService = false;
   service.proxy.servicePort = null;
   service.proxy.preExtraConfig = "";
