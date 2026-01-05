@@ -81,17 +81,16 @@ class Generate
             $deployment = (new NixAttrSet())
                 ->set('tags', (new NixList())->populateStrings($this->extractTags($host)));
             $colmena = (new NixAttrSet())->set('deployment', $deployment);
-            $fqdn = isset( $this->config->getZones()[$host->getZone()])
+            $fqdn = (isset($this->config->getZones()[$host->getZone()]) && $host->getZone() !== Configuration::EXTERNAL_ZONE_KEY)
                 ? $host->getHostname()
                     . '.' . $this->config->getZones()[$host->getZone()]->getName()
                     . '.' . $this->config->getNetwork()->getDomain()
-                : null;
+                : $host->getHostname() . '.' . $this->config->getNetwork()->getDomain();
             Configuration::assertUniqName($host->getHostname(), 'host', $host->getZone());
             $newHost = (new NixAttrSet())
                 ->setString('hostname', $host->getHostname())
                 ->setString('zone', $host->getZone())
                 ->setString('fqdn', $fqdn)
-                ->setString('qdn', $host->getHostname() . '.' . $this->config->getNetwork()->getDomain())
                 ->setString('name', $host->getName())
                 ->setString('profile', $host->getProfile())
                 ->setString('ip', $host->getIp())

@@ -6,8 +6,7 @@
   {
     hostname = "hcs";
     zone = "www";
-    fqdn = "hcs.www.darkone.yt";
-    qdn = "hcs.darkone.yt";
+    fqdn = "hcs.darkone.yt";
     name = "Headscale Coordination Server";
     profile = "headscale";
     ip = "222.222.222.222";
@@ -36,7 +35,6 @@
     hostname = "gw-local";
     zone = "local";
     fqdn = "gw-local.local.darkone.yt";
-    qdn = "gw-local.darkone.yt";
     name = "Local gateway";
     profile = "gateway";
     ip = "10.1.1.1";
@@ -73,7 +71,6 @@
     hostname = "homelab";
     zone = "local";
     fqdn = "homelab.local.darkone.yt";
-    qdn = "homelab.darkone.yt";
     name = "My HomeLab";
     profile = "server";
     ip = "10.1.1.2";
@@ -116,7 +113,6 @@
     hostname = "my-laptop";
     zone = "local";
     fqdn = "my-laptop.local.darkone.yt";
-    qdn = "my-laptop.darkone.yt";
     name = "My Laptop";
     profile = "laptop";
     ip = "10.1.2.1";
@@ -163,7 +159,6 @@
     hostname = "usb-key";
     zone = "local";
     fqdn = "usb-key.local.darkone.yt";
-    qdn = "usb-key.darkone.yt";
     name = "My usb key";
     profile = "portable";
     zoneDomain = "local.darkone.yt";
@@ -188,7 +183,6 @@
     hostname = "gw-lan";
     zone = "lan";
     fqdn = "gw-lan.lan.darkone.yt";
-    qdn = "gw-lan.darkone.yt";
     name = "LAN gateway";
     profile = "gateway";
     ip = "10.2.1.1";
@@ -220,7 +214,6 @@
     hostname = "desktop-01";
     zone = "local";
     fqdn = "desktop-01.local.darkone.yt";
-    qdn = "desktop-01.darkone.yt";
     name = "Common Desktop #01";
     profile = "desktop";
     ip = "10.1.3.1";
@@ -264,7 +257,6 @@
     hostname = "desktop-02";
     zone = "local";
     fqdn = "desktop-02.local.darkone.yt";
-    qdn = "desktop-02.darkone.yt";
     name = "Common Desktop #02";
     profile = "desktop";
     ip = "10.1.3.2";
@@ -308,7 +300,6 @@
     hostname = "desktop-03";
     zone = "local";
     fqdn = "desktop-03.local.darkone.yt";
-    qdn = "desktop-03.darkone.yt";
     name = "Common Desktop #03";
     profile = "desktop";
     ip = "10.1.3.3";
@@ -352,7 +343,6 @@
     hostname = "desktop-04";
     zone = "local";
     fqdn = "desktop-04.local.darkone.yt";
-    qdn = "desktop-04.darkone.yt";
     name = "Common Desktop #04";
     profile = "desktop";
     ip = "10.1.3.4";
@@ -396,7 +386,6 @@
     hostname = "lan-01";
     zone = "lan";
     fqdn = "lan-01.lan.darkone.yt";
-    qdn = "lan-01.darkone.yt";
     name = "LAN host #01";
     profile = "lan";
     ip = "10.2.2.1";
@@ -436,7 +425,6 @@
     hostname = "lan-02";
     zone = "lan";
     fqdn = "lan-02.lan.darkone.yt";
-    qdn = "lan-02.darkone.yt";
     name = "LAN host #02";
     profile = "lan";
     ip = "10.2.2.2";
@@ -476,7 +464,6 @@
     hostname = "lan-03";
     zone = "lan";
     fqdn = "lan-03.lan.darkone.yt";
-    qdn = "lan-03.darkone.yt";
     name = "LAN host #03";
     profile = "lan";
     ip = "10.2.2.3";
@@ -516,7 +503,6 @@
     hostname = "lan-04";
     zone = "lan";
     fqdn = "lan-04.lan.darkone.yt";
-    qdn = "lan-04.darkone.yt";
     name = "LAN host #04";
     profile = "lan";
     ip = "10.2.2.4";
@@ -556,7 +542,6 @@
     hostname = "office-laptop";
     zone = "local";
     fqdn = "office-laptop.local.darkone.yt";
-    qdn = "office-laptop.darkone.yt";
     name = "Ordi portable Office Laptop";
     profile = "laptop";
     ip = "10.1.4.1";
@@ -599,7 +584,6 @@
     hostname = "saloon-laptop";
     zone = "local";
     fqdn = "saloon-laptop.local.darkone.yt";
-    qdn = "saloon-laptop.darkone.yt";
     name = "Ordi portable Saloon Laptop";
     profile = "laptop";
     ip = "10.1.4.2";

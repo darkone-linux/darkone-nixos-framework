@@ -205,7 +205,7 @@
             just
             mkpasswd
             moreutils # sponge
-            nixfmt
+            nixfmt-rfc-style
             php84
             php84Packages.composer
             sops
