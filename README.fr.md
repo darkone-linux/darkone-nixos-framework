@@ -133,10 +133,10 @@ Available recipes:
 ### En cours
 
 - [ ] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + configuration multi-postes.
-- [ ] SSO avec [KeyCloak](https://www.keycloak.org) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.keycloak))
+- [ ] SSO avec [Kanidm](https://kanidm.com/) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.idm))
 - [ ] Partages Samba pour windows + linux.
 - [ ] Réseaux sociaux : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost), [matrix](https://nixos.wiki/wiki/Matrix).
-- [ ] Gestion centralisée des utilisateurs avec [KeyCloak](https://www.keycloak.org).
+- [ ] Gestion centralisée des utilisateurs avec [Kanidm](https://kanidm.com/).
 - [ ] Stratégie de sauvegarde avec [Restic](https://restic.net).
 
 ### Planifié

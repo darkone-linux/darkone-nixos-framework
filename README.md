@@ -20,20 +20,47 @@ Thank you!
 
 |   | Feature | Description |
 |---|--------|-------------|
-| ⚙️ | Automated install | Fully automated host installation with [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) and [disko](https://github.com/nix-community/disko) |
+| ⚙️ | Automated install | Fully automated host install/update with [nixos-anywhere](https://github.com/nix-community/nixos-anywhere), [disko](https://github.com/nix-community/disko), [colmena](https://github.com/zhaofengli/colmena) |
 | 👤 | User profiles | User [profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/home/profiles) and [modules](https://darkone-linux.github.io/ref/modules/#home-manager-modules) with [Home Manager](https://github.com/nix-community/home-manager) (admin, gamer, beginner...) |
-| 🔑 | Security | Simple and reliable security strategy powered by [sops-nix](https://github.com/Mic92/sops-nix) |
-| 🧩 | Hosts & Users | [Multi-host and multi-user architecture](https://darkone-linux.github.io/doc/specifications/#the-generator), deployed with [colmena](https://github.com/zhaofengli/colmena) and [just](https://github.com/casey/just) |
-| 🤗 | Smart services | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [KeyCloak](https://www.keycloak.org/) (SSO), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [etc.](https://darkone-linux.github.io/ref/modules/#-darkoneserviceadguardhome) |
-| 📦 | High-level modules | [High-level NixOS modules](https://darkone-linux.github.io/ref/modules), enabled with a simple `.enable = true` |
-| 💾 | 3-2-1 Backups | Comprehensive backup strategy with [Restic](https://restic.net/) or [Borg](https://borgbackup.readthedocs.io/) |
 | 🖥️ | Host profiles | [Host profiles](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop) (servers, containers, network nodes, workstations...) |
 | 🌐 | Tailnet VPN | Simple full-mesh VPN powered by [headscale](https://headscale.net/) / [tailscale](https://tailscale.com/) |
+| 🔑 | Security | Simple and reliable security strategy powered by [sops-nix](https://github.com/Mic92/sops-nix) |
+| 🧩 | Single Sign On | Full SSO strategy with [Kanidm](https://kanidm.com/) (one account for all services) |
+| 🤗 | Smart applications | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [Jellyfin](https://jellyfin.org/), [etc.](https://darkone-linux.github.io/ref/modules/#-darkoneserviceadguardhome) |
+| 📦 | High-level modules | [High-level NixOS modules](https://darkone-linux.github.io/ref/modules), enabled with a simple `.enable = true` |
+| 💾 | 3-2-1 Backups | Comprehensive backup strategy with [Restic](https://restic.net/) |
 | 📐 | Architecture | [Extensible and scalable architecture](https://darkone-linux.github.io/doc/introduction/#structure), consistent and customizable |
 | 🏠 | Home & proxy | [Automated homepage and reverse proxy](https://darkone-linux.github.io/ref/modules/#-darkoneservicehomepage) with [Homepage](https://github.com/gethomepage/homepage) and [Caddy](https://github.com/caddyserver/caddy) |
 | 🛜 | Networking | Zero-conf network plumbing (DNS, DHCP, firewall...) with [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html)  |
 | 🛡️ | Ad-Free web | Secure, ad-free internet with [AdguardHome](https://adguard.com/fr/adguard-home/overview.html) |
-| 💻 | Easy GNOME | Streamlined, easy-to-use [GNOME interface](https://www.gnome.org/) for beginners and experts alike. |
+| 💻 | Easy GNOME | Streamlined, easy-to-use [GNOME interface](https://www.gnome.org/) for beginners and experts alike |
+
+## SSO status
+
+*   **OAuth2** = supports OAuth2 / OIDC
+*   **Native** = no plugin or external component required; can be configured directly
+*   **PKCE** = supports PKCE
+*   **Declarative** = all settings can be declared in NixOS
+*   **OK** = works on my configuration
+
+| Application | OAuth2 | Native | PKCE | Declarative | OK | Comments |
+| --- | --- | --- | --- | --- | --- | --- |
+| Outline | ✅ | ✅ | ✅ | ✅ | ✅ | Works perfectly |
+| Mealie | ✅ | ✅ | ✅ | ✅ | ✅ | Works perfectly |
+| Immich | ✅ | ✅ | ✅ | ⚠️ | ✅ | Non-declarative configuration |
+| Forgejo | ✅ | ✅ | ✅ | ❌ | ✅ | Non-declarative configuration |
+| Nextcloud | ✅ | ❌ | ❌ | ❌ | ✅ | Requires a plugin, non-declarative |
+| OAuth2 Proxy | ✅ | ✅ | ✅ | ✅ | ⚠️ | Multiple backends to resolve |
+| Jellyfin | ✅ | ❌ | ❔ | ❔ | ❔ | Coming soon |
+| Matrix Synapse | ✅ | ❔ | ❔ | ❔ | ❔ | Coming soon |
+| Grafana | ✅ | ❔ | ❔ | ❔ | ❔ | Coming soon |
+| AdGuard Home | ❌ | ❌ | ❌ | ❌ | ❔ | Via OAuth2 Proxy |
+| Vaultwarden | ⚠️ | ❌ | ❔ | ⚠️ | ❌ | OIDCWarden fork, not in nixpkgs |
+| Mattermost | ❌ | ❌ | ❌ | ❌ | ❌ | No more OAuth2 for the TEAM edition |
+
+## Homepage screenshot
+
+![Homepage screenshot](doc/src/assets/homepage-screenshot.png)
 
 ## One configuration, a full network
 
