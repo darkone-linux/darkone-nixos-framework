@@ -39,16 +39,14 @@ gateway and all machines on the local network.
 * **enable** `bool` Enable gateway features for the current host (dhcp, dns, proxy, etc.)
 * **enableFail2ban** `bool` Enable fail2ban service
 * **enableAdguardhome** `bool` Enable pre-configured Aguard Home service
-* **enableAuth** `bool` Enable authentication service (Authelia SSO)
-* **enableUsers** `bool` Enable user management with LLDAP for DNF SSO
+* **enableIdm** `bool` Enable identity manager (kanidm)
 
 ```nix
 darkone.host.gateway = {
   enable = false;
   enableFail2ban = true;
   enableAdguardhome = builtins.hasAttr "adguardhome" host.services;
-  enableAuth = builtins.hasAttr "auth" host.services;
-  enableUsers = builtins.hasAttr "users" host.services;
+  enableIdm = builtins.hasAttr "idm" host.services;
 };
 ```
 
@@ -70,16 +68,14 @@ Zsh alias "h" for "headscale".
 * **enable** `bool` Enable headscale coordination server
 * **enableFail2ban** `bool` Enable fail2ban service
 * **enableClient** `bool` Enable tailscale client on HCS node (recommande to host services)
-* **enableAuth** `bool` Enable authentication service (Authelia SSO)
-* **enableUsers** `bool` Enable user management with LLDAP for DNF SSO
+* **enableIdm** `bool` Enable identity manager (kanidm)
 
 ```nix
 darkone.host.hcs = {
   enable = false;
   enableFail2ban = true;
   enableClient = true;
-  enableAuth = builtins.hasAttr "auth" host.services;
-  enableUsers = builtins.hasAttr "users" host.services;
+  enableIdm = builtins.hasAttr "idm" host.services;
 };
 ```
 
@@ -113,20 +109,15 @@ yaml file so that the service is visible across the entire network!**
 * **enableForgejo** `bool` Enable pre-configured forgejo git forge service
 * **enableImmich** `bool` Enable pre-configured immich service
 * **enableNextcloud** `bool` Enable pre-configured nextcloud service
-* **enableOpencloud** `bool` Enable pre-configured opencloud service
-* **enableNetdata** `bool` Enable pre-configured Netdata service
 * **enableMonitoring** `bool` Enable pre-configured monitoring service (prometheus, grafana)
 * **enableVaultwarden** `bool` Enable pre-configured Vaultwarden service
-* **enableSyncthing** `bool` Enable a syncthing server
 * **enableMattermost** `bool` Enable a mattermost server
-* **enableMatrix** `bool` Enable a matrix server
 * **enableNfsHomeShares** `bool` Enable a DNF nfs home shares
 * **enableJitsiMeet** `bool` Enable jitsi-meet service
-* **enableNavidrome** `bool` Enable Navidrome service
-* **enableKeycloak** `bool` Enable Keycloak service
 * **enableRestic** `bool` Enable Restic service
-* **enableBorg** `bool` Enable Borg service
 * **enableJellyfin** `bool` Enable Jellyfin server
+* **enableOutline** `bool` Enable Outline WIKI service
+* **enableMealie** `bool` Enable Mealie service
 
 ```nix
 darkone.host.minimal = {
@@ -136,20 +127,15 @@ darkone.host.minimal = {
   enableForgejo = attrsets.hasAttrByPath [ "services" "forgejo" ] host;
   enableImmich = attrsets.hasAttrByPath [ "services" "immich" ] host;
   enableNextcloud = attrsets.hasAttrByPath [ "services" "nextcloud" ] host;
-  enableOpencloud = attrsets.hasAttrByPath [ "services" "opencloud" ] host;
-  enableNetdata = attrsets.hasAttrByPath [ "services" "netdata" ] host;
   enableMonitoring = attrsets.hasAttrByPath [ "services" "monitoring" ] host;
   enableVaultwarden = attrsets.hasAttrByPath [ "services" "vaultwarden" ] host;
-  enableSyncthing = attrsets.hasAttrByPath [ "services" "syncthing" ] host;
   enableMattermost = attrsets.hasAttrByPath [ "services" "mattermost" ] host;
-  enableMatrix = attrsets.hasAttrByPath [ "services" "matrix" ] host;
   enableNfsHomeShares = attrsets.hasAttrByPath [ "services" "nfs" ] host;
   enableJitsiMeet = builtins.hasAttr "jitsi-meet" host.services;
-  enableNavidrome = builtins.hasAttr "navidrome" host.services;
-  enableKeycloak = builtins.hasAttr "keycloak" host.services;
   enableRestic = builtins.hasAttr "restic" host.services;
-  enableBorg = builtins.hasAttr "borg" host.services;
   enableJellyfin = builtins.hasAttr "jellyfin" host.services;
+  enableOutline = builtins.hasAttr "outline" host.services;
+  enableMealie = builtins.hasAttr "mealie" host.services;
 };
 ```
 
@@ -411,18 +397,6 @@ darkone.service.audio.enable = false;
 
 <hr/>
 
-### &#x1F48E; darkone.service.auth
-
-DNF SSO with Authelia.
-
-* **enable** `bool` Enable local SSO with Authelia (and LLDAP)
-
-```nix
-darkone.service.auth.enable = false;
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.service.beets
 
 Media library management system for obsessive music geeks.
@@ -442,47 +416,6 @@ beets import [dir]
 darkone.service.beets = {
   enable = false;
   enableService = false;
-};
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.borg
-
-Borg backup module with DNF configuration.
-
-Default directories to backup:
-
-```
-/nfs/srv -> /mnt/backup/borg/nfs/srv
-<services_dirs> -> /mnt/backup/borg/services/
-<db_dumps> -> /mnt/backup/borg/databases/
-```
-
-:::note
-The officially selected solution is Restic, which will be more appropriate and integrated with DNF.
-If you prefer borg, this module is still operational.
-:::
-
-* **enable** `bool` Enable borg backup service
-* **enableDryRun** `bool` Dry Run (try)
-* **repositoryRoot** `str` Main backup target root path
-* **enableServicesBackup** `bool` Backup important files of local services (wip)
-* **enableDatabasesBackup** `bool` Backup local services databases (wip)
-* **enableWaitRemoteFs** `bool` Trigger the borg service only if remote-fs service is started
-* **enableNfsBackup** `bool` Backup the /srv/nfs dir (nfs shared files)
-* **systemDirsPaths** `listOf str` System dirs (exports) to include
-
-```nix
-darkone.service.borg = {
-  enable = false;
-  enableDryRun = false;
-  repositoryRoot = "/mnt/backup/borg";
-  enableServicesBackup = true;
-  enableDatabasesBackup = true;
-  enableWaitRemoteFs = true;
-  enableNfsBackup = config.darkone.service.nfs.enable;
-  systemDirsPaths = [ ];
 };
 ```
 
@@ -585,22 +518,14 @@ darkone.service.homepage = {
 
 <hr/>
 
-### &#x1F48E; darkone.service.httpd
+### &#x1F48E; darkone.service.idm
 
-Nginx httpd simple server with PHP84 (DEPRECATED)
+Kanidm (identity manager) DNF Service.
 
-* **enable** `bool` Enable httpd (nginx)
-* **enableUserDir** `bool` Enable user dir configuration
-* **enablePhp** `bool` Enable PHP 8.4 with useful modules
-* **enableVarWww** `bool` Enable http root on /var/www
+* **enable** `bool` Enable local SSO with Kanidm
 
 ```nix
-darkone.service.httpd = {
-  enable = false;
-  enableUserDir = false;
-  enablePhp = false;
-  enableVarWww = false;
-};
+darkone.service.idm.enable = false;
 ```
 
 <hr/>
@@ -647,34 +572,6 @@ darkone.service.jitsi-meet.enable = false;
 
 <hr/>
 
-### &#x1F48E; darkone.service.keycloak
-
-A full-configured keycloak IAM service.
-
-* **enable** `bool` Enable keycloak service
-* **enableBootstrap** `bool` Enable bootstrap state to set admin password
-
-```nix
-darkone.service.keycloak = {
-  enable = false;
-  enableBootstrap = false;
-};
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.matrix
-
-A matrix (synapse) server. (WIP)
-
-* **enable** `bool` Enable matrix (synapse) service
-
-```nix
-darkone.service.matrix.enable = false;
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.service.mattermost
 
 A mattermost server. (WIP)
@@ -693,6 +590,18 @@ darkone.service.mattermost = {
   enable = false;
   enableSmtp = true;
 };
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.mealie
+
+Mealie Recipe Management
+
+* **enable** `bool` Enable mealie service
+
+```nix
+darkone.service.mealie.enable = false;
 ```
 
 <hr/>
@@ -726,18 +635,6 @@ darkone.service.monitoring = {
 
 <hr/>
 
-### &#x1F48E; darkone.service.navidrome
-
-A full-configured navidrome service.
-
-* **enable** `bool` Enable navidrome service
-
-```nix
-darkone.service.navidrome.enable = false;
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.service.ncps
 
 Nix cache proxy with NCPS module.
@@ -763,23 +660,6 @@ darkone.service.ncps = {
   dataPath = "/var/cache/ncps";
   extraOptions = { };
 };
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.netdata
-
-Netdata supervision module.
-
-:::caution
-The interface of this application contains too much encouragement
-to use the “pro” version, so it is better to use the “monitoring” module.
-:::
-
-* **enable** `bool` Enable netdata application
-
-```nix
-darkone.service.netdata.enable = false;
 ```
 
 <hr/>
@@ -831,14 +711,26 @@ darkone.service.nfs = {
 
 <hr/>
 
-### &#x1F48E; darkone.service.opencloud
+### &#x1F48E; darkone.service.outline
 
-Opencloud full-configured service (wip - not working).
+A full-configured outline wiki.
 
-* **enable** `bool` Enable local opencloud service
+* **enable** `bool` Enable local outline service
 
 ```nix
-darkone.service.opencloud.enable = false;
+darkone.service.outline.enable = false;
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.postfix
+
+Postfix SMTP Relay.
+
+* **enable** `bool` Enable Postfix SMTP Relay
+
+```nix
+darkone.service.postfix.enable = false;
 ```
 
 <hr/>
@@ -869,62 +761,61 @@ darkone.service.printing = {
 
 Restic backup module with DNF configuration.
 
-Default directories to backup:
+:::tip
+Enabling "restic" in host services (config.yaml) launch the REST server.
+Put the local backup settings in nix configuration (machine conf for example).
+
+```nix
+# usr/machines/my-desktop/default.nix
+darkone.service.restic = {
+  enable = true;
+  enableSystemBackup = true;
+};
+:::
+
+Default settings:
 
 ```
-/srv/nfs -> /mnt/backup/restic/srv/nfs
-<services_dirs> -> /mnt/backup/services/<services_dirs>
-<db_dumps> -> /mnt/backup/databases/<db_dumps>
+/srv/nfs/(homes|common) -> /mnt/backup/restic/[host]/srv/nfs
+/mnt/medias/(music|videos) -> /mnt/backup/restic/[host]/mnt/medias
+/ -> /mnt/backup/restic/[host]/system
 ```
 
 * **enable** `bool` Enable main restic backup service
-* **enableServer** `bool` Enable restic rest server
 * **enableDryRun** `bool` Dry Run mode
+* **enableServer** `bool` Enable restic rest server
 * **enableWaitRemoteFs** `bool` Trigger the restic service only if remote-fs service is started
-* **repositoryRoot** `str` Main backup target root path
-* **enableServicesBackup** `bool` Backup important files of local services (persist dirs)
-* **enableServicesVarBackup** `bool` Backup variable files of local services (persist varDirs)
+* **enableSystemBackup** `bool` Enable full system backup excepted /srv, /mnt and cache files
+* **enableExtraSystemBackup** `bool` Enable system backup on extra repository
+* **mainBackupZone** `str` Zone of main backup (to select the right password)
+* **extraBackupZone** `str` Zone of extra backup (to select the right password)
+* **repositoryRoot** `str` Main backup target root path (default is local)
+* **extraRepositoryRoot** `str` Extra backup target root path
 * **enableNfsBackup** `bool` Backup /srv/nfs/&lt;xxx&gt; dirs
+* **enableExtraNfsBackup** `bool` Enable NFS backup on extra repository
 * **nfsPaths** `listOf str` NFS dirs (/srv/nfs/&lt;xxx&gt;) to include in backup configuration
 * **enableMediasBackup** `bool` Backup /srv/medias/&lt;xxx&gt; dirs
+* **enableExtraMediasBackup** `bool` Enable medias backup on extra repository
 * **mediasPaths** `listOf str` NFS dirs (/srv/medias/&lt;xxx&gt;) to include in backup configuration
 
 ```nix
 darkone.service.restic = {
   enable = false;
-  enableServer = false;
   enableDryRun = false;
-  enableWaitRemoteFs = true;
-  repositoryRoot = "rest:nix@backup.${zone.domain}:/mnt/backup/restic/${host.hostname}";
-  enableServicesBackup = true;
-  enableServicesVarBackup = true;
-  enableNfsBackup = config.darkone.service.nfs.enable;
+  enableServer = false;
+  enableWaitRemoteFs = false;
+  enableSystemBackup = false;
+  enableExtraSystemBackup = false;
+  mainBackupZone = zone.name;
+  extraBackupZone = "";
+  repositoryRoot = "rest:restic.${zone.domain}:8888";
+  extraRepositoryRoot = "rest:restic.${network.zones.other-zone.domain}:8888";
+  enableNfsBackup = false;
+  enableExtraNfsBackup = false;
   nfsPaths = [ ];
-  enableMediasBackup = config.darkone.service.jellyfin.enable;
+  enableMediasBackup = false;
+  enableExtraMediasBackup = false;
   mediasPaths = [ ];
-};
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.syncthing
-
-The syncthing service for a device. (WIP)
-
-:::note
-Enable the [home manager syncthing module](https://darkone-linux.github.io/ref/modules/#-darkonehomesyncthing)
-to allow users to use syncthing with their account.
-:::
-
-* **enable** `bool` Enable local syncthing service
-* **ldapServerHost** `str` Users service (lldap)
-* **ldapServerPort** `str` Users service (lldap)
-
-```nix
-darkone.service.syncthing = {
-  enable = false;
-  ldapServerHost = "${zone.gateway.hostname}.${zone.domain}";
-  ldapServerPort = "3890";
 };
 ```
 
@@ -953,31 +844,18 @@ darkone.service.tailscale = {
 
 <hr/>
 
-### &#x1F48E; darkone.service.users
-
-LLDAP service for DNF SSO.
-
-:::note
-In a tailscale context, the master lldap instance is store in the HCS.
-Zones gateways synchronize user database from the headscale coordination server.
-:::
-
-* **enable** `bool` Enable local user management with LLDAP (SSO)
-
-```nix
-darkone.service.users.enable = false;
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.service.vaultwarden
 
 A full-configured vaultwarden server (wip).
 
 * **enable** `bool` Enable local Vaultwarden service
+* **enableSmtp** `bool` Enable SMTP to send emails (recommended)
 
 ```nix
-darkone.service.vaultwarden.enable = false;
+darkone.service.vaultwarden = {
+  enable = false;
+  enableSmtp = true;
+};
 ```
 
 <hr/>
@@ -1107,6 +985,7 @@ This module is used to register and configure DNF modules:
   * **persist.varDirs** `listOf str` Variable secondary files (log, cache, etc.)
   * **persist.mediaDirs** `listOf str` Service media dirs (pictures, videos, big files)
   * **proxy.enable** `bool` Whether to create virtualHost configuration (false for services that manage their own)
+  * **proxy.isProtected** `bool` Oauth2 protected service
   * **proxy.defaultService** `bool` Is the default service
   * **proxy.servicePort** `nullOr port` Service internal port
   * **proxy.preExtraConfig** `lines` Extra caddy virtualHost configuration (prefix)
@@ -1135,6 +1014,7 @@ darkone.system.services = {
   service.persist.varDirs = [ ];
   service.persist.mediaDirs = [ ];
   service.proxy.enable = true;
+  service.proxy.isProtected = false;
   service.proxy.defaultService = false;
   service.proxy.servicePort = null;
   service.proxy.preExtraConfig = "";
@@ -1418,6 +1298,7 @@ darkone.home.music = {
 Common tools for office desktop.
 
 * **enable** `bool` Default useful packages
+* **enableMore** `bool` More alternative packages
 * **enableEssentials** `bool` Essential tools
 * **enableTools** `bool` Little (gnome) tools (iotas, dialect, etc.)
 * **enableProductivity** `bool` Productivity apps (obsidian, time management, projects, etc.)
@@ -1433,6 +1314,7 @@ Common tools for office desktop.
 ```nix
 darkone.home.office = {
   enable = false;
+  enableMore = false;
   enableEssentials = true;
   enableTools = false;
   enableProductivity = false;

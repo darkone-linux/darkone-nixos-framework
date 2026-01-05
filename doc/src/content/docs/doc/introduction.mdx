@@ -7,30 +7,39 @@ sidebar:
 
 import { FileTree } from '@astrojs/starlight/components';
 
-:::tip[This project evolves according to my needs]
-If you'd like to be informed about upcoming versions, please let me know on [GitHub](https://github.com/darkone-linux/darkone-nixos-framework) or by subscribing to my [YouTube channel](https://www.youtube.com/@DarkoneLinux) (FR). Thank you!
-:::
+Darkone NixOS Framework is a working base for a multi-user, multi-services and multi-host configuration.
 
-:::note[Multi-user, multi-host, ready-to-use NixOS configuration with:]
-- A simplified high-level configuration.
-- A consistent and modular structure.
-- Ready-to-use modules, profiles and tools.
-- An organization designed for scalability.
-:::
+- 🔥 [Declarative, reproducible, immutable](https://nixos.org/).
+- 🚀 Ready-to-use [modules](https://darkone-linux.github.io/ref/modules/).
+- ❄️ Simple [main configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml).
+- 🧩 Consistent [structure](https://darkone-linux.github.io/doc/introduction/#structure).
+- 🌎 A [full network](#one-configuration-a-full-network).
 
 ## Features
 
-- **[Multi-hosts and multi-users](https://darkone-linux.github.io/doc/specifications/#the-generator)**, deployed with [colmena](https://github.com/zhaofengli/colmena) and [just](https://github.com/casey/just).
-- **Full automated host install** with [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) and [disko](https://github.com/nix-community/disko).
-- **[Host profiles](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop)** for servers, containers, network nodes and workstations.
-- **[User profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/homes)** with [home manager](https://github.com/nix-community/home-manager) providing complete configurations for various users.
-- **[High-level modules](https://darkone-linux.github.io/ref/modules)** 100% functional with a simple `.enable = true`.
-- **[Extensible](https://darkone-linux.github.io/doc/introduction/#structure)**, scalable, consistent, customizable architecture.
-- **User profiles management** with [home manager](https://github.com/nix-community/home-manager) + [home profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/homes).
-- **[Automatic homepage + reverse proxy](https://darkone-linux.github.io/ref/modules/#-darkoneservicehomepage)** with [Homepage](https://github.com/gethomepage/homepage) and [Caddy](https://github.com/caddyserver/caddy), based on activated services.
-- **[Cross-configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml)** to ensure network consistency.
-- **Easy and reliable security**, a single password to unlock, with [sops](https://github.com/Mic92/sops-nix).
-- **No-conf DNS, DHCP, reverse-proxy, firewall** and all network plumbing.
+|   | Feature | Description |
+|---|--------|-------------|
+| ⚙️ | Quick&nbsp;install | Fully automated host install with [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) & [disko](https://github.com/nix-community/disko)<br />Fully automated host update with [colmena](https://github.com/zhaofengli/colmena) |
+| 👤 | User profiles | User [profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/home/profiles) and [modules](https://darkone-linux.github.io/ref/modules/#home-manager-modules) with [Home Manager](https://github.com/nix-community/home-manager)<br /> Admin, Nix-Admin, Developer, Gamer, Student, Beginner, Child... |
+| 🖥️ | Host&nbsp;profiles | [Profiles for hosts](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop) with the option to customize each one<br />Workstation, Laptop, Server, VM, Gateway, VPN Coordination... |
+| 🌐 | Tailnet&nbsp;VPN | [Full-mesh VPN](https://en.wikipedia.org/wiki/Mesh_networking) with [headscale](https://headscale.net/) + [tailscale](https://tailscale.com/), [independent subnets](#one-configuration-fop-a-full-network) |
+| 🛡️ | Ad-Free web | Secure, ad-free internet with [AdguardHome](https://adguard.com/fr/adguard-home/overview.html) and effective firewall |
+| 🧩 | SSO | Authentication with [Kanidm](https://kanidm.com/): one identity for (almost) all services |
+| 🤗 | Services | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [Jellyfin](https://jellyfin.org/), [etc.](https://darkone-linux.github.io/ref/modules/#-darkoneserviceadguardhome) |
+| 💻 | Clean&nbsp;Gnome | NixOS hosts with streamlined [GNOME UI](https://www.gnome.org/) + stable and useful apps |
+| 💾 | Backups | Robust and widespread 3-2-1 backups with [Restic](https://restic.net/) |
+| 🏠 | Homepage | [Automated homepage](#homepage-screenshot) -> quick access to all configured services |
+
+## Specificities
+
+|   | Specificity | Description |
+|---|--------|-------------|
+| ❄️ | Declarative&nbsp;&&nbsp;Immutable | Fully reproducible configuration based on [Nix / NixOS](https://nixos.org/) |
+| 🔑 | Enhanced&nbsp;security | Simple and reliable security strategy with [sops-nix](https://github.com/Mic92/sops-nix) |
+| 📦 | High-level modules | [High-level NixOS modules](https://darkone-linux.github.io/ref/modules), easy to enable and use |
+| 📐 | Consistent&nbsp;architecture | [Extensible and scalable architecture](https://darkone-linux.github.io/doc/introduction/#structure) |
+| ✴️ | Reverse proxy | Distributed services with [Caddy](https://github.com/caddyserver/caddy) proxies |
+| 🛜 | Auto-networking | Zero-conf network plumbing with [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html)  |
 
 ## Files organisation
 
@@ -50,79 +59,49 @@ The lower layers serve the upper layers.
 
 The configurations are also organized by category:
 
-- **[Standard modules](/ref/modules/#standard-modules)**: Ready-to-use simple modules (just write `.enable = true`).
-- **[Mixin modules](/ref/modules/#mixin-modules)**: Ready-to-use collections of modules with a consistent common configurations.
-- **[Home profiles](/doc/specifications/#create-a-user-profile-example)**: Contains [Home Manager](https://github.com/nix-community/home-manager) configurations for each user profile.
+- **[Standard modules](/ref/modules/#standard-modules)**: Ready-to-use simple modules.
+- **[Mixin modules](/ref/modules/#mixin-modules)**: Ready-to-use collections of modules.
+- **[Home profiles](/doc/specifications/#create-a-user-profile-example)**: [Home Manager](https://github.com/nix-community/home-manager) configurations for each user profile.
 - **[Tools & configurations](/doc/user-manual/#just-commands)**: Manage the generation and quality of Nix declarations.
 
 ### Structure
 
-<FileTree>
+<FileTree collapsed={true}>
 - flake.nix Main flake
 - Justfile Project management with [just](/doc/user-manual/#just-commands)
-- dnf/ Darkone Nixos Framework (modules & common files)
+- dnf/ Framework (modules & common files)
   - modules/ [Framework modules](/ref/modules/)
     - standard Standard nix modules
       - system/ System / Hardware configurations
-        - core.nix
-        - i18n.nix
-        - doc.nix
-        - …
       - console/ CLI applications
       - graphic/ X applications
       - service/ Daemons
       - admin/ Nix administration settings
-        - nix.nix Nix tools
-        - …
       - user/ User management (not home)
-        - nix.nix Nix special user (for deployments)
-        - build.nix Users builder
-        - …
     - mixin Mixin modules
-      - host/ Host profiles
-        - desktop.nix
-        - laptop.nix
-        - server.nix
-        - vm.nix
-        - minimal.nix
-        - …
-      - profile/ Host profiles full-configured
-        - office.nix
-        - advanced.nix
-        - student.nix
-        - …
-    - default.nix Auto-generated default
-  - home Home manager modules
-      - zed.nix
-      - …
-      - default.nix Auto-generated default
-    - profiles/ User profiles (.nix) + home profiles (dirs)
-      - admin.nix Admin user profile (os) config (extragroups, etc.)
-      - admin/ Admin user profile in home manager
-      - advanced.nix
-      - advanced/ Advanced user with development tools
-      - minimal.nix
-      - minimal/ Easy environment
-      - normal.nix
-      - normal/ Non-technical user
-      - chile.nix
-      - child/ Kids softwares and settings
-      - …
+      - host/ Host profiles (desktop, server...)
+      - profile/ Host profiles (student, admin...)
+  - home Home Manager configuration
+    - modules/ HM Modules (features)
+    - profiles/ admin, student, advanced...
 - **usr/** Writable zone for local network project
   - config.yaml [Local configuration](/doc/specifications/#the-configuration-file) used by [the generator](/doc/specifications/#the-generator)
   - modules/ Local nixos modules, the same as `dnf/modules`
-  - home/ Local home modules and profiles, the same as `dnf/home`
+  - home/ Local HM conf, the same as `dnf/home`
   - secrets/ Local secrets file
     - secret.yaml SOPS secrets
-  - machines/ Machine specific configuration by host (hardware)
-  - users/ Home configurations for each user (stateVersion and more)
-- var/
+  - machines/ Host specific confs (hardware, overload)
+  - users/ User specific confs (stateVersion, overload)
+- var/ Generated files
   - log/
-  - generated/ [Generated files](/doc/specifications/#the-generator)
-    - disko/ TMP generated files for host installations
+  - generated/ [Generated nix files](/doc/specifications/#the-generator)
     - hosts.nix Hosts to deploy
     - users.nix Users to deploy
     - network.nix Local network configuration
 - src/ Generator sources
 - doc/ This documentation
 </FileTree>
+
+:::tip[This project evolves according to my needs]
+If you'd like to be informed about upcoming versions, please let me know on [GitHub](https://github.com/darkone-linux/darkone-nixos-framework) or by subscribing to my [YouTube channel](https://www.youtube.com/@DarkoneLinux) (FR). Thank you!
+:::
