@@ -47,6 +47,7 @@ Thank you!
 | --- | --- | --- | --- | --- | --- | --- |
 | Outline | ✅ | ✅ | ✅ | ✅ | ✅ | Works perfectly |
 | Mealie | ✅ | ✅ | ✅ | ✅ | ✅ | Works perfectly |
+| Vaultwarden | ✅ | ✅ | ✅ | ✅ | ✅ | Fill the right e-mail first |
 | Immich | ✅ | ✅ | ✅ | ⚠️ | ✅ | Non-declarative configuration |
 | Forgejo | ✅ | ✅ | ✅ | ❌ | ✅ | Non-declarative configuration |
 | Nextcloud | ✅ | ❌ | ❌ | ❌ | ✅ | Requires a plugin, non-declarative |
@@ -55,7 +56,6 @@ Thank you!
 | Matrix Synapse | ✅ | ❔ | ❔ | ❔ | ❔ | Coming soon |
 | Grafana | ✅ | ❔ | ❔ | ❔ | ❔ | Coming soon |
 | AdGuard Home | ❌ | ❌ | ❌ | ❌ | ❔ | Via OAuth2 Proxy |
-| Vaultwarden | ⚠️ | ❌ | ❔ | ⚠️ | ❌ | OIDCWarden fork, not in nixpkgs |
 | Mattermost | ❌ | ❌ | ❌ | ❌ | ❌ | No more OAuth2 for the TEAM edition |
 
 ## Homepage screenshot
