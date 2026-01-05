@@ -141,7 +141,7 @@ in
       (lib.mkIf cfg.enableTools fastfetch)
       (lib.mkIf cfg.enableTools presenterm)
       (lib.mkIf cfg.enableTools pv)
-      (lib.mkIf cfg.enableTools ranger)
+      #(lib.mkIf cfg.enableTools ranger) # -> yazi
     ];
 
     #============================================================================

@@ -2,6 +2,7 @@
 
 {
   pkgs,
+  pkgs-stable,
   lib,
   config,
   osConfig,
@@ -50,14 +51,13 @@ in
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) chess-clock)
       #(lib.mkIf (cfg.enableChild || cfg.enableTeenager) chessx) # write in ~/Documents
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) cuyo) # Tetris like
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) endless-sky) # Sandbox-style space exploration game
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-2048)
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) pkgs-stable.gnome-2048)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-chess)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-mahjongg)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-mines)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-solanum) # Pomodoro timer
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-sudoku)
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) lenmus) # LenMus Phonascus is a program for learning music
+      #(lib.mkIf (cfg.enableChild || cfg.enableTeenager) lenmus) # LenMus Phonascus is a program for learning music (vieillot)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) leocad) # Virt lego
       #(lib.mkIf (cfg.enableChild || cfg.enableTeenager) ltris) # Tetris (bof)
       (lib.mkIf (cfg.enableMore && cfg.enableCli) _2048-in-terminal)
