@@ -89,6 +89,7 @@ in
 
           DOMAIN = params.href;
           SIGNUPS_ALLOWED = false; # TODO: SSO (change to true the first time)
+          SIGNUPS_DOMAINS_WHITELIST = network.domain;
           ROCKET_ADDRESS = params.ip;
           ROCKET_PORT = 8222;
           ROCKET_LOG = "critical";
@@ -102,15 +103,11 @@ in
           SMTP_FROM = "no-reply@${network.domain}";
           SMTP_FROM_NAME = "Vaultwarden ${params.fqdn}";
 
-          # TODO: fonctionnera avec https://github.com/Timshel/OIDCWarden
           # SSO
-          # SSO_ENABLED = true;
-          # SSO_ONLY = false;
-          # SSO_AUTHORITY = "https://idm.${network.domain}/oauth2/openid/vaultwarden";
-          # SSO_SCOPES = "openid email profile";
-          # SSO_PKCE = true;
-          # SSO_CLIENT_ID = "vaultwarden";
-          # SSO_SYNC_ON_REFRESH = true;
+          SSO_ENABLED = true;
+          SSO_AUTHORITY = "https://idm.${network.domain}/oauth2/openid/vaultwarden";
+          SSO_CLIENT_ID = "vaultwarden";
+          SSO_ALLOW_UNKNOWN_EMAIL_VERIFICATION = true;
         };
 
         # TODO: local backup strategy

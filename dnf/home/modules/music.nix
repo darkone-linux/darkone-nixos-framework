@@ -98,9 +98,9 @@ in
     # MPD
     services.mpd = lib.mkIf cfg.enableMpd {
       enable = true;
+      enableSessionVariables = true;
       network = {
         listenAddress = "any";
-        #startWhenNeeded = true;
       };
       extraConfig = ''
         audio_output {
@@ -133,6 +133,10 @@ in
       mpd.host = "127.0.0.1";
     };
     programs.ncmpcpp.enable = cfg.enableMpd;
+    home.sessionVariables = lib.mkIf cfg.enableMpd {
+      MPD_HOST = config.services.mpd.network.listenAddress;
+      MPD_PORT = toString config.services.mpd.network.port;
+    };
 
     # TODO: Users in audio group
     # LETIN: all-users = builtins.attrNames config.users.users;

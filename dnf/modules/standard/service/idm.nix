@@ -129,7 +129,7 @@ in
             "oidc-secret-immich"
             "oidc-secret-nextcloud"
             "oidc-secret-mealie"
-            #"oidc-secret-vaultwarden"
+            "oidc-secret-vaultwarden"
           ]
       );
 
@@ -281,8 +281,6 @@ in
 
               basicSecretFile = secrets.oidc-secret-forgejo.path;
               inherit scopeMaps;
-              #inherit claimMaps;
-              #claimMaps.forgejo.valuesByGroup = valuesByGroup;
             };
 
             # Outline WIKI
@@ -294,8 +292,6 @@ in
               basicSecretFile = secrets.oidc-secret-outline.path;
               allowInsecureClientDisablePkce = true;
               inherit scopeMaps;
-              #inherit claimMaps;
-              #claimMaps.outline.valuesByGroup = valuesByGroup;
             };
 
             # Immich
@@ -311,8 +307,6 @@ in
               basicSecretFile = secrets.oidc-secret-immich.path;
               allowInsecureClientDisablePkce = false;
               inherit scopeMaps;
-              #inherit claimMaps;
-              #claimMaps.outline.valuesByGroup = valuesByGroup;
             };
 
             # Nextcloud
@@ -329,8 +323,6 @@ in
               basicSecretFile = secrets.oidc-secret-nextcloud.path;
               allowInsecureClientDisablePkce = true;
               inherit scopeMaps;
-              #inherit claimMaps;
-              #claimMaps.outline.valuesByGroup = valuesByGroup;
             };
 
             # Mealie
@@ -343,26 +335,19 @@ in
               ];
               originLanding = "https://mealie.${network.domain}/";
               basicSecretFile = secrets.oidc-secret-mealie.path;
-              #allowInsecureClientDisablePkce = true;
               inherit scopeMaps;
-              #inherit claimMaps;
-              #claimMaps.outline.valuesByGroup = valuesByGroup;
             };
 
             # Vaultwarden
-            # TODO: fonctionnera avec https://github.com/Timshel/OIDCWarden
-            # https://github.com/Timshel/OIDCWarden/blob/main/SSO.md
-            # vaultwarden = {
-            #   displayName = "Vaultwarden";
-            #   imageFile = ./../../../assets/app-icons/vaultwarden.svg;
-            #   originUrl = [ "https://vaultwarden.${network.domain}/identity/connect/oidc-signin" ];
-            #   originLanding = "https://vaultwarden.${network.domain}/";
-            #   basicSecretFile = secrets.oidc-secret-vaultwarden.path;
-            #   #allowInsecureClientDisablePkce = true;
-            #   inherit scopeMaps;
-            #   #inherit claimMaps;
-            #   #claimMaps.outline.valuesByGroup = valuesByGroup;
-            # };
+            # -> https://github.com/dani-garcia/vaultwarden/wiki/Enabling-SSO-support-using-OpenId-Connect
+            vaultwarden = {
+              displayName = "Vaultwarden";
+              imageFile = ./../../../assets/app-icons/vaultwarden.svg;
+              originUrl = [ "https://vaultwarden.${network.domain}/identity/connect/oidc-signin" ];
+              originLanding = "https://vaultwarden.${network.domain}/";
+              basicSecretFile = secrets.oidc-secret-vaultwarden.path;
+              inherit scopeMaps;
+            };
 
             # Internal Service (TODO)
             # internal-service = {

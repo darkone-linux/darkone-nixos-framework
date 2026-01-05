@@ -77,7 +77,7 @@ in
           enable = true;
           cache = {
             inherit (cfg) dataPath;
-            maxSize = "20G";
+            maxSize = "40G";
             hostName = "${host.hostname}.${zone.domain}";
             lru.schedule = "0 2 * * *";
             allowPutVerb = true;

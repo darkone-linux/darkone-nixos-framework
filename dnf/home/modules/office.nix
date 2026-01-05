@@ -81,6 +81,8 @@ in
 
     # Packages
     home.packages = with pkgs; [
+      #(mkIf cfg.enableProductivity super-productivity) # Time processing -> build error
+
       (mkIf (cfg.enableCommunication && cfg.enableMore) tuba) # Browse the Fediverse
       (mkIf (cfg.enableCommunication && cfg.enableMore) zoom-us)
       (mkIf (cfg.enableCommunication && hasMattermost) mattermost-desktop)
@@ -96,7 +98,6 @@ in
       (mkIf cfg.enableOffice hunspell)
       (mkIf cfg.enableOffice hunspellDicts.${cfg.huntspellLang})
       (mkIf cfg.enableOffice libreoffice-fresh) # Force visible icon theme
-      (mkIf cfg.enableProductivity super-productivity) # Time processing
       (mkIf cfg.enableTools authenticator) # Two-factor authentication code generator
       (mkIf cfg.enableTools dialect) # translate
       (mkIf cfg.enableTools gnome-characters)
