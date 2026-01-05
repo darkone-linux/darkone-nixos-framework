@@ -349,6 +349,7 @@ in
         ) localZoneServices
 
         # Global (public) services access on HCS
+        # TODO: Accès privé / réservé pour idm.domain.tld
         ++ map (
           srv:
           let
@@ -380,7 +381,9 @@ in
                 # Suspect User-agents
                 header User-Agent "*curl*"
                 header User-Agent "*wget*"
-                header User-Agent "*python*"
+
+                # Used by Maelie
+                #header User-Agent "*python*"
 
                 # This one is used by forgejo!
                 #header User-Agent "*Go-http-client*"

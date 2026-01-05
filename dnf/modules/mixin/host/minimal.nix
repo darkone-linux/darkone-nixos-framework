@@ -120,6 +120,11 @@ in
       default = builtins.hasAttr "outline" host.services;
       description = "Enable Outline WIKI service";
     };
+    darkone.host.minimal.enableMealie = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "mealie" host.services;
+      description = "Enable Mealie service";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -160,6 +165,7 @@ in
       jellyfin.enable = cfg.enableJellyfin;
       jitsi-meet.enable = cfg.enableJitsiMeet;
       mattermost.enable = cfg.enableMattermost;
+      mealie.enable = cfg.enableMealie;
       monitoring.enable = cfg.enableMonitoring;
       nextcloud.enable = cfg.enableNextcloud;
       outline.enable = cfg.enableOutline;

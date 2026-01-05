@@ -63,10 +63,15 @@ in
 
       # Données d'environnement critiques hébergée par sops
       # https://github.com/NixOS/nixpkgs/blob/a6531044f6d0bef691ea18d4d4ce44d0daa6e816/nixos/modules/services/security/vaultwarden/default.nix#L11
-      sops.secrets.vaultwarden-env = lib.mkIf cfg.enableSmtp {
+      sops.secrets."smtp/password" = { };
+      sops.secrets.oidc-secret-vaultwarden = { };
+      sops.templates.vaultwarden-env = {
+        content = ''
+          SMTP_PASSWORD=${config.sops.placeholder."smtp/password"}
+          SSO_CLIENT_SECRET=${config.sops.placeholder.oidc-secret-vaultwarden}
+        '';
         mode = "0400";
-        owner = config.users.users.vaultwarden.name;
-        group = config.users.groups.vaultwarden.name;
+        owner = "vaultwarden";
       };
 
       #------------------------------------------------------------------------
@@ -79,7 +84,7 @@ in
       # The service
       services.vaultwarden = {
         enable = true;
-        environmentFile = lib.mkIf cfg.enableSmtp config.sops.secrets.vaultwarden-env.path;
+        environmentFile = config.sops.templates.vaultwarden-env.path;
         config = {
 
           DOMAIN = params.href;
@@ -96,6 +101,16 @@ in
           SMTP_SECURITY = lib.mkIf network.smtp.tls "force_tls";
           SMTP_FROM = "no-reply@${network.domain}";
           SMTP_FROM_NAME = "Vaultwarden ${params.fqdn}";
+
+          # TODO: fonctionnera avec https://github.com/Timshel/OIDCWarden
+          # SSO
+          SSO_ENABLED = true;
+          SSO_ONLY = false;
+          SSO_AUTHORITY = "https://idm.${network.domain}/oauth2/openid/vaultwarden";
+          SSO_SCOPES = "openid email profile";
+          SSO_PKCE = true;
+          SSO_CLIENT_ID = "vaultwarden";
+          SSO_SYNC_ON_REFRESH = true;
         };
 
         # TODO: local backup strategy

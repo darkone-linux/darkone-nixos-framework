@@ -168,6 +168,8 @@ in
             notes
             richdocuments
             spreed
+            #user_oidc # Ne marche pas
+            sociallogin
             ;
         };
 
@@ -206,6 +208,12 @@ in
           mail_smtpsecure = lib.optionalString network.smtp.tls "ssl";
           mail_smtptimeout = 30;
           mail_from_address = "noreply";
+
+          # user_oidc = {
+          #   "httpclient.allowselfsigned" = true;
+          #   "default_token_endpoint_auth_method" = "client_secret_post";
+          #   "login_label" = "Se connecter avec l'IDM";
+          # };
         };
       };
 

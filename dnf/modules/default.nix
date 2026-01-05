@@ -33,6 +33,7 @@
     ./standard/service/jellyfin.nix
     ./standard/service/jitsi-meet.nix
     ./standard/service/mattermost.nix
+    ./standard/service/mealie.nix
     ./standard/service/monitoring.nix
     ./standard/service/ncps.nix
     ./standard/service/nextcloud.nix

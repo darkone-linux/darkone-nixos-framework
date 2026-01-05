@@ -20,33 +20,41 @@ let
   isMainReplica = isHcs || !network.coordination.enable;
 
   # https://kanidm.github.io/kanidm/stable/integrations/oauth2.html#configuration
-  scopeMaps = {
-    admins = [
-      "openid"
-      "email"
-      "profile"
-      "groups"
-    ];
-    devs = [
-      "openid"
-      "email"
-      "profile"
-      "groups"
-    ];
+  scopeMaps = rec {
     users = [
       "openid"
       "email"
       "profile"
       "groups"
     ];
+    admins = users;
+    posix = users;
+    devs = users;
   };
-  valuesByGroup = {
-    admins = [ "darkone" ];
-    devs = [
-      "darkone"
-      "guest"
-    ];
-  };
+  # claimMaps = [
+  #   {
+  #     claims = {
+  #       profile = [
+  #         "name"
+  #         "family_name"
+  #         "given_name"
+  #         "nickname"
+  #         "preferred_username"
+  #         "profile"
+  #         "picture"
+  #         "website"
+  #         "gender"
+  #         "zoneinfo"
+  #         "locale"
+  #         "displayname"
+  #       ];
+  #       email = [
+  #         "email"
+  #         "email_verified"
+  #       ];
+  #     };
+  #   }
+  # ];
 
   defaultParams = {
     title = "Authentification";
@@ -118,6 +126,10 @@ in
             "oidc-secret-outline"
             "oidc-secret-forgejo"
             "oidc-secret-internal"
+            "oidc-secret-immich"
+            "oidc-secret-nextcloud"
+            "oidc-secret-mealie"
+            #"oidc-secret-vaultwarden"
           ]
       );
 
@@ -240,8 +252,10 @@ in
           };
 
           #----------------------------------------------------------------------
-          # Oauth2 provisioning (TODO: automatiser ?)
+          # Oauth2 provisioning (TODO: automatiser... URLs, etc.)
           #----------------------------------------------------------------------
+
+          # TODO: affiner -> https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
 
           systems.oauth2 = {
 
@@ -267,20 +281,88 @@ in
 
               basicSecretFile = secrets.oidc-secret-forgejo.path;
               inherit scopeMaps;
-              claimMaps.forgejo.valuesByGroup = valuesByGroup;
+              #inherit claimMaps;
+              #claimMaps.forgejo.valuesByGroup = valuesByGroup;
             };
 
             # Outline WIKI
             outline = {
               displayName = "Outline Documentation";
               imageFile = ./../../../assets/app-icons/outline.svg;
-              originUrl = "https://outline.${zone.domain}/auth/oidc.callback";
-              originLanding = "https://outline.${zone.domain}/";
+              originUrl = "https://outline.${network.domain}/auth/oidc.callback";
+              originLanding = "https://outline.${network.domain}/";
               basicSecretFile = secrets.oidc-secret-outline.path;
               allowInsecureClientDisablePkce = true;
               inherit scopeMaps;
-              claimMaps.outline.valuesByGroup = valuesByGroup;
+              #inherit claimMaps;
+              #claimMaps.outline.valuesByGroup = valuesByGroup;
             };
+
+            # Immich
+            immich = {
+              displayName = "Immich";
+              imageFile = ./../../../assets/app-icons/immich.svg;
+              originUrl = [
+                "https://photos.${network.domain}/auth/login"
+                "https://photos.${network.domain}/user-settings"
+                "app.immich:///oauth-callback"
+              ];
+              originLanding = "https://photos.${network.domain}/";
+              basicSecretFile = secrets.oidc-secret-immich.path;
+              allowInsecureClientDisablePkce = false;
+              inherit scopeMaps;
+              #inherit claimMaps;
+              #claimMaps.outline.valuesByGroup = valuesByGroup;
+            };
+
+            # Nextcloud
+            nextcloud = {
+              displayName = "Nextcloud";
+              imageFile = ./../../../assets/app-icons/nextcloud.svg;
+              originUrl = [
+                "https://cloud.${network.domain}/login"
+                "https://cloud.${network.domain}/apps/sociallogin/custom_oauth2/IDM"
+                "https://cloud.${network.domain}/apps/sociallogin/custom_oidc/IDM"
+                "https://cloud.${network.domain}/ui/oauth2"
+              ];
+              originLanding = "https://cloud.${network.domain}/";
+              basicSecretFile = secrets.oidc-secret-nextcloud.path;
+              allowInsecureClientDisablePkce = true;
+              inherit scopeMaps;
+              #inherit claimMaps;
+              #claimMaps.outline.valuesByGroup = valuesByGroup;
+            };
+
+            # Mealie
+            mealie = {
+              displayName = "Mealie";
+              imageFile = ./../../../assets/app-icons/mealie.svg;
+              originUrl = [
+                "https://mealie.${network.domain}/login"
+                "https://mealie.${network.domain}/login?direct=1"
+              ];
+              originLanding = "https://mealie.${network.domain}/";
+              basicSecretFile = secrets.oidc-secret-mealie.path;
+              #allowInsecureClientDisablePkce = true;
+              inherit scopeMaps;
+              #inherit claimMaps;
+              #claimMaps.outline.valuesByGroup = valuesByGroup;
+            };
+
+            # Vaultwarden
+            # TODO: fonctionnera avec https://github.com/Timshel/OIDCWarden
+            # https://github.com/Timshel/OIDCWarden/blob/main/SSO.md
+            # vaultwarden = {
+            #   displayName = "Vaultwarden";
+            #   imageFile = ./../../../assets/app-icons/vaultwarden.svg;
+            #   originUrl = [ "https://vaultwarden.${network.domain}/identity/connect/oidc-signin" ];
+            #   originLanding = "https://vaultwarden.${network.domain}/";
+            #   basicSecretFile = secrets.oidc-secret-vaultwarden.path;
+            #   #allowInsecureClientDisablePkce = true;
+            #   inherit scopeMaps;
+            #   #inherit claimMaps;
+            #   #claimMaps.outline.valuesByGroup = valuesByGroup;
+            # };
 
             # Internal Service (TODO)
             # internal-service = {

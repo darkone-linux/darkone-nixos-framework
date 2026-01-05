@@ -133,6 +133,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableJellyfin** `bool` Enable Jellyfin server
 * **enableDex** `bool` Enable Dex service
 * **enableOutline** `bool` Enable Outline WIKI service
+* **enableMealie** `bool` Enable Mealie service
 
 ```nix
 darkone.host.minimal = {
@@ -158,6 +159,7 @@ darkone.host.minimal = {
   enableJellyfin = builtins.hasAttr "jellyfin" host.services;
   enableDex = builtins.hasAttr "dex" host.services;
   enableOutline = builtins.hasAttr "outline" host.services;
+  enableMealie = builtins.hasAttr "mealie" host.services;
 };
 ```
 
@@ -612,6 +614,18 @@ darkone.service.mattermost = {
   enable = false;
   enableSmtp = true;
 };
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.mealie
+
+Mealie Recipe Management
+
+* **enable** `bool` Enable mealie service
+
+```nix
+darkone.service.mealie.enable = false;
 ```
 
 <hr/>
