@@ -3,37 +3,41 @@
 - [The official documentation](https://darkone-linux.github.io)
 - [The french readme with a todo list](README.fr.md)
 
-## A multi-user, multi-host, ready-to-use NixOS configuration
+## A multi-user, multi-services & multi-host configuration
 
-- 🚀 Ready-to-use [modules, profiles and tools](https://darkone-linux.github.io/ref/modules/).
-- ❄️ Simple [high-level configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml).
-- 🧩 Modular [structure](https://darkone-linux.github.io/doc/introduction/#structure).
-- 🌎 One config for a [full network](#one-configuration-a-full-network).
+- 🔥 [Declarative, reproducible, immutable](https://nixos.org/).
+- 🚀 Ready-to-use [modules](https://darkone-linux.github.io/ref/modules/).
+- ❄️ Simple [main configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml).
+- 🧩 Consistent [structure](https://darkone-linux.github.io/doc/introduction/#structure).
+- 🌎 A [full network](#one-configuration-a-full-network).
 
-This project is constantly evolving according to my needs.
-If you'd like to be informed about upcoming stable versions, 
-please let me know on [GitHub](https://github.com/darkone-linux/darkone-nixos-framework) 
-or by subscribing to my [YouTube channel](https://www.youtube.com/@DarkoneLinux) (FR).
-Thank you!
+This project is constantly evolving according to my needs. If you'd like to be informed about upcoming stable versions, please let me know on [GitHub](https://github.com/darkone-linux/darkone-nixos-framework) or by subscribing to my [YouTube channel](https://www.youtube.com/@DarkoneLinux) (FR). Thank you!
 
 ## Main features
 
 |   | Feature | Description |
 |---|--------|-------------|
-| ⚙️ | Automated install | Fully automated host install/update with [nixos-anywhere](https://github.com/nix-community/nixos-anywhere), [disko](https://github.com/nix-community/disko), [colmena](https://github.com/zhaofengli/colmena) |
+| ⚙️ | Automated install | Fully automated host install / update with [nixos-anywhere](https://github.com/nix-community/nixos-anywhere), [disko](https://github.com/nix-community/disko) & [colmena](https://github.com/zhaofengli/colmena) |
 | 👤 | User profiles | User [profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/home/profiles) and [modules](https://darkone-linux.github.io/ref/modules/#home-manager-modules) with [Home Manager](https://github.com/nix-community/home-manager) (admin, gamer, beginner...) |
 | 🖥️ | Host profiles | [Host profiles](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop) (servers, containers, network nodes, workstations...) |
-| 🌐 | Tailnet VPN | Simple full-mesh VPN powered by [headscale](https://headscale.net/) / [tailscale](https://tailscale.com/) |
-| 🔑 | Security | Simple and reliable security strategy powered by [sops-nix](https://github.com/Mic92/sops-nix) |
-| 🧩 | Single Sign On | Full SSO strategy with [Kanidm](https://kanidm.com/) (one account for all services) |
-| 🤗 | Smart applications | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [Jellyfin](https://jellyfin.org/), [etc.](https://darkone-linux.github.io/ref/modules/#-darkoneserviceadguardhome) |
-| 📦 | High-level modules | [High-level NixOS modules](https://darkone-linux.github.io/ref/modules), enabled with a simple `.enable = true` |
-| 💾 | 3-2-1 Backups | Comprehensive backup strategy with [Restic](https://restic.net/) |
-| 📐 | Architecture | [Extensible and scalable architecture](https://darkone-linux.github.io/doc/introduction/#structure), consistent and customizable |
-| 🏠 | Home & proxy | [Automated homepage and reverse proxy](https://darkone-linux.github.io/ref/modules/#-darkoneservicehomepage) with [Homepage](https://github.com/gethomepage/homepage) and [Caddy](https://github.com/caddyserver/caddy) |
-| 🛜 | Networking | Zero-conf network plumbing (DNS, DHCP, firewall...) with [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html)  |
-| 🛡️ | Ad-Free web | Secure, ad-free internet with [AdguardHome](https://adguard.com/fr/adguard-home/overview.html) |
-| 💻 | Easy GNOME | Streamlined, easy-to-use [GNOME interface](https://www.gnome.org/) for beginners and experts alike |
+| 🌐 | Tailnet VPN | [Full-mesh VPN](https://en.wikipedia.org/wiki/Mesh_networking) with [headscale](https://headscale.net/) + [tailscale](https://tailscale.com/), [independent subnets](#one-configuration-fop-a-full-network) |
+| 🛡️ | Ad-Free web | Secure, ad-free internet with [AdguardHome](https://adguard.com/fr/adguard-home/overview.html) and effective firewall |
+| 🧩 | Single Sign On | SSO strategy with [Kanidm](https://kanidm.com/): one identity for (almost) all services |
+| 🤗 | Smart services | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [Jellyfin](https://jellyfin.org/), [etc.](https://darkone-linux.github.io/ref/modules/#-darkoneserviceadguardhome) |
+| 💻 | Clean Gnome | NixOS hosts with streamlined [GNOME UI](https://www.gnome.org/) + stable and useful apps |
+| 💾 | 3-2-1 Backups | Robust, simplified, and widespread backups with [Restic](https://restic.net/) |
+| 🏠 | Homepage | [Automated homepage](#homepage-screenshot) -> quick access to all configured services |
+
+## Under the hood
+
+|   | Specificity | Description |
+|---|--------|-------------|
+| ❄️ | Declarative & Immutable | Fully reproducible configuration based on [Nix / NixOS](https://nixos.org/) and its ecosystem |
+| 🔑 | Enhanced security | Simple and reliable security strategy powered by [sops-nix](https://github.com/Mic92/sops-nix) |
+| 📦 | High-level modules | [High-level NixOS modules](https://darkone-linux.github.io/ref/modules), easy to enable and configure |
+| 📐 | Consistent architecture | [Extensible and scalable architecture](https://darkone-linux.github.io/doc/introduction/#structure), consistent and customizable |
+| ✴️ | Reverse proxy | Services distributed across network servers through [Caddy](https://github.com/caddyserver/caddy) proxies |
+| 🛜 | Auto-networking | Zero-conf network plumbing (DNS, DHCP, firewall...) with [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html)  |
 
 ## SSO status
 
@@ -62,13 +66,15 @@ Thank you!
 
 ![Homepage screenshot](doc/src/assets/homepage-screenshot.png)
 
-## One configuration, a full network
+## One configuration fop a full network
 
 ![New network architecture](doc/src/assets/reseau-darkone-2.png)
 
 ## Just commands
 
-```
+Main command for DNF administrator:
+
+```shell
 Available recipes:
     [apply]
     apply on what='switch'                         # Apply configuration using colmena [alias: a]

@@ -1,26 +1,74 @@
 # Darkone NixOS Framework
 
 > [!NOTE]
-> A [documentation](https://darkone-linux.github.io) is available.
+> La [documentation](https://darkone-linux.github.io) en ligne.
 
-Une infrastructure réseau déclarative complète&nbsp;:
+## Une configuration multi-utilisateur, multi-hôte et multi-service
 
-- Structure cohérente et modulaire.
-- Outils préconfigurés et fonctionnels.
-- Organisation pensée pour la scalabilité.
+- 🔥 [Déclaratif, reproductible, immuable](https://nixos.org/).
+- 🚀 [Modules](https://darkone-linux.github.io/ref/modules/) prêts à l’emploi.  
+- ❄️ [Configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml) simple.  
+- 🧩 [Organisation](https://darkone-linux.github.io/doc/introduction/#structure) cohérente.  
+- 🌎 Un [réseau complet](#one-configuration-a-full-network).
 
-## Fonctionnalités
+Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé des prochaines versions stables, merci de me le faire savoir sur [GitHub](https://github.com/darkone-linux/darkone-nixos-framework) ou en vous abonnant à ma [chaîne YouTube](https://www.youtube.com/@DarkoneLinux) (FR). Merci !
 
-- **Multi-hosts et multi-users**, déploiements avec [colmena](https://github.com/zhaofengli/colmena) et [just](https://github.com/casey/just).
-- **Installation automatisée** avec [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) + [disko](https://github.com/nix-community/disko).
-- **Profils de postes (hosts)** pour serveurs, conteneurs, noeuds réseau et machines de travail.
-- **Profils d'utilisateurs (users)** proposant des profils [home manager](https://github.com/nix-community/home-manager) types pour de nombreux utilisateurs.
-- **Modules complets** et 100% fonctionnels avec un simple `.enable = true`.
-- **Modules "mixin"** qui activent et configurent plusieurs modules en même temps.
-- **Architecture extensible**, scalable, cohérente, personnalisable.
-- **Multi-réseaux**, possibilité de déclarer plusieurs réseaux en une configuration.
-- **[Homepage](https://github.com/gethomepage/homepage) et reverse-proxy** [Caddy](https://github.com/caddyserver/caddy) automatiques en fonction des services activés.
-- **Sécurisation fiable** avec [sops](https://github.com/Mic92/sops-nix).
+## Fonctionnalités principales
+
+|   | Fonctionnalité | Description |
+|---|---------------|-------------|
+| ⚙️ | Tout-automatisé | Installation et mise à jour auto des hôtes avec [nixos-anywhere](https://github.com/nix-community/nixos-anywhere), [disko](https://github.com/nix-community/disko) et [colmena](https://github.com/zhaofengli/colmena) |
+| 👤 | Profils utilisateurs | [Profils](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/home/profiles) et [modules](https://darkone-linux.github.io/ref/modules/#home-manager-modules) utilisateurs avec [Home Manager](https://github.com/nix-community/home-manager) (admin, gamer, débutant…) |
+| 🖥️ | Profils d’hôtes | [Profils d’hôtes](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop) (serveurs, conteneurs, nœuds réseau, postes de travail…) |
+| 🌐 | VPN Tailnet | [VPN maillé](https://fr.wikipedia.org/wiki/R%C3%A9seau_maill%C3%A9) avec [headscale](https://headscale.net/) + [tailscale](https://tailscale.com/) et [sous-réseaux indépendants](#une-configuration-pour-un-réseau-complet) |
+| 🛡️ | Stop Publicités | Internet sécurisé et sans publicité avec [AdguardHome](https://adguard.com/fr/adguard-home/overview.html) et un pare-feu efficace |
+| 🧩 | Authentification unique | SSO avec [Kanidm](https://kanidm.com/) : une seule identité pour (presque) tous les services |
+| 🤗 | Services intelligents | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [Jellyfin](https://jellyfin.org/), [etc.](https://darkone-linux.github.io/ref/modules/#-darkoneserviceadguardhome) |
+| 💻 | GNOME épuré | Hôtes NixOS avec un [GNOME](https://www.gnome.org/) allégée et des applications stables et utiles |
+| 💾 | Sauvegardes 3-2-1 | Sauvegardes robustes, simplifiées et distribuées avec [Restic](https://restic.net/) |
+| 🏠 | Page d’accueil | [Page d’accueil automatisée](#page-daccueil-dynamique) → accès rapide à tous les services configurés |
+
+## Sous le capot
+
+|   | Spécificité | Description |
+|---|---------------|-------------|
+| ❄️ | Déclaratif et immuable | Configuration reproductible basée sur [Nix / NixOS](https://nixos.org/) et son écosystème |
+| 🔑 | Sécurité renforcée | Stratégie de sécurité simple et fiable, reposant sur [sops-nix](https://github.com/Mic92/sops-nix) |
+| 📦 | Modules haut niveau | [Modules NixOS haut-niveau](https://darkone-linux.github.io/ref/modules), faciles à activer et à configurer |
+| 📐 | Architecture | [Architecture extensible et scalable](https://darkone-linux.github.io/doc/introduction/#structure), cohérente et personnalisable |
+| ✴️ | Proxy inverse | Services distribués à travers le réseau via des proxies sous [Caddy](https://github.com/caddyserver/caddy) |
+| 🛜 | Réseau automatisé | Plomberie réseau zero-conf (DNS, DHCP, pare-feu…) avec [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html) |
+
+### État des services SSO (OIDC / Oauth2)
+
+- Oauth2 = permet une connexion oauth2 / oidc
+- Natif = pas besoin de plugin ou autre, on peut paramétrer directement 
+- PKCE = prend en charge PKCE 
+- Déclaratif = tous les paramètres peuvent être déclarés dans la configuration 
+- OK = implémentation fonctionnelle
+
+
+| Application    | Oauth2 | Natif | PKCE | Déclaratif | OK  | Commentaires                        |
+| -------------- | ------ | ----- | ---- | ---------- | --- | ----------------------------------- |
+| Outline        | ✅      | ✅     | ✅    | ✅          | ✅   | Fonctionne parfaitement             |
+| Mealie         | ✅      | ✅     | ✅    | ✅          | ✅   | Fonctionne parfaitement             |
+| Vaultwarden    | ✅      | ✅     | ✅    | ✅          | ✅   | Fonctionne parfaitement             |
+| Immich         | ✅      | ✅     | ✅    | ⚠️         | ✅   | Configuration manuelle              |
+| Forgejo        | ✅      | ✅     | ✅    | ❌          | ✅   | Configuration manuelle              |
+| Nextcloud      | ✅      | ❌     | ❌    | ❌          | ✅   | Plugin + configuration manuelle     |
+| Oauth2 Proxy   | ✅      | ✅     | ✅    | ✅          | ⚠️  | Gestion multi-service problématique |
+| Jellyfin       | ✅      | ❌     | ❔    | ❔          | ❔   | En cours                            |
+| Matrix Synapse | ✅      | ❔     | ❔    | ❔          | ❔   | En cours                            |
+| AdGuardHome    | ❌      | ❌     | ❌    | ❌          | ❔   | Via Oauth2 Proxy                    |
+| Mattermost     | ❌      | ❌     | ❌    | ❌          | ❌   | Plus de Oauth2 pour l'édition TEAM  |
+
+## Page d'accueil dynamique
+
+![Homepage](doc/src/assets/homepage-screenshot.png)
+
+## Une configuration pour un réseau complet
+
+![New network architecture](doc/src/assets/reseau-darkone-2.png)
 
 ## Organisation
 
