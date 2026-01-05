@@ -104,17 +104,17 @@ in
 
           # TODO: fonctionnera avec https://github.com/Timshel/OIDCWarden
           # SSO
-          SSO_ENABLED = true;
-          SSO_ONLY = false;
-          SSO_AUTHORITY = "https://idm.${network.domain}/oauth2/openid/vaultwarden";
-          SSO_SCOPES = "openid email profile";
-          SSO_PKCE = true;
-          SSO_CLIENT_ID = "vaultwarden";
-          SSO_SYNC_ON_REFRESH = true;
+          # SSO_ENABLED = true;
+          # SSO_ONLY = false;
+          # SSO_AUTHORITY = "https://idm.${network.domain}/oauth2/openid/vaultwarden";
+          # SSO_SCOPES = "openid email profile";
+          # SSO_PKCE = true;
+          # SSO_CLIENT_ID = "vaultwarden";
+          # SSO_SYNC_ON_REFRESH = true;
         };
 
         # TODO: local backup strategy
-        #backupDir = "/persist/backup/vaultwarden";
+        # backupDir = "/persist/backup/vaultwarden";
       };
     })
   ];

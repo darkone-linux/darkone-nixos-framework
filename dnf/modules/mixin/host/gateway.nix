@@ -32,16 +32,6 @@ in
       default = builtins.hasAttr "adguardhome" host.services;
       description = "Enable pre-configured Aguard Home service";
     };
-    darkone.host.gateway.enableAuth = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "auth" host.services;
-      description = "Enable authentication service (Authelia SSO)";
-    };
-    darkone.host.gateway.enableUsers = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "users" host.services;
-      description = "Enable user management with LLDAP for DNF SSO";
-    };
     darkone.host.gateway.enableIdm = lib.mkOption {
       type = lib.types.bool;
       default = builtins.hasAttr "idm" host.services;
@@ -60,8 +50,6 @@ in
 
     # Enabled services
     darkone.service = {
-      #auth.enable = cfg.enableAuth;
-      #users.enable = cfg.enableUsers;
       dnsmasq.enable = true;
       adguardhome.enable = cfg.enableAdguardhome;
       idm.enable = cfg.enableIdm;

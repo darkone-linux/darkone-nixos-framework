@@ -31,16 +31,6 @@ in
       default = true;
       description = "Enable tailscale client on HCS node (recommande to host services)";
     };
-    darkone.host.hcs.enableAuth = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "auth" host.services;
-      description = "Enable authentication service (Authelia SSO)";
-    };
-    darkone.host.hcs.enableUsers = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "users" host.services;
-      description = "Enable user management with LLDAP for DNF SSO";
-    };
     darkone.host.hcs.enableIdm = lib.mkOption {
       type = lib.types.bool;
       default = builtins.hasAttr "idm" host.services;
@@ -55,8 +45,6 @@ in
 
     # Enabled services
     darkone.service = {
-      #auth.enable = cfg.enableAuth;
-      #users.enable = cfg.enableUsers;
       fail2ban.enable = cfg.enableFail2ban;
       headscale.enable = true;
       idm.enable = cfg.enableIdm;

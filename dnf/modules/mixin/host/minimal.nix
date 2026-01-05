@@ -40,16 +40,6 @@ in
       default = attrsets.hasAttrByPath [ "services" "nextcloud" ] host;
       description = "Enable pre-configured nextcloud service";
     };
-    darkone.host.minimal.enableOpencloud = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "opencloud" ] host;
-      description = "Enable pre-configured opencloud service";
-    };
-    darkone.host.minimal.enableNetdata = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "netdata" ] host;
-      description = "Enable pre-configured Netdata service";
-    };
     darkone.host.minimal.enableMonitoring = mkOption {
       type = types.bool;
       default = attrsets.hasAttrByPath [ "services" "monitoring" ] host;
@@ -60,20 +50,10 @@ in
       default = attrsets.hasAttrByPath [ "services" "vaultwarden" ] host;
       description = "Enable pre-configured Vaultwarden service";
     };
-    darkone.host.minimal.enableSyncthing = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "syncthing" ] host;
-      description = "Enable a syncthing server";
-    };
     darkone.host.minimal.enableMattermost = mkOption {
       type = types.bool;
       default = attrsets.hasAttrByPath [ "services" "mattermost" ] host;
       description = "Enable a mattermost server";
-    };
-    darkone.host.minimal.enableMatrix = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "matrix" ] host;
-      description = "Enable a matrix server";
     };
     darkone.host.minimal.enableNfsHomeShares = mkOption {
       type = types.bool;
@@ -85,35 +65,15 @@ in
       default = builtins.hasAttr "jitsi-meet" host.services;
       description = "Enable jitsi-meet service";
     };
-    darkone.host.minimal.enableNavidrome = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "navidrome" host.services;
-      description = "Enable Navidrome service";
-    };
-    darkone.host.minimal.enableKeycloak = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "keycloak" host.services;
-      description = "Enable Keycloak service";
-    };
     darkone.host.minimal.enableRestic = lib.mkOption {
       type = lib.types.bool;
       default = builtins.hasAttr "restic" host.services;
       description = "Enable Restic service";
     };
-    darkone.host.minimal.enableBorg = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "borg" host.services;
-      description = "Enable Borg service";
-    };
     darkone.host.minimal.enableJellyfin = lib.mkOption {
       type = lib.types.bool;
       default = builtins.hasAttr "jellyfin" host.services;
       description = "Enable Jellyfin server";
-    };
-    darkone.host.minimal.enableDex = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "dex" host.services;
-      description = "Enable Dex service";
     };
     darkone.host.minimal.enableOutline = lib.mkOption {
       type = lib.types.bool;
@@ -125,6 +85,23 @@ in
       default = builtins.hasAttr "mealie" host.services;
       description = "Enable Mealie service";
     };
+
+    # Deactivated
+    # darkone.host.minimal.enableMatrix = mkOption {
+    #   type = types.bool;
+    #   default = attrsets.hasAttrByPath [ "services" "matrix" ] host;
+    #   description = "Enable a matrix server";
+    # };
+    # darkone.host.minimal.enableOpencloud = mkOption {
+    #   type = types.bool;
+    #   default = attrsets.hasAttrByPath [ "services" "opencloud" ] host;
+    #   description = "Enable pre-configured opencloud service";
+    # };
+    # darkone.host.minimal.enableSyncthing = mkOption {
+    #   type = types.bool;
+    #   default = attrsets.hasAttrByPath [ "services" "syncthing" ] host;
+    #   description = "Enable a syncthing server";
+    # };
   };
 
   config = mkIf cfg.enable {
@@ -151,14 +128,6 @@ in
 
     # Enabled services
     darkone.service = {
-      #borg.enable = cfg.enableBorg;
-      #matrix.enable = cfg.enableMatrix;
-      #navidrome.enable = cfg.enableNavidrome;
-      #netdata.enable = cfg.enableNetdata;
-      #opencloud.enable = cfg.enableOpencloud;
-      #syncthing.enable = cfg.enableSyncthing;
-      #dex.enable = cfg.enableDex;
-      #keycloak.enable = cfg.enableKeycloak;
       forgejo.enable = cfg.enableForgejo;
       homepage.enable = cfg.enableHomepage;
       immich.enable = cfg.enableImmich;
@@ -174,6 +143,11 @@ in
         enableServer = true;
       };
       vaultwarden.enable = cfg.enableVaultwarden;
+
+      # Deactivated
+      # matrix.enable = cfg.enableMatrix;
+      # opencloud.enable = cfg.enableOpencloud;
+      # syncthing.enable = cfg.enableSyncthing;
     };
   };
 }

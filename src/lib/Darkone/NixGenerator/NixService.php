@@ -10,7 +10,7 @@ class NixService
     public const array UNIQUE_SERVICES_BY_ZONE = ['ncps', 'adguardhome', 'homepage'];
     public const array REVERSE_PROXY_SERVICES = [
         'adguardhome', 'auth', 'forgejo', 'home-assistant', 'homepage', 'immich', 'matrix', 'mattermost', 'monitoring', 'outline',
-        'netdata', 'nextcloud', 'syncthing', 'users', 'vaultwarden', 'keycloak', 'jitsi-meet', 'navidrome', 'opencloud', 'dex'
+        'netdata', 'nextcloud', 'syncthing', 'users', 'vaultwarden', 'keycloak', 'jitsi-meet', 'navidrome', 'opencloud', 'dex', 'mealie'
     ];
 
     // Doit être contacté avec son adresse ip fixe externe !
