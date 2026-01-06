@@ -29,6 +29,10 @@ in
       "@wheel"
     ];
 
+    # Large updates / downloads
+    # https://nix.dev/manual/nix/2.22/command-ref/conf-file.html?highlight=substit#conf-download-buffer-size
+    nix.settings.download-buffer-size = 524288000; # 500 MiB
+
     # NOTE: already in home admin entries but not working
     #programs.gnupg.agent = {
     #  enable = true;

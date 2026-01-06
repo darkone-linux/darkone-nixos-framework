@@ -53,6 +53,8 @@ in
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) cuyo) # Tetris like
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) pkgs-stable.gnome-2048)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-chess)
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnuchess) # Chess engine for gnome-chess
+      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) stockfish) # Chess engine for gnome-chess
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-mahjongg)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-mines)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-solanum) # Pomodoro timer
@@ -60,8 +62,8 @@ in
       #(lib.mkIf (cfg.enableChild || cfg.enableTeenager) lenmus) # LenMus Phonascus is a program for learning music (vieillot)
       (lib.mkIf (cfg.enableChild || cfg.enableTeenager) leocad) # Virt lego
       #(lib.mkIf (cfg.enableChild || cfg.enableTeenager) ltris) # Tetris (bof)
-      (lib.mkIf (cfg.enableMore && cfg.enableCli) _2048-in-terminal)
-      (lib.mkIf (cfg.enableMore && cfg.enableCli) bsdgames)
+      #(lib.mkIf (cfg.enableMore && cfg.enableCli) _2048-in-terminal)
+      #(lib.mkIf (cfg.enableMore && cfg.enableCli) bsdgames)
       (lib.mkIf (cfg.enableMore && cfg.enableCli) chess-tui)
       (lib.mkIf (cfg.enableMore && cfg.enableCli) crawl) # role-playing roguelike game
       (lib.mkIf (cfg.enableMore && cfg.enableCli) nethack) # Rogue-like game
@@ -76,14 +78,18 @@ in
     #--------------------------------------------------------------------------
 
     # Unlock STK
+    # Exécuté après l'écriture des fichiers de conf par HM (writeBoundary)
     home.activation = lib.mkIf enableStk {
       unlockSupertuxkart = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        config_file="$HOME/.config/supertuxkart/config-0.10/config.xml"
-        if [ -f "$config_file" ]; then
-          ${pkgs.gnused}/bin/sed -i \
-            's/<unlock_everything value="[^"]*"/<unlock_everything value="2"/' \
-            "$config_file"
-          echo "SuperTuxKart unlock_everything set to 2"
+        configPath="${config.home.homeDirectory}/.config/supertuxkart/config-0.10"
+        configFile="$configPath/config.xml"
+        if [ -f "$configFile" ]; then
+          ${pkgs.gnused}/bin/sed -i 's/<unlock_everything value="[^"]*"/<unlock_everything value="2"/' "$configFile"
+          echo "[STK] config file exists, unlock_everything set to 2"
+        else
+          echo "[STK] config file not found, write the snippet..."
+          mkdir -p "$configPath"
+          echo '<?xml version="1.0"?><stkconfig version="8"><Video fullscreen="true" /><unlock_everything value="2" /></stkconfig>' > "$configFile"
         fi
       '';
     };
