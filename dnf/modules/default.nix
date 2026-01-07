@@ -42,6 +42,7 @@
     ./standard/service/postfix.nix
     ./standard/service/printing.nix
     ./standard/service/restic.nix
+    ./standard/service/searx.nix
     ./standard/service/tailscale.nix
     ./standard/service/vaultwarden.nix
     ./standard/system/core.nix

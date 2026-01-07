@@ -85,6 +85,11 @@ in
       default = builtins.hasAttr "mealie" host.services;
       description = "Enable Mealie service";
     };
+    darkone.host.minimal.enableSearx = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "searx" host.services;
+      description = "Enable Searx service";
+    };
 
     # Deactivated
     # darkone.host.minimal.enableMatrix = mkOption {
@@ -142,6 +147,7 @@ in
         enable = true;
         enableServer = true;
       };
+      searx.enable = cfg.enableSearx;
       vaultwarden.enable = cfg.enableVaultwarden;
 
       # Deactivated

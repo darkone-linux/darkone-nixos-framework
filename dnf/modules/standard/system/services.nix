@@ -48,6 +48,18 @@ let
     }
   '';
 
+  # Bind internal IP for internal access services
+  internalServiceBindSection = ''
+    @external not remote_ip private_ranges 100.64.0.0/10
+    abort @external
+  '';
+
+  # Make virtualhost prefix
+  mkPrefix =
+    isInternal: isProtected:
+    (optionalString isInternal internalServiceBindSection)
+    + (optionalString isProtected protectedServiceForwardSection);
+
   # Global services to expose to internet, only for HCS
   globalServices =
     if isHcs then (filter (s: (hasAttr "global" s.params) && s.params.global) services) else [ ];
@@ -224,6 +236,11 @@ in
               default = false;
               description = "Oauth2 protected service";
             };
+            proxy.isInternal = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Bind service on internal interface only (not internet accessible)";
+            };
             proxy.defaultService = mkOption {
               type = types.bool;
               default = false;
@@ -319,7 +336,7 @@ in
           let
             isValid = srv.proxy.enable && (srv.proxy.servicePort != null);
             isDefault = isValid && srv.proxy.defaultService;
-            prefix = optionalString srv.proxy.isProtected protectedServiceForwardSection;
+            prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected;
             vhPrefix = optionalString (!hasHeadscale) "http://";
             tls = optionalString (hasHeadscale && inLocalZone) ''
               tls {
@@ -331,7 +348,7 @@ in
 
             # Reverse proxy to the target service
             "${vhPrefix}${srv.params.fqdn}" = {
-              extraConfig = ''
+              extraConfig = dnfLib.cleanString ''
                 ${prefix}
                 ${srv.proxy.preExtraConfig}
                 ${tls}reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString srv.proxy.servicePort}
@@ -354,7 +371,7 @@ in
           srv:
           let
             sPort = config.darkone.system.services.service.${srv.name}.proxy.servicePort;
-            prefix = optionalString srv.proxy.isProtected protectedServiceForwardSection;
+            prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected;
             noRobots = optionalString srv.params.noRobots ''
               @badbots {
 
@@ -398,14 +415,13 @@ in
           in
           {
             "${srv.params.domain}.${network.domain}" = {
-              extraConfig =
-                noRobots
-                + prefix
-                + ''
-                  ${srv.proxy.preExtraConfig}
-                  reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString sPort}
-                  ${srv.proxy.extraConfig}
-                '';
+              extraConfig = dnfLib.cleanString ''
+                ${noRobots}
+                ${prefix}
+                ${srv.proxy.preExtraConfig}
+                reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString sPort}
+                ${srv.proxy.extraConfig}
+              '';
             };
           }
         ) globalServices

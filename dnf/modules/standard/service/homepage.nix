@@ -21,6 +21,10 @@ let
     description = "Local network home page";
   };
   params = dnfLib.extractServiceParams host network "homepage" defaultParams;
+  searxService = lib.findFirst (s: s.name == "searx") null network.services;
+  searxDomain = lib.optionalString (searxService != null) (
+    if (lib.hasAttr "domain" searxService) then searxService.domain else searxService.name
+  );
 
   # TODO: internationalisation
   localTitle = "1. Applications Locales";
@@ -205,14 +209,23 @@ in
                 };
               }
               {
-                search = {
-                  provider = "google";
-                  target = "_self";
-                };
+                search =
+                  if (searxService != null) then
+                    {
+                      provider = "custom";
+                      url = "https://${searxDomain}.${network.domain}/search?q=";
+                      suggestionUrl = "https://ac.ecosia.org/autocomplete?type=list&q=";
+                      showSearchSuggestions = true;
+                      target = "_self";
+                    }
+                  else
+                    {
+                      provider = "google";
+                      target = "_self";
+                    };
               }
             ];
-
-        customCSS = "zoom: 200%;";
+        customCSS = "font-size: 200%;";
       };
     })
   ];

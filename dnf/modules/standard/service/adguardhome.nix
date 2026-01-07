@@ -49,6 +49,7 @@ in
           ip = "127.0.0.1";
         };
         proxy.servicePort = agh.port;
+        proxy.isInternal = true;
       };
     }
 

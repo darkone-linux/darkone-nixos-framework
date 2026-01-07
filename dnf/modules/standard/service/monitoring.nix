@@ -83,6 +83,7 @@ in
         proxy.enable = cfg.enable;
         proxy.servicePort = lib.mkIf cfg.enable port.grafana;
         proxy.isProtected = false; # TODO: true; # Oauth2 Proxy
+        proxy.isInternal = true;
         proxy.extraConfig = lib.optionalString cfg.enable "redir / /d/rYdddlPWk/node-exporter-full?kiosk";
       };
     }

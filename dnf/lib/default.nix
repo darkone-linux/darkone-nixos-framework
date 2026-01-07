@@ -6,6 +6,7 @@ let
 in
 {
   inherit (strings) ucFirst;
+  inherit (strings) cleanString;
   inherit (srv) buildServiceParams;
   inherit (srv) extractServiceParams;
   inherit (srv) isVpnClient;
