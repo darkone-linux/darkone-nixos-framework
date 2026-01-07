@@ -118,6 +118,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableJellyfin** `bool` Enable Jellyfin server
 * **enableOutline** `bool` Enable Outline WIKI service
 * **enableMealie** `bool` Enable Mealie service
+* **enableSearx** `bool` Enable Searx service
 
 ```nix
 darkone.host.minimal = {
@@ -136,6 +137,7 @@ darkone.host.minimal = {
   enableJellyfin = builtins.hasAttr "jellyfin" host.services;
   enableOutline = builtins.hasAttr "outline" host.services;
   enableMealie = builtins.hasAttr "mealie" host.services;
+  enableSearx = builtins.hasAttr "searx" host.services;
 };
 ```
 
@@ -821,6 +823,18 @@ darkone.service.restic = {
 
 <hr/>
 
+### &#x1F48E; darkone.service.searx
+
+A full-configured searx git forge.
+
+* **enable** `bool` Enable local search proxy
+
+```nix
+darkone.service.searx.enable = false;
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.service.tailscale
 
 Tailscale client service for HCS.
@@ -986,6 +1000,7 @@ This module is used to register and configure DNF modules:
   * **persist.mediaDirs** `listOf str` Service media dirs (pictures, videos, big files)
   * **proxy.enable** `bool` Whether to create virtualHost configuration (false for services that manage their own)
   * **proxy.isProtected** `bool` Oauth2 protected service
+  * **proxy.isInternal** `bool` Bind service on internal interface only (not internet accessible)
   * **proxy.defaultService** `bool` Is the default service
   * **proxy.servicePort** `nullOr port` Service internal port
   * **proxy.preExtraConfig** `lines` Extra caddy virtualHost configuration (prefix)
@@ -1015,6 +1030,7 @@ darkone.system.services = {
   service.persist.mediaDirs = [ ];
   service.proxy.enable = true;
   service.proxy.isProtected = false;
+  service.proxy.isInternal = false;
   service.proxy.defaultService = false;
   service.proxy.servicePort = null;
   service.proxy.preExtraConfig = "";
