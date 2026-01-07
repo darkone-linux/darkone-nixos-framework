@@ -26,6 +26,7 @@ let
       "/mnt/nfs/homes/${config.home.username}/Music"
     else
       "${osConfig.darkone.system.srv-dirs.homes}/${config.home.username}/Music";
+  mpdAddress = config.services.mpd.network.listenAddress;
 in
 {
   options = {
@@ -99,9 +100,7 @@ in
     services.mpd = lib.mkIf cfg.enableMpd {
       enable = true;
       enableSessionVariables = true;
-      network = {
-        listenAddress = "any";
-      };
+      network.listenAddress = "0.0.0.0";
       extraConfig = ''
         audio_output {
           type "pipewire"
@@ -130,11 +129,11 @@ in
     services.mpd-mpris.enable = cfg.enableMpd;
     services.mpdris2 = lib.mkIf cfg.enableMpd {
       enable = true;
-      mpd.host = "127.0.0.1";
+      mpd.host = mpdAddress;
     };
     programs.ncmpcpp.enable = cfg.enableMpd;
     home.sessionVariables = lib.mkIf cfg.enableMpd {
-      MPD_HOST = config.services.mpd.network.listenAddress;
+      MPD_HOST = mpdAddress;
       MPD_PORT = toString config.services.mpd.network.port;
     };
 
