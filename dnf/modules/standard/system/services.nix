@@ -241,6 +241,11 @@ in
               default = false;
               description = "Bind service on internal interface only (not internet accessible)";
             };
+            proxy.hasReverseProxy = mkOption {
+              type = types.bool;
+              default = true;
+              description = "This is a reverse proxy (or another virtualhost configuration via extraConfig)";
+            };
             proxy.defaultService = mkOption {
               type = types.bool;
               default = false;
@@ -343,6 +348,7 @@ in
                 on_demand
               }
             '';
+            reverseProxy = lib.optionalString srv.proxy.hasReverseProxy "${tls}reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString srv.proxy.servicePort}";
           in
           mkIf isValid {
 
@@ -351,7 +357,7 @@ in
               extraConfig = dnfLib.cleanString ''
                 ${prefix}
                 ${srv.proxy.preExtraConfig}
-                ${tls}reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString srv.proxy.servicePort}
+                ${reverseProxy}
                 ${srv.proxy.extraConfig}
               '';
             };
@@ -412,6 +418,7 @@ in
                 respond 403
               }
             '';
+            reverseProxy = lib.optionalString srv.proxy.hasReverseProxy "reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString sPort}";
           in
           {
             "${srv.params.domain}.${network.domain}" = {
@@ -419,7 +426,7 @@ in
                 ${noRobots}
                 ${prefix}
                 ${srv.proxy.preExtraConfig}
-                reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString sPort}
+                ${reverseProxy}
                 ${srv.proxy.extraConfig}
               '';
             };

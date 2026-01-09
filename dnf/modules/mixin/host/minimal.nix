@@ -95,6 +95,16 @@ in
       default = attrsets.hasAttrByPath [ "services" "matrix" ] host;
       description = "Enable a matrix server";
     };
+    darkone.host.minimal.enableTurn = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "turn" ] host;
+      description = "Enable a coturn server (STUN/TURN) for VOIP";
+    };
+    darkone.host.minimal.enableElement = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "element" ] host;
+      description = "Enable Element-Web interface (matrix)";
+    };
 
     # Deactivated
     # darkone.host.minimal.enableOpencloud = mkOption {
@@ -133,6 +143,7 @@ in
 
     # Enabled services
     darkone.service = {
+      element.enable = cfg.enableElement;
       forgejo.enable = cfg.enableForgejo;
       homepage.enable = cfg.enableHomepage;
       immich.enable = cfg.enableImmich;
@@ -149,6 +160,7 @@ in
         enableServer = true;
       };
       searx.enable = cfg.enableSearx;
+      turn.enable = cfg.enableTurn;
       vaultwarden.enable = cfg.enableVaultwarden;
 
       # Deactivated

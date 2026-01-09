@@ -15,6 +15,10 @@ let
   srv = config.services.matrix-synapse;
   synapsePort = 8008;
 
+  # VoIP
+  inherit (config.services) coturn;
+  hasTurn = coturn.enable;
+
   matrixDbInitScript = pkgs.writeScript "matrix-db-init.sh" ''
     #!/bin/sh
     set -euo pipefail
@@ -89,9 +93,18 @@ in
       };
 
       # OIDC secret
+      # -> Note: put client secret in extra config do not works.
       sops.secrets.oidc-secret-matrix-synapse = { };
       sops.templates.oidc-secret-synapse = {
         content = config.sops.placeholder.oidc-secret-matrix-synapse;
+        mode = "0400";
+        owner = "matrix-synapse";
+      };
+      sops.secrets.turn-secret = lib.mkIf hasTurn { };
+      sops.templates."synapse-extra-config.yml" = lib.mkIf hasTurn {
+        content = ''
+          turn_shared_secret: ${config.sops.placeholder.turn-secret}
+        '';
         mode = "0400";
         owner = "matrix-synapse";
       };
@@ -129,10 +142,13 @@ in
 
       services.matrix-synapse = {
         enable = true;
-        configureRedisLocally = false; # TODO: true
+        configureRedisLocally = true;
+        extraConfigFiles = lib.optional hasTurn config.sops.templates."synapse-extra-config.yml".path;
 
         # https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html
         settings = {
+
+          # Généralités
           server_name = network.domain;
           public_baseurl = params.href;
           max_upload_size = "10M";
@@ -157,10 +173,14 @@ in
               ];
             }
           ];
+
+          # DB
           database.args = {
             user = "matrix-synapse";
             database = "matrix-synapse";
           };
+
+          # Kanidm
           oidc_providers = [
             {
               idp_id = "kanidm";
@@ -178,6 +198,14 @@ in
               };
             }
           ];
+
+          # Coturn (visio)
+          turn_uris = lib.optionals hasTurn [
+            "turn:turn.${network.domain}:${toString coturn.listening-port}?transport=udp"
+            "turn:turn.${network.domain}:${toString coturn.listening-port}?transport=tcp"
+          ];
+          turn_shared_secret = lib.mkIf hasTurn "ton-secret-turn";
+          turn_user_lifetime = lib.mkIf hasTurn "1h";
         };
       };
     })

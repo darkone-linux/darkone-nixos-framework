@@ -14,6 +14,7 @@ let
   cfg = config.darkone.home.office;
   hasGateway = attrsets.hasAttrByPath [ "gateway" "hostname" ] zone;
   hasMattermost = (findFirst (s: s.name == "mattermost") null network.services) != null;
+  hasMatrix = (findFirst (s: s.name == "matrix") null network.services) != null;
 in
 {
   options = {
@@ -86,6 +87,7 @@ in
       (mkIf (cfg.enableCommunication && cfg.enableMore) tuba) # Browse the Fediverse
       (mkIf (cfg.enableCommunication && cfg.enableMore) zoom-us)
       (mkIf (cfg.enableCommunication && hasMattermost) mattermost-desktop)
+      (mkIf (cfg.enableCommunication && hasMatrix) element-desktop)
       (mkIf (cfg.enableTools && cfg.enableMore) pika-backup) # Simple backups based on borg -> Security ?
       (mkIf (cfg.enableTools && cfg.enableMore) simple-scan)
       (mkIf cfg.enableCalendarContacts gnome-calendar)

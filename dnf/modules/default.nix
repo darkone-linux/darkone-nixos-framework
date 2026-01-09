@@ -23,6 +23,7 @@
     ./standard/service/audio.nix
     ./standard/service/beets.nix
     ./standard/service/dnsmasq.nix
+    ./standard/service/element.nix
     ./standard/service/fail2ban.nix
     ./standard/service/forgejo.nix
     ./standard/service/headscale.nix
@@ -45,6 +46,7 @@
     ./standard/service/restic.nix
     ./standard/service/searx.nix
     ./standard/service/tailscale.nix
+    ./standard/service/turn.nix
     ./standard/service/vaultwarden.nix
     ./standard/system/core.nix
     ./standard/system/documentation.nix

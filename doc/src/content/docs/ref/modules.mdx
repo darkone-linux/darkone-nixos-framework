@@ -120,6 +120,8 @@ yaml file so that the service is visible across the entire network!**
 * **enableMealie** `bool` Enable Mealie service
 * **enableSearx** `bool` Enable Searx service
 * **enableMatrix** `bool` Enable a matrix server
+* **enableTurn** `bool` Enable a coturn server (STUN/TURN) for VOIP
+* **enableElement** `bool` Enable Element-Web interface (matrix)
 
 ```nix
 darkone.host.minimal = {
@@ -140,6 +142,8 @@ darkone.host.minimal = {
   enableMealie = builtins.hasAttr "mealie" host.services;
   enableSearx = builtins.hasAttr "searx" host.services;
   enableMatrix = attrsets.hasAttrByPath [ "services" "matrix" ] host;
+  enableTurn = attrsets.hasAttrByPath [ "services" "turn" ] host;
+  enableElement = attrsets.hasAttrByPath [ "services" "element" ] host;
 };
 ```
 
@@ -438,6 +442,18 @@ It is the essential functionality of the local gateway.
 
 ```nix
 darkone.service.dnsmasq.enable = false;
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.element
+
+Element web client for local matrix service.
+
+* **enable** `bool` Enable local element service
+
+```nix
+darkone.service.element.enable = false;
 ```
 
 <hr/>
@@ -872,6 +888,18 @@ darkone.service.tailscale = {
 
 <hr/>
 
+### &#x1F48E; darkone.service.turn
+
+Coturn server (matrix).
+
+* **enable** `bool` Enable local turn service (visio)
+
+```nix
+darkone.service.turn.enable = false;
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.service.vaultwarden
 
 A full-configured vaultwarden server (wip).
@@ -1015,6 +1043,7 @@ This module is used to register and configure DNF modules:
   * **proxy.enable** `bool` Whether to create virtualHost configuration (false for services that manage their own)
   * **proxy.isProtected** `bool` Oauth2 protected service
   * **proxy.isInternal** `bool` Bind service on internal interface only (not internet accessible)
+  * **proxy.hasReverseProxy** `bool` This is a reverse proxy (or another virtualhost configuration via extraConfig)
   * **proxy.defaultService** `bool` Is the default service
   * **proxy.servicePort** `nullOr port` Service internal port
   * **proxy.preExtraConfig** `lines` Extra caddy virtualHost configuration (prefix)
@@ -1045,6 +1074,7 @@ darkone.system.services = {
   service.proxy.enable = true;
   service.proxy.isProtected = false;
   service.proxy.isInternal = false;
+  service.proxy.hasReverseProxy = true;
   service.proxy.defaultService = false;
   service.proxy.servicePort = null;
   service.proxy.preExtraConfig = "";
