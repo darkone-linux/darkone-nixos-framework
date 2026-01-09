@@ -20,6 +20,13 @@ let
   # Nix administrator host (additional tools)
   onAdminHost = osConfig.darkone.admin.nix.enable;
 
+  # Ghostty activation
+  hasGhostty = graphic && cfg.enableTools;
+
+  # Ghostty, zellij
+  termBgColor = "#0F0F0F";
+  termFgColor = "#F0F0F0";
+
   # Last colmena release
   inherit (inputs.colmena.packages.${pkgs.stdenv.hostPlatform.system}) colmena;
 
@@ -56,6 +63,8 @@ in
       MANROFFOPT = "-c"; # bat
       EDITOR = "vim";
       VISUAL = "vim";
+      TERMINAL = lib.optionalString hasGhostty "ghostty";
+      TERM = "xterm-256color"; # Avoid "can't find terminal definition for xterm-ghostty"
     };
 
     #============================================================================
@@ -64,10 +73,6 @@ in
 
     home.packages = with pkgs; [
       #findutils # locate
-      #powerline
-      #powerline-fonts
-      #(lib.mkIf (hasBorg && cfg.enableAdmin) borgbackup)
-      #(lib.mkIf (hasBorg && graphic && cfg.enableAdmin) vorta) # Borg client
       (lib.mkIf (graphic && (cfg.enableDeveloper || cfg.enableAdmin)) vscode) # TODO: module
       (lib.mkIf (graphic && cfg.enableAdmin) filezilla)
       (lib.mkIf (graphic && cfg.enableAdmin) gparted)
@@ -133,7 +138,6 @@ in
       (lib.mkIf cfg.enableEssentials unzip)
       (lib.mkIf cfg.enableEssentials wget)
       (lib.mkIf cfg.enableEssentials wipe)
-      (lib.mkIf cfg.enableEssentials zellij)
       (lib.mkIf cfg.enableEssentials zip)
       (lib.mkIf cfg.enableNixAdmin mkpasswd)
       (lib.mkIf cfg.enableNixAdmin wakeonlan)
@@ -141,7 +145,6 @@ in
       (lib.mkIf cfg.enableTools fastfetch)
       (lib.mkIf cfg.enableTools presenterm)
       (lib.mkIf cfg.enableTools pv)
-      #(lib.mkIf cfg.enableTools ranger) # -> yazi
     ];
 
     #============================================================================
@@ -182,6 +185,7 @@ in
       settings = {
         proc_per_core = true;
         update_ms = 1000;
+        theme_background = false;
       };
     };
 
@@ -192,6 +196,52 @@ in
     programs.yazi = {
       enable = lib.mkDefault cfg.enableTools;
       enableZshIntegration = true;
+    };
+
+    # Zellij
+    programs.zellij = lib.mkIf cfg.enableEssentials {
+      enable = true;
+      settings = {
+        copy_on_select = true;
+        themes = {
+          soft_dark = {
+            fg = termFgColor;
+            bg = termBgColor;
+            black = termBgColor;
+            red = "#ED333B";
+            green = "#57E389";
+            yellow = "#F8E45C";
+            blue = "#F8E45C";
+            magenta = "#C061CB";
+            cyan = "#4FD2FD";
+            white = "#F6F5F4";
+            orange = "#F5C211";
+          };
+        };
+        theme = "soft_dark";
+      };
+    };
+
+    # Ghostty terminal emulator
+    programs.ghostty = lib.mkIf hasGhostty {
+      enable = true;
+      enableZshIntegration = true;
+
+      # https://ghostty.org/docs/config/reference
+      settings = {
+        theme = "Adwaita Dark";
+        background = termBgColor;
+        font-size = 14;
+        window-padding-x = 6;
+        window-padding-y = 3;
+        #palette = "0=${termBgColor}";
+      };
+    };
+    dconf.settings = lib.mkIf hasGhostty {
+      "org/gnome/desktop/default-applications/terminal" = {
+        exec = "ghostty";
+        exec-arg = "";
+      };
     };
 
     #============================================================================
@@ -326,6 +376,8 @@ in
         set background=dark
         let g:gruvbox_italic=1
         colorscheme gruvbox
+        hi! Normal ctermbg=NONE guibg=NONE
+        hi! NonText ctermbg=NONE guibg=NONE
 
         " Airline options
         "let g:airline#extensions#tabline#enabled = 1

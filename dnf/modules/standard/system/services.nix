@@ -144,7 +144,7 @@ in
                   icon = mkOption {
                     type = types.str;
                     default = "";
-                    description = "[Icon name for homepage](https://gethomepage.dev/configs/services/#icons)";
+                    description = "[Icon name for homepage](https://selfh.st/icons/)";
                   };
                   global = mkOption {
                     type = types.bool;

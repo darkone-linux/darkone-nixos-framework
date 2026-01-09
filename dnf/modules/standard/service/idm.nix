@@ -130,6 +130,7 @@ in
             "oidc-secret-nextcloud"
             "oidc-secret-mealie"
             "oidc-secret-vaultwarden"
+            "oidc-secret-matrix-synapse"
           ]
       );
 
@@ -346,6 +347,18 @@ in
               originUrl = [ "https://vaultwarden.${network.domain}/identity/connect/oidc-signin" ];
               originLanding = "https://vaultwarden.${network.domain}/";
               basicSecretFile = secrets.oidc-secret-vaultwarden.path;
+              inherit scopeMaps;
+            };
+
+            # Matrix Synapse
+            # -> https://element-hq.github.io/synapse/latest/openid.html
+            matrix-synapse = {
+              displayName = "Matrix Synapse";
+              imageFile = ./../../../assets/app-icons/synapse.svg;
+              originUrl = [ "https://matrix.${network.domain}/_synapse/client/oidc/callback" ];
+              originLanding = "https://matrix.${network.domain}/";
+              basicSecretFile = secrets.oidc-secret-matrix-synapse.path;
+              preferShortUsername = true;
               inherit scopeMaps;
             };
 

@@ -119,6 +119,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableOutline** `bool` Enable Outline WIKI service
 * **enableMealie** `bool` Enable Mealie service
 * **enableSearx** `bool` Enable Searx service
+* **enableMatrix** `bool` Enable a matrix server
 
 ```nix
 darkone.host.minimal = {
@@ -138,6 +139,7 @@ darkone.host.minimal = {
   enableOutline = builtins.hasAttr "outline" host.services;
   enableMealie = builtins.hasAttr "mealie" host.services;
   enableSearx = builtins.hasAttr "searx" host.services;
+  enableMatrix = attrsets.hasAttrByPath [ "services" "matrix" ] host;
 };
 ```
 
@@ -574,6 +576,18 @@ darkone.service.jitsi-meet.enable = false;
 
 <hr/>
 
+### &#x1F48E; darkone.service.matrix
+
+A matrix (synapse) server.
+
+* **enable** `bool` Enable matrix (synapse) service
+
+```nix
+darkone.service.matrix.enable = false;
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.service.mattermost
 
 A mattermost server. (WIP)
@@ -985,7 +999,7 @@ This module is used to register and configure DNF modules:
     * **domain** `str` Domain name for the service
     * **title** `str` Display name in homepage
     * **description** `str` Service description for homepage
-    * **icon** `str` [Icon name for homepage](https://gethomepage.dev/configs/services/#icons)
+    * **icon** `str` [Icon name for homepage](https://selfh.st/icons/)
     * **global** `bool` Global service is accessible on Internet
     * **noRobots** `bool` Prevent robots from scanning if global is true
     * **fqdn** `str` Calculated FQDN or the service before the reverse proxy

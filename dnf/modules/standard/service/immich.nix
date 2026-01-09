@@ -57,6 +57,17 @@ in
           ];
         };
         proxy.servicePort = srv.port;
+        proxy.extraConfig = ''
+          header {
+            X-Frame-Options "sameorigin"
+            X-Robots-Tag "noindex,nofollow"
+            Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+          }
+          request_body {
+            max_size 4GB
+          }
+          encode gzip
+        '';
       };
     }
 
@@ -81,7 +92,7 @@ in
         settings = {
 
           # Optimizations for immich caching
-          maxmemory = "256mb";
+          maxmemory = "1024mb";
           maxmemory-policy = "allkeys-lru";
 
           # Persistence settings

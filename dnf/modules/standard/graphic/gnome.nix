@@ -122,6 +122,7 @@ in
       gnome-clocks
       gnome-calculator
       gnome-connections
+      #gnome-console
       gnome-contacts
       gnome-font-viewer
       gnome-logs
@@ -244,6 +245,7 @@ in
                 ++ (if cfg.enableDashToDock then [ "dash-to-dock@micxgx.gmail.com" ] else [ ]);
                 favorite-apps = [
                   "org.gnome.Console.desktop"
+                  "com.mitchellh.ghostty.desktop"
                   "brave-browser.desktop"
                   "com.brave.Browser.desktop"
                   "chromium-browser.desktop"

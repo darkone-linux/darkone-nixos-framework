@@ -32,6 +32,7 @@
     ./standard/service/immich.nix
     ./standard/service/jellyfin.nix
     ./standard/service/jitsi-meet.nix
+    ./standard/service/matrix.nix
     ./standard/service/mattermost.nix
     ./standard/service/mealie.nix
     ./standard/service/monitoring.nix

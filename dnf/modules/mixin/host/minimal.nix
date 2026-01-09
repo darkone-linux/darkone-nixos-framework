@@ -90,13 +90,13 @@ in
       default = builtins.hasAttr "searx" host.services;
       description = "Enable Searx service";
     };
+    darkone.host.minimal.enableMatrix = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "matrix" ] host;
+      description = "Enable a matrix server";
+    };
 
     # Deactivated
-    # darkone.host.minimal.enableMatrix = mkOption {
-    #   type = types.bool;
-    #   default = attrsets.hasAttrByPath [ "services" "matrix" ] host;
-    #   description = "Enable a matrix server";
-    # };
     # darkone.host.minimal.enableOpencloud = mkOption {
     #   type = types.bool;
     #   default = attrsets.hasAttrByPath [ "services" "opencloud" ] host;
@@ -138,6 +138,7 @@ in
       immich.enable = cfg.enableImmich;
       jellyfin.enable = cfg.enableJellyfin;
       jitsi-meet.enable = cfg.enableJitsiMeet;
+      matrix.enable = cfg.enableMatrix;
       mattermost.enable = cfg.enableMattermost;
       mealie.enable = cfg.enableMealie;
       monitoring.enable = cfg.enableMonitoring;
@@ -151,7 +152,6 @@ in
       vaultwarden.enable = cfg.enableVaultwarden;
 
       # Deactivated
-      # matrix.enable = cfg.enableMatrix;
       # opencloud.enable = cfg.enableOpencloud;
       # syncthing.enable = cfg.enableSyncthing;
     };

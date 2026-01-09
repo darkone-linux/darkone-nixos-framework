@@ -49,12 +49,17 @@ in
           varDirs = [ "/var/lib/redis-nextcloud" ];
         };
         proxy.servicePort = port;
+
+        # X-Frame-Options: sameorigin -> Empêche que la page soit intégrée dans une <iframe> provenant d’un autre domaine.
+        # X-Content-Type-Options: nosniff -> Interdit au navigateur d’essayer de deviner le type MIME d’une ressource.
+        # X-Robots-Tag: noindex, nofollow -> Ne pas indexer, ne pas suivre les liens.
+        # Referrer-Policy: no-referrer-when-downgrade -> Ne pas envoyer le referer dans le cas HTTPS → HTTP
+        # Strict-Transport-Security -> Force HTTPS (pendant 2 ans)
         proxy.extraConfig = ''
           header {
             X-Frame-Options "sameorigin"
             X-Content-Type-Options "nosniff"
             X-Robots-Tag "noindex,nofollow"
-            X-Permitted-Cross-Domain-Policies "none"
             Referrer-Policy "no-referrer-when-downgrade"
             Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
           }

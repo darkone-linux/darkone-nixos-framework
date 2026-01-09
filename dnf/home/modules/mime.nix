@@ -112,6 +112,7 @@ in
           "video/x-ms-wmv" = type.vid;
           "video/x-msvideo" = type.vid;
           "video/x-sgi-movie" = type.vid;
+          "video/vnd.avi" = type.vid;
         };
     };
   };
