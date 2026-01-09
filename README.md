@@ -52,12 +52,12 @@ This project is constantly evolving according to my needs. If you'd like to be i
 | Outline | ✅ | ✅ | ✅ | ✅ | ✅ | Works perfectly |
 | Mealie | ✅ | ✅ | ✅ | ✅ | ✅ | Works perfectly |
 | Vaultwarden | ✅ | ✅ | ✅ | ✅ | ✅ | Fill the right e-mail first |
+| Matrix Synapse | ✅ |  ✅ |  ✅ |  ✅ |  ✅ | Works Fine (+Element +Coturn) |
 | Immich | ✅ | ✅ | ✅ | ⚠️ | ✅ | Non-declarative configuration |
 | Forgejo | ✅ | ✅ | ✅ | ❌ | ✅ | Non-declarative configuration |
 | Nextcloud | ✅ | ❌ | ❌ | ❌ | ✅ | Requires a plugin, non-declarative |
 | OAuth2 Proxy | ✅ | ✅ | ✅ | ✅ | ⚠️ | Multiple backends to resolve |
 | Jellyfin | ✅ | ❌ | ❔ | ❔ | ❔ | Coming soon |
-| Matrix Synapse | ✅ | ❔ | ❔ | ❔ | ❔ | Coming soon |
 | Grafana | ✅ | ❔ | ❔ | ❔ | ❔ | Coming soon |
 | AdGuard Home | ❌ | ❌ | ❌ | ❌ | ❔ | Via OAuth2 Proxy |
 | Mattermost | ❌ | ❌ | ❌ | ❌ | ❌ | No more OAuth2 for the TEAM edition |

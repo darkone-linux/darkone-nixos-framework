@@ -12,6 +12,7 @@ let
   cfg = config.darkone.service.element;
   country = builtins.substring 3 2 zone.locale;
   localMatrixServer = "https://matrix.${network.domain}";
+  idmUri = "https://idm.${network.domain}";
 
   defaultParams = {
     description = "Messaging & VoIP client";
@@ -33,6 +34,15 @@ let
         on_welcome_page = true;
         on_login_page = true;
       };
+      oidc_static_clients."${idmUri}/".client_id = "matrix-synapse";
+      oidc_metadata = {
+        client_uri = idmUri;
+        logo_uri = idmUri + "/pkg/img/logo.svg";
+      };
+
+      # "Element X" n'est pas fonctionnel pour OIDC -> Element Classic pour l'instant
+      mobile_guide_toast = true; # default
+      mobile_guide_app_variant = "element-classic";
     };
   };
 in

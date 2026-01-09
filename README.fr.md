@@ -47,20 +47,19 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 - Déclaratif = tous les paramètres peuvent être déclarés dans la configuration 
 - OK = implémentation fonctionnelle
 
-
 | Application    | Oauth2 | Natif | PKCE | Déclaratif | OK  | Commentaires                        |
 | -------------- | ------ | ----- | ---- | ---------- | --- | ----------------------------------- |
-| Outline        | ✅      | ✅     | ✅    | ✅          | ✅   | Fonctionne parfaitement             |
-| Mealie         | ✅      | ✅     | ✅    | ✅          | ✅   | Fonctionne parfaitement             |
-| Vaultwarden    | ✅      | ✅     | ✅    | ✅          | ✅   | Fonctionne parfaitement             |
-| Immich         | ✅      | ✅     | ✅    | ⚠️         | ✅   | Configuration manuelle              |
-| Forgejo        | ✅      | ✅     | ✅    | ❌          | ✅   | Configuration manuelle              |
-| Nextcloud      | ✅      | ❌     | ❌    | ❌          | ✅   | Plugin + configuration manuelle     |
-| Oauth2 Proxy   | ✅      | ✅     | ✅    | ✅          | ⚠️  | Gestion multi-service problématique |
-| Jellyfin       | ✅      | ❌     | ❔    | ❔          | ❔   | En cours                            |
-| Matrix Synapse | ✅      | ❔     | ❔    | ❔          | ❔   | En cours                            |
-| AdGuardHome    | ❌      | ❌     | ❌    | ❌          | ❔   | Via Oauth2 Proxy                    |
-| Mattermost     | ❌      | ❌     | ❌    | ❌          | ❌   | Plus de Oauth2 pour l'édition TEAM  |
+| Outline        | ✅      | ✅     | ✅    | ✅      | ✅   | Fonctionne parfaitement             |
+| Mealie         | ✅      | ✅     | ✅    | ✅      | ✅   | Fonctionne parfaitement             |
+| Vaultwarden    | ✅      | ✅     | ✅    | ✅      | ✅   | Fonctionne parfaitement             |
+| Matrix Synapse | ✅      | ✅     | ✅    | ✅      | ✅   | Marche bien (+Element +Coturn)      |
+| Immich         | ✅      | ✅     | ✅    | ⚠️      | ✅   | Configuration manuelle              |
+| Forgejo        | ✅      | ✅     | ✅    | ❌      | ✅   | Configuration manuelle              |
+| Nextcloud      | ✅      | ❌     | ❌    | ❌      | ✅   | Plugin + configuration manuelle     |
+| Oauth2 Proxy   | ✅      | ✅     | ✅    | ✅      | ⚠️   | Gestion multi-service problématique |
+| Jellyfin       | ✅      | ❌     | ❔    | ❔      | ❔   | En cours                            |
+| AdGuardHome    | ❌      | ❌     | ❌    | ❌      | ❔   | Via Oauth2 Proxy                    |
+| Mattermost     | ❌      | ❌     | ❌    | ❌      | ❌   | Plus de Oauth2 pour l'édition TEAM  |
 
 ## Page d'accueil dynamique
 
@@ -176,33 +175,33 @@ Available recipes:
     reboot on                                      # Multi-reboot (using colmena)
 ```
 
-## A faire (todo)
+## A faire
 
 ### En cours
 
 - [ ] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + configuration multi-postes.
 - [ ] SSO avec [Kanidm](https://kanidm.com/) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.idm))
 - [ ] Partages Samba pour windows + linux.
-- [ ] Réseaux sociaux : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost), [matrix](https://nixos.wiki/wiki/Matrix).
-- [ ] Gestion centralisée des utilisateurs avec [Kanidm](https://kanidm.com/).
-- [ ] Stratégie de sauvegarde avec [Restic](https://restic.net).
+- [ ] Réseaux sociaux : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost) (annulé), [matrix](https://nixos.wiki/wiki/Matrix).
 
 ### Planifié
 
+- [ ] Services -> réorganiser la manière dont on les déclare.
+- [ ] SSO -> configuration plus cohérente.
 - [ ] Séparer en 2 projets : flake DNF comme dépendance d'un flake utilisateur.
-- [ ] Intégration de [nixvim](https://nix-community.github.io/nixvim/).
-- [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
-- [ ] Attributions d'emails automatiques par réseaux.
-- [ ] Serveur de mails.
-- [ ] Générateur / gestionnaire d'UIDs (pour les grands réseaux).
+- [ ] Automatisation des secrets OIDC et similaires.
+- [ ] Refactoring général.
 
 ### A voir
 
-- [ ] Autres réseaux : [mastodon](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mastodon), [gotosocial](https://search.nixos.org/options?channel=24.11&from=0&size=50&sort=relevance&type=packages&query=services.gotosocial), [zulip](https://zulip.com/self-hosting/)...
+- [ ] Intégration de [nixvim](https://nix-community.github.io/nixvim/).
+- [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
+- [ ] Serveur de mails.
 
 ### Fait
 
+- [x] Stratégie de sauvegarde avec [Restic](https://restic.net).
 - [x] Création de noeuds avec [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) + [disko](https://github.com/nix-community/disko).
 - [x] Services distribués (aujourd'hui les services réseau sont sur la passerelle).
 - [x] Réseau distribué avec [Headscale](https://github.com/juanfont/headscale) + [WireGuard](https://www.wireguard.com/)
