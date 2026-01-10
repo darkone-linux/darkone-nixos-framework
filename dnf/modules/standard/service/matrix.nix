@@ -60,11 +60,11 @@ in
         proxy.servicePort = (builtins.elemAt srv.settings.listeners 0).port;
         proxy.extraConfig = ''
 
-          # Redirection vers Synapse
+          # Redirect to Synapse
           reverse_proxy /_matrix/* http://127.0.0.1:8008
           reverse_proxy /_synapse/client/* http://127.0.0.1:8008
 
-          # Aide les clients mobiles à trouver le serveur
+          # Helps mobile clients to find the server
           handle /.well-known/matrix/client {
             header Access-Control-Allow-Origin "*"
             header Content-Type "application/json"
@@ -157,6 +157,7 @@ in
           dynamic_thumbnails = false;
           suppress_key_server_warning = true;
           registration_shared_secret_path = config.sops.secrets.matrix-rss-password.path;
+          auto_join_rooms = [ ]; # TODO
           listeners = [
             {
               port = synapsePort;
@@ -206,6 +207,38 @@ in
           ];
           turn_shared_secret = lib.mkIf hasTurn "ton-secret-turn";
           turn_user_lifetime = lib.mkIf hasTurn "1h";
+
+          # # Fédération
+          # federation_enabled = true; # Fédération activée (obligatoire pour les DM)
+          # enable_room_list_search = false; # Interdit la découverte de mes salons salons
+          # default_room_version = "10"; # Force les salons à ne jamais être fédérés par défaut
+          # limit_remote_rooms = {
+          #   # Interdire aux utilisateurs locaux de rejoindre des salons distants
+          #   enabled = true;
+          #   complexity = 0;
+          # };
+          # federation_domain_whitelist = [
+          #   # Restreindre la fédération aux seuls serveurs autorisés
+          #   "matrix.org"
+          #   "exemple.org"
+          # ];
+          # federation_ip_range_blacklist = [
+          #   # Interdire les IP littérales en fédération
+          #   "0.0.0.0/8"
+          #   "10.0.0.0/8"
+          #   "100.64.0.0/10"
+          #   "127.0.0.0/8"
+          #   "169.254.0.0/16"
+          #   "172.16.0.0/12"
+          #   "192.0.0.0/24"
+          #   "192.168.0.0/16"
+          #   "198.18.0.0/15"
+          #   "224.0.0.0/4"
+          #   "::1/128"
+          #   "fc00::/7"
+          #   "fe80::/10"
+          # ];
+          # allow_guest_access = false; # Pas de comptes invités
         };
       };
     })

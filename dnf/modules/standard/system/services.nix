@@ -26,6 +26,14 @@ let
   hasHeadscale = network.coordination.enable;
   isHcs = dnfLib.isHcs host zone network;
 
+  # Has a Kanidm client on the same server (HCS or main gateway)
+  # -> Redirect to IDM from the main domain.
+  hasIdmClient = config.services.kanidm.enableClient;
+
+  # Has matrix server (synapse) on the same server.
+  # -> Add a well-known url to the main domain.
+  hasMatrix = config.services.matrix-synapse.enable;
+
   # Build services list from real and default values
   services = map (service: {
     params = dnfLib.buildServiceParams (findFirst (
@@ -52,6 +60,55 @@ let
   internalServiceBindSection = ''
     @external not remote_ip private_ranges 100.64.0.0/10
     abort @external
+  '';
+
+  badBotsSection = ''
+    @badbots {
+
+      # Regular bots
+      header User-Agent "*bot*"
+      header User-Agent "*crawler*"
+      header User-Agent "*spider*"
+      header User-Agent "*scan*"
+      header User-Agent "*fetch*"
+
+      # Bot SEO
+      header User-Agent "*AhrefsBot*"
+      header User-Agent "*SemrushBot*"
+      header User-Agent "*MJ12bot*"
+      header User-Agent "*DotBot*"
+
+      # Google / Bing / etc.
+      header User-Agent "*Googlebot*"
+      header User-Agent "*bingbot*"
+      header User-Agent "*DuckDuckBot*"
+      header User-Agent "*Baiduspider*"
+      header User-Agent "*YandexBot*"
+
+      # Suspect User-agents
+      header User-Agent "*curl*"
+      header User-Agent "*wget*"
+
+      # Used by Maelie
+      #header User-Agent "*python*"
+
+      # This one is used by forgejo!
+      #header User-Agent "*Go-http-client*"
+
+      # No User-Agent
+      header User-Agent ""
+    }
+    handle @badbots {
+      respond 403
+    }
+  '';
+
+  matrixWellKnownSection = ''
+    handle /.well-known/matrix/client {
+      header Access-Control-Allow-Origin "*"
+      header Content-Type "application/json"
+      respond `{"m.homeserver":{"base_url":"https://matrix.${network.domain}"}}`
+    }
   '';
 
   # Make virtualhost prefix
@@ -320,10 +377,36 @@ in
       # Configure virtual hosts (TODO: https + redir permanent)
       virtualHosts = mkMerge (
 
+        # Main domain root virtualhost on HCS
+        optional isHcs {
+          ${network.domain} =
+            let
+              matrixWellKnown = optionalString hasMatrix matrixWellKnownSection;
+              mainAction =
+
+                # On encapsule dans un "handle" pour que le challenge fonctionne, sinon
+                # le handle automatique pour let's encrypt ne fonctionne pas.
+                if hasIdmClient then
+                  ''
+                    handle {
+                      redir / https://idm.${network.domain}
+                    }
+                  ''
+                else
+                  "respond \"Welcome to ${network.domain}\"";
+            in
+            {
+              extraConfig = ''
+                ${matrixWellKnown}
+                ${mainAction}
+              '';
+            };
+        }
+
         # Oauth2 proxy
         # Expose oauth2-proxy publiquement (paths /oauth2/*)
         # TODO: zonable proxy
-        optional hasProtectedServices {
+        ++ optional hasProtectedServices {
           "auth.${network.domain}" = {
             extraConfig = ''
               route /oauth2/* {
@@ -378,46 +461,7 @@ in
           let
             sPort = config.darkone.system.services.service.${srv.name}.proxy.servicePort;
             prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected;
-            noRobots = optionalString srv.params.noRobots ''
-              @badbots {
-
-                # Regular bots
-                header User-Agent "*bot*"
-                header User-Agent "*crawler*"
-                header User-Agent "*spider*"
-                header User-Agent "*scan*"
-                header User-Agent "*fetch*"
-
-                # Bot SEO
-                header User-Agent "*AhrefsBot*"
-                header User-Agent "*SemrushBot*"
-                header User-Agent "*MJ12bot*"
-                header User-Agent "*DotBot*"
-
-                # Google / Bing / etc.
-                header User-Agent "*Googlebot*"
-                header User-Agent "*bingbot*"
-                header User-Agent "*DuckDuckBot*"
-                header User-Agent "*Baiduspider*"
-                header User-Agent "*YandexBot*"
-
-                # Suspect User-agents
-                header User-Agent "*curl*"
-                header User-Agent "*wget*"
-
-                # Used by Maelie
-                #header User-Agent "*python*"
-
-                # This one is used by forgejo!
-                #header User-Agent "*Go-http-client*"
-
-                # No User-Agent
-                header User-Agent ""
-              }
-              handle @badbots {
-                respond 403
-              }
-            '';
+            noRobots = optionalString srv.params.noRobots badBotsSection;
             reverseProxy = lib.optionalString srv.proxy.hasReverseProxy "reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString sPort}";
           in
           {

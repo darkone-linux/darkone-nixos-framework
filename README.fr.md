@@ -257,7 +257,7 @@ Available recipes:
 
 ### Planifié
 
-- [ ] Services -> réorganiser la manière dont on les déclare.
+- [ ] Services -> réorganiser la manière dont on les déclare -> services uniques + avec sous-domaine fixe, sous-domaines interdits déclarables, services multiples avec OIDC.
 - [ ] SSO -> configuration plus cohérente.
 - [ ] Kanidm -> réplicats de zone.
 - [ ] Séparer en 2 projets : flake DNF comme dépendance d'un flake utilisateur.
