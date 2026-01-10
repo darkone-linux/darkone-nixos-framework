@@ -27,8 +27,8 @@ let
   );
 
   # TODO: internationalisation
-  localTitle = "1. Applications Locales";
-  globalTitle = "2. Applications Globales";
+  globalTitle = "1. Applications Globales";
+  localTitle = "2. Applications Locales";
   remoteTitle = "3. Applications Distantes";
 in
 {
@@ -105,11 +105,11 @@ in
           headerStyle = "clean";
           target = "_self";
           layout = {
-            ${localTitle} = {
+            ${globalTitle} = {
               style = "row";
               columns = 3;
             };
-            ${globalTitle} = {
+            ${localTitle} = {
               style = "row";
               columns = 3;
             };
@@ -186,8 +186,8 @@ in
 
         # https://gethomepage.dev/latest/configs/services/
         services = [
-          { ${localTitle} = cfg.localServices; }
           { ${globalTitle} = cfg.globalServices; }
+          { ${localTitle} = cfg.localServices; }
           { ${remoteTitle} = cfg.remoteServices; }
         ];
 

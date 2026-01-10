@@ -275,7 +275,7 @@ in
 
               # The redirect URL of the service. These need to exactly match the OAuth2 redirect target.
               originUrl = "https://git.${network.domain}/user/oauth2/idm/callback";
-              originLanding = "https://git.${network.domain}/explore/repos";
+              originLanding = "https://git.${network.domain}/user/oauth2/idm"; # Auto-connect
 
               # https://forgejo.org/docs/next/user/oauth2-provider/#public-client-pkce
               allowInsecureClientDisablePkce = false;
