@@ -90,6 +90,7 @@ in
       (lib.mkIf (graphic && cfg.enableTools) gnome-connections) # VNC / RDP Client
       (lib.mkIf (graphic && cfg.enableTools) gnome-logs)
       (lib.mkIf (graphic && cfg.enableTools) meld) # Diff tool
+      (lib.mkIf (graphic && cfg.enableTools) parabolic) # yt-dlp frontend
       (lib.mkIf (graphic && cfg.enableTools) resources) # Monitor your system resources and processes
       (lib.mkIf (graphic && cfg.enableTools) textpieces) # Swiss knife of text processing
       (lib.mkIf (hasRestic && cfg.enableAdmin) restic) # Already in nixos configuration...
@@ -145,6 +146,7 @@ in
       (lib.mkIf cfg.enableTools fastfetch)
       (lib.mkIf cfg.enableTools presenterm)
       (lib.mkIf cfg.enableTools pv)
+      (lib.mkIf cfg.enableTools yt-dlp)
     ];
 
     #============================================================================
@@ -203,19 +205,76 @@ in
       enable = true;
       settings = {
         copy_on_select = true;
+        selection_style = "invert";
+        copy_clipboard = "primary";
+        #show_startup_tips = false;
+        show_release_notes = false;
+        ui = {
+          pane_frames = {
+            rounded_corners = true;
+          };
+        };
         themes = {
-          soft_dark = {
+          soft_dark = rec {
             fg = termFgColor;
             bg = termBgColor;
             black = termBgColor;
-            red = "#ED333B";
-            green = "#57E389";
-            yellow = "#F8E45C";
-            blue = "#F8E45C";
-            magenta = "#C061CB";
-            cyan = "#4FD2FD";
-            white = "#F6F5F4";
-            orange = "#F5C211";
+            red = "#ed333b";
+            green = "#57e389";
+            yellow = "#f8e45c";
+            blue = "#5ca2f8";
+            magenta = "#c061cb";
+            cyan = "#4ff1fd";
+            white = "#ffffff";
+            orange = "#f58b11";
+            text_unselected = {
+              base = termFgColor;
+              background = termBgColor;
+              emphasis_0 = orange;
+              emphasis_1 = cyan;
+              emphasis_2 = green;
+              emphasis_3 = magenta;
+            };
+            text_selected = {
+              base = termBgColor;
+              background = green;
+              emphasis_0 = orange;
+              emphasis_1 = cyan;
+              emphasis_2 = green;
+              emphasis_3 = magenta;
+            };
+            ribbon_unselected = {
+              base = termBgColor;
+              background = termFgColor;
+              emphasis_0 = orange;
+              emphasis_1 = cyan;
+              emphasis_2 = green;
+              emphasis_3 = magenta;
+            };
+            ribbon_selected = {
+              base = termBgColor;
+              background = green;
+              emphasis_0 = orange;
+              emphasis_1 = cyan;
+              emphasis_2 = green;
+              emphasis_3 = magenta;
+            };
+            frame_unselected = {
+              base = "#666666";
+              background = termBgColor;
+              emphasis_0 = orange;
+              emphasis_1 = cyan;
+              emphasis_2 = green;
+              emphasis_3 = magenta;
+            };
+            frame_selected = {
+              base = green;
+              background = termBgColor;
+              emphasis_0 = orange;
+              emphasis_1 = cyan;
+              emphasis_2 = green;
+              emphasis_3 = magenta;
+            };
           };
         };
         theme = "soft_dark";
@@ -231,9 +290,11 @@ in
       settings = {
         theme = "Adwaita Dark";
         background = termBgColor;
+        selection-foreground = "#00bceb";
+        selection-background = "#1f4675";
         font-size = 14;
         window-padding-x = 6;
-        window-padding-y = 3;
+        window-padding-y = 6;
         #palette = "0=${termBgColor}";
       };
     };

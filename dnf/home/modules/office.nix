@@ -12,6 +12,13 @@
 with lib;
 let
   cfg = config.darkone.home.office;
+
+  # Matrix
+  country = builtins.substring 3 2 zone.locale;
+  localMatrixServer = "https://matrix.${network.domain}";
+  idmUri = "https://idm.${network.domain}";
+
+  # Has services
   hasGateway = attrsets.hasAttrByPath [ "gateway" "hostname" ] zone;
   hasMattermost = (findFirst (s: s.name == "mattermost") null network.services) != null;
   hasMatrix = (findFirst (s: s.name == "matrix") null network.services) != null;
@@ -80,14 +87,15 @@ in
 
   config = mkIf cfg.enable {
 
+    #--------------------------------------------------------------------------
     # Packages
+    #--------------------------------------------------------------------------
+
     home.packages = with pkgs; [
       #(mkIf cfg.enableProductivity super-productivity) # Time processing -> build error
-
       (mkIf (cfg.enableCommunication && cfg.enableMore) tuba) # Browse the Fediverse
       (mkIf (cfg.enableCommunication && cfg.enableMore) zoom-us)
       (mkIf (cfg.enableCommunication && hasMattermost) mattermost-desktop)
-      (mkIf (cfg.enableCommunication && hasMatrix) element-desktop)
       (mkIf (cfg.enableTools && cfg.enableMore) pika-backup) # Simple backups based on borg -> Security ?
       (mkIf (cfg.enableTools && cfg.enableMore) simple-scan)
       (mkIf cfg.enableCalendarContacts gnome-calendar)
@@ -114,6 +122,10 @@ in
       (mkIf cfg.enableBrave brave)
     ];
 
+    #--------------------------------------------------------------------------
+    # Fixes
+    #--------------------------------------------------------------------------
+
     # Hack to set Colibre icons instead of dark icon with light theme
     home.file.".config/libreoffice/4/user/registrymodifications.init.xcu".text = ''
       <?xml version="1.0" encoding="UTF-8"?>
@@ -125,7 +137,43 @@ in
       "L ${config.home.homeDirectory}/.config/libreoffice/4/user/registrymodifications.xcu - - - - ${config.home.homeDirectory}/.config/libreoffice/4/user/registrymodifications.init.xcu"
     ];
 
+    #--------------------------------------------------------------------------
+    # Matrix element desktop
+    #--------------------------------------------------------------------------
+
+    # TODO: compléter, factoriser avec element.nix
+    programs.element-desktop = mkIf (cfg.enableCommunication && hasMatrix) {
+      enable = true;
+      settings = {
+        default_server_config = {
+          "m.homeserver" = {
+            base_url = localMatrixServer;
+            server_name = "${network.domain} matrix server";
+          };
+        };
+        show_labs_settings = true;
+        default_theme = "dark";
+        default_federate = false;
+        default_country_code = country;
+        room_directory.servers = [ localMatrixServer ];
+        brand = network.domain;
+        sso_redirect_options = {
+          immediate = true;
+          on_welcome_page = true;
+          on_login_page = true;
+        };
+        oidc_static_clients."${idmUri}/".client_id = "matrix-synapse";
+        oidc_metadata = {
+          client_uri = idmUri;
+          logo_uri = idmUri + "/pkg/img/logo.svg";
+        };
+      };
+    };
+
+    #--------------------------------------------------------------------------
     # Browsers
+    #--------------------------------------------------------------------------
+
     # TODO: https://nix-community.github.io/home-manager/options.xhtml#opt-programs.firefox.languagePacks
     # TODO: https://nix-community.github.io/home-manager/options.xhtml#opt-programs.chromium.dictionaries
 
@@ -262,6 +310,10 @@ in
         pkgs.hunspellDictsChromium.en_US
       ];
     };
+
+    #--------------------------------------------------------------------------
+    # Thunderbird
+    #--------------------------------------------------------------------------
 
     # TODO: Thunderbird profile
     #programs.thunderbird.enable = cfg.enableEmail;
