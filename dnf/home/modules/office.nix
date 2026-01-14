@@ -22,6 +22,7 @@ let
   hasGateway = attrsets.hasAttrByPath [ "gateway" "hostname" ] zone;
   hasMattermost = (findFirst (s: s.name == "mattermost") null network.services) != null;
   hasMatrix = (findFirst (s: s.name == "matrix") null network.services) != null;
+  hasElement = cfg.enableCommunication && hasMatrix;
 in
 {
   options = {
@@ -142,7 +143,7 @@ in
     #--------------------------------------------------------------------------
 
     # TODO: compléter, factoriser avec element.nix
-    programs.element-desktop = mkIf (cfg.enableCommunication && hasMatrix) {
+    programs.element-desktop = mkIf hasElement {
       enable = true;
       settings = {
         default_server_config = {
@@ -167,6 +168,20 @@ in
           client_uri = idmUri;
           logo_uri = idmUri + "/pkg/img/logo.svg";
         };
+      };
+    };
+
+    # Lancement automatique
+    systemd.user.services.element-desktop = mkIf hasElement {
+      Unit = {
+        Description = "Element Desktop (autostart)";
+      };
+      Install = {
+        WantedBy = [ "graphical-session.target" ];
+      };
+      Service = {
+        ExecStart = "${pkgs.element-desktop}/bin/element-desktop --no-update --hidden";
+        Restart = "on-failure";
       };
     };
 

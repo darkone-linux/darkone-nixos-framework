@@ -1,4 +1,7 @@
-# A matrix (synapse) server.
+# DNF matrix (synapse) server.
+
+# TODO: Livekit -> https://wiki.nixos.org/wiki/Matrix#Livekit
+# TODO: Synapse Admin -> https://wiki.nixos.org/wiki/Matrix#Synapse_Admin_with_Caddy
 
 {
   lib,
@@ -83,7 +86,7 @@ in
       };
 
       #------------------------------------------------------------------------
-      # Dependencies
+      # Sops
       #------------------------------------------------------------------------
 
       # Registration Shared Secret
@@ -110,7 +113,7 @@ in
       };
 
       #------------------------------------------------------------------------
-      # Matrix Synapse DB creation
+      # Database
       #------------------------------------------------------------------------
 
       systemd.services.matrix-db-init = {
@@ -128,10 +131,6 @@ in
         enable = true;
         ensureUsers = [ { name = "matrix-synapse"; } ];
       };
-
-      #------------------------------------------------------------------------
-      # Related services
-      #------------------------------------------------------------------------
 
       # Sauvegarde postgresql (par défaut toutes les bases)
       services.postgresqlBackup.enable = true;

@@ -61,6 +61,17 @@ in
       createHomeDir ${baseDir}/homes/${config.home.username}/Desktop "$XDG_DESKTOP_DIR"
       createHomeDir ${baseDir}/homes/${config.home.username}/Templates "$XDG_TEMPLATES_DIR"
       createHomeDir ${baseDir}/common "$XDG_PUBLICSHARE_DIR"
+
+      if [ -L ${config.home.homeDirectory}'/.config/gtk-3.0/bookmarks' ]; then
+        rm -f ${config.home.homeDirectory}'/.config/gtk-3.0/bookmarks'
+      fi
+      mkdir -p ${config.home.homeDirectory}'/.config/gtk-3.0'
+      echo 'file://'$XDG_DOCUMENTS_DIR > ${config.home.homeDirectory}'/.config/gtk-3.0/bookmarks'
+      echo 'file://'$XDG_PICTURES_DIR >> ${config.home.homeDirectory}'/.config/gtk-3.0/bookmarks'
+      echo 'file://'$XDG_DOWNLOAD_DIR >> ${config.home.homeDirectory}'/.config/gtk-3.0/bookmarks'
+      echo 'file://'$XDG_PUBLICSHARE_DIR >> ${config.home.homeDirectory}'/.config/gtk-3.0/bookmarks'
+      echo 'file://'$XDG_MUSIC_DIR >> ${config.home.homeDirectory}'/.config/gtk-3.0/bookmarks'
+      echo 'file://'$XDG_VIDEOS_DIR >> ${config.home.homeDirectory}'/.config/gtk-3.0/bookmarks'
     ''
   );
 }

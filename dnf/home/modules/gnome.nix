@@ -12,59 +12,24 @@ in
     darkone.home.gnome.hideTechnicalIcons = lib.mkEnableOption "Hide some icons for beginners / children / babies";
   };
 
+  # NOTE: do not declare gtk.gtk3.bookmarks, "nfs.nix" creates this file!
   config = lib.mkIf cfg.enable {
 
-    #TODO: gtk.gtk3.bookmarks = lib.optionals hasNFS [ "file:///home/${config.home.username}/Documents" ];
-
-    # Gnome general settings: NOT WORKING + Conflict with dconf (non-writable keys)
-    # gtk = {
-    #   enable = true;
-    #   theme = {
-    #     name = "Adwaita-dark";
-    #     package = pkgs.gnome-themes-extra;
-    #   };
-    #   colorScheme = "dark"; # non-writable key
-    #   gtk3 = {
-    #     bookmarks = [ "file:///home/${config.home.username}/Documents" ];
-    #     colorScheme = "dark";
-    #     cursorTheme = {
-    #       package = pkgs.bibata-cursors;
-    #       name = "Bibata-Modern-Classic";
-    #       size = 48;
-    #     };
-    #     iconTheme = {
-    #       package = pkgs.papirus-icon-theme;
-    #       name = "Papirus-Dark";
-    #     };
-    #   };
-    #   gtk4.extraConfig = {
-    #     gtk-application-prefer-dark-theme = 1;
-    #   };
-    # };
-
-    # QT specific configuration: NO EFFECT
-    # qt = {
-    #   enable = true;
-    #   platformTheme.name = "gtk3";
-    #   style = {
-    #     name = "adwaita-dark";
-    #     package = pkgs.adwaita-qt;
-    #   };
-    # };
-
-    # No effect...
-    # home.sessionVariables = {
-    #   QT_STYLE_OVERRIDE = "adwaita-dark";
-    # };
+    # Hide xterm app
+    home.file.".local/share/applications/xterm.desktop".text = ''
+      [Desktop Entry]
+      Name=XTerm
+      Comment=Terminal emulator
+      Exec=xterm
+      Icon=utilities-terminal
+      Terminal=true
+      Type=Application
+      NoDisplay=true
+      Categories=System;TerminalEmulator;
+    '';
 
     # Hide icons
     xdg.desktopEntries = lib.mkIf cfg.hideTechnicalIcons {
-      "xterm" = {
-        name = "XTerm";
-        exec = "xterm";
-        type = "Application";
-        noDisplay = true;
-      };
       "org.gnome.Settings" = {
         name = "Paramètres";
         exec = "gnome-control-center";

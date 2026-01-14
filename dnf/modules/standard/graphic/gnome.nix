@@ -194,6 +194,7 @@ in
       profiles = {
 
         # Gnome settings
+        # -> https://github.com/nix-community/dconf2nix
         user.databases = [
           {
             lockAll = true; # prevents overriding
