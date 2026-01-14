@@ -17,7 +17,6 @@ let
   defaultParams = {
     description = "Messaging & VoIP client";
   };
-  #params = dnfLib.extractServiceParams host network "element" defaultParams;
 
   clientConfig."m.homeserver".base_url = localMatrixServer;
   elementWeb = pkgs.element-web.override {
@@ -64,7 +63,7 @@ in
           enable = true;
           hasReverseProxy = false;
           extraConfig = ''
-            root * ${elementWeb}
+            root * /etc/element-web
             file_server
           '';
         };
@@ -79,9 +78,8 @@ in
         service.element.enable = true;
       };
 
-      # Element web dependency (required)
-      environment.systemPackages = [ elementWeb ];
-
+      # Get and expose element web sources
+      environment.etc."element-web".source = elementWeb;
     })
   ];
 }
