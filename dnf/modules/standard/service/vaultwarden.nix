@@ -87,12 +87,19 @@ in
         environmentFile = config.sops.templates.vaultwarden-env.path;
         config = {
 
+          # General -> https://github.com/dani-garcia/vaultwarden/blob/1.35.2/.env.template
           DOMAIN = params.href;
           SIGNUPS_ALLOWED = false; # TODO: SSO (change to true the first time)
-          SIGNUPS_DOMAINS_WHITELIST = network.domain;
           ROCKET_ADDRESS = params.ip;
           ROCKET_PORT = 8222;
           ROCKET_LOG = "critical";
+          SENDS_ALLOWED = true;
+          EMERGENCY_ACCESS_ALLOWED = true;
+          EMAIL_CHANGE_ALLOWED = false;
+          LOG_LEVEL = "info";
+
+          # Impossible de valider des comptes avec des emails
+          #SIGNUPS_DOMAINS_WHITELIST = network.domain;
 
           # Put SMTP_PASSWORD in sops environmentFile
           SMTP_HOST = network.smtp.server;
@@ -105,9 +112,13 @@ in
 
           # SSO
           SSO_ENABLED = true;
+          SSO_ONLY = false;
           SSO_AUTHORITY = "https://idm.${network.domain}/oauth2/openid/vaultwarden";
           SSO_CLIENT_ID = "vaultwarden";
           SSO_ALLOW_UNKNOWN_EMAIL_VERIFICATION = true;
+          SSO_SCOPES = "email profile"; # `openid` is implicit
+          SSO_PKCE = true;
+          SSO_AUTH_ONLY_NOT_SESSION = true; # Use sso only for authentication not the session lifecycle
         };
 
         # TODO: local backup strategy

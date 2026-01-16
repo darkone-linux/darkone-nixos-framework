@@ -15,6 +15,7 @@
   lib,
   config,
   network,
+  pkgs-stable,
   host,
   zone,
   ...
@@ -72,8 +73,9 @@ in
       # NCPS Service
       #------------------------------------------------------------------------
 
-      services.ncps =
-        lib.mkIf isServer {
+      services.ncps = lib.mkIf isServer (
+        {
+          package = pkgs-stable.ncps;
           enable = true;
           cache = {
             inherit (cfg) dataPath;
@@ -94,7 +96,8 @@ in
             ];
           };
         }
-        // cfg.extraOptions;
+        // cfg.extraOptions
+      );
 
       # Add local gw to substituters.
       # Check with nix --extra-experimental-features nix-command config show | grep substituters

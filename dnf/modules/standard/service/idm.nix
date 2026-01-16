@@ -284,12 +284,12 @@ in
               inherit scopeMaps;
             };
 
-            # Outline WIKI
+            # Outline WIKI (domain="notes")
             outline = {
               displayName = "Outline Documentation";
               imageFile = ./../../../assets/app-icons/outline.svg;
-              originUrl = "https://outline.${network.domain}/auth/oidc.callback";
-              originLanding = "https://outline.${network.domain}/";
+              originUrl = "https://notes.${network.domain}/auth/oidc.callback";
+              originLanding = "https://notes.${network.domain}/";
               basicSecretFile = secrets.oidc-secret-outline.path;
               allowInsecureClientDisablePkce = true;
               inherit scopeMaps;

@@ -18,10 +18,9 @@ let
     description = "Messaging & VoIP client";
   };
 
-  clientConfig."m.homeserver".base_url = localMatrixServer;
   elementWeb = pkgs.element-web.override {
     conf = {
-      default_server_config = clientConfig;
+      default_server_config."m.homeserver".base_url = localMatrixServer;
       show_labs_settings = true;
       default_theme = "dark";
       default_federate = false;

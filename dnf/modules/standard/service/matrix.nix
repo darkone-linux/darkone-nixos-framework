@@ -1,6 +1,7 @@
 # DNF matrix (synapse) server.
 
-# TODO: Livekit -> https://wiki.nixos.org/wiki/Matrix#Livekit
+# (TODO: Livekit -> https://wiki.nixos.org/wiki/Matrix#Livekit)
+# TODO: intégration jitsi
 # TODO: Synapse Admin -> https://wiki.nixos.org/wiki/Matrix#Synapse_Admin_with_Caddy
 
 {
