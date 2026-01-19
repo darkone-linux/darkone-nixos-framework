@@ -22,7 +22,7 @@ let
   hasGateway = attrsets.hasAttrByPath [ "gateway" "hostname" ] zone;
   hasMattermost = (findFirst (s: s.name == "mattermost") null network.services) != null;
   hasMatrix = (findFirst (s: s.name == "matrix") null network.services) != null;
-  hasElement = cfg.enableCommunication && hasMatrix;
+  hasMatrixClient = cfg.enableCommunication && hasMatrix;
 in
 {
   options = {
@@ -121,6 +121,7 @@ in
       (mkIf cfg.enableTools snapshot) # Webcam
       (mkIf cfg.enableProductivity obsidian)
       (mkIf cfg.enableBrave brave)
+      (mkIf hasMatrixClient fractal)
     ];
 
     #--------------------------------------------------------------------------
@@ -143,7 +144,7 @@ in
     #--------------------------------------------------------------------------
 
     # TODO: compléter, factoriser avec element.nix
-    programs.element-desktop = mkIf hasElement {
+    programs.element-desktop = mkIf hasMatrixClient {
       enable = true;
       settings = {
         default_server_config = {
@@ -172,7 +173,7 @@ in
     };
 
     # Lancement automatique
-    systemd.user.services.element-desktop = mkIf hasElement {
+    systemd.user.services.element-desktop = mkIf hasMatrixClient {
       Unit = {
         Description = "Element Desktop (autostart)";
       };

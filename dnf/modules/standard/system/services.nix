@@ -109,6 +109,11 @@ let
       header Content-Type "application/json"
       respond `{"m.homeserver":{"base_url":"https://matrix.${network.domain}"}}`
     }
+    handle /.well-known/matrix/server {
+      header Access-Control-Allow-Origin "*"
+      header Content-Type "application/json"
+      respond `{"m.server":"matrix.${network.domain}:443"}`
+    }
   '';
 
   # Make virtualhost prefix

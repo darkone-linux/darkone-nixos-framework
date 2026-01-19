@@ -13,6 +13,11 @@ let
   country = builtins.substring 3 2 zone.locale;
   localMatrixServer = "https://matrix.${network.domain}";
   idmUri = "https://idm.${network.domain}";
+  jitsiService = lib.findFirst (s: s.name == "jitsi-meet" && s.zone == "www") null network.services;
+  hasJitsi = jitsiService != null;
+  jitsiDomain = lib.optionalString hasJitsi (
+    if lib.hasAttr "domain" jitsiService then jitsiService.domain else jitsiService.name
+  );
 
   defaultParams = {
     description = "Messaging & VoIP client";
@@ -37,6 +42,7 @@ let
         client_uri = idmUri;
         logo_uri = idmUri + "/pkg/img/logo.svg";
       };
+      jitsi.preferred_domain = if hasJitsi then jitsiDomain else "meet.jit.si";
 
       # "Element X" n'est pas fonctionnel pour OIDC -> Element Classic pour l'instant
       mobile_guide_toast = true; # default

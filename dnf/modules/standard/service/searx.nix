@@ -31,6 +31,7 @@ in
     {
       darkone.system.services.service.searx = {
         inherit defaultParams;
+        displayOnHomepage = false; # Accessible via the homepage search bar
         persist.dirs = [ "/var/lib/searx" ];
         proxy.servicePort = srvPort;
         proxy.isInternal = true;

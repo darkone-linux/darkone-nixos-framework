@@ -70,9 +70,10 @@ in
         # TODO: pas d'accès... utiliser security.acme à la place de caddy
         # cert = "/var/lib/caddy/storage/certificates/acme-v02.api.letsencrypt.org-directory/${turnDomain}/${turnDomain}.crt";
         # pkey = "/var/lib/caddy/storage/certificates/acme-v02.api.letsencrypt.org-directory/${turnDomain}/${turnDomain}.key";
+        no-tls = true; # Desactivé pour le moment
 
-        #no-tcp = true;
-        secure-stun = false;
+        # Require authentication
+        secure-stun = true;
 
         extraConfig = ''
           verbose

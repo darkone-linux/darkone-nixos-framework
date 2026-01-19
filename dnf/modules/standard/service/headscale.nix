@@ -146,7 +146,7 @@ in
             #   client_secret_path = "/var/lib/headscale/oidc_secret";
             # };
 
-            # Serveurs DNS pour les clients
+            # Serveurs DNS pour les clients (fallback uniquement...)
             # -> On ne résoud pas de NDD externes sur headscale pour le moment.
             nameservers = {
               global = [
@@ -157,11 +157,16 @@ in
                 # "2606:4700:4700::1001"
               ];
 
-              # A chaque suffixe de zone son IP tailnet
+              # Les clients tailscale s'adressent à 100.100.100.100.
+              # -> Tout ce qui est en poncon.fr doit être pris en charge par le DNS unbound du HCS.
+              split.${network.domain} = [ hcsTailnetIpv4 ];
+
+              # A chaque suffixe de zone son serveur DNS...
               # { "zone.domain.tld" = [ "100.64.x.x" ]; (...) };
               # NOTE : le split-DNS de Headscale sert uniquement à dire aux clients quel DNS interroger
               #        pour quelle zone, pas à résoudre ni à chaîner les DNS eux-mêmes.
               #        Désormais c'est unbound qui sert de serveur DNS pivot pour les zones.
+              #        Via le split précédent on délègue le traitement DNS du domaine principal à Unbound.
               # split = lib.concatMapAttrs (_: z: { "${z.domain}" = [ "${z.gateway.vpn.ipv4}" ]; }) (
               #   lib.filterAttrs (_: z: lib.hasAttrByPath [ "gateway" "vpn" "ipv4" ] z) network.zones
               # );
