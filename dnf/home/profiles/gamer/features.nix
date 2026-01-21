@@ -8,10 +8,6 @@ in
   darkone.home = {
     office = {
       enable = lib.mkDefault graphic;
-      enableTools = lib.mkDefault false;
-      enableEmail = lib.mkDefault false;
-      enableOffice = lib.mkDefault false;
-      enableProductivity = lib.mkDefault false;
       enableCommunication = lib.mkDefault graphic;
     };
     games = {
@@ -21,16 +17,11 @@ in
       enableCli = true;
     };
     education.enableStudent = lib.mkDefault graphic;
-    music.enable = lib.mkDefault false;
-    imagery = {
-      enable = lib.mkDefault graphic;
-      enablePro = false;
-      enableCAD = false;
-    };
-    video = {
-      enable = lib.mkDefault graphic;
-      enableTools = false;
-      enableEditing = false;
+    imagery.enable = lib.mkDefault graphic;
+    video.enable = lib.mkDefault graphic;
+    audio = {
+      enable = lib.mkDefault true;
+      enableTools = lib.mkDefault graphic;
     };
   };
 }

@@ -21,12 +21,7 @@ in
       enable = lib.mkDefault graphic;
       enableEssentials = lib.mkDefault graphic;
       enableProductivity = lib.mkDefault graphic;
-      enableTools = lib.mkDefault false;
       enableOffice = lib.mkDefault graphic;
-      enableBrave = lib.mkDefault false;
-      enableFirefox = lib.mkDefault false;
-      enableChromium = lib.mkDefault false;
-      enableEmail = lib.mkDefault false;
     };
     imagery = {
       enable = lib.mkDefault graphic;

@@ -13,21 +13,34 @@ with lib;
 let
   cfg = config.darkone.home.office;
 
-  # Matrix
+  # Locale
+  inherit (zone) lang;
   country = builtins.substring 3 2 zone.locale;
+
+  # Matrix
   localMatrixServer = "https://matrix.${network.domain}";
   idmUri = "https://idm.${network.domain}";
 
+  # Homepage (TODO: simplifier la recherche de la page d'accueil de la zone)
+  homeService = findFirst (s: s.name == "homepage" && s.zone == zone.name) null network.services;
+  homeDomain = optionalString (homeService != null) (
+    if (hasAttr "domain" homeService) then homeService.domain else homeService.name
+  );
+  hasHomepage = homeDomain != "";
+  homeUrl = optionalString hasHomepage "https://${homeDomain}.${zone.domain}";
+
   # Has services
-  hasGateway = attrsets.hasAttrByPath [ "gateway" "hostname" ] zone;
   hasMattermost = (findFirst (s: s.name == "mattermost") null network.services) != null;
   hasMatrix = (findFirst (s: s.name == "matrix") null network.services) != null;
   hasMatrixClient = cfg.enableCommunication && hasMatrix;
+  hasVaultwarden = (findFirst (s: s.name == "vaultwarden") null network.services) != null;
 in
 {
   options = {
     darkone.home.office.enable = mkEnableOption "Default useful packages";
     darkone.home.office.enableMore = mkEnableOption "More alternative packages";
+    darkone.home.office.enableUnsafeFeatures = mkEnableOption "Features for advanced non-child users";
+    darkone.home.office.enableUBlock = mkEnableOption "Enable ublock plugin";
     darkone.home.office.enableEssentials = mkOption {
       type = types.bool;
       default = true;
@@ -106,6 +119,8 @@ in
       (mkIf cfg.enableEssentials gnome-calculator)
       (mkIf cfg.enableEssentials gnome-clocks)
       (mkIf cfg.enableEssentials gnome-usage)
+      (mkIf cfg.enableFirefox gnomeExtensions.pip-on-top)
+      (mkIf cfg.enableFirefox shadowfox)
       (mkIf cfg.enableOffice hunspell)
       (mkIf cfg.enableOffice hunspellDicts.${cfg.huntspellLang})
       (mkIf cfg.enableOffice libreoffice-fresh) # Force visible icon theme
@@ -122,6 +137,8 @@ in
       (mkIf cfg.enableProductivity obsidian)
       (mkIf cfg.enableBrave brave)
       (mkIf hasMatrixClient fractal)
+      (mkIf hasVaultwarden bitwarden-desktop)
+      (mkIf hasVaultwarden bitwarden-cli)
     ];
 
     #--------------------------------------------------------------------------
@@ -190,31 +207,62 @@ in
     # Browsers
     #--------------------------------------------------------------------------
 
-    # TODO: https://nix-community.github.io/home-manager/options.xhtml#opt-programs.firefox.languagePacks
     # TODO: https://nix-community.github.io/home-manager/options.xhtml#opt-programs.chromium.dictionaries
 
     programs.firefox = mkIf cfg.enableFirefox {
       enable = true;
       package = pkgs.firefox-esr;
-      languagePacks = [ "${zone.lang}" ];
+
+      # Lang https://releases.mozilla.org/pub/firefox/releases/140.7.0esr/linux-x86_64/
+      languagePacks = [ "${lang}" ];
+
+      # Default profile
       profiles = {
         default = {
           id = 0;
           name = "default";
           isDefault = true;
+
+          # Check about:config for options.
           settings = {
-            "browser.startup.homepage" = mkIf hasGateway "http://${zone.gateway.hostname}";
+            "intl.accept_languages" = "${lang},${lang}-${country},en-us,en";
+            "general.useragent.locale" = "${lang}";
+
+            "extensions.pocket.enabled" = false;
+            "extensions.autoDisableScopes" = 0; # Auto-install extensions!
+
+            "browser.startup.homepage" = mkIf hasHomepage homeUrl;
             "browser.search.defaultenginename" = "google";
             "browser.search.order.1" = "google";
             "browser.aboutConfig.showWarning" = false;
             "browser.compactmode.show" = true;
-            #"extensions.bitwarden.enable" = true; -> TODO: install bitwarden
+            "browser.newtabpage.activity-stream.feeds.section.topstories" = false;
+            "browser.newtabpage.activity-stream.feeds.snippets" = false;
+            "browser.newtabpage.activity-stream.section.highlights.includePocket" = false;
+            "browser.newtabpage.activity-stream.section.highlights.includeBookmarks" = false;
+            "browser.newtabpage.activity-stream.section.highlights.includeDownloads" = false;
+            "browser.newtabpage.activity-stream.section.highlights.includeVisited" = false;
+            "browser.newtabpage.activity-stream.showSponsored" = false;
+            "browser.newtabpage.activity-stream.system.showSponsored" = false;
+            "browser.newtabpage.activity-stream.showSponsoredTopSites" = false;
+            "browser.newtabpage.pinned" = optional hasHomepage {
+              title = zone.description;
+              url = homeUrl;
+            };
+            "browser.contentblocking.category" = {
+              Value = "strict";
+              Status = "locked";
+            };
+
+            "privacy.trackingprotection.enabled" = true;
+            "privacy.trackingprotection.socialtracking.enabled" = true;
 
             # Firefox 75+ remembers the last workspace it was opened on as part of its session management.
             # This is annoying, because I can have a blank workspace, click Firefox from the launcher, and
             # then have Firefox open on some other workspace.
             "widget.disable-workspace-management" = true;
           };
+
           search = {
             force = true;
             default = "google";
@@ -268,15 +316,16 @@ in
               google.metaData.alias = "@g";
             };
           };
+
           extensions = {
             force = true;
             packages = with inputs.firefox-addons.packages.${pkgs.stdenv.hostPlatform.system}; [
-              bitwarden
-              #darkreader
-              #browserpass
-              ublock-origin
+              (mkIf hasVaultwarden bitwarden)
+              (mkIf cfg.enableUBlock ublock-origin)
+              (mkIf (lang == "fr") french-language-pack)
+              (mkIf (lang == "fr") french-dictionary)
             ];
-            settings."uBlock0@raymondhill.net".settings = {
+            settings."uBlock0@raymondhill.net".settings = mkIf cfg.enableUBlock {
               selectedFilterLists = [
                 "ublock-filters"
                 "ublock-badware"
@@ -286,31 +335,132 @@ in
               ];
             };
           };
+
+          # TODO: https://nix-community.github.io/home-manager/options.xhtml#opt-programs.firefox.profiles._name_.containers
+          # containers = {};
         };
       };
+
+      # https://mozilla.github.io/policy-templates/
       policies = {
+        BlockAboutConfig = !cfg.enableUnsafeFeatures;
+        BlockAboutAddons = false; # !cfg.enableUnsafeFeatures;
+        DisablePocket = true;
         DisableTelemetry = true;
         DisableFirefoxStudies = true;
+        DisableFirefoxAccounts = true;
+        DisableMasterPasswordCreation = true;
         PasswordManagerEnabled = false;
         DontCheckDefaultBrowser = true;
-        DisablePocket = true;
         SearchBar = "unified";
-        ExtensionSettings = {
-          "bitwarden@bitwarden.com" = {
-            installation_mode = "force_installed";
-          };
+        GoToIntranetSiteForSingleWordEntryInAddressBar = true;
+        HttpsOnlyMode = if cfg.enableUnsafeFeatures then "enabled" else "force_enabled";
+        NewTabPage = true;
+        OfferToSaveLogins = false;
+        OverrideFirstRunPage = mkIf hasHomepage homeUrl;
+        PopupBlocking.Default = true;
+        PrimaryPassword = false;
+        PrivateBrowsingModeAvailability = 0; # Available, not forced
+        PromptForDownloadLocation = true;
+        RequestedLocales = "${lang},${lang}-${country}";
+        SearchSuggestEnabled = true;
+        SkipTermsOfUse = true;
+        ShowHomeButton = hasHomepage;
+        StartDownloadsInTempDirectory = false;
+        TranslateEnabled = false;
+        DisplayBookmarksToolbar = "never";
+
+        Homepage = mkIf hasHomepage {
+          URL = homeUrl;
+          StartPage = "homepage";
+          Locked = true;
         };
+
+        # Search : affiche ou masque la barre de recherche sur la page d’accueil Firefox (Nouvel onglet).
+        # TopSites : active ou désactive l’affichage des sites les plus visités sur la page Nouvel onglet.
+        # SponsoredTopSites : autorise ou bloque l’affichage de sites sponsorisés parmi les Top Sites.
+        # Highlights : affiche ou masque les éléments récents (pages visitées, téléchargements, favoris).
+        # Pocket : affiche ou masque les recommandations Pocket sur la page Nouvel onglet.
+        # Stories : active ou désactive le flux d’articles recommandés (Pocket/Discover).
+        # SponsoredPocket : autorise ou bloque les contenus sponsorisés dans les recommandations Pocket.
+        # SponsoredStories : autorise ou bloque les articles sponsorisés dans le flux Discover.
+        # Snippets : affiche ou masque les messages informatifs ou promotionnels de Mozilla sur la page d’accueil.
+        # Locked : empêche l’utilisateur de modifier ces paramètres depuis l’interface Firefox.
+        FirefoxHome = {
+          Search = true;
+          TopSites = true;
+          SponsoredTopSites = false;
+          Highlights = true;
+          Pocket = false;
+          Stories = false;
+          SponsoredPocket = false;
+          SponsoredStories = false;
+          Snippets = false;
+          Locked = true;
+        };
+
+        FirefoxSuggest = {
+          WebSuggestions = true;
+          SponsoredSuggestions = false;
+          ImproveSuggest = true;
+          Locked = true;
+        };
+
+        GenerativeAI = {
+          Enable = cfg.enableUnsafeFeatures;
+          Chatbot = cfg.enableUnsafeFeatures;
+          LinkPreviews = cfg.enableUnsafeFeatures;
+          TabGroups = cfg.enableUnsafeFeatures;
+          Locked = true;
+        };
+
+        PictureInPicture = {
+          Enable = true;
+          Locked = true;
+        };
+
+        UserMessaging = {
+          ExtensionRecommendations = cfg.enableUnsafeFeatures;
+          FeatureRecommendations = cfg.enableUnsafeFeatures;
+          UrlbarInterventions = true; # ?
+          SkipOnboarding = false; # ?
+          MoreFromMozilla = false;
+          FirefoxLabs = cfg.enableUnsafeFeatures;
+          Locked = true;
+        };
+
+        EnableTrackingProtection = {
+          Value = true;
+          Locked = true;
+          Cryptomining = true;
+          Fingerprinting = true;
+          EmailTracking = true;
+          SuspectedFingerprinting = true;
+        };
+
+        # Go to about:support to obtain informations and UUID
+        ExtensionSettings = {
+
+          # Pin bitwarden
+          "{446900e4-71c2-419f-a6a7-df9c091e268b}" = mkIf hasVaultwarden { default_area = "navbar"; };
+        };
+
+        # TODO: for childs
+        # WebsiteFilter = {
+        #   Block = [];
+        #   Exceptions = [];
+        # };
       };
     };
 
     # Chromium (wip) - not working
-    programs.chromium = lib.mkIf cfg.enableChromium {
+    programs.chromium = mkIf cfg.enableChromium {
       enable = true;
       #package = pkgs.ungoogled-chromium;
       extensions = [
         "aapbdbdomjkkjkaonfhkkikfgjllcleb" # Google Translate
         "gcbommkclmclpchllfjekcdonpmejbdp" # https everywhere
-        "cjpalhdlnbpafiamejdnhcphjbkeiagm" # ublock origin
+        (mkIf cfg.enableUBlock "cjpalhdlnbpafiamejdnhcphjbkeiagm") # ublock origin
         "oldceeleldhonbafppcapldpdifcinji" # Language tool
         "gppongmhjkpfnbhagpmjfkannfbllamg" # Wappalyzer
         "nfkmalbckemmklibjddenhnofgnfcdfp" # Channel Blocker
@@ -319,7 +469,7 @@ in
         "jjnkmicfnfojkkgobdfeieblocadmcie" # Tube Archivist companion
         "mnjggcdmjocbbbhaepdhchncahnbgone" # SponsorBlock
         "icallnadddjmdinamnolclfjanhfoafe" # Fast Forward
-        "nngceckbapebfimnlniiiahkandclblb" # Bitwarden
+        (mkIf hasVaultwarden "nngceckbapebfimnlniiiahkandclblb") # Bitwarden
       ];
       dictionaries = [
         pkgs.hunspellDictsChromium.fr_FR

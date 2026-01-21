@@ -10,13 +10,24 @@
 }:
 let
   cfg = config.darkone.home.games;
-  enableStk = cfg.enableChild || cfg.enableTeenager || cfg.enableStk;
-  enableStkShare = enableStk && osConfig.darkone.graphic.supertuxkart.enable;
+
+  # Conditions
+  isBabyOrChild = cfg.enableBaby || cfg.enableChild;
+  isChildOrTeen = cfg.enableChild || cfg.enableTeenager;
+  isNotBaby = !cfg.enableBaby;
+  g3d = cfg.enable3D && isChildOrTeen;
+  cli = isNotBaby && cfg.enableCli;
+  moreCli = cfg.enableMore && cli;
+  stk = isChildOrTeen || cfg.enableStk;
+
+  # STK
+  hasStkShare = stk && osConfig.darkone.graphic.supertuxkart.enable;
   isStkServer = osConfig.darkone.graphic.supertuxkart.isNfsServer;
   stkSharePrefix = if isStkServer then osConfig.darkone.system.srv-dirs.nfs else "/mnt/nfs";
 in
 {
   options = {
+    darkone.home.games.enable = lib.mkEnableOption "Enable games";
     darkone.home.games.enableBaby = lib.mkEnableOption "Games for babies (<=6 yo)";
     darkone.home.games.enableChild = lib.mkEnableOption "Games for children (6-12 yo)";
     darkone.home.games.enableTeenager = lib.mkEnableOption "Games for teenagers and adults (>=12 yo)";
@@ -37,40 +48,34 @@ in
     # Packages
     #--------------------------------------------------------------------------
 
+    # NOTE banned games: bsdgames, 2048 terminal, ltris, lenmus, chessx, kanagram, pingus
     home.packages = with pkgs; [
-      #(lib.mkIf cfg.enableChild pingus) # Bugged
-      (lib.mkIf (cfg.enable3D && (cfg.enableChild || cfg.enableTeenager)) veloren) # Minecraft like
-      (lib.mkIf (cfg.enableBaby || cfg.enableChild) rili) # train game
-      (lib.mkIf (cfg.enableBaby || cfg.enableChild) tuxpaint)
-      (lib.mkIf (cfg.enableBaby || cfg.enableChild) kdePackages.ktuberling) # Constructor game
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) kdePackages.kpat) # Solitaire games
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) kdePackages.kbounce) # Bal game
-      #(lib.mkIf (cfg.enableChild || cfg.enableTeenager) kdePackages.kanagram)
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) kdePackages.picmi) # Logical game
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) atomix) # Atom puzzle
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) chess-clock)
-      #(lib.mkIf (cfg.enableChild || cfg.enableTeenager) chessx) # write in ~/Documents
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) cuyo) # Tetris like
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) pkgs-stable.gnome-2048)
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-chess)
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnuchess) # Chess engine for gnome-chess
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) stockfish) # Chess engine for gnome-chess
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-mahjongg)
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-mines)
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-solanum) # Pomodoro timer
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) gnome-sudoku)
-      #(lib.mkIf (cfg.enableChild || cfg.enableTeenager) lenmus) # LenMus Phonascus is a program for learning music (vieillot)
-      (lib.mkIf (cfg.enableChild || cfg.enableTeenager) leocad) # Virt lego
-      #(lib.mkIf (cfg.enableChild || cfg.enableTeenager) ltris) # Tetris (bof)
-      #(lib.mkIf (cfg.enableMore && cfg.enableCli) _2048-in-terminal)
-      #(lib.mkIf (cfg.enableMore && cfg.enableCli) bsdgames)
-      (lib.mkIf (cfg.enableMore && cfg.enableCli) chess-tui)
-      (lib.mkIf (cfg.enableMore && cfg.enableCli) crawl) # role-playing roguelike game
-      (lib.mkIf (cfg.enableMore && cfg.enableCli) nethack) # Rogue-like game
-      (lib.mkIf (cfg.enableMore && cfg.enableCli) solitaire-tui)
-      (lib.mkIf cfg.enableCli sssnake)
-      (lib.mkIf cfg.enableCli tetris)
-      (lib.mkIf cfg.enableStk superTuxKart)
+      (lib.mkIf cli sssnake)
+      (lib.mkIf cli tetris)
+      (lib.mkIf g3d veloren) # Minecraft like
+      (lib.mkIf isBabyOrChild kdePackages.ktuberling) # Constructor game
+      (lib.mkIf isBabyOrChild rili) # train game
+      (lib.mkIf isBabyOrChild tuxpaint)
+      (lib.mkIf isChildOrTeen atomix) # Atom puzzle
+      (lib.mkIf isChildOrTeen chess-clock)
+      (lib.mkIf isChildOrTeen cuyo) # Tetris like
+      (lib.mkIf isChildOrTeen gnome-solanum) # Pomodoro timer
+      (lib.mkIf isChildOrTeen gnome-sudoku)
+      (lib.mkIf isChildOrTeen kdePackages.kbounce) # Bal game
+      (lib.mkIf isChildOrTeen kdePackages.kpat) # Solitaire games
+      (lib.mkIf isChildOrTeen kdePackages.picmi) # Logical game
+      (lib.mkIf isChildOrTeen leocad) # Virt lego
+      (lib.mkIf isChildOrTeen pkgs-stable.gnome-2048)
+      (lib.mkIf isNotBaby gnome-chess)
+      (lib.mkIf isNotBaby gnome-mahjongg)
+      (lib.mkIf isNotBaby gnome-mines)
+      (lib.mkIf isNotBaby gnuchess) # Chess engine for gnome-chess
+      (lib.mkIf isNotBaby stockfish) # Chess engine for gnome-chess
+      (lib.mkIf moreCli chess-tui)
+      (lib.mkIf moreCli crawl) # role-playing roguelike game
+      (lib.mkIf moreCli nethack) # Rogue-like game
+      (lib.mkIf moreCli solitaire-tui)
+      (lib.mkIf stk superTuxKart)
     ];
 
     #--------------------------------------------------------------------------
@@ -79,7 +84,7 @@ in
 
     # Unlock STK
     # Exécuté après l'écriture des fichiers de conf par HM (writeBoundary)
-    home.activation = lib.mkIf enableStk {
+    home.activation = lib.mkIf stk {
       unlockSupertuxkart = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         configPath="${config.home.homeDirectory}/.config/supertuxkart/config-0.10"
         configFile="$configPath/config.xml"
@@ -95,7 +100,7 @@ in
     };
 
     # STK link to shared tracks
-    systemd.user.tmpfiles.rules = lib.mkIf enableStkShare [
+    systemd.user.tmpfiles.rules = lib.mkIf hasStkShare [
       "d ${config.home.homeDirectory}/.local/share/supertuxkart/addons 0755 ${config.home.username} users -"
       "L+ ${config.home.homeDirectory}/.local/share/supertuxkart/addons/tracks - - - - ${stkSharePrefix}/stk-tracks"
     ];

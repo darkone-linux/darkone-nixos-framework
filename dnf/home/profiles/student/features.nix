@@ -10,7 +10,6 @@ in
     office = {
       enable = lib.mkDefault graphic;
       enableTools = lib.mkDefault graphic;
-      enableEmail = lib.mkDefault false;
       enableOffice = lib.mkDefault graphic;
       enableProductivity = lib.mkDefault graphic;
     };
@@ -18,7 +17,6 @@ in
       enable = lib.mkDefault true;
       enableCli = lib.mkDefault true;
       enableFun = lib.mkDefault graphic;
-      enableTools = lib.mkDefault graphic;
       enableScore = lib.mkDefault graphic;
       enableCreator = lib.mkDefault graphic;
     };
@@ -32,6 +30,10 @@ in
       enable = lib.mkDefault graphic;
       enableTools = lib.mkDefault graphic;
       enableEditing = lib.mkDefault graphic;
+    };
+    audio = {
+      enable = lib.mkDefault true;
+      enableTools = lib.mkDefault graphic;
     };
   };
 }

@@ -40,7 +40,6 @@ in
     darkone.home.music.enableDev = lib.mkEnableOption "Audio software for developers (lilypond...)";
     darkone.home.music.enableMpd = lib.mkEnableOption "MPD daemon and players (mpd, ncmpcpp...)";
     darkone.home.music.enableEasy = lib.mkEnableOption "Easy tools instead of efficient (gnome-music vs audacious...)";
-    darkone.home.music.enableTools = lib.mkEnableOption "Audio tools / editors (audacity...)";
     darkone.home.music.enableScore = lib.mkEnableOption "Score softwares (musescore...)";
     darkone.home.music.enableCreator = lib.mkEnableOption "Creation tools for beginners (lmms, hydrogen...)";
   };
@@ -82,19 +81,13 @@ in
       (lib.mkIf cfg.enablePro rosegarden)
       (lib.mkIf cfg.enableScore muse-sounds-manager)
       (lib.mkIf cfg.enableScore musescore)
-      (lib.mkIf cfg.enableTools audacity)
       (lib.mkIf cfg.enableEasy gnome-music)
+      (lib.mkIf cfg.enableMpd gnomeExtensions.mpris-label)
       (lib.mkIf (!cfg.enableEasy) audacious)
       lame
       soundfont-fluid
       timidity
     ];
-
-    # https://github.com/wwmm/easyeffects
-    services.easyeffects = lib.mkIf cfg.enableTools {
-      enable = true;
-      preset = "easyeffects-fw16";
-    };
 
     # MPD
     services.mpd = lib.mkIf cfg.enableMpd {

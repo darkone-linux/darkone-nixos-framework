@@ -7,4 +7,5 @@ in
 {
   darkone.home.advanced.enable = lib.mkDefault true;
   darkone.home.video.enable = lib.mkDefault graphic;
+  darkone.home.office.enableUnsafeFeatures = true;
 }
