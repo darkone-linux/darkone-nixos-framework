@@ -446,6 +446,18 @@ darkone.service.dnsmasq.enable = false;
 
 <hr/>
 
+### &#x1F48E; darkone.service.docs
+
+A full-configured lasuite-docs module.
+
+* **enable** `bool` Enable local docs service
+
+```nix
+darkone.service.docs.enable = false;
+```
+
+<hr/>
+
 ### &#x1F48E; darkone.service.element
 
 Element web client for local matrix service.
@@ -594,7 +606,7 @@ darkone.service.jitsi-meet.enable = false;
 
 ### &#x1F48E; darkone.service.matrix
 
-A matrix (synapse) server.
+DNF matrix (synapse) server.
 
 * **enable** `bool` Enable matrix (synapse) service
 
@@ -1203,6 +1215,22 @@ darkone.home.advanced = {
 
 <hr/>
 
+### &#x1F3E0; darkone.home.audio
+
+Audio tools.
+
+* **enable** `bool` Audio tools
+* **enableTools** `bool` Audio tools / editors (audacity, easyeffect, noisetorch...)
+
+```nix
+darkone.home.audio = {
+  enable = false;
+  enableTools = false;
+};
+```
+
+<hr/>
+
 ### &#x1F3E0; darkone.home.education
 
 Several graphical education packages.
@@ -1239,6 +1267,7 @@ darkone.home.education = {
 
 Several graphical game packages.
 
+* **enable** `bool` Enable games
 * **enableBaby** `bool` Games for babies (&lt;=6 yo)
 * **enableChild** `bool` Games for children (6-12 yo)
 * **enableTeenager** `bool` Games for teenagers and adults (&gt;=12 yo)
@@ -1250,6 +1279,7 @@ Several graphical game packages.
 
 ```nix
 darkone.home.games = {
+  enable = false;
   enableBaby = false;
   enableChild = false;
   enableTeenager = false;
@@ -1332,7 +1362,6 @@ Graphical music and sound creation apps.
 * **enableDev** `bool` Audio software for developers (lilypond...)
 * **enableMpd** `bool` MPD daemon and players (mpd, ncmpcpp...)
 * **enableEasy** `bool` Easy tools instead of efficient (gnome-music vs audacious...)
-* **enableTools** `bool` Audio tools / editors (audacity...)
 * **enableScore** `bool` Score softwares (musescore...)
 * **enableCreator** `bool` Creation tools for beginners (lmms, hydrogen...)
 
@@ -1345,7 +1374,6 @@ darkone.home.music = {
   enableDev = false;
   enableMpd = false;
   enableEasy = false;
-  enableTools = false;
   enableScore = false;
   enableCreator = false;
 };
@@ -1359,6 +1387,8 @@ Common tools for office desktop.
 
 * **enable** `bool` Default useful packages
 * **enableMore** `bool` More alternative packages
+* **enableUnsafeFeatures** `bool` Features for advanced non-child users
+* **enableUBlock** `bool` Enable ublock plugin
 * **enableEssentials** `bool` Essential tools
 * **enableTools** `bool` Little (gnome) tools (iotas, dialect, etc.)
 * **enableProductivity** `bool` Productivity apps (obsidian, time management, projects, etc.)
@@ -1375,6 +1405,8 @@ Common tools for office desktop.
 darkone.home.office = {
   enable = false;
   enableMore = false;
+  enableUnsafeFeatures = false;
+  enableUBlock = false;
   enableEssentials = true;
   enableTools = false;
   enableProductivity = false;
