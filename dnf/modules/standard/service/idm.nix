@@ -204,6 +204,7 @@ in
         enableClient = true;
         clientSettings = {
           uri = params.href;
+          connect_timeout = 86400; # 24h (seconds)
         };
 
         #----------------------------------------------------------------------

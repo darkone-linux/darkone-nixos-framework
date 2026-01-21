@@ -90,6 +90,8 @@ in
           # General -> https://github.com/dani-garcia/vaultwarden/blob/1.35.2/.env.template
           DOMAIN = params.href;
           SIGNUPS_ALLOWED = false; # TODO: SSO (change to true the first time)
+          INVITATIONS_ALLOWED = false;
+          ADMIN_SESSION_LIFETIME = 1440; # 24h (minutes)
           ROCKET_ADDRESS = params.ip;
           ROCKET_PORT = 8222;
           ROCKET_LOG = "critical";
