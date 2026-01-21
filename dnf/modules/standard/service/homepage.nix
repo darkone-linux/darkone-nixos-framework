@@ -98,7 +98,7 @@ in
 
         # https://gethomepage.dev/latest/configs/settings/
         settings = {
-          title = "${host.name}";
+          title = "${zone.description}";
           language = zone.lang;
           hideVersion = true;
           theme = "dark";
