@@ -13,9 +13,14 @@ let
 in
 {
   options = {
+    darkone.home.education.enable = lib.mkEnableOption "Education software collection";
+
+    # By profile (default false)
     darkone.home.education.enableBaby = lib.mkEnableOption "Education software for babies (<=6 yo)";
     darkone.home.education.enableChild = lib.mkEnableOption "Education software for children (6-12 yo)";
     darkone.home.education.enableStudent = lib.mkEnableOption "Education software for teenagers and adults (>=12 yo)";
+
+    # By theme (default true)
     darkone.home.education.enableMath = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -53,7 +58,7 @@ in
     };
   };
 
-  config = lib.mkIf (cfg.enableBaby || cfg.enableChild || cfg.enableStudent) {
+  config = lib.mkIf cfg.enable {
 
     # Packages
     home.packages = with pkgs; [

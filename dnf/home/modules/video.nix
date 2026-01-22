@@ -23,12 +23,12 @@ in
   config = lib.mkIf cfg.enable {
 
     home.packages = with pkgs; [
+      #(lib.mkIf cfg.enableTools handbrake)
       showtime
       (lib.mkIf cfg.enableAlternative mpv)
       (lib.mkIf cfg.enableEditing kdePackages.kdenlive)
       (lib.mkIf cfg.enableEditing shotcut)
       (lib.mkIf cfg.enableTools ffmpeg)
-      (lib.mkIf cfg.enableTools handbrake)
       (lib.mkIf cfg.enableTools mlt)
       (lib.mkIf cfg.enableTools video-trimmer)
       (lib.mkIf cfg.enableTools vlc)

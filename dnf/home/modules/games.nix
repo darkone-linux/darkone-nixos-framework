@@ -42,7 +42,7 @@ in
     };
   };
 
-  config = lib.mkIf (cfg.enableBaby || cfg.enableChild || cfg.enableTeenager) {
+  config = lib.mkIf cfg.enable {
 
     #--------------------------------------------------------------------------
     # Packages

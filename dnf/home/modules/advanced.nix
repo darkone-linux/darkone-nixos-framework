@@ -100,7 +100,7 @@ in
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) deadnix)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) just)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) moreutils) # sponge
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nixfmt-rfc-style)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nixfmt)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) php84)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) php84Packages.composer)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) sops)
@@ -295,13 +295,6 @@ in
         font-size = 14;
         window-padding-x = 6;
         window-padding-y = 6;
-        #palette = "0=${termBgColor}";
-      };
-    };
-    dconf.settings = lib.mkIf hasGhostty {
-      "org/gnome/desktop/default-applications/terminal" = {
-        exec = "ghostty";
-        exec-arg = "";
       };
     };
 

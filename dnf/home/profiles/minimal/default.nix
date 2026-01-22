@@ -3,7 +3,7 @@
 { osConfig, zone, ... }:
 {
   imports = [
-    ./zsh.nix
+    ./features.nix
     ./nfs.nix
   ];
 

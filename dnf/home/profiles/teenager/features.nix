@@ -12,12 +12,17 @@ in
       enableOffice = lib.mkDefault graphic;
       enableProductivity = lib.mkDefault graphic;
       enableCommunication = lib.mkDefault graphic;
+      enableFirefox = lib.mkDefault graphic;
     };
     games = {
+      enable = lib.mkDefault true;
       enableTeenager = lib.mkDefault graphic;
       enableCli = true;
     };
-    education.enableStudent = lib.mkDefault graphic;
+    education = {
+      enable = lib.mkDefault graphic;
+      enableStudent = lib.mkDefault graphic;
+    };
     music = {
       enable = lib.mkDefault true;
       enableCli = lib.mkDefault true;

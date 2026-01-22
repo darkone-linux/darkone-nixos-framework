@@ -41,56 +41,24 @@ in
     darkone.home.office.enableMore = mkEnableOption "More alternative packages";
     darkone.home.office.enableUnsafeFeatures = mkEnableOption "Features for advanced non-child users";
     darkone.home.office.enableUBlock = mkEnableOption "Enable ublock plugin";
+    darkone.home.office.enableTools = mkEnableOption "Little (gnome) tools (iotas, dialect, etc.)";
+    darkone.home.office.enableProductivity = mkEnableOption "Productivity apps (obsidian, time management, projects, etc.)";
+    darkone.home.office.enableCommunication = mkEnableOption "Communication tools";
+    darkone.home.office.enableOffice = mkEnableOption "Office packages (libreoffice)";
+    darkone.home.office.enableFirefox = mkEnableOption "Enable firefox";
+    darkone.home.office.enableChromium = mkEnableOption "Enable chromium";
+    darkone.home.office.enableBrave = mkEnableOption "Enable Brave Browser";
+    darkone.home.office.enableEmail = mkEnableOption "Email management packages (thunderbird)";
+    darkone.home.office.enableCalendarContacts = mkEnableOption "Gnome calendar, contacts and related apps";
+
+    # Enabled by default
     darkone.home.office.enableEssentials = mkOption {
       type = types.bool;
       default = true;
       description = "Essential tools";
     };
-    darkone.home.office.enableTools = mkOption {
-      type = types.bool;
-      default = false;
-      description = "Little (gnome) tools (iotas, dialect, etc.)";
-    };
-    darkone.home.office.enableProductivity = mkOption {
-      type = types.bool;
-      default = false;
-      description = "Productivity apps (obsidian, time management, projects, etc.)";
-    };
-    darkone.home.office.enableCalendarContacts = mkOption {
-      type = types.bool;
-      default = false;
-      description = "Gnome calendar, contacts and related apps";
-    };
-    darkone.home.office.enableCommunication = mkOption {
-      type = types.bool;
-      default = false;
-      description = "Communication tools";
-    };
-    darkone.home.office.enableOffice = mkOption {
-      type = types.bool;
-      default = true;
-      description = "Office packages (libreoffice)";
-    };
-    darkone.home.office.enableFirefox = mkOption {
-      type = types.bool;
-      default = true;
-      description = "Enable firefox";
-    };
-    darkone.home.office.enableChromium = mkOption {
-      type = types.bool;
-      default = false;
-      description = "Enable chromium";
-    };
-    darkone.home.office.enableBrave = mkOption {
-      type = types.bool;
-      default = false;
-      description = "Enable Brave Browser";
-    };
-    darkone.home.office.enableEmail = mkOption {
-      type = types.bool;
-      default = false;
-      description = "Email management packages (thunderbird)";
-    };
+
+    # TODO: auto-lang
     darkone.home.office.huntspellLang = mkOption {
       type = types.str;
       default = "fr-moderne";
@@ -112,6 +80,7 @@ in
       (mkIf (cfg.enableCommunication && hasMattermost) mattermost-desktop)
       (mkIf (cfg.enableTools && cfg.enableMore) pika-backup) # Simple backups based on borg -> Security ?
       (mkIf (cfg.enableTools && cfg.enableMore) simple-scan)
+      (mkIf (cfg.enableTools && !hasVaultwarden) gnome-secrets)
       (mkIf cfg.enableCalendarContacts gnome-calendar)
       (mkIf cfg.enableCalendarContacts gnome-contacts)
       (mkIf cfg.enableEmail thunderbird)
@@ -130,7 +99,6 @@ in
       (mkIf cfg.enableTools gnome-decoder) # Scan and generate QR codes
       (mkIf cfg.enableTools gnome-font-viewer)
       (mkIf cfg.enableTools gnome-maps)
-      (mkIf cfg.enableTools gnome-secrets)
       (mkIf cfg.enableTools gnome-weather)
       (mkIf cfg.enableTools iotas) # Simple note taking with mobile-first design and Nextcloud sync
       (mkIf cfg.enableTools snapshot) # Webcam

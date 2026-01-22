@@ -45,19 +45,23 @@ Pour tous ces services, une seule connexion suffit ! (pas besoin de rentrer 36 f
 
 ### Profils d'utilisateurs
 
-Pour que petits et grands puissent utiliser le réseau simplement et en toute sécurité, les profils suivants sont disponibles pour les machines Linux :
+Chaque utilisateur est lié à un “profil” (au choix et interchangeable), qui détermine : 
 
-| Profil | Description |
-| ----------- | ----------------------------------------------------------------------------------------------- |
-| ⚪ minimal | Compte épuré avec le strict minimum de programmes. |
-| 🔵 normal | Pour utilisateur bureautique non-informaticien, avec l'essentiel des programmes. |
-| 🟣 avancé | Pour utilisateur informaticien, avec des outils avancés. |
-| 🔴 admin | Compte avancé pour administrer le réseau et les systèmes (connaissances Linux et Nix requises). |
-| 🎨 créateur | Pour créateur multimédia, avec tout ce qu'il faut pour créer vidéo, musique, photo / image. |
-| 📘 étudiant | Des outils utiles d'organisation, prise de notes, entraînement pour les étudiants. |
-| 🎒 ado | Des programmes éducatifs et funs, quelques jeux et services pour commencer avec internet. |
-| 🧩 enfant | Logiciels éducatifs pour apprendre, jeux pour entraîner son cerveau, pas d'accès internet. |
-| 🧸 baby | Logiciels limités pour apprendre à utiliser la souris, jouer avec les nombres, formes, etc. |
+* Les programmes installés (éducation, bureautique, jeux…).
+* Les configurations (accès internet, services de communication…).
+
+| **Profil** | **Description** |
+|----|----|
+| ⚪&nbsp;minimal | Compte épuré avec le strict minimum de programmes. |
+| 🔵&nbsp;normal | Pour utilisateur bureautique non-informaticien, avec l'essentiel des programmes. |
+| 🟣&nbsp;avancé | Pour utilisateur informaticien, avec des outils avancés. |
+| 🔴&nbsp;admin | Compte avancé pour administrer le réseau et les systèmes (expert Linux et Nix requis). |
+| 🎨&nbsp;créateur | Pour créateur multimédia, avec tout ce qu'il faut pour créer vidéo, musique, photo / image. |
+| 📘&nbsp;étudiant | Des outils utiles d'organisation, prise de notes, entraînement pour les étudiants. |
+| 🎮&nbsp;Joueur | Un système épuré avec essentiellement des jeux (utilisé pour les LANs). |
+| 🎒&nbsp;ado | Des programmes éducatifs et funs, jeux et services pour commencer avec internet. |
+| 🧩&nbsp;enfant | Logiciels éducatifs pour apprendre, jeux pour entraîner son cerveau, pas d'accès internet. |
+| 🧸&nbsp;baby | Logiciels limités pour apprendre à utiliser la souris, jouer avec les nombres, formes, etc. |
 
 ### Types d'ordinateurs
 
@@ -66,7 +70,7 @@ Notre réseau local est une bulle sécurisée composé de "noeuds" (ordinateurs)
 | Type | Utilité |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------ |
 | 📱 Mon smartphone, tablette | Je peux me brancher au réseau et à tous ses services avec mes périphériques portables. |
-| 💻 Mon ordi et système adoré | Sous Windows, macOS ou Linux, peu importe, je peux aussi me brancher simplement au réseau. |
+| 💻&nbsp;Mon&nbsp;ordi&nbsp;et&nbsp;système&nbsp;adoré | Sous Windows, macOS ou Linux, peu importe, je peux aussi me brancher simplement au réseau. |
 | ❄️ Ordi au top sous NixOS ! | Tout est installé, configuré, sécurisé. J'ai juste à me connecter et à travailler, jouer, me divertir. |
 | 🗄️ Serveur | Un ordinateur qui reste allumé pour y héberger des services (Jellyfin, Immich, sauvegarde, etc.). |
 | 🌐 Passerelle | Un petit bijou spécial qui fait le lien entre notre réseau local et Internet (pare-feu, routeur, VPN). |
@@ -258,15 +262,22 @@ Available recipes:
 ### Planifié
 
 - [ ] Services -> réorganiser la manière dont on les déclare -> services uniques + avec sous-domaine fixe, sous-domaines interdits déclarables, services multiples avec OIDC.
-- [ ] SSO -> configuration plus cohérente.
+- [ ] SSO -> configuration plus cohérente + gestion des droits.
 - [ ] Kanidm -> réplicats de zone.
 - [ ] Séparer en 2 projets : flake DNF comme dépendance d'un flake utilisateur.
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
 - [ ] Automatisation des secrets OIDC et similaires.
 - [ ] Refactoring général.
+- [ ] Supprimer les fichiers NixOS dans les espaces home manager.
+
+### Axes d'amélioration
+
+- [ ] Permettre de croiser les profils home manager.
+- [ ] Supprimer la hiérarchie des profils home manager.
 
 ### A voir
 
+- [ ] IA générative self-hosted + agents pour requêter les données locales.
 - [ ] Intégration de [nixvim](https://nix-community.github.io/nixvim/).
 - [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
 - [ ] Serveur de mails.
@@ -308,24 +319,5 @@ Available recipes:
 - [x] Générer les stateVersion des users.
 - [x] FQDN
 - [x] Optimisations réseau :
- - Domaines locaux des machines -> 127.0.0.1 (shunt dnsmasq + adguard)
- - Homepage GW -> accès aux services globaux installés sur le réseau hors GW
-
-### Etat des modules de services
-
-| Service | Application | Accès | IODC | Prio | OK |
-| -------------------- | ------------------------------------------------ | ---------------------- | ---- | ---- | --- |
-| Accueil | Homepage | VPN | - | 1 | X |
-| Photo / vidéo | Immich | VPN + privé (+ public) | oui | 2 | X |
-| Généalogie | Geneweb | VPN + privé (+ public) | non | 3 | |
-| Synchronisations | Syncthing | VPN + privé | non | 1 | |
-| Cloud | Nextcloud | VPN + privé | oui | 1 | - |
-| Collaboration | Mattermost | VPN + privé | oui | 2 | X |
-| GIT | Forgejo | VPN + privé (+ public) | ? | 1 | X |
-| Visio | Jitsi | VPN + privé (+ public) | ? | 3 | X |
-| Sauvegarde | Borg | VPN | - | 1 | |
-| SSO | Authelia | VPN | oui | 1 | - |
-| Recettes de cuisine | Mealie | VPN + privé (+ public) | oui | 3 | |
-| Mots de passe / clés | Vaultwarden | VPN (+ privé) | ? | 2 | X |
-| Vidéo / Films | [Jellyfin](https://wiki.nixos.org/wiki/Jellyfin) | VPN + privé | oui | 3 | |
-| Musique | [Navidrome](https://www.navidrome.org/demo/) | VPN + privé | non | 3 | |
+  - [x] Domaines locaux des machines -> 127.0.0.1 (shunt dnsmasq + adguard)
+  - [x] Homepage GW -> accès aux services globaux installés sur le réseau hors GW

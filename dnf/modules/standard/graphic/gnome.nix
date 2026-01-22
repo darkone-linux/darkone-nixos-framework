@@ -122,7 +122,7 @@ in
       gnome-clocks
       gnome-calculator
       gnome-connections
-      #gnome-console
+      gnome-console
       gnome-contacts
       gnome-font-viewer
       gnome-logs
@@ -277,16 +277,6 @@ in
                 multi-monitor = true;
                 running-indicator-style = "DOTS";
                 show-mounts-network = true;
-              };
-              "org/gnome/settings-daemon/plugins/media-keys" = {
-                custom-keybindings = [
-                  "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/"
-                ];
-              };
-              "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0" = {
-                binding = "<Ctrl><Alt>t";
-                command = "kgx";
-                name = "open-terminal";
               };
               "org/gnome/settings-daemon/plugins/power" = {
                 sleep-inactive-ac-timeout = lib.gvariant.mkUint32 1800;

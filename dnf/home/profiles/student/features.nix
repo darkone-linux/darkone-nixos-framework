@@ -12,6 +12,7 @@ in
       enableTools = lib.mkDefault graphic;
       enableOffice = lib.mkDefault graphic;
       enableProductivity = lib.mkDefault graphic;
+      enableFirefox = lib.mkDefault graphic;
     };
     music = {
       enable = lib.mkDefault true;

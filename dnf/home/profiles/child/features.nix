@@ -7,6 +7,7 @@ in
 {
   darkone.home = {
     games = {
+      enable = lib.mkDefault true;
       enableChild = lib.mkDefault graphic;
       enableCli = lib.mkDefault true;
     };
@@ -20,7 +21,6 @@ in
     office = {
       enable = lib.mkDefault graphic;
       enableEssentials = lib.mkDefault graphic;
-      enableProductivity = lib.mkDefault graphic;
       enableOffice = lib.mkDefault graphic;
     };
     imagery = {

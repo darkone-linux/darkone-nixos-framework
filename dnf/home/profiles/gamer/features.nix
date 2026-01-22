@@ -9,14 +9,19 @@ in
     office = {
       enable = lib.mkDefault graphic;
       enableCommunication = lib.mkDefault graphic;
+      enableFirefox = lib.mkDefault graphic;
     };
     games = {
+      enable = lib.mkDefault true;
+      enableCli = lib.mkDefault true;
       enableTeenager = lib.mkDefault graphic;
       enableChild = lib.mkDefault graphic;
       enableStk = lib.mkDefault graphic;
-      enableCli = true;
     };
-    education.enableStudent = lib.mkDefault graphic;
+    education = {
+      enable = lib.mkDefault graphic;
+      enableStudent = lib.mkDefault graphic;
+    };
     imagery.enable = lib.mkDefault graphic;
     video.enable = lib.mkDefault graphic;
     audio = {

@@ -188,6 +188,10 @@ in
           # Ne pas exposer mes salons publics à la fédération. (default false)
           allow_public_rooms_over_federation = false;
 
+          # Permet la publication des rooms dans le répertoire de salons publics
+          # https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#room_list_publication_rules
+          room_list_publication_rules = [ { action = "allow"; } ];
+
           # Federation restrictions
           #federation_domain_whitelist = []; # Liste blanche des serveurs autorisés (default: tout)
           #federation_whitelist_endpoint_enabled = true; # Exposer cette liste (default: false)

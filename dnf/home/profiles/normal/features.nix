@@ -6,8 +6,12 @@ let
 in
 {
   darkone.home = {
-    office.enable = lib.mkDefault graphic;
-    office.enableCommunication = lib.mkDefault graphic;
+    office = {
+      enable = lib.mkDefault graphic;
+      enableCommunication = lib.mkDefault graphic;
+      enableOffice = lib.mkDefault graphic;
+      enableFirefox = lib.mkDefault graphic;
+    };
     imagery.enable = lib.mkDefault graphic;
     music.enable = lib.mkDefault graphic;
     video.enable = lib.mkDefault graphic;
