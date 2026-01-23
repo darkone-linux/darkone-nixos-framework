@@ -67,12 +67,9 @@ in
 
       services.searx = {
         enable = true;
+
+        # https://docs.searxng.org/admin/settings/index.html
         settings = {
-          server = {
-            base_url = params.href;
-            port = srvPort;
-            bind_address = params.ip;
-          };
           general = {
             debug = false;
             instance_name = params.description;
@@ -81,6 +78,15 @@ in
             privacypolicy_url = false;
             enable_metrics = false;
           };
+          server = {
+            base_url = params.href;
+            port = srvPort;
+            bind_address = params.ip;
+            image_proxy = true;
+            default_theme = "oscar";
+            default_locale = zone.lang;
+          };
+          locales = [ zone.lang ];
           ui = {
             static_use_hash = true;
             default_locale = zone.lang;
@@ -95,12 +101,13 @@ in
           # TODO: automatique
           brand = {
             issue_url = "git.${network.domain}";
-            docs_url = "outline.${network.domain}";
+            docs_url = "notes.${network.domain}";
           };
 
           search = {
             default_lang = zone.lang;
-            autocomplete = "google";
+            autocomplete = "qwant";
+            safe_search = 2; # Strict
           };
 
           engines = lib.mapAttrsToList (name: value: { inherit name; } // value) {
