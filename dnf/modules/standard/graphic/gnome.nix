@@ -252,6 +252,7 @@ in
                   "chromium-browser.desktop"
                   "firefox.desktop"
                   "firefox-esr.desktop"
+                  "librewolf.desktop"
                   "obsidian.desktop"
                   "code.desktop"
                   "dev.zed.Zed.desktop"

@@ -20,8 +20,9 @@ in
     };
     office = {
       enable = lib.mkDefault graphic;
-      enableEssentials = lib.mkDefault graphic;
       enableOffice = lib.mkDefault graphic;
+      enableLibreWolf = lib.mkDefault graphic;
+      enableEssentials = lib.mkDefault graphic;
     };
     imagery = {
       enable = lib.mkDefault graphic;
