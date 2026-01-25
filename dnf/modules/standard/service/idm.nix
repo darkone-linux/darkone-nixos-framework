@@ -129,8 +129,8 @@ in
             "oidc-secret-immich"
             "oidc-secret-nextcloud"
             "oidc-secret-mealie"
-            "oidc-secret-vaultwarden"
             "oidc-secret-matrix-synapse"
+            #"oidc-secret-vaultwarden"
           ]
       );
 
@@ -342,15 +342,15 @@ in
 
             # Vaultwarden
             # -> https://github.com/dani-garcia/vaultwarden/wiki/Enabling-SSO-support-using-OpenId-Connect
-            vaultwarden = {
-              displayName = "Vaultwarden";
-              imageFile = ./../../../assets/app-icons/vaultwarden.svg;
-              originUrl = [ "https://vaultwarden.${network.domain}/identity/connect/oidc-signin" ];
-              originLanding = "https://vaultwarden.${network.domain}/";
-              basicSecretFile = secrets.oidc-secret-vaultwarden.path;
-              preferShortUsername = false;
-              inherit scopeMaps;
-            };
+            # vaultwarden = {
+            #   displayName = "Vaultwarden";
+            #   imageFile = ./../../../assets/app-icons/vaultwarden.svg;
+            #   originUrl = [ "https://vaultwarden.${network.domain}/identity/connect/oidc-signin" ];
+            #   originLanding = "https://vaultwarden.${network.domain}/";
+            #   basicSecretFile = secrets.oidc-secret-vaultwarden.path;
+            #   preferShortUsername = false;
+            #   inherit scopeMaps;
+            # };
 
             # Matrix Synapse
             # -> https://element-hq.github.io/synapse/latest/openid.html
