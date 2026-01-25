@@ -40,6 +40,23 @@ let
     fi
   '';
 
+  # Mautrix - TODO: auto permissions
+  # mautrixCommonSettings = {
+  #   homeserver = {
+  #     address = "http://localhost:8008";
+  #     domain = "matrix.${network.domain}";
+  #   };
+  #   # appservice.public = {
+  #   #   hostname = "127.0.0.1";
+  #   # };
+  #   bridge = {
+  #     permissions = {
+  #       "@guillaume:${network.domain}" = "admin";
+  #       "${network.domain}" = "user";
+  #     };
+  #   };
+  # };
+
   defaultParams = {
     icon = "element";
   };
@@ -141,6 +158,27 @@ in
 
       # Sauvegarde postgresql (par défaut toutes les bases)
       services.postgresqlBackup.enable = true;
+
+      #------------------------------------------------------------------------
+      # Mautrix
+      #------------------------------------------------------------------------
+
+      # services.mautrix-discord.enable = true;
+      # services.mautrix-whatsapp = {
+      #   enable = true;
+      #   settings = mautrixCommonSettings // {
+      #     appservice = {
+      #       ephemeral_events = false;
+      #       id = "whatsapp";
+      #     };
+      #     encryption = {
+      #       allow = true;
+      #       default = true;
+      #       pickle_key = "$ENCRYPTION_PICKLE_KEY";
+      #       require = true;
+      #     };
+      #   };
+      # };
 
       #------------------------------------------------------------------------
       # Synapse Server

@@ -348,6 +348,7 @@ in
               originUrl = [ "https://vaultwarden.${network.domain}/identity/connect/oidc-signin" ];
               originLanding = "https://vaultwarden.${network.domain}/";
               basicSecretFile = secrets.oidc-secret-vaultwarden.path;
+              preferShortUsername = false;
               inherit scopeMaps;
             };
 
@@ -381,10 +382,14 @@ in
           # Users provisioning
           #----------------------------------------------------------------------
 
+          # https://github.com/oddlama/kanidm-provision?tab=readme-ov-file#json-schema
           persons = mapAttrs (_: u: {
             present = true; # default
             displayName = u.name;
+            legalName = u.name;
             mailAddresses = [ u.email ];
+            #enableUnix = false; # Does not exists
+            #gidNumber = 100;    # Does not exists
             groups = [ "posix" ];
           }) users;
         };

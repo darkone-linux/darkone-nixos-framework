@@ -65,10 +65,12 @@ in
       # https://github.com/NixOS/nixpkgs/blob/a6531044f6d0bef691ea18d4d4ce44d0daa6e816/nixos/modules/services/security/vaultwarden/default.nix#L11
       sops.secrets."smtp/password" = { };
       sops.secrets.oidc-secret-vaultwarden = { };
+      sops.secrets.vaultwarden-admin-token = { };
       sops.templates.vaultwarden-env = {
         content = ''
           SMTP_PASSWORD=${config.sops.placeholder."smtp/password"}
           SSO_CLIENT_SECRET=${config.sops.placeholder.oidc-secret-vaultwarden}
+          ADMIN_TOKEN=${config.sops.placeholder.vaultwarden-admin-token}
         '';
         mode = "0400";
         owner = "vaultwarden";
@@ -88,10 +90,11 @@ in
         config = {
 
           # General -> https://github.com/dani-garcia/vaultwarden/blob/1.35.2/.env.template
+          # DOMAIN is required for SSO
           DOMAIN = params.href;
           SIGNUPS_ALLOWED = false; # TODO: SSO (change to true the first time)
-          INVITATIONS_ALLOWED = false;
-          ADMIN_SESSION_LIFETIME = 1440; # 24h (minutes)
+          INVITATIONS_ALLOWED = true;
+          ADMIN_SESSION_LIFETIME = 30; # minutes
           ROCKET_ADDRESS = params.ip;
           ROCKET_PORT = 8222;
           ROCKET_LOG = "critical";
@@ -112,15 +115,44 @@ in
           SMTP_FROM = "no-reply@${network.domain}";
           SMTP_FROM_NAME = "Vaultwarden ${params.fqdn}";
 
+          #----------------------------------------------------------------------------------------
           # SSO
+          # /!\ Le SSO n'empêche pas le mot de passe principal d'être saisi. /!\
+          #----------------------------------------------------------------------------------------
+
+          # Activate the SSO
           SSO_ENABLED = true;
-          SSO_ONLY = false;
-          SSO_AUTHORITY = "https://idm.${network.domain}/oauth2/openid/vaultwarden";
+
+          # Client secret -> SOPS + Env
           SSO_CLIENT_ID = "vaultwarden";
-          SSO_ALLOW_UNKNOWN_EMAIL_VERIFICATION = true;
+
+          # "Disable email+Master password authentication" -> faux, il faut mettre le MDP principal.
+          # -> Activer ceci oblige d'être connecté au SSO pour se connecter à vaultwarden.
+          SSO_ONLY = false;
+
+          # On SSO Signup if a user with a matching email already exists make the association (default true)
+          SSO_SIGNUPS_MATCH_EMAIL = true;
+
+          # Allow unknown email verification status (default false).
+          # Allowing this with SSO_SIGNUPS_MATCH_EMAIL open potential account takeover.
+          # -> Kanidm doit envoyer un "email_verified" pour que le SSO fonctionne.
+          #    Eviter d'activer en même temps que SSO_SIGNUPS_MATCH_EMAIL.
+          SSO_ALLOW_UNKNOWN_EMAIL_VERIFICATION = false;
+
+          # The OpenID Connect Discovery endpoint without /.well-known/openid-configuration
+          SSO_AUTHORITY = "https://idm.${network.domain}/oauth2/openid/vaultwarden";
+
+          # Optional, allow to override scopes if needed (default "email profile")
           SSO_SCOPES = "email profile"; # `openid` is implicit
+
+          # Activate PKCE for the Auth Code flow (default true).
           SSO_PKCE = true;
-          SSO_AUTH_ONLY_NOT_SESSION = true; # Use sso only for authentication not the session lifecycle
+
+          # Enable to use SSO only for authentication not session lifecycle
+          SSO_AUTH_ONLY_NOT_SESSION = true;
+
+          # Appels de cache vers le point de terminaison de découverte
+          SSO_CLIENT_CACHE_EXPIRATION = 60; # Seconds
         };
 
         # TODO: local backup strategy

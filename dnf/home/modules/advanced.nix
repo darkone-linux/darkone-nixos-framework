@@ -124,6 +124,8 @@ in
       (lib.mkIf cfg.enableAdmin rmlint)
       (lib.mkIf cfg.enableAdmin strace)
       (lib.mkIf cfg.enableAdmin tcpdump)
+      (lib.mkIf cfg.enableAdmin openssl_legacy) # openssl
+      (lib.mkIf cfg.enableAdmin libargon2) # argon2
       (lib.mkIf cfg.enableAdmin wirelesstools) # ifrename iwconfig iwevent iwgetid iwlist iwpriv iwspy
       (lib.mkIf cfg.enableEssentials cpufetch)
       (lib.mkIf cfg.enableEssentials duf)
