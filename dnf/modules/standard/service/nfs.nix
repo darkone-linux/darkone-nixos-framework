@@ -123,6 +123,12 @@ assert
       # NFS tools
       environment.systemPackages = [ pkgs.nfs-utils ];
 
+      # Start after network
+      systemd.services.nfs-server = lib.mkIf isServer {
+        after = [ "network-online.target" ];
+        wants = [ "network-online.target" ];
+      };
+
       #--------------------------------------------------------------------------
       # CLIENT
       #--------------------------------------------------------------------------
@@ -161,15 +167,21 @@ assert
       };
 
       # Avoid reloads on automounts (force restart)
-      systemd.services = lib.mkIf isClient {
-        # "mnt-nfs-homes.automount" = {
-        #   reloadIfChanged = lib.mkForce false;
-        #   restartIfChanged = true;
-        # };
-        "mnt-nfs-common.automount" = {
-          reloadIfChanged = lib.mkForce false;
-          restartIfChanged = true;
-        };
+      systemd.services."mnt-nfs-common.automount" = lib.mkIf isClient {
+        after = [ "network-online.target" ];
+        wants = [ "network-online.target" ];
+        reloadIfChanged = lib.mkForce false;
+        restartIfChanged = true;
+      };
+      # "mnt-nfs-homes.automount" = {
+      #   reloadIfChanged = lib.mkForce false;
+      #   restartIfChanged = true;
+      # };
+
+      # Start after network
+      systemd.services.nfs-client = lib.mkIf isClient {
+        after = [ "network-online.target" ];
+        wants = [ "network-online.target" ];
       };
     })
   ];

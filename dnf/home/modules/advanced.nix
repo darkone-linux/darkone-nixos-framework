@@ -305,7 +305,7 @@ in
     #============================================================================
 
     # Full featured git
-    programs.git = {
+    programs.git = lib.mkIf cfg.enableEssentials {
       enable = true;
       settings = {
         user = {
@@ -330,7 +330,7 @@ in
             "navigate" = true;
           };
         };
-        diff.tool = "vimdiff";
+        diff.tool = "difft";
         web.browser = "firefox";
         push.default = "tracking";
         push.autoSetupRemote = true;
@@ -347,6 +347,17 @@ in
 
       # Undefined but required from 02/2025
       signing.format = "ssh";
+    };
+
+    # Used by git
+    programs.difftastic = lib.mkIf cfg.enableEssentials {
+      enable = true;
+      git.enable = true;
+      git.diffToolMode = true;
+      options = {
+        sort-paths = true;
+        tab-width = 8;
+      };
     };
 
     #============================================================================

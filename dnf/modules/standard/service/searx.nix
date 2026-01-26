@@ -7,6 +7,7 @@
   network,
   zone,
   host,
+  pkgs-stable,
   ...
 }:
 let
@@ -67,6 +68,7 @@ in
 
       services.searx = {
         enable = true;
+        package = pkgs-stable.searxng;
 
         # https://docs.searxng.org/admin/settings/index.html
         settings = {

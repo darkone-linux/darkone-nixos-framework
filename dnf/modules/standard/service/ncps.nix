@@ -15,7 +15,7 @@
   lib,
   config,
   network,
-  pkgs-stable,
+  pkgs,
   host,
   zone,
   ...
@@ -75,7 +75,7 @@ in
 
       services.ncps = lib.mkIf isServer (
         {
-          package = pkgs-stable.ncps;
+          package = pkgs.ncps;
           enable = true;
           cache = {
             inherit (cfg) dataPath;
