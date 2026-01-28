@@ -1,7 +1,6 @@
 # DNF matrix (synapse) server.
 
 # (TODO: Livekit -> https://wiki.nixos.org/wiki/Matrix#Livekit)
-# TODO: intégration jitsi
 # TODO: Synapse Admin -> https://wiki.nixos.org/wiki/Matrix#Synapse_Admin_with_Caddy
 
 {
@@ -41,21 +40,21 @@ let
   '';
 
   # Mautrix - TODO: auto permissions
-  # mautrixCommonSettings = {
-  #   homeserver = {
-  #     address = "http://localhost:8008";
-  #     domain = "matrix.${network.domain}";
-  #   };
-  #   # appservice.public = {
-  #   #   hostname = "127.0.0.1";
-  #   # };
-  #   bridge = {
-  #     permissions = {
-  #       "@guillaume:${network.domain}" = "admin";
-  #       "${network.domain}" = "user";
-  #     };
-  #   };
-  # };
+  mautrixCommonSettings = {
+    homeserver = {
+      address = "http://localhost:8008";
+      domain = config.services.matrix-synapse.settings.server_name;
+    };
+    # appservice.public = {
+    #   hostname = "127.0.0.1";
+    # };
+    bridge = {
+      permissions = {
+        "@guillaume:${network.domain}" = "admin";
+        "${network.domain}" = "user";
+      };
+    };
+  };
 
   defaultParams = {
     icon = "element";
@@ -136,6 +135,34 @@ in
         key = "turn-secret";
       };
 
+      # Mautrix Whatsapp Secrets
+      sops.secrets.mautrix-whatsapp-bridge-login-shared-secret = { };
+      sops.secrets.mautrix-whatsapp-encryption-pickle-key = { };
+      sops.templates.mautrix-whatsapp-env = {
+        content = ''
+          MAUTRIX_WHATSAPP_BRIDGE_LOGIN_SHARED_SECRET=${config.sops.placeholder.mautrix-whatsapp-bridge-login-shared-secret}
+          ENCRYPTION_PICKLE_KEY=${config.sops.placeholder.mautrix-whatsapp-encryption-pickle-key}
+        '';
+        mode = "0400";
+        owner = "mautrix-whatsapp";
+
+        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
+        restartUnits = [ "mautrix-whatsapp.service" ];
+      };
+
+      # Mautrix Meta
+      sops.secrets.mautrix-meta-as-token = { };
+      sops.templates.mautrix-meta-env = {
+        content = ''
+          MAUTRIX_META_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-meta-as-token}
+        '';
+        mode = "0400";
+        owner = "mautrix-meta-messenger";
+
+        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
+        restartUnits = [ "mautrix-meta-messenger.service" ];
+      };
+
       #------------------------------------------------------------------------
       # Database
       #------------------------------------------------------------------------
@@ -163,22 +190,51 @@ in
       # Mautrix
       #------------------------------------------------------------------------
 
-      # services.mautrix-discord.enable = true;
-      # services.mautrix-whatsapp = {
+      # Facebook messenger (TODO: optimiser, conf instable)
+      services.mautrix-meta.instances.messenger = {
+        enable = true;
+        environmentFile = config.sops.templates.mautrix-meta-env.path;
+        settings = mautrixCommonSettings // {
+          network.mode = "messenger";
+          mode = "messenger";
+          ig_e2ee = true;
+          encryption = {
+            allow = true;
+            default = true;
+            require = true;
+          };
+          appservice = {
+            id = "messenger";
+            as_token = "$MAUTRIX_META_APPSERVICE_AS_TOKEN";
+            bot = {
+              username = "messengerbot";
+              displayname = "Messenger bridge bot";
+              avatar = "mxc://maunium.net/ygtkteZsXnGJLJHRchUwYWak";
+            };
+          };
+        };
+      };
+
+      # TODO: Mautrix discord (need the discord mobile app)
+      # services.mautrix-discord = {
       #   enable = true;
-      #   settings = mautrixCommonSettings // {
-      #     appservice = {
-      #       ephemeral_events = false;
-      #       id = "whatsapp";
-      #     };
-      #     encryption = {
-      #       allow = true;
-      #       default = true;
-      #       pickle_key = "$ENCRYPTION_PICKLE_KEY";
-      #       require = true;
-      #     };
-      #   };
+      #   settings = mautrixCommonSettings;
       # };
+
+      # Whatsapp
+      services.mautrix-whatsapp = {
+        enable = true;
+        environmentFile = config.sops.templates.mautrix-whatsapp-env.path;
+        settings = mautrixCommonSettings // {
+          encryption = {
+            allow = true;
+            default = true;
+            pickle_key = "$ENCRYPTION_PICKLE_KEY";
+            require = false;
+          };
+        };
+      };
+      nixpkgs.config.permittedInsecurePackages = [ "olm-3.2.16" ];
 
       #------------------------------------------------------------------------
       # Synapse Server
@@ -271,8 +327,8 @@ in
           #retention # Politique de rétention de message si nécessaire (default false)
 
           # Media store
-          max_upload_size = "200K";
-          max_image_pixels = "4M";
+          max_upload_size = "1M";
+          max_image_pixels = "12M";
           dynamic_thumbnails = false; # Resize en fonction des clients, voir si c'est utile...
           #media_retention # https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#media_retention
 
