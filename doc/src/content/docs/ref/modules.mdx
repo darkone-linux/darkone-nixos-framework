@@ -1197,6 +1197,7 @@ Home profile for advanced users (computer scientists, developers, admins).
 
 * **enable** `bool` Enable advanced user features
 * **enableTools** `bool` Various tools for advanced users
+* **enablePhoneTools** `bool` Smartphone tools (scrcpy)
 * **enableAdmin** `bool` Enable administrator features (network, os tools)
 * **enableNixAdmin** `bool` Enable nix administration features
 * **enableDeveloper** `bool` Enable tools for developer
@@ -1206,6 +1207,7 @@ Home profile for advanced users (computer scientists, developers, admins).
 darkone.home.advanced = {
   enable = false;
   enableTools = false;
+  enablePhoneTools = false;
   enableAdmin = false;
   enableNixAdmin = false;
   enableDeveloper = true;
@@ -1235,6 +1237,7 @@ darkone.home.audio = {
 
 Several graphical education packages.
 
+* **enable** `bool` Education software collection
 * **enableBaby** `bool` Education software for babies (&lt;=6 yo)
 * **enableChild** `bool` Education software for children (6-12 yo)
 * **enableStudent** `bool` Education software for teenagers and adults (&gt;=12 yo)
@@ -1248,6 +1251,7 @@ Several graphical education packages.
 
 ```nix
 darkone.home.education = {
+  enable = false;
   enableBaby = false;
   enableChild = false;
   enableStudent = false;
@@ -1389,16 +1393,17 @@ Common tools for office desktop.
 * **enableMore** `bool` More alternative packages
 * **enableUnsafeFeatures** `bool` Features for advanced non-child users
 * **enableUBlock** `bool` Enable ublock plugin
-* **enableEssentials** `bool` Essential tools
 * **enableTools** `bool` Little (gnome) tools (iotas, dialect, etc.)
 * **enableProductivity** `bool` Productivity apps (obsidian, time management, projects, etc.)
-* **enableCalendarContacts** `bool` Gnome calendar, contacts and related apps
 * **enableCommunication** `bool` Communication tools
 * **enableOffice** `bool` Office packages (libreoffice)
 * **enableFirefox** `bool` Enable firefox
+* **enableLibreWolf** `bool` Enable firefox
 * **enableChromium** `bool` Enable chromium
 * **enableBrave** `bool` Enable Brave Browser
 * **enableEmail** `bool` Email management packages (thunderbird)
+* **enableCalendarContacts** `bool` Gnome calendar, contacts and related apps
+* **enableEssentials** `bool` Essential tools
 * **huntspellLang** `str` [Huntspell Lang](https://mynixos.com/nixpkgs/packages/hunspellDicts)
 
 ```nix
@@ -1407,16 +1412,17 @@ darkone.home.office = {
   enableMore = false;
   enableUnsafeFeatures = false;
   enableUBlock = false;
-  enableEssentials = true;
   enableTools = false;
   enableProductivity = false;
-  enableCalendarContacts = false;
   enableCommunication = false;
-  enableOffice = true;
-  enableFirefox = true;
+  enableOffice = false;
+  enableFirefox = false;
+  enableLibreWolf = false;
   enableChromium = false;
   enableBrave = false;
   enableEmail = false;
+  enableCalendarContacts = false;
+  enableEssentials = true;
   huntspellLang = "en-us";
 };
 ```
