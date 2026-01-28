@@ -68,6 +68,7 @@ in
       LC_PAPER = cfg.locale;
       LC_TELEPHONE = cfg.locale;
       LC_TIME = cfg.locale;
+      LC_ALL = cfg.locale;
     };
   };
 }

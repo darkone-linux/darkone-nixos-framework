@@ -474,7 +474,7 @@ in
         WebsiteFilter = {
           Block = [ "<all_urls>" ];
           Exceptions = [
-            "https://*.poncon.fr/*"
+            "https://*.${network.domain}/*"
             "https://cdn.jsdelivr.net/*"
           ];
         };

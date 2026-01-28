@@ -101,6 +101,7 @@ in
           title = "${zone.description}";
           language = zone.lang;
           hideVersion = true;
+          disableUpdateCheck = true;
           theme = "dark";
           headerStyle = "clean";
           target = "_self";

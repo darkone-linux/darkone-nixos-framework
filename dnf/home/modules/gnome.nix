@@ -1,6 +1,11 @@
 # Gnome tweaks for home manager.
 
-{ lib, config, ... }:
+{
+  lib,
+  config,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.darkone.home.gnome;
@@ -27,6 +32,42 @@ in
       NoDisplay=true
       Categories=System;TerminalEmulator;
     '';
+
+    # Useless icons
+    home.file.".local/share/applications/scrcpy.desktop" =
+      lib.mkIf (lib.elem pkgs.scrcpy config.home.packages)
+        {
+          text = ''
+            [Desktop Entry]
+            Name=scrcpy
+            GenericName=Android Remote Control
+            Comment=Display and control your Android device
+            Exec=/bin/sh -c "\\$SHELL -i -c scrcpy"
+            Icon=scrcpy
+            Terminal=false
+            Type=Application
+            NoDisplay=true
+            Categories=Utility;RemoteAccess;
+            StartupNotify=false
+          '';
+        };
+    home.file.".local/share/applications/scrcpy-console.desktop" =
+      lib.mkIf (lib.elem pkgs.scrcpy config.home.packages)
+        {
+          text = ''
+            [Desktop Entry]
+            Name=scrcpy (console)
+            GenericName=Android Remote Control
+            Comment=Display and control your Android device
+            Exec=/bin/sh -c "\\$SHELL -i -c 'scrcpy --pause-on-exit=if-error'"
+            Icon=scrcpy
+            Terminal=true
+            Type=Application
+            NoDisplay=true
+            Categories=Utility;RemoteAccess;
+            StartupNotify=false
+          '';
+        };
 
     # Hide icons
     xdg.desktopEntries = lib.mkIf cfg.hideTechnicalIcons {

@@ -37,6 +37,7 @@ in
   options = {
     darkone.home.advanced.enable = lib.mkEnableOption "Enable advanced user features";
     darkone.home.advanced.enableTools = lib.mkEnableOption "Various tools for advanced users";
+    darkone.home.advanced.enablePhoneTools = lib.mkEnableOption "Smartphone tools (scrcpy)";
     darkone.home.advanced.enableAdmin = lib.mkEnableOption "Enable administrator features (network, os tools)";
     darkone.home.advanced.enableNixAdmin = lib.mkEnableOption "Enable nix administration features";
     darkone.home.advanced.enableDeveloper = lib.mkOption {
@@ -74,6 +75,7 @@ in
     home.packages = with pkgs; [
       #findutils # locate
       (lib.mkIf (graphic && (cfg.enableDeveloper || cfg.enableAdmin)) vscode) # TODO: module
+      (lib.mkIf (graphic && (cfg.enableDeveloper || cfg.enableAdmin)) vscode-extensions.antfu.slidev)
       (lib.mkIf (graphic && cfg.enableAdmin) filezilla)
       (lib.mkIf (graphic && cfg.enableAdmin) gparted)
       (lib.mkIf (graphic && cfg.enableNixAdmin) dconf-editor) # GSettings editor
@@ -127,6 +129,7 @@ in
       (lib.mkIf cfg.enableAdmin openssl_legacy) # openssl
       (lib.mkIf cfg.enableAdmin libargon2) # argon2
       (lib.mkIf cfg.enableAdmin wirelesstools) # ifrename iwconfig iwevent iwgetid iwlist iwpriv iwspy
+      (lib.mkIf cfg.enableDeveloper slidev-cli)
       (lib.mkIf cfg.enableEssentials cpufetch)
       (lib.mkIf cfg.enableEssentials duf)
       (lib.mkIf cfg.enableEssentials gawk)
@@ -145,6 +148,8 @@ in
       (lib.mkIf cfg.enableNixAdmin mkpasswd)
       (lib.mkIf cfg.enableNixAdmin wakeonlan)
       (lib.mkIf cfg.enableNixAdmin yq)
+      (lib.mkIf cfg.enablePhoneTools qtscrcpy) # Smartphone VNC
+      (lib.mkIf cfg.enablePhoneTools scrcpy)
       (lib.mkIf cfg.enableTools fastfetch)
       (lib.mkIf cfg.enableTools presenterm)
       (lib.mkIf cfg.enableTools pv)
