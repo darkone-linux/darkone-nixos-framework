@@ -30,12 +30,13 @@ in
   # Home dirs creation
   # IMPORTANT: international names do NOT works with xdg.userDirs
   # This script create links from user dirs to NFS targets
+  # NOTE: XDG_DATA_DIRS is required otherwise xdg-user-dirs-update do not find local traductions (mo files)
   home.activation.bindXdgToNfs = lib.mkIf isEnable (
     lib.hm.dag.entryAfter [ "writeBoundary" ] ''
 
       # Required to update correctly user dirs
       rm -f ~/.config/user-dirs.*
-      ${pkgs.xdg-user-dirs}/bin/xdg-user-dirs-update --force
+      XDG_DATA_DIRS="${pkgs.xdg-user-dirs}/share" ${pkgs.xdg-user-dirs}/bin/xdg-user-dirs-update --force
       . ~/.config/user-dirs.dirs
 
       function createHomeDir() {
