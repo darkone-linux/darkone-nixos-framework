@@ -254,26 +254,25 @@ Available recipes:
 
 ### En cours
 
-- [ ] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + configuration multi-postes.
 - [ ] SSO avec [Kanidm](https://kanidm.com/) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.idm))
-- [ ] Partages Samba pour windows + linux.
+- [ ] SSO -> configuration plus cohérente + gestion des droits.
 - [ ] Réseaux sociaux : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost) (annulé), [matrix](https://nixos.wiki/wiki/Matrix).
+- [ ] Ponts Mautrix pour Matrix (whatsapp, telegram, messenger, discord).
 
 ### Planifié
 
 - [ ] Services -> réorganiser la manière dont on les déclare -> services uniques + avec sous-domaine fixe, sous-domaines interdits déclarables, services multiples avec OIDC.
-- [ ] SSO -> configuration plus cohérente + gestion des droits.
 - [ ] Kanidm -> réplicats de zone.
 - [ ] Séparer en 2 projets : flake DNF comme dépendance d'un flake utilisateur.
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
 - [ ] Automatisation des secrets OIDC et similaires.
-- [ ] Refactoring général.
 - [ ] Supprimer les fichiers NixOS dans les espaces home manager.
+- [ ] Permettre de croiser les profils home manager + supprimer la hiérarchie des profils.
 
 ### Axes d'amélioration
 
-- [ ] Permettre de croiser les profils home manager.
-- [ ] Supprimer la hiérarchie des profils home manager.
+- [ ] Remplacer le générateur PHP par un générateur Rust + parseur nix complet.
+- [ ] Tests unitaires.
 
 ### A voir
 
@@ -284,6 +283,8 @@ Available recipes:
 
 ### Fait
 
+- [x] Partages Samba pour windows + linux (par machine).
+- [x] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + configuration multi-postes.
 - [x] Stratégie de sauvegarde avec [Restic](https://restic.net).
 - [x] Création de noeuds avec [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) + [disko](https://github.com/nix-community/disko).
 - [x] Services distribués (aujourd'hui les services réseau sont sur la passerelle).
