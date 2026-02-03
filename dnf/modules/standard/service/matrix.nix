@@ -43,7 +43,9 @@ let
   mautrixCommonSettings = {
     homeserver = {
       address = "http://localhost:8008";
+      #address = "https://matrix.${network.domain}";
       domain = config.services.matrix-synapse.settings.server_name;
+      verify_ssl = false;
     };
     # appservice.public = {
     #   hostname = "127.0.0.1";
@@ -163,6 +165,25 @@ in
         restartUnits = [ "mautrix-meta-messenger.service" ];
       };
 
+      # Mautrix Telegram -> https://my.telegram.org/
+      sops.secrets.mautrix-telegram-api-id = { };
+      sops.secrets.mautrix-telegram-api-hash = { };
+      sops.secrets.mautrix-telegram-as-token = { };
+      sops.secrets.mautrix-telegram-hs-token = { };
+      sops.templates.mautrix-telegram-env = {
+        content = ''
+          MAUTRIX_TELEGRAM_API_ID=${config.sops.placeholder.mautrix-telegram-api-id}
+          MAUTRIX_TELEGRAM_API_HASH=${config.sops.placeholder.mautrix-telegram-api-hash}
+          MAUTRIX_TELEGRAM_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-telegram-as-token}
+          MAUTRIX_TELEGRAM_APPSERVICE_HS_TOKEN=${config.sops.placeholder.mautrix-telegram-hs-token}
+        '';
+        mode = "0400";
+        owner = "mautrix-telegram";
+
+        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
+        restartUnits = [ "mautrix-telegram.service" ];
+      };
+
       #------------------------------------------------------------------------
       # Database
       #------------------------------------------------------------------------
@@ -196,13 +217,6 @@ in
         environmentFile = config.sops.templates.mautrix-meta-env.path;
         settings = mautrixCommonSettings // {
           network.mode = "messenger";
-          mode = "messenger";
-          ig_e2ee = true;
-          encryption = {
-            allow = true;
-            default = true;
-            require = true;
-          };
           appservice = {
             id = "messenger";
             as_token = "$MAUTRIX_META_APPSERVICE_AS_TOKEN";
@@ -225,16 +239,58 @@ in
       services.mautrix-whatsapp = {
         enable = true;
         environmentFile = config.sops.templates.mautrix-whatsapp-env.path;
-        settings = mautrixCommonSettings // {
-          encryption = {
-            allow = true;
-            default = true;
-            pickle_key = "$ENCRYPTION_PICKLE_KEY";
-            require = false;
-          };
-        };
+        settings = lib.mkMerge [
+          mautrixCommonSettings
+          {
+            encryption = {
+              allow = true;
+              default = true;
+              pickle_key = "$ENCRYPTION_PICKLE_KEY";
+              require = false;
+            };
+          }
+        ];
       };
       nixpkgs.config.permittedInsecurePackages = [ "olm-3.2.16" ];
+
+      # Telegram
+      services.mautrix-telegram = {
+        enable = true;
+        environmentFile = config.sops.templates.mautrix-telegram-env.path;
+        settings = lib.mkMerge [
+          mautrixCommonSettings
+          {
+            telegram = {
+              api_id = "$MAUTRIX_TELEGRAM_API_ID";
+              api_hash = "$MAUTRIX_TELEGRAM_API_HASH";
+              bot_token = "disabled";
+              # device_info = {
+              #   lang_code = zone.lang;
+              #   system_lang_code = zone.lang;
+              # };
+            };
+            appservice = {
+              id = "telegram";
+              address = "http://localhost:29317"; # 8080 by default already in use
+              port = 29317;
+              #bot_avatar = "remove"; # Error with the default avatar...
+              as_token = "$MAUTRIX_TELEGRAM_APPSERVICE_AS_TOKEN";
+              hs_token = "$MAUTRIX_TELEGRAM_APPSERVICE_HS_TOKEN";
+            };
+            bridge = {
+              encryption = {
+                allow = true;
+                default = true;
+                msc4190 = true;
+                require = false;
+              };
+            };
+          }
+        ];
+      };
+
+      # Used by mautrix bridges for conversions
+      environment.systemPackages = with pkgs; [ ffmpeg_7 ];
 
       #------------------------------------------------------------------------
       # Synapse Server
@@ -323,7 +379,7 @@ in
           hs_disabled = false; # Désactivation du serveur...
           hs_disabled_message = "Maintenance...";
           #limit_remote_rooms # TODO if perf. problems
-          max_avatar_size = "200K";
+          max_avatar_size = "1M";
           #retention # Politique de rétention de message si nécessaire (default false)
 
           # Media store

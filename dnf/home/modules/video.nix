@@ -33,6 +33,7 @@ in
       (lib.mkIf cfg.enableTools mlt)
       (lib.mkIf cfg.enableTools video-trimmer)
       (lib.mkIf cfg.enableTools vlc)
+      (lib.mkIf cfg.enableTools parabolic) # yt-dlp frontend
       (lib.mkIf cfg.enableUnfree pkgs-stable.davinci-resolve)
     ];
 

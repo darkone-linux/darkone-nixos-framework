@@ -92,7 +92,6 @@ in
       (lib.mkIf (graphic && cfg.enableTools) gnome-connections) # VNC / RDP Client
       (lib.mkIf (graphic && cfg.enableTools) gnome-logs)
       (lib.mkIf (graphic && cfg.enableTools) meld) # Diff tool
-      (lib.mkIf (graphic && cfg.enableTools) parabolic) # yt-dlp frontend
       (lib.mkIf (graphic && cfg.enableTools) resources) # Monitor your system resources and processes
       (lib.mkIf (graphic && cfg.enableTools) textpieces) # Swiss knife of text processing
       (lib.mkIf (hasRestic && cfg.enableAdmin) restic) # Already in nixos configuration...
