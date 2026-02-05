@@ -31,30 +31,6 @@ let
     posix = users;
     devs = users;
   };
-  # claimMaps = [
-  #   {
-  #     claims = {
-  #       profile = [
-  #         "name"
-  #         "family_name"
-  #         "given_name"
-  #         "nickname"
-  #         "preferred_username"
-  #         "profile"
-  #         "picture"
-  #         "website"
-  #         "gender"
-  #         "zoneinfo"
-  #         "locale"
-  #         "displayname"
-  #       ];
-  #       email = [
-  #         "email"
-  #         "email_verified"
-  #       ];
-  #     };
-  #   }
-  # ];
 
   defaultParams = {
     title = "Authentification";
@@ -258,7 +234,6 @@ in
           #----------------------------------------------------------------------
 
           # TODO: affiner -> https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
-
           systems.oauth2 = {
 
             # https://forgejo.org/docs/next/user/oauth2-provider/
@@ -282,6 +257,7 @@ in
               allowInsecureClientDisablePkce = false;
 
               basicSecretFile = secrets.oidc-secret-forgejo.path;
+
               inherit scopeMaps;
             };
 

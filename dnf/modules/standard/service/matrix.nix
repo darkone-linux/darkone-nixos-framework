@@ -326,7 +326,7 @@ in
           # -> Ne pas permettre de découvrir mes users depuis la fédération.
           allow_profile_lookup_over_federation = false;
 
-          # Ne pas permettre la découverte des devices depuis la fédération
+          # Ne pas permettre la découverte des devices depuis la fédération.
           allow_device_name_lookup_over_federation = false;
 
           # Il n'y a pas besoin de partager un salon commun pour trouver un profil.

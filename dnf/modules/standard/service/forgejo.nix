@@ -81,6 +81,7 @@ in
           DEFAULT = {
             APP_NAME = params.title;
           };
+          #log.LEVEL = "Debug";
 
           # You can temporarily allow registration to create an admin user.
           service.DISABLE_REGISTRATION = false;
