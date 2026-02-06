@@ -21,9 +21,7 @@
     ./standard/graphic/virtualbox.nix
     ./standard/service/adguardhome.nix
     ./standard/service/audio.nix
-    ./standard/service/beets.nix
     ./standard/service/dnsmasq.nix
-    ./standard/service/docs.nix
     ./standard/service/element.nix
     ./standard/service/fail2ban.nix
     ./standard/service/forgejo.nix
@@ -35,7 +33,6 @@
     ./standard/service/jellyfin.nix
     ./standard/service/jitsi-meet.nix
     ./standard/service/matrix.nix
-    ./standard/service/mattermost.nix
     ./standard/service/mealie.nix
     ./standard/service/monitoring.nix
     ./standard/service/ncps.nix

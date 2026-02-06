@@ -405,30 +405,6 @@ darkone.service.audio.enable = false;
 
 <hr/>
 
-### &#x1F48E; darkone.service.beets
-
-Media library management system for obsessive music geeks.
-
-:::tips
-Beets service is hosted by "common-files" user.
-```sh
-su - common-files
-beets import [dir]
-```
-:::
-
-* **enable** `bool` Enable beets for common-files
-* **enableService** `bool` Enable beets service (incoming music -&gt; shared music dir)
-
-```nix
-darkone.service.beets = {
-  enable = false;
-  enableService = false;
-};
-```
-
-<hr/>
-
 ### &#x1F48E; darkone.service.dnsmasq
 
 Pre-configured dnsmasq for local gateway / router.
@@ -442,18 +418,6 @@ It is the essential functionality of the local gateway.
 
 ```nix
 darkone.service.dnsmasq.enable = false;
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.docs
-
-A full-configured lasuite-docs module.
-
-* **enable** `bool` Enable local docs service
-
-```nix
-darkone.service.docs.enable = false;
 ```
 
 <hr/>
@@ -612,28 +576,6 @@ DNF matrix (synapse) server.
 
 ```nix
 darkone.service.matrix.enable = false;
-```
-
-<hr/>
-
-### &#x1F48E; darkone.service.mattermost
-
-A mattermost server. (WIP)
-
-:::caution
-This module works with Mattermost Team Edition but I do not plan
-to maintain it because of the removal of the SSO functionality
-from the open-source version.
-:::
-
-* **enable** `bool` Enable mattermost service
-* **enableSmtp** `bool` Enable SMTP to send emails (recommended)
-
-```nix
-darkone.service.mattermost = {
-  enable = false;
-  enableSmtp = true;
-};
 ```
 
 <hr/>
