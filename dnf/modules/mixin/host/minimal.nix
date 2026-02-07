@@ -50,11 +50,6 @@ in
       default = attrsets.hasAttrByPath [ "services" "vaultwarden" ] host;
       description = "Enable pre-configured Vaultwarden service";
     };
-    darkone.host.minimal.enableMattermost = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "mattermost" ] host;
-      description = "Enable a mattermost server";
-    };
     darkone.host.minimal.enableNfsHomeShares = mkOption {
       type = types.bool;
       default = attrsets.hasAttrByPath [ "services" "nfs" ] host;
@@ -107,6 +102,11 @@ in
     };
 
     # Deactivated
+    # darkone.host.minimal.enableMattermost = mkOption {
+    #   type = types.bool;
+    #   default = attrsets.hasAttrByPath [ "services" "mattermost" ] host;
+    #   description = "Enable a mattermost server";
+    # };
     # darkone.host.minimal.enableOpencloud = mkOption {
     #   type = types.bool;
     #   default = attrsets.hasAttrByPath [ "services" "opencloud" ] host;
@@ -150,7 +150,6 @@ in
       jellyfin.enable = cfg.enableJellyfin;
       jitsi-meet.enable = cfg.enableJitsiMeet;
       matrix.enable = cfg.enableMatrix;
-      mattermost.enable = cfg.enableMattermost;
       mealie.enable = cfg.enableMealie;
       monitoring.enable = cfg.enableMonitoring;
       nextcloud.enable = cfg.enableNextcloud;
@@ -164,6 +163,7 @@ in
       vaultwarden.enable = cfg.enableVaultwarden;
 
       # Deactivated
+      # mattermost.enable = cfg.enableMattermost;
       # opencloud.enable = cfg.enableOpencloud;
       # syncthing.enable = cfg.enableSyncthing;
     };

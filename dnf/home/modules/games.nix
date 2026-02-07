@@ -54,7 +54,7 @@ in
       (lib.mkIf cli tetris)
       (lib.mkIf g3d veloren) # Minecraft like
       (lib.mkIf isBabyOrChild kdePackages.ktuberling) # Constructor game
-      (lib.mkIf isBabyOrChild rili) # train game
+      (lib.mkIf isBabyOrChild li-ri) # train game
       (lib.mkIf isBabyOrChild tuxpaint)
       (lib.mkIf isChildOrTeen atomix) # Atom puzzle
       (lib.mkIf isChildOrTeen chess-clock)
