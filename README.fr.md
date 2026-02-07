@@ -134,7 +134,7 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 | Oauth2 Proxy | ✅ | ✅ | ✅ | ✅ | ⚠️ | Gestion multi-service problématique |
 | Jellyfin | ✅ | ❌ | ❔ | ❔ | ❔ | En cours |
 | AdGuardHome | ❌ | ❌ | ❌ | ❌ | ❔ | Via Oauth2 Proxy |
-| Mattermost | ❌ | ❌ | ❌ | ❌ | ❌ | Plus de Oauth2 pour l'édition TEAM |
+| ~~Mattermost~~ | ❌ | ❌ | ❌ | ❌ | ❌ | Plus de Oauth2 pour l'édition TEAM |
 
 ## Page d'accueil dynamique
 
@@ -256,7 +256,6 @@ Available recipes:
 
 - [ ] SSO avec [Kanidm](https://kanidm.com/) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.idm))
 - [ ] SSO -> configuration plus cohérente + gestion des droits.
-- [ ] Réseaux sociaux : [mattermost](https://search.nixos.org/options?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=services.mattermost) (annulé), [matrix](https://nixos.wiki/wiki/Matrix).
 - [ ] Ponts Mautrix pour Matrix (whatsapp, telegram, messenger, discord).
 
 ### Planifié
@@ -266,13 +265,12 @@ Available recipes:
 - [ ] Séparer en 2 projets : flake DNF comme dépendance d'un flake utilisateur.
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
 - [ ] Automatisation des secrets OIDC et similaires.
-- [ ] Supprimer les fichiers NixOS dans les espaces home manager.
-- [ ] Permettre de croiser les profils home manager + supprimer la hiérarchie des profils.
 
 ### Axes d'amélioration
 
 - [ ] Remplacer le générateur PHP par un générateur Rust + parseur nix complet.
-- [ ] Tests unitaires.
+- [ ] Tests unitaires + tests de recette.
+- [ ] Faire travailler claude code...
 
 ### A voir
 
@@ -283,6 +281,8 @@ Available recipes:
 
 ### Fait
 
+- [x] ~~Supprimer~~ Réorganiser les fichiers NixOS dans les espaces home manager.
+- [x] Réseaux sociaux : ~~mattermost~~, [matrix](https://nixos.wiki/wiki/Matrix).
 - [x] Partages Samba pour windows + linux (par machine).
 - [x] [Nextcloud](https://wiki.nixos.org/wiki/Nextcloud) + configuration multi-postes.
 - [x] Stratégie de sauvegarde avec [Restic](https://restic.net).
@@ -322,3 +322,7 @@ Available recipes:
 - [x] Optimisations réseau :
   - [x] Domaines locaux des machines -> 127.0.0.1 (shunt dnsmasq + adguard)
   - [x] Homepage GW -> accès aux services globaux installés sur le réseau hors GW
+
+### Annulé
+
+- [x] ~~Permettre de croiser les profils home manager + supprimer la hiérarchie des profils.~~

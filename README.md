@@ -60,7 +60,7 @@ This project is constantly evolving according to my needs. If you'd like to be i
 | Jellyfin | ✅ | ❌ | ❔ | ❔ | ❔ | Coming soon |
 | Grafana | ✅ | ❔ | ❔ | ❔ | ❔ | Coming soon |
 | AdGuard Home | ❌ | ❌ | ❌ | ❌ | ❔ | Via OAuth2 Proxy |
-| Mattermost | ❌ | ❌ | ❌ | ❌ | ❌ | No more OAuth2 for the TEAM edition |
+| ~~Mattermost~~ | ❌ | ❌ | ❌ | ❌ | ❌ | No more OAuth2 for the TEAM edition |
 
 ## Homepage screenshot
 
