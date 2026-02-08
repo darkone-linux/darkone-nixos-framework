@@ -265,6 +265,10 @@ Available recipes:
 - [ ] Séparer en 2 projets : flake DNF comme dépendance d'un flake utilisateur.
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
 - [ ] Automatisation des secrets OIDC et similaires.
+- [ ] IA générative self-hosted + agents, [AnythingLLM](https://github.com/Mintplex-Labs/anything-llm), [OpenClaw](https://openclaw.ai/) ou autre.
+  - [ ] Requêtes générales, générations d'images, etc. locales.
+  - [ ] Requêtage des données locales, cloisonné à chaque utilisateur.
+  - [ ] Agents MCP personnels.
 
 ### Axes d'amélioration
 
@@ -274,7 +278,6 @@ Available recipes:
 
 ### A voir
 
-- [ ] IA générative self-hosted + agents pour requêter les données locales.
 - [ ] Intégration de [nixvim](https://nix-community.github.io/nixvim/).
 - [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
 - [ ] Serveur de mails.

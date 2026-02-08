@@ -33,7 +33,7 @@ This section includes everything that is currently implemented and functional.
 
 Its role is to generate a pure static configuration from a definition of machines (hosts), users, and groups from various sources (static declarations, LDAP, etc. configured in [`usr/config.yaml`](#the-configuration-file). The generated Nix configuration is integrated into the repository to be fixed and used by the flake.
 
-![Darkone NixOS Framework Generator](../../../assets/arch.webp)
+![Darkone NixOS Framework Generator](../../../../assets/arch.webp)
 
 Usage:
 
@@ -358,7 +358,7 @@ Each user have a **profile declaration** in the nix configuration and a **home p
     # A student
     { pkgs, lib, config, ... }:
     { initialPassword = "changeme"; }
-    // import ./../../../dnf/home/profiles/student.nix { inherit pkgs lib config; }
+    // import ./../../../../dnf/home/profiles/student.nix { inherit pkgs lib config; }
     ```
 
 2. Home manager profile
@@ -367,7 +367,7 @@ Each user have a **profile declaration** in the nix configuration and a **home p
     # usr/home/profiles/sn-user/default.nix
     { pkgs, ... }:
     {
-      imports = [ ./../../../../dnf/home/profiles/student ];
+      imports = [ ./../../../../../dnf/home/profiles/student ];
       home.packages = with pkgs; [
         hunspell
         hunspellDicts.fr-moderne

@@ -1,0 +1,33 @@
+---
+title: Guide de l'administrateur
+sidebar:
+  order: 4
+lang: fr
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Cette section est dédiée aux administrateurs.
+
+## Démarrage
+
+Un réseau DNF est constitué :
+
+- De **zones** contenant chacune une passerelle et des machines.
+- Un **VPN** qui englobe les zones et d'autres machines.
+
+### Installation
+
+On va installer dans l'ordre :
+
+1. une machine (celle de l'administrateur),
+2. une passerelle et d'autres machines dans la même zone,
+3. le réseau tailnet (serveur de coordination),
+4. d'autres zones liées à notre configuration.
+
+:::note[Une configuration unique]
+L'ensemble de ces noeuds seront décrits dans une unique configuration NixOS que l'on va administrer sur la machine de l'administrateur.
+De cette manière, on va pouvoir mettre à jour et faire évoluer tout le réseau et ses machines de manière cohérente et centralisée.
+:::
+
+A venir...

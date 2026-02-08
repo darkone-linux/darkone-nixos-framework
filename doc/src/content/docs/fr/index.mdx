@@ -1,0 +1,41 @@
+---
+title: Darkone NixOS Framework
+description: Une configuration NixOS pour un cloud souverain, libre et sécurisé.
+template: splash
+lang: fr
+hero:
+  tagline: Mon cloud souverain, libre et sécurisé.
+  image:
+    file: ../../../assets/nix-logo.svg
+  actions:
+    - text: Introduction
+      link: /doc/introduction/
+      icon: right-arrow
+    - text: Code source du projet
+      link: https://github.com/darkone-linux/darkone-nixos-framework
+      icon: external
+      variant: minimal
+      attrs:
+        target: _blank
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card title="Documentation" icon="information">
+    - [Introduction](/fr/doc/introduction/)
+    - [Specifications](/fr/doc/specifications/)
+    - [Guide de l'utilisateur](/fr/doc/user-guide/)
+    - [Guide de l'administrateur](/fr/doc/admin-guide/)
+    - [Foire aux Questions](/fr/doc/how-to/)
+  </Card>
+  <Card title="References (en)" icon="open-book">
+    - [Modules Mixins](/ref/modules/#mixin-modules)
+    - [Modules Standards](/ref/modules/#standard-modules)
+    - [Modules Home Manager](/ref/modules/#home-manager-modules)
+  </Card>
+  <Card title="Informations" icon="rocket">
+    - [Notes de versions](/fr/changelog/)
+    - [Merci ! (en)](/thanks/)
+  </Card>
+</CardGrid>
