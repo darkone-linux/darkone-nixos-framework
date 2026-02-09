@@ -1,5 +1,5 @@
 ---
-title: Introduction
+title: Présentation du projet
 description: A multi-user, multi-host, ready-to-use NixOS configuration
 sidebar:
   order: 1
@@ -8,7 +8,11 @@ lang: fr
 
 import { FileTree } from '@astrojs/starlight/components';
 
-Une configuration multi-utilisateur, multi-hôte et multi-service&nbsp;:
+:::tip[Non informaticien ?]
+Le [guide de l'utilisateur](/fr/doc/user-guide/) est pour vous !
+:::
+
+Une **configuration NixOS** multi-utilisateur, multi-hôte et multi-service&nbsp;:
 
 - 🔥 [Déclaratif, reproductible, immuable](https://nixos.org/).
 - 🚀 [Modules](https://darkone-linux.github.io/ref/modules/) prêts à l’emploi.
@@ -45,6 +49,17 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 | 📐 | Architecture | [Cohérente, extensible, scalable, personnalisable](https://darkone-linux.github.io/doc/introduction/#structure) |
 | ✴️ | Proxy inverse | Services distribués à travers le réseau via proxies [Caddy](https://github.com/caddyserver/caddy) |
 | 🛜 | Réseau automatisé | Plomberie [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html) zero-conf (DNS, DHCP, pare-feu…) |
+
+## Le réseau DNF
+
+Cette configuration gère tout le réseau et ses noeuds :
+
+- Les **zones** contenant chacune une passerelle et des machines.
+- Le **VPN** qui englobe les zones et d'autres machines sur internet.
+
+On peut résumer le fonctionnement du réseau ainsi :
+
+![Réseau DNF](../../../../assets/reseau-darkone-2.png)
 
 ## Organisation des fichiers
 
