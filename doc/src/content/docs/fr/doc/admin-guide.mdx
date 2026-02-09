@@ -9,11 +9,7 @@ import { Steps } from '@astrojs/starlight/components';
 
 Cette section est dédiée aux administrateurs.
 
-## Démarrage
-
-
-
-### Installation
+## Préparation
 
 On va installer dans l'ordre :
 
@@ -22,9 +18,211 @@ On va installer dans l'ordre :
 3. le réseau tailnet (serveur de coordination),
 4. d'autres zones liées à notre configuration.
 
-:::note[Une configuration unique]
-L'ensemble de ces noeuds seront décrits dans une unique configuration NixOS que l'on va administrer sur la machine de l'administrateur.
-De cette manière, on va pouvoir mettre à jour et faire évoluer tout le réseau et ses machines de manière cohérente et centralisée.
+:::note[Configuration unique]
+L'ensemble de ces noeuds seront décrits dans une unique configuration NixOS sur la machine de l'administrateur, à partir de laquelle
+on va pouvoir mettre à jour et faire évoluer tout le réseau et ses machines.
 :::
 
+## Installation initiale
+
+:::caution[En cours d'optimisation]
+Les étapes d'installation initiales sont en cours de simplification. En attendant, la [méthode manuelle](/doc/admin-guide/#manual-installation) est disponible dans la 
+version anglaise de ce site.
+:::
+
+## Création d'une zone
+
+Une zone (sous-réseau) est composée au minimum d'une passerelle, derrière laquelle on peut mettre autant d'ordinateurs qu'on veut.
+
+### La passerelle
+
+Un mini-ordinateur toujours allumé, avec au moins 2 interfaces réseau (une éthernet branchée à la box et les autres qui font partie du sous-réseau - ethernet et wifi). 
+
+:::note[Quel matériel pour ma passerelle ?]
+Un modèle [protectli](https://eu.protectli.com/) ou équivalent est idéal. [Celui-ci](https://eu.protectli.com/product/v1210/) est suffisant avec :
+
+* Disque NVME >= 256G
+* Bios coreboot de préférence
+* En option : carte wifi
+:::
+
+#### Check-list client
+
+Si l'installation se fait à distance, voici les informations à transmettre :
+
+1. Brancher la passerelle à la box internet.
+2. Mettre l'ISO (fourni par l'administrateur) [sur une clé usb](https://rufus.ie/fr/) et la brancher.
+3. Noter l'adresse IP de la passerelle (visible via l'ISO ou dans la box).
+4. Dans l'interface de la box internet, rediriger le port 22 sur la passerelle.
+5. L'administrateur peut maintenant accéder à la passerelle et l'installer.
+6. Finaliser l'installation : autres périphériques, wifi, ordinateurs, services locaux.
+
+:::note[Note technique]
+La redirection du port 22 permet un accès SSH à la passerelle depuis internet, indispensable pour son installation.
+Le système de la clé USB n'est accessible que via une clé d'authentification SSH, il est impossible d'y accéder par mot de passe.
+Cette redirection n'est plus nécessaire une fois la passerelle installée, mais l'accès reste utile en cas de problème.
+:::
+
+#### Check-list administrateur
+
 A venir...
+
+### Autres ordinateurs
+
+* __N'importe quel ordinateur, smartphone, tablette__ branché au réseau de la passerelle fait automatiquement partie du réseau (VPN) et peut accéder aux services moyennant quelques configurations.
+* __Des PCs dispo ?__ Les Linux pré-configurés permettent d'avoir plein de programmes et tous les logiciels et services pré-configurés pour les utilisateurs du réseau.
+
+---
+
+## Création d'un compte utilisateur
+
+:::tip
+Chaque utilisateur aura :
+
+* Un identifiant (prénom minuscule sans accent si possible) et un mot de passe principal.
+* Une adresse en poncon.fr, ex. prenom@domaine.tld (boite mail ou redirection vers un autre email).
+* Une adresse matrix locale, ex. @prenom:domaine.tld (messagerie instantanée et visio).
+:::
+
+### 3 éléments importants
+
+* Le mot de passe principal de [vaultwarden](https://vaultwarden.poncon.fr/), pour ouvrir son coffre.
+* La clé d'authentification [IDM](https://idm.poncon.fr/) pour accéder à tous les services.
+* Un mot de passe supplémentaire dans [IDM](https://idm.poncon.fr/) en cas de perte de la clé. 
+
+### Étapes de création du compte
+
+:::note[Ce que devra faire le nouvel utilisateur]
+* Choisir un mot de passe principal via l'invitation vaultwarden (par e-mail).
+* Créer une "clé d'authentification" et un mot de passe de récupération (IDM). 
+* Installer Bitwarden sur ses périphériques et le paramétrer.
+* Applications : les installer et configurer au besoin.
+:::
+
+<Steps>
+
+1. **Créer le compte système**
+    
+    :::caution[Compte POSIX (facultatif)]
+    Cette étape crée un compte POSIX qui sera disponibles sur les postes Linux (serveurs, stations, etc.) désignés par la configuration.
+    Il est possible de créer des utilisateurs non-posix (non déclaratifs) directement dans Vaultwarden et Kanidm.
+    :::
+
+    Un utilisateur doit avoir :
+    
+    - un identifiant (prénom en minuscules)
+    - une adresse email (en domaine.tld de préférence)
+
+    Ajouter l'utilisateur dans le fichier de configuration :
+
+    ```yaml
+    # usr/config.yaml
+    users:
+      charlie:
+        uid: 1003
+        name: "Charlie"
+        profile: "teenager"
+        groups: ["kids-ag", "global"]
+    ```
+    Puis générer, commiter et appliquer la configuration.
+
+2. **Compte vaultwarden**
+
+    Dans l'interface d'administration Vaultwarden, l'utilisateur précédent doit être présent (sinon le créer).
+    
+    1. Administrateur : lancer une invitation.
+    2. Utilisateur : reçoit un e-mail pour saisir son mot de passe principal.
+    3. Administrateur : confirmer l'utilisateur dans l'interface.<br />&nbsp;
+
+3. **Sur HCS (serveur de coordination)**
+
+    Activer le compte Kanidm :
+
+    ```bash
+    # Onboarding Kanidm -> transmettre le lien ou le qr-code
+    kanidm person credential create-reset-token <login> --name idm_admin
+    ```
+
+    Puis suivre les étapes de création des clés et mots de passe.
+
+4. **Bitwarden**
+
+    Installer et configurer Bitwarden sur les navigateurs et smartphones permettra au nouvel utilisateur de simplifier l'accès à son compte et ses services.
+
+    :::caution[Sélectionner "self-hosted"]
+    Et entrez l'URL de vaultwarden avant d'entrer le mot de passe principal, sinon vous allez l'envoyer chez bitwarden.com !
+    :::
+
+    :::tip[Paramètres recommandés]
+    - Saisie automatique → détection de correspondante → "hôte"
+    - Saisie automatique → activer le remplissage automatique
+    - Définir Bitwarden comme gestionnaire de mots de passe par défaut.
+    :::
+
+5. **Accès aux services**
+
+    Le SSO permet un accès aux services avec une seule authentification.
+    Les règles d'accès sont définies par les claims Kanidm.
+
+</Steps>
+
+## Création d'un poste Linux
+
+La création d'un poste Linux est une opération rapide.
+
+**Pré-requis** :
+
+* L'image ISO du cloud à générer avec `just iso`.
+* Un poste déclaré dans la configuration. Exemple :
+
+```yaml
+# usr/config.yaml
+hosts:
+- hostname: "bob-laptop"
+  name: "Bob's Dell Laptop"
+  zone: "main:2.2"
+  profile: "laptop"
+  groups: ["zone-main", "guests"]
+  features: ["nfs-client"]
+  mac: "f0:1f:af:13:62:23,bc:78:56:25:b8:57"
+```
+
+**Procédure** :
+
+* Graver l'image ISO du cloud sur une clé USB.
+* Connecter l'ordinateur au réseau et le démarrer sur la clé.
+* Appliquer le système puis redémarrer sans la clé.
+
+**Application du système** :
+
+```sh
+# Remplacer par l'IP de la machine
+just full-install bob-laptop nix 10.1.2.34
+```
+
+:::tip[Installation complète]
+En quelques minutes, la commande `just full-install` va installer le système complet avec les programmes, configurations et utilisateurs. 
+Si l'opération échoue, il est possible de reprendre les étapes consultables dans le fichier `Justfile`.
+:::
+
+## Se connecter depuis l'extérieur
+
+Pour accéder à tous les services (ainsi qu'aux partages) quand on est pas dans une zone, il faut un client VPN Tailscale.
+L'intervention de l'administrateur est requise pour cette configuration.
+
+* Installer le client tailscale (application).
+* Demander à rejoindre le réseau `headscale.domaine.tld`.
+* L'administrateur doit ensuite valider cet accès :
+
+```sh
+# Se connecter au HCS
+just enter hcs
+
+# Méthode 1 : créer une clé d'authentification temporaire sur le user 1 (nix)
+#             puis connecter le client avec cette clé. Cette méthode permet 
+#             d'accepter plusieurs clients d'un coup (reusable).
+sudo headscale preauthkeys create --reusable --expiration 1h --user 1
+
+# Méthode 2 : connecter le client puis activer sa clé.
+sudo headscale nodes register --key xxx --user nix
+```
