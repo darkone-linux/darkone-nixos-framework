@@ -28,7 +28,7 @@ let
 
   # Has a Kanidm client on the same server (HCS or main gateway)
   # -> Redirect to IDM from the main domain.
-  hasIdmClient = config.services.kanidm.enableClient;
+  hasIdmClient = config.services.kanidm.client.enable;
 
   # Has matrix server (synapse) on the same server.
   # -> Add a well-known url to the main domain.

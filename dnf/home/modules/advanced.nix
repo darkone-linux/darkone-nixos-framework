@@ -388,7 +388,7 @@ in
         ctrlp-vim
         emmet-vim
         fzf-vim
-        fzfWrapper
+        fzf-wrapper
         gruvbox
         lightline-gruvbox-vim
         lightline-vim

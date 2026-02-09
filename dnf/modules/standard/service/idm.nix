@@ -145,31 +145,33 @@ in
 
         # Gère la BD (Argon2id) et expose des interfaces API, Web + pont LDAP en lecture.
         # -> https://github.com/kanidm/kanidm/blob/master/examples/server.toml
-        enableServer = true;
-        serverSettings = {
-          bindaddress = "${params.ip}:${toString srvPort}";
+        server = {
+          enable = true;
+          settings = {
+            bindaddress = "${params.ip}:${toString srvPort}";
 
-          # The domain that Kanidm manages. Must be below or equal to the domain specified in serverSettings.origin.
-          # This can be left at null, only if your instance has the role ReadOnlyReplica.
-          inherit (network) domain;
+            # The domain that Kanidm manages. Must be below or equal to the domain specified in serverSettings.origin.
+            # This can be left at null, only if your instance has the role ReadOnlyReplica.
+            inherit (network) domain;
 
-          # The origin of the Kanidm instance.
-          origin = params.href;
+            # The origin of the Kanidm instance.
+            origin = params.href;
 
-          # Address and port the LDAP server is bound to. Setting this to null disables the LDAP interface.
-          ldapbindaddress = mkIf isMainReplica "${host.vpnIp}:636";
+            # Address and port the LDAP server is bound to. Setting this to null disables the LDAP interface.
+            ldapbindaddress = mkIf isMainReplica "${host.vpnIp}:636";
 
-          # The role of this server. This affects the replication relationship and thereby available features.
-          # -> N'existe pas dans la conf kanidm...
-          role = if isMainReplica then "WriteReplica" else "WriteReplicaNoUI";
+            # The role of this server. This affects the replication relationship and thereby available features.
+            # -> N'existe pas dans la conf kanidm...
+            role = if isMainReplica then "WriteReplica" else "WriteReplicaNoUI";
 
-          # Internal TLS Certificates
-          # openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 3650 -nodes -subj "/CN=127.0.0.1";
-          tls_chain = secrets.kanidm-tls-chain.path;
-          tls_key = secrets.kanidm-tls-key.path;
+            # Internal TLS Certificates
+            # openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 3650 -nodes -subj "/CN=127.0.0.1";
+            tls_chain = secrets.kanidm-tls-chain.path;
+            tls_key = secrets.kanidm-tls-key.path;
 
-          # TODO
-          #replication = {};
+            # TODO
+            #replication = {};
+          };
         };
 
         #----------------------------------------------------------------------
@@ -177,10 +179,12 @@ in
         #----------------------------------------------------------------------
 
         # Web/CLI client
-        enableClient = true;
-        clientSettings = {
-          uri = params.href;
-          connect_timeout = 86400; # 24h (seconds)
+        client = {
+          enable = true;
+          settings = {
+            uri = params.href;
+            connect_timeout = 86400; # 24h (seconds)
+          };
         };
 
         #----------------------------------------------------------------------
@@ -188,10 +192,12 @@ in
         #----------------------------------------------------------------------
 
         # Configuration du démon Unix pour PAM/NSS (remplace SSSD)
-        enablePam = !isHcs;
-        unixSettings = mkIf (!isHcs) {
-          default_shell = "/etc/profiles/per-user/nix/bin/zsh";
-          pam_allowed_login_groups = [ "posix" ];
+        unix = {
+          enable = !isHcs;
+          settings = {
+            default_shell = "/etc/profiles/per-user/nix/bin/zsh";
+            pam_allowed_login_groups = [ "posix" ];
+          };
         };
 
         #----------------------------------------------------------------------
