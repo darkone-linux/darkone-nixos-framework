@@ -106,6 +106,20 @@ in
       options = "--delete-older-than 30d";
     };
 
+    # Using experimental flakes and nix
+    nix.settings.experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
+
+    # We trust users to allow send configurations
+    # nix --extra-experimental-features nix-command config show | grep trusted
+    nix.settings.trusted-users = [
+      "nix"
+      "root"
+      "@wheel"
+    ];
+
     # Nerd fond for gnome terminal and default monospace
     fonts.packages = with pkgs; [ nerd-fonts.jetbrains-mono ];
     fonts.fontconfig.enable = true;

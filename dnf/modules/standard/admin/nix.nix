@@ -15,20 +15,6 @@ in
     # Allow unfree packages
     nixpkgs.config.allowUnfree = true;
 
-    # Using experimental flakes and nix
-    nix.settings.experimental-features = [
-      "nix-command"
-      "flakes"
-    ];
-
-    # We trust users to allow send configurations
-    # nix --extra-experimental-features nix-command config show | grep trusted
-    nix.settings.trusted-users = [
-      "root"
-      "nix"
-      "@wheel"
-    ];
-
     # Large updates / downloads
     # https://nix.dev/manual/nix/2.22/command-ref/conf-file.html?highlight=substit#conf-download-buffer-size
     nix.settings.download-buffer-size = 524288000; # 500 MiB

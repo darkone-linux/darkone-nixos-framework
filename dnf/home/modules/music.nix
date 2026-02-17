@@ -50,6 +50,10 @@ in
     # [audqt]
     # theme=dark
 
+    # Frescobaldi
+    #nixpkgs.config.permittedInsecurePackages = [ "qtwebengine-5.15.19" ];
+    #nixpkgs.config.permittedInsecurePackages = lib.optional cfg.enableScore "qtwebengine-5.15.19";
+
     # Nix packages
     home.packages = with pkgs; [
       #(lib.mkIf cfg.enableCreator lmms) # Compilation fail
@@ -81,6 +85,7 @@ in
       (lib.mkIf cfg.enablePro rosegarden)
       (lib.mkIf cfg.enableScore muse-sounds-manager)
       (lib.mkIf cfg.enableScore musescore)
+      #(lib.mkIf cfg.enableScore frescobaldi) # FAIL
       (lib.mkIf cfg.enableEasy gnome-music)
       (lib.mkIf cfg.enableMpd gnomeExtensions.mpris-label)
       (lib.mkIf (!cfg.enableEasy) audacious)
