@@ -149,6 +149,12 @@ in
         pkgs.unixtools.netstat
       ];
 
+      # Need network to bind the address
+      systemd.services.prometheus-node-exporter = {
+        after = [ "network-online.target" ];
+        wants = [ "network-online.target" ];
+      };
+
       #--------------------------------------------------------------------------
       # Prometheus
       #--------------------------------------------------------------------------
