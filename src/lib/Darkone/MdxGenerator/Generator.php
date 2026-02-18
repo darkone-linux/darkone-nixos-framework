@@ -18,7 +18,7 @@ class Generator
         }
 
         file_put_contents(
-            NIX_PROJECT_ROOT . '/doc/src/content/docs/ref/modules.mdx',
+            NIX_PROJECT_ROOT . '/doc/src/content/docs/root/ref/modules.mdx',
             Module::generateMdx()
         );
 

@@ -111,7 +111,6 @@ yaml file so that the service is visible across the entire network!**
 * **enableNextcloud** `bool` Enable pre-configured nextcloud service
 * **enableMonitoring** `bool` Enable pre-configured monitoring service (prometheus, grafana)
 * **enableVaultwarden** `bool` Enable pre-configured Vaultwarden service
-* **enableMattermost** `bool` Enable a mattermost server
 * **enableNfsHomeShares** `bool` Enable a DNF nfs home shares
 * **enableJitsiMeet** `bool` Enable jitsi-meet service
 * **enableRestic** `bool` Enable Restic service
@@ -133,7 +132,6 @@ darkone.host.minimal = {
   enableNextcloud = attrsets.hasAttrByPath [ "services" "nextcloud" ] host;
   enableMonitoring = attrsets.hasAttrByPath [ "services" "monitoring" ] host;
   enableVaultwarden = attrsets.hasAttrByPath [ "services" "vaultwarden" ] host;
-  enableMattermost = attrsets.hasAttrByPath [ "services" "mattermost" ] host;
   enableNfsHomeShares = attrsets.hasAttrByPath [ "services" "nfs" ] host;
   enableJitsiMeet = builtins.hasAttr "jitsi-meet" host.services;
   enableRestic = builtins.hasAttr "restic" host.services;
@@ -1095,7 +1093,7 @@ darkone.system.srv-dirs = {
 
 ### &#x1F48E; darkone.user.build
 
-Build users from DNF configuration.
+Build users NixOS (not home-manager) configuration.
 
 :::danger[Required module]
 This module is enabled by default (required by DNF configuration).
@@ -1344,6 +1342,7 @@ Common tools for office desktop.
 * **enableChromium** `bool` Enable chromium
 * **enableBrave** `bool` Enable Brave Browser
 * **enableEmail** `bool` Email management packages (thunderbird)
+* **enableSecurity** `bool` Security tools (keepass)
 * **enableCalendarContacts** `bool` Gnome calendar, contacts and related apps
 * **enableEssentials** `bool` Essential tools
 * **huntspellLang** `str` [Huntspell Lang](https://mynixos.com/nixpkgs/packages/hunspellDicts)
@@ -1363,25 +1362,10 @@ darkone.home.office = {
   enableChromium = false;
   enableBrave = false;
   enableEmail = false;
+  enableSecurity = false;
   enableCalendarContacts = false;
   enableEssentials = true;
   huntspellLang = "en-us";
-};
-```
-
-<hr/>
-
-### &#x1F3E0; darkone.home.syncthing
-
-Home sync module. (WIP)
-
-* **enable** `bool` Enable local syncthing service
-* **enableTray** `bool` Enable syncthing tray app / icon
-
-```nix
-darkone.home.syncthing = {
-  enable = false;
-  enableTray = true;
 };
 ```
 
@@ -1406,20 +1390,6 @@ darkone.home.video = {
   enableCreator = false;
   enableUnfree = false;
   enableAlternative = false;
-};
-```
-
-<hr/>
-
-### &#x1F3E0; darkone.home.zed
-
-* **enable** `bool` Preconfigured ZED editor
-* **enableAssistant** `bool` Enable AI Assistant
-
-```nix
-darkone.home.zed = {
-  enable = false;
-  enableAssistant = false;
 };
 ```
 
