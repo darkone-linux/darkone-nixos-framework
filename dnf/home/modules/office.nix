@@ -7,6 +7,7 @@
   network,
   inputs,
   pkgs,
+  host,
   ...
 }:
 with lib;
@@ -203,6 +204,7 @@ in
     darkone.home.office.enableChromium = mkEnableOption "Enable chromium";
     darkone.home.office.enableBrave = mkEnableOption "Enable Brave Browser";
     darkone.home.office.enableEmail = mkEnableOption "Email management packages (thunderbird)";
+    darkone.home.office.enableSecurity = mkEnableOption "Security tools (keepass)";
     darkone.home.office.enableCalendarContacts = mkEnableOption "Gnome calendar, contacts and related apps";
 
     # Enabled by default
@@ -259,6 +261,10 @@ in
       (mkIf cfg.enableProductivity obsidian)
       (mkIf cfg.enableProductivity logseq)
       (mkIf cfg.enableBrave brave)
+      (mkIf cfg.enableSecurity keepassxc)
+      (mkIf cfg.enableSecurity keepmenu) # Dmenu/Rofi frontend for Keepass databases
+      (mkIf cfg.enableSecurity gnome-secrets)
+      (mkIf cfg.enableSecurity git-credential-keepassxc)
       (mkIf hasMatrix fractal)
       (mkIf hasVaultwarden bitwarden-desktop)
       (mkIf hasVaultwarden bitwarden-cli)
@@ -476,6 +482,16 @@ in
           Exceptions = [
             "https://*.${network.domain}/*"
             "https://cdn.jsdelivr.net/*"
+            "http://127.0.0.1/*"
+            "https://127.0.0.1/*"
+            "http://localhost/*"
+            "https://localhost/*"
+            "http://${host.name}.${zone.domain}/*"
+            "https://${host.name}.${zone.domain}/*"
+            "http://${host.name}/*"
+            "https://${host.name}/*"
+            "http://[::1]/*"
+            "https://[::1]/*"
           ];
         };
       };
