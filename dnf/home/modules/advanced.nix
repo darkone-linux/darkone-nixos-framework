@@ -312,6 +312,7 @@ in
     programs.yazi = {
       enable = lib.mkDefault cfg.enableTools;
       enableZshIntegration = true;
+      shellWrapperName = "y";
     };
 
     # Zellij
