@@ -11,8 +11,6 @@
     ./mime.nix
     ./music.nix
     ./office.nix
-    ./syncthing.nix
     ./video.nix
-    ./zed.nix
   ];
 }
