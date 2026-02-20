@@ -275,12 +275,17 @@ Available recipes:
 - [ ] Remplacer le générateur PHP par un générateur Rust + parseur nix complet.
 - [ ] Tests unitaires + tests de recette.
 - [ ] Faire travailler claude code...
+- [ ] Remplacer Nextcloud par un équivalent plus simple, stable, performant et OIDC natif
+  - [ ] [Ocis](https://doc.owncloud.com/ocis/next/), [OpenCloud](https://opencloud.eu/en/features) ([nix](https://search.nixos.org/options?channel=unstable&query=services.opencloud)), [Filebrowser Quantum](https://filebrowserquantum.com/en/) ([oidc](https://filebrowserquantum.com/en/docs/configuration/authentication/oidc/)), [OxiCloud](https://github.com/DioCrafts/OxiCloud) (un peu jeune)
+  - [ ] [Rustical](https://github.com/lennart-k/rustical) ([pr nix](https://github.com/NixOS/nixpkgs/pull/424188), [oidc natif](https://lennart-k.github.io/rustical/setup/oidc/)) ou [Radical](https://github.com/Kozea/Radicale) ([nix](https://search.nixos.org/options?channel=unstable&query=services.radical)) pour calendar / contacts si nécessaire.
+- [ ] Remplacer fail2ban par [CrowdSec](https://github.com/crowdsecurity/crowdsec) ([nix](https://search.nixos.org/options?channel=unstable&query=services.crowdsec)) ?
 
 ### A voir
 
 - [ ] Intégration de [nixvim](https://nix-community.github.io/nixvim/).
 - [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
 - [ ] Serveur de mails.
+- [ ] Interface [headplane](https://github.com/tale/headplane) pour headscale.
 
 ### Fait
 
