@@ -8,12 +8,16 @@ lang: en
 
 import { FileTree } from '@astrojs/starlight/components';
 
+:::tip[Not computer scientist?]
+The [user guide](/en/doc/user-guide/) if for you!
+:::
+
 Darkone NixOS Framework is a working base for a multi-user, multi-services and multi-host configuration.
 
 - 🔥 [Declarative, reproducible, immutable](https://nixos.org/).
-- 🚀 Ready-to-use [modules](https://darkone-linux.github.io/ref/modules/).
+- 🚀 Ready-to-use [modules](/en/ref/modules/).
 - ❄️ Simple [main configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml).
-- 🧩 Consistent [structure](https://darkone-linux.github.io/doc/introduction/#structure).
+- 🧩 Consistent [structure](/en/doc/introduction/#structure).
 - 🌎 A [full network](#one-configuration-a-full-network).
 
 ## Features
@@ -21,15 +25,15 @@ Darkone NixOS Framework is a working base for a multi-user, multi-services and m
 |   | Feature | Description |
 |---|--------|-------------|
 | ⚙️ | Quick&nbsp;install | Fully automated host install with [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) & [disko](https://github.com/nix-community/disko)<br />Fully automated host update with [colmena](https://github.com/zhaofengli/colmena) |
-| 👤 | User profiles | User [profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/home/profiles) and [modules](https://darkone-linux.github.io/ref/modules/#home-manager-modules) with [Home Manager](https://github.com/nix-community/home-manager)<br /> Admin, Nix-Admin, Developer, Gamer, Student, Beginner, Child... |
-| 🖥️ | Host&nbsp;profiles | [Profiles for hosts](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop) with the option to customize each one<br />Workstation, Laptop, Server, VM, Gateway, VPN Coordination... |
+| 👤 | User profiles | User [profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/home/profiles) and [modules](/en/ref/modules/#home-manager-modules) with [Home Manager](https://github.com/nix-community/home-manager)<br /> Admin, Nix-Admin, Developer, Gamer, Student, Beginner, Child... |
+| 🖥️ | Host&nbsp;profiles | [Profiles for hosts](/en/ref/modules/#-darkonehostdesktop) with the option to customize each one<br />Workstation, Laptop, Server, VM, Gateway, VPN Coordination... |
 | 🌐 | Tailnet&nbsp;VPN | [Full-mesh VPN](https://en.wikipedia.org/wiki/Mesh_networking) with [headscale](https://headscale.net/) + [tailscale](https://tailscale.com/), [independent subnets](#one-configuration-fop-a-full-network) |
 | 🛡️ | Ad-Free web | Secure, ad-free internet with [AdguardHome](https://adguard.com/fr/adguard-home/overview.html) and effective firewall |
 | 🧩 | SSO | Authentication with [Kanidm](https://kanidm.com/): one identity for (almost) all services |
-| 🤗 | Services | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [Jellyfin](https://jellyfin.org/), [etc.](https://darkone-linux.github.io/ref/modules/#-darkoneserviceadguardhome) |
+| 🤗 | Services | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [Jellyfin](https://jellyfin.org/), [etc.](/en/ref/modules/#-darkoneserviceadguardhome) |
 | 💻 | Clean&nbsp;Gnome | NixOS hosts with streamlined [GNOME UI](https://www.gnome.org/) + stable and useful apps |
 | 💾 | Backups | Robust and widespread 3-2-1 backups with [Restic](https://restic.net/) |
-| 🏠 | Homepage | [Automated homepage](#homepage-screenshot) -> quick access to all configured services |
+| 🏠 | Homepage | Automated homepage -> quick access to all configured services |
 
 ## Specificities
 
@@ -37,8 +41,8 @@ Darkone NixOS Framework is a working base for a multi-user, multi-services and m
 |---|--------|-------------|
 | ❄️ | Declarative&nbsp;&&nbsp;Immutable | Fully reproducible configuration based on [Nix / NixOS](https://nixos.org/) |
 | 🔑 | Enhanced&nbsp;security | Simple and reliable security strategy with [sops-nix](https://github.com/Mic92/sops-nix) |
-| 📦 | High-level modules | [High-level NixOS modules](https://darkone-linux.github.io/ref/modules), easy to enable and use |
-| 📐 | Consistent&nbsp;architecture | [Extensible and scalable architecture](https://darkone-linux.github.io/doc/introduction/#structure) |
+| 📦 | High-level modules | [High-level NixOS modules](/en/ref/modules), easy to enable and use |
+| 📐 | Consistent&nbsp;architecture | [Extensible and scalable architecture](/en/doc/introduction/#structure) |
 | ✴️ | Reverse proxy | Distributed services with [Caddy](https://github.com/caddyserver/caddy) proxies |
 | 🛜 | Auto-networking | Zero-conf network plumbing with [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html)  |
 

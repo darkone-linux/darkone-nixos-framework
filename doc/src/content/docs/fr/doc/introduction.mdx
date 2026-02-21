@@ -15,10 +15,10 @@ Le [guide de l'utilisateur](/fr/doc/user-guide/) est pour vous !
 Une **configuration NixOS** multi-utilisateur, multi-hôte et multi-service&nbsp;:
 
 - 🔥 [Déclaratif, reproductible, immuable](https://nixos.org/).
-- 🚀 [Modules](https://darkone-linux.github.io/ref/modules/) prêts à l’emploi.
+- 🚀 [Modules](/fr/ref/modules/) prêts à l’emploi.
 - ❄️ [Configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml) simple.
-- 🧩 [Organisation](https://darkone-linux.github.io/doc/introduction/#structure) cohérente.
-- 🌎 Un [réseau complet](#one-configuration-a-full-network).
+- 🧩 [Organisation](/fr/doc/introduction/#structure) cohérente.
+- 🌎 Un [réseau complet](#le-réseau-dnf).
 
 :::note
 Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé des prochaines versions stables, merci de me le faire savoir sur [GitHub](https://github.com/darkone-linux/darkone-nixos-framework) ou en vous abonnant à ma [chaîne YouTube](https://www.youtube.com/@DarkoneLinux) (FR). Merci !
@@ -29,15 +29,15 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 | | Fonctionnalité | Description |
 |---|---------------|-------------|
 | ⚙️ | Tout-automatisé | Avec [nixos-anywhere](https://github.com/nix-community/nixos-anywhere), [disko](https://github.com/nix-community/disko) et [colmena](https://github.com/zhaofengli/colmena) |
-| 👤 | Profils utilisateurs | [Profils](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/home/profiles) et [modules](https://darkone-linux.github.io/ref/modules/#home-manager-modules) [Home Manager](https://github.com/nix-community/home-manager) (admin, gamer…) |
-| 🖥️ | Profils d’hôtes | [Profils d’hôtes](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop) (serveurs, nœuds réseau, postes de travail…) |
+| 👤 | Profils utilisateurs | [Profils](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/home/profiles) et [modules](/fr/ref/modules/#home-manager-modules) [Home Manager](https://github.com/nix-community/home-manager) (admin, gamer…) |
+| 🖥️ | Profils d’hôtes | [Profils d’hôtes](/fr/ref/modules/#-darkonehostdesktop) (serveurs, nœuds réseau, postes de travail…) |
 | 🌐 | VPN Tailnet | [VPN maillé](https://fr.wikipedia.org/wiki/R%C3%A9seau_maill%C3%A9) avec [headscale](https://headscale.net/) + [tailscale](https://tailscale.com/) + [sous-réseaux](#une-configuration-pour-un-réseau-complet) |
 | 🛡️ | Stop Publicités | Internet sécurisé et sans pub avec [AdguardHome](https://adguard.com/fr/adguard-home/overview.html) |
 | 🧩 | Identités uniques | SSO avec [Kanidm](https://kanidm.com/) et [Vaultwarden](https://github.com/dani-garcia/vaultwarden) |
-| 🤗 | Services intelligents | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Matrix](https://matrix.com/), [Jellyfin](https://jellyfin.org/), [etc.](https://darkone-linux.github.io/ref/modules/#-darkoneserviceadguardhome) |
+| 🤗 | Services intelligents | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Matrix](https://matrix.com/), [Jellyfin](https://jellyfin.org/), [etc.](/fr/ref/modules/#-darkoneserviceadguardhome) |
 | 💻 | GNOME épuré | Hôtes NixOS avec [GNOME](https://www.gnome.org/) et applis pré-configurées |
 | 💾 | Sauvegardes 3-2-1 | Sauvegardes [Restic](https://restic.net/) robustes, simplifiées, distribuées |
-| 🏠 | Page d’accueil | [Page d’accueil automatisée](#page-daccueil-dynamique) pour chaque zone |
+| 🏠 | Page d’accueil | Page d’accueil automatisée pour chaque zone |
 
 ## Sous le capot
 
@@ -45,8 +45,8 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 |---|---------------|-------------|
 | ❄️ | Déclaratif,&nbsp;immuable | Et reproductible grâce à [Nix / NixOS](https://nixos.org/) et son écosystème |
 | 🔑 | Sécurité renforcée | Stratégie de sécurité simple et fiable, reposant sur [sops-nix](https://github.com/Mic92/sops-nix) |
-| 📦 | Modules complets | [Modules NixOS haut-niveau](https://darkone-linux.github.io/ref/modules) faciles à configurer |
-| 📐 | Architecture | [Cohérente, extensible, scalable, personnalisable](https://darkone-linux.github.io/doc/introduction/#structure) |
+| 📦 | Modules complets | [Modules NixOS haut-niveau](/fr/ref/modules/) faciles à configurer |
+| 📐 | Architecture | [Cohérente, extensible, scalable, personnalisable](/fr/doc/introduction/#structure) |
 | ✴️ | Proxy inverse | Services distribués à travers le réseau via proxies [Caddy](https://github.com/caddyserver/caddy) |
 | 🛜 | Réseau automatisé | Plomberie [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html) zero-conf (DNS, DHCP, pare-feu…) |
 
@@ -93,7 +93,7 @@ A la racine :
     - profiles/ Profils : admin, student, advanced...
     - nixos/ Configurations NixOS (hors HM) additionnelles
 - **usr/** Configuration spécifique de mon réseau
-  - config.yaml [Ma config principale](/doc/specifications/#the-configuration-file)
+  - config.yaml [Ma config principale](/en/doc/specifications/#the-configuration-file) (en)
   - modules/ Mes modules NixOS, identique à `dnf/modules`
   - home/ Mes modules HM, identique à `dnf/home`
   - secrets/ Mes mots de passe
@@ -102,7 +102,7 @@ A la racine :
   - users/ Confs spécifique HM par utilisateur
 - var/ Fichiers générés
   - log/ Fichiers de log
-  - generated/ [Fichiers générés](/doc/specifications/#the-generator)
+  - generated/ [Fichiers générés](/en/doc/specifications/#the-generator) (en)
     - hosts.nix
     - users.nix
     - network.nix
@@ -121,4 +121,4 @@ Ces configurations sont organisées par catégories:
 - **[Modules standards](/ref/modules/#standard-modules)** simples et faciles à utiliser.
 - **[Modules mixins](/ref/modules/#mixin-modules)** qui englobent plusieurs modules standards.
 - **[Profils utilisateur](/doc/specifications/#create-a-user-profile-example)**, configurations [Home Manager](https://github.com/nix-community/home-manager) standards.
-- **[Outils](/doc/user-manual/#just-commands)** pour maintenir une configuration qualitative.
+- **Outils pour maintenir une configuration qualitative.
