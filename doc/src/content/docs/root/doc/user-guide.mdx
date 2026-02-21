@@ -1,8 +1,276 @@
 ---
 title: User Guide
 sidebar:
-  order: 3
-lang: en
+  order: 2
 ---
 
-This section will provide a user guide for hosts and services.
+- [Intro: my sovereign and secure cloud](#my-sovereign-and-secure-cloud)
+- [Connecting and managing my account](#connecting-and-managing-my-account)
+- [How to use the services](#online-services)
+
+## My sovereign and secure cloud
+
+:::note[Read carefully]
+This introduction is very useful for understanding the purpose and functioning of the cloud.
+:::
+
+- **A convenient and secure digital space** for my data.
+- **Useful services**: messaging, video calls, documents, media, backups, games...
+- **Pre-installed Linux systems** (optional) that are very easy to use.
+
+:::tip[Ideal for young people]
+A protected space suited for the youngest, for a controlled learning of IT and networks!
+:::
+
+---
+
+### The benefits
+
+* 🔐 **Maximum security**: our data remains controlled and passes through encrypted.
+* 🚫 **No data leaks** to advertisers, AI, insurance, taxes...
+* 🔁 **Automated 3-2-1 backups**, encrypted, distributed, compressed.
+* 🕐 **Top applications**, stable, useful and simple, to save time.
+* 🔑 **Only one password** to remember (SSO + vault).
+* 👶 **User-friendly** for small and big.
+
+:::note[My digital heritage]
+Photos, videos, stories, contacts, dialogues, passwords... more and more memories and data linked to my heritage are now digital.
+Using a safe, sovereign, and controlled place for this data, which forms my identity, is paramount. This is the purpose of this cloud.
+:::
+
+:::tip[Should I leave the GAFAM?]
+No. These companies offer useful services. Thousands of engineers work there, making the simplicity and efficiency of their tools hard to match.
+They also give a lot to the open-source world and are sometimes precious partners.
+However, their private nature does not allow them to guarantee a total and safe space of freedom for all my personal data and conversations.
+This data can be analyzed and potentially transmitted to advertisers, insurance, AI engines, government services.
+Technically, my data can also be confiscated, diverted, and kept against my will, even if a serious professional would not do this.
+So it's up to me to make the distinction.
+:::
+
+### The services
+
+These reliable [open-source](https://en.wikipedia.org/wiki/Open_source) applications are carefully selected for their usefulness, maturity, and ease of use.
+
+:::tip[Single Sign-On (SSO)]
+A single login is sufficient for each of them (no need to enter 36 passwords).
+:::
+
+| **Service** | **App** | **Purpose** |
+|----|----|----|
+| 🔐 [Vault](#-vaultwarden) | Vaultwarden | My passwords, keys, and critical data. |
+| 🖼️ [Photos & videos](#-immich-photos) | Immich | Complete photo and video manager with AI. |
+| ☁️ [Data](#-nextcloud-files--data) | Nextcloud | A secure place for my data. |
+| 💬 [Messages & video](#-matrix-messages--video) | Matrix | Alternative to "WhatsApp" (messaging and video). |
+| 🎬&nbsp;[Movies&nbsp;&&nbsp;Music](#-jellyfin-movies--music) | Jellyfin | A great "Netflix-like" media library. |
+| 📝 [Notes](#-outline-notes) | Outline | Individual and collective note-taking. |
+| 🍽️ [Cooking](#-mealie-cooking-recipes) | Mealie | Cooking recipe application. |
+| 🔎 [Search](#-searxng-search) | Searxng | Global, secure, ad-free search. |
+
+Technical services:
+
+| **Service** | **App** | **Purpose** |
+|----|----|----|
+| 👨 [Identity](#-kanidm-idm) | Kanidm | My identity (unique password - SSO). |
+| 🛑 [Ad-blocker](#-adguardhome-ad-blocker-firewall) | AdguardHome | Firewall and ad-blocker that speeds up the Internet. |
+| 🧑‍💻&nbsp;[GIT&nbsp;Forge](#-forgejo-git-forge) | Forgejo | [GIT](https://git-scm.com/) repository and manager for developers. |
+
+### Linux workstations (NixOS)
+
+The cloud's Linux system can be installed on any PC computer connected to the network.
+
+:::caution[Is Linux complicated?]
+Contrary to what people think, **Linux and its applications have become very simple to use.**
+And our pre-installed system is even easier to get started with!
+:::
+
+:::tip[A time saver at all levels]
+* 100% pre-installed -> programs, user accounts and configurations, everything is there.
+* 100% managed → no need to administer the system, everything is automatic.
+* Ideal and performant with old PCs that we no longer use.
+:::
+
+:::note[Why Linux / NixOS?]
+- **Linux** is a free system, therefore safe, in line with the idea of a sovereign and secure digital space. The transparency of Linux's code guarantees the absence of "backdoors" and potentially unwanted programs.
+- **NixOS** is an innovative Linux system that allows for reproducibility, meticulous configurations, and great stability.
+:::
+
+### User profiles
+
+Each user is linked to a "profile" (choice and interchangeable), which determines:
+
+* The programs and configurations for [workstations](#linux-workstations-nixos) (education, office, games...).
+* Access and configuration for [online services](#the-services).
+
+| **Profile** | **Description** |
+|----|----|
+| ⚪ minimal | Strict minimum of programs and tools. |
+| 🔵 normal | For non-technical office user -> the essentials. |
+| 🟣 advanced | For developers -> a nice shell and development tools. |
+| 🔴 admin | Account dedicated to network and system administrators (expert). |
+| 🎨 creator | For multimedia creator -> video, music, photo, image. |
+| 📘 student | For studies -> taking notes, organizing, studying. |
+| 🎮 Gamer | Lots of native Linux games. |
+| 🎒 teen | Fun and educational apps to get started with the internet. |
+| 🧩 child | Educational software for learning, without internet access. |
+| 🧸 baby | Very stripped-down system -> learning the mouse, numbers, shapes, etc. |
+
+### The nodes
+
+:::note[What is a node?]
+A network is made up of computers called "nodes". Each has its own purpose.
+This information is not necessary to use the cloud but helps understand how it works.
+:::
+
+#### NixOS nodes
+
+They are 100% managed (automatically installed and updated):
+
+| **Type** | **Purpose** |
+|----|----|
+| ❄️ [Top Linux PC](#linux-workstations-nixos) | Complete, configured, secure, shared workstation.<br/>→ I just need to connect and work, play, entertain myself. |
+| 🗄️ Server | A computer that stays on to host services:<br/>→ Jellyfin, Immich, Nextcloud, backups, shares, etc. |
+| 🌐 Gateway | A little gem that links the local network to the Internet.<br/>→ Firewall, router, DNS server, VPN client... |
+| 🎼&nbsp;Coordination&nbsp;server | This dark individual is the "conductor" of the network.<br/>→ Somewhere on the internet, always ready to serve us. |
+
+:::note[Learn more]
+On the composition of the network in [its presentation](/doc/introduction/#the-dnf-network).
+:::
+
+#### Attached nodes
+
+I can connect third-party devices to the network:
+
+- 📱 **My smartphone, tablet**<br/>I can connect to the network and all its services.
+- 💻 **My computer / beloved system**<br/>Under Windows, macOS or Linux, I can also access the services.
+
+## Connecting and managing my account
+
+I need:
+
+* **A master password** for my vault (vaultwarden).
+* **A unique identity** for all cloud services (kanidm / IDM).
+
+My administrator must perform a procedure so I can define these accesses.
+
+* **Master password**: an email containing a link to enter the password.
+* **Identity**: a QR-Code or a link to define a key and a "2FA" password.
+
+:::tip[Things to know!]
+- 🔐 **My master password** (Vaultwarden / Bitwarden)<br/>allows me to connect to my vault.
+- 🔑 **My authentication key** (IDM Key)<br/>allows me to connect to all cloud applications.
+- 🔐 **My "two-factor" password** (2FA Key)<br/>allows me to connect as well, if I have a problem with my key.
+:::
+
+The **master password** is paramount, it's the only thing that is **absolutely necessary to remember**.
+
+My identification follows this schema:
+
+![Identification workflow](../../../../assets/identification.png)
+
+:::note[What is a key?]
+A digital key allows identification without having to use a password.
+It is located in my vault.
+When an application needs it, Bitwarden opens automatically.
+This is the **SIMPLEST AND MOST SECURE** way to authenticate myself.
+:::
+
+:::note[A "two-factor" password?]
+Two-factor authentication (2FA) uses:
+- a password (something I know)
+- AND another "factor" (something I own)
+
+The latter can be a code sent by email / sms, a 6-digit code generator, etc.
+These days, a huge number of passwords are compromised, which is why this type of authentication is becoming necessary.
+:::
+
+:::caution[Securing my vault]
+To facilitate access to the vault (vaultwarden / bitwarden), a "simple" master password is allowed by default.
+But it is highly recommended to add a second factor to secure access, especially if I put all my passwords in it (bank, social accounts, etc.).
+:::
+
+## Online services
+
+All cloud services are open-source and have their own online documentation. But here are some useful short introductions.
+
+### 🔐 Vaultwarden
+
+Vaultwarden is my vault. It contains my passwords, digital keys, credit cards, and confidential information.
+This information is stored encrypted and backed up automatically. By default, I am the only one who has access.
+
+:::tip[Useful features]
+- Share access with others thanks to "collections".
+- Organize my passwords and keys into folders.
+- Send confidential information thanks to "sends".
+:::
+
+:::note[Bitwarden: the client application]
+Bitwarden can be installed as a **browser plugin** or as a **mobile application**.
+It simplifies my life thanks to automatic entry of my credentials and passwords and many other features.
+Bitwarden can do everything Vaultwarden can (the server, which holds the data).
+:::
+
+:::caution[Important: Bitwarden configuration]
+By default, Bitwarden is set to "bitwarden.com".
+You must select "self-hosted" and then enter the Vaultwarden URL to be able to use Bitwarden with the cloud.
+
+⚠️ I MUST NOT ENTER MY MASTER PASSWORD BEFORE DOING THIS.
+:::
+
+
+### 👨 Kanidm (idm)
+
+My identity manager, which allows me to easily identify myself to cloud services.
+
+### 🖼️ Immich (photos)
+
+My personal photo and video manager, with sovereign and effective AI face recognition and search functions.
+
+To synchronize photos from my smartphone to Immich:
+
+* Install the immich application on the smartphone.
+* Set up synchronization by giving the Immich URL.
+
+### ☁️ Nextcloud (files & data)
+
+A space for my files, contacts, calendars, and many other personal data, that I can synchronize and share.
+
+### 💬 Matrix (messages & video)
+
+My social network. All my conversations are encrypted and stay at home. I can link it to the federation (other matrix networks) or not.
+I can also synchronize my WhatsApp, Messenger, Telegram, Signal, Discord accounts...
+
+* Install "Element" on PC and Element Classic on android / ios:
+  * Access the network matrix.domain.tld (do not go to matrix.org!)
+  * Connect with "IDM" (do not create an account!)
+  * The matrix account is created on first access
+  * Invite the user to the rooms
+* For calls to work (like with whatsapp), notifications must be activated and authorized.
+
+:::caution[Select the correct matrix server!]
+Click on "Self-Hosted" then enter the cloud's matrix domain.
+:::
+
+### 🎬 Jellyfin (movies & music)
+
+My personal media library for my movies and music, that I can use with my television.
+
+### 📝 Outline (notes)
+
+A convenient space for taking personal or shared notes, writing documentation, making checklists.
+
+### 🍽️ Mealie (cooking recipes)
+
+A very useful app to import, enter, and refine my cooking recipes.
+
+### 🔎 Searxng (search)
+
+A multi-search engine that crosses information from many other engines and enables secure searches.
+
+### 🛑 AdguardHome (ad-blocker firewall)
+
+AdguardHome is hosted on the gateways and removes ads and trackers, while isolating the zone with a firewall. Thanks to it, I browse faster and better on the internet.
+
+### 🧑‍💻 Forgejo (git forge)
+
+Forgejo is a git forge, a personal and sovereign GitHub. It allows hosting projects, managing issues, pull requests, and much more.
+GIT is also an excellent way to organize, version, and backup one's documents.
