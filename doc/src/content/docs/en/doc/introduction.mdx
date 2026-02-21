@@ -64,18 +64,18 @@ The lower layers serve the upper layers.
 
 The configurations are also organized by category:
 
-- **[Standard modules](/ref/modules/#standard-modules)**: Ready-to-use simple modules.
-- **[Mixin modules](/ref/modules/#mixin-modules)**: Ready-to-use collections of modules.
-- **[Home profiles](/doc/specifications/#create-a-user-profile-example)**: [Home Manager](https://github.com/nix-community/home-manager) configurations for each user profile.
-- **[Tools & configurations](/doc/user-manual/#just-commands)**: Manage the generation and quality of Nix declarations.
+- **[Standard modules](/en/ref/modules/#standard-modules)**: Ready-to-use simple modules.
+- **[Mixin modules](/en/ref/modules/#mixin-modules)**: Ready-to-use collections of modules.
+- **[Home profiles](/en/doc/specifications/#create-a-user-profile-example)**: [Home Manager](https://github.com/nix-community/home-manager) configurations for each user profile.
+- **[Tools & configurations](/en/doc/user-manual/#just-commands)**: Manage the generation and quality of Nix declarations.
 
 ### Structure
 
 <FileTree collapsed={true}>
 - flake.nix Main flake
-- Justfile Project management with [just](/doc/user-manual/#just-commands)
+- Justfile Project management with [just](https://github.com/casey/just)
 - dnf/ Framework (modules & common files)
-  - modules/ [Framework modules](/ref/modules/)
+  - modules/ [Framework modules](/en/ref/modules/)
     - standard Standard nix modules
       - system/ System / Hardware configurations
       - console/ CLI applications
@@ -90,7 +90,7 @@ The configurations are also organized by category:
     - modules/ HM Modules (features)
     - profiles/ admin, student, advanced...
 - **usr/** Writable zone for local network project
-  - config.yaml [Local configuration](/doc/specifications/#the-configuration-file) used by [the generator](/doc/specifications/#the-generator)
+  - config.yaml [Local configuration](/en/doc/specifications/#the-configuration-file) used by [the generator](/en/doc/specifications/#the-generator)
   - modules/ Local nixos modules, the same as `dnf/modules`
   - home/ Local HM conf, the same as `dnf/home`
   - secrets/ Local secrets file
@@ -99,7 +99,7 @@ The configurations are also organized by category:
   - users/ User specific confs (stateVersion, overload)
 - var/ Generated files
   - log/
-  - generated/ [Generated nix files](/doc/specifications/#the-generator)
+  - generated/ [Generated nix files](/en/doc/specifications/#the-generator)
     - hosts.nix Hosts to deploy
     - users.nix Users to deploy
     - network.nix Local network configuration

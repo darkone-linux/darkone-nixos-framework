@@ -23,8 +23,6 @@ export default defineConfig({
   },
   redirects: {
     "/": "/en/",
-    "/ref/[...slug]/": "/en/ref/[...slug]/",
-    "/doc/[...slug]/": "/en/doc/[...slug]/",
   },
   integrations: [
     starlight({
