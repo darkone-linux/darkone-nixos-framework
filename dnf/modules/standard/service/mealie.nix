@@ -6,6 +6,7 @@
   config,
   network,
   host,
+  pkgs-stable,
   ...
 }:
 let
@@ -64,6 +65,7 @@ in
 
       services.mealie = {
         enable = true;
+        package = pkgs-stable.mealie;
         listenAddress = params.ip;
         credentialsFile = config.sops.templates.mealie-credentials.path;
         settings = {

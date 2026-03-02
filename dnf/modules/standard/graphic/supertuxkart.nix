@@ -37,7 +37,7 @@ in
   config = lib.mkIf cfg.enable {
 
     # STK package
-    environment.systemPackages = with pkgs; [ superTuxKart ];
+    environment.systemPackages = with pkgs; [ supertuxkart ];
 
     # NFS Share (server)
     systemd.tmpfiles.rules = [ "d ${sharePrefix}/stk-tracks 0775 nobody users -" ];

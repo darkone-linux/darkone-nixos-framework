@@ -22,7 +22,7 @@ in
         enable = true;
         man-db.enable = false;
         mandoc.enable = true;
-        generateCaches = true;
+        cache.enable = true;
       };
     };
   };

@@ -101,6 +101,15 @@ in
       };
 
       #--------------------------------------------------------------------------
+      # Sops
+      #--------------------------------------------------------------------------
+
+      sops.secrets.grafana-secret-key = lib.mkIf cfg.enable {
+        mode = "0400";
+        owner = "grafana";
+      };
+
+      #--------------------------------------------------------------------------
       # Node exporter
       #--------------------------------------------------------------------------
 
@@ -192,10 +201,17 @@ in
             root_url = params.href;
             serve_from_sub_path = false;
           };
+
+          # https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/#secret_key
+          # Après mise à jour il faut rechiffrer :
+          # https://grafana.com/docs/grafana/latest/setup-grafana/configure-security/configure-database-encryption/#re-encrypt-secrets
+          security.secret_key = "$__file{${config.sops.secrets.grafana-secret-key.path}}";
+
           #security = {
           #  admin_user = "admin";
           #  admin_password = "admin";
           #};
+
           database = {
             type = "sqlite3";
             path = "/var/lib/grafana/grafana.db";
