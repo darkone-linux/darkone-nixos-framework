@@ -380,13 +380,25 @@ Full-configured AdGuard Home for local gateway / router.
 
 :::note
 This configuration reads the `network` conf in `config.yaml` file.
-It uses the [DNF dnsmasq module](/en/ref/modules/#-darkoneservicednsmasq) as upstream DNS and DHCP.
+It uses the [DNF dnsmasq module](/ref/modules/#-darkoneservicednsmasq) as upstream DNS and DHCP.
 :::
 
 * **enable** `bool` Enable local adguardhome service
 
 ```nix
 darkone.service.adguardhome.enable = false;
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.ai
+
+Artifical Intelligence (open-webui + ollama + llms).
+
+* **enable** `bool` Enable local AI service
+
+```nix
+darkone.service.ai.enable = false;
 ```
 
 <hr/>
@@ -1394,3 +1406,4 @@ darkone.home.video = {
 ```
 
 <hr/>
+
