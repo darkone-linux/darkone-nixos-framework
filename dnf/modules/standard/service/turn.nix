@@ -30,6 +30,7 @@ in
       };
     }
 
+    # TODO: Activer TLS, activer le service acme pour obtenir le certificat de turnDomain
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
@@ -55,14 +56,9 @@ in
         enable = true;
 
         realm = turnDomain;
-        # listening-port = 3478;
-        # tls-listening-port = 5349;
 
         listening-ips = [ host.ip ] ++ (lib.optional (host ? vpnIp) host.vpnIp);
         relay-ips = [ host.ip ];
-
-        # min-port = 49152;
-        # max-port = 65535;
 
         use-auth-secret = true;
         static-auth-secret-file = config.sops.secrets.turn-secret.path;
@@ -75,12 +71,15 @@ in
         # Require authentication
         secure-stun = true;
 
+        # https://github.com/coturn/coturn/blob/master/examples/etc/turnserver.conf
+        # HCS host.ip is the external IP address (not the tailnet ip)
         extraConfig = ''
-          verbose
+          #verbose
           log-file stdout
           no-multicast-peers
           total-quota=50
-        '';
+          external-ip=${host.ip}
+        ''; # OR external-ip=${host.ip}/${host.vpnIp} ?
       };
 
       #------------------------------------------------------------------------
@@ -89,17 +88,17 @@ in
 
       networking.firewall = {
         allowedUDPPorts = [
-          srv.listening-port
-          #srv.tls-listening-port
+          srv.listening-port # 3478
+          srv.tls-listening-port # 5349
         ];
         allowedTCPPorts = [
-          srv.listening-port
-          #srv.tls-listening-port
+          srv.listening-port # 3478
+          srv.tls-listening-port # 5349
         ];
         allowedUDPPortRanges = [
           {
-            from = srv.min-port;
-            to = srv.max-port;
+            from = srv.min-port; # 49152
+            to = srv.max-port; # 65535
           }
         ];
       };

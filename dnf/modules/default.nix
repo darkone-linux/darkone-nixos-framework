@@ -20,6 +20,7 @@
     ./standard/graphic/virt-manager.nix
     ./standard/graphic/virtualbox.nix
     ./standard/service/adguardhome.nix
+    ./standard/service/ai.nix
     ./standard/service/audio.nix
     ./standard/service/dnsmasq.nix
     ./standard/service/element.nix
