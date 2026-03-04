@@ -856,6 +856,14 @@ darkone.service.tailscale = {
 
 Coturn server (matrix).
 
+Add DNS entries to optimize :
+
+```
+Type,Name,Priority,Pds,Port,Target
+SRV,_stun._udp,0,0,3478,turn.mydomain.tld
+SRV,_turns._tcp,0,0,5349,turn.mydomain.tld
+```
+
 * **enable** `bool` Enable local turn service (visio)
 
 ```nix
