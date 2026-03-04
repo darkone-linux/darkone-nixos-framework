@@ -124,7 +124,10 @@ let
 
   # Global services to expose to internet, only for HCS
   globalServices =
-    if isHcs then (filter (s: (hasAttr "global" s.params) && s.params.global) services) else [ ];
+    if isHcs then
+      (filter (s: (hasAttr "global" s.params) && s.params.global && s.proxy.enable) services)
+    else
+      [ ];
 
   # Extra configuration for global caddy section
   servicesExtraGlobalConfigs = map (s: s.proxy.extraGlobalConfig) services;

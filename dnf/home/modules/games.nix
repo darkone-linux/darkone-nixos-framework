@@ -75,7 +75,7 @@ in
       (lib.mkIf moreCli crawl) # role-playing roguelike game
       (lib.mkIf moreCli nethack) # Rogue-like game
       (lib.mkIf moreCli solitaire-tui)
-      (lib.mkIf stk superTuxKart)
+      (lib.mkIf stk supertuxkart)
     ];
 
     #--------------------------------------------------------------------------

@@ -433,6 +433,8 @@ in
           turn_uris = lib.optionals hasTurn [
             "turn:turn.${network.domain}:${toString coturn.listening-port}?transport=udp"
             "turn:turn.${network.domain}:${toString coturn.listening-port}?transport=tcp"
+            "turn:turn.${network.domain}:${toString coturn.tls-listening-port}?transport=udp"
+            "turn:turn.${network.domain}:${toString coturn.tls-listening-port}?transport=tcp"
           ];
           turn_shared_secret_path = lib.mkIf hasTurn config.sops.secrets.turn-secret-matrix.path;
           turn_user_lifetime = lib.mkIf hasTurn "1h";
