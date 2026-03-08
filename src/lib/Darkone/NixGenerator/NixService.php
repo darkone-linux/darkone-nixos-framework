@@ -9,6 +9,7 @@ class NixService
     //       et récupérer ces informations dans la conf nix.
     public const array UNIQUE_SERVICES_BY_ZONE = ['ncps', 'adguardhome', 'homepage'];
     public const array REVERSE_PROXY_SERVICES = [
+        'ai',
         'adguardhome',
         'auth',
         'dex',

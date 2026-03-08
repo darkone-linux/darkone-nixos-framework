@@ -106,6 +106,7 @@ in
             "oidc-secret-nextcloud"
             "oidc-secret-mealie"
             "oidc-secret-matrix-synapse"
+            "oidc-secret-open-webui"
             #"oidc-secret-vaultwarden"
           ]
       );
@@ -319,6 +320,17 @@ in
               ];
               originLanding = "https://mealie.${network.domain}/";
               basicSecretFile = secrets.oidc-secret-mealie.path;
+              inherit scopeMaps;
+            };
+
+            # Open WebUI + Ollama
+            open-webui = {
+              displayName = "Open WebUI";
+              imageFile = ./../../../assets/app-icons/open-webui.svg;
+              originUrl = [ "https://ai.cp.${network.domain}/oauth/oidc/callback" ];
+              originLanding = "https://ai.cp.${network.domain}/";
+              basicSecretFile = secrets.oidc-secret-open-webui.path;
+              preferShortUsername = false;
               inherit scopeMaps;
             };
 

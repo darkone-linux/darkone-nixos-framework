@@ -148,7 +148,7 @@ in
 
           # On force des ciphers modernes (TLS)
           cipher-list="ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
-        ''; # OR external-ip=${host.ip}/${host.vpnIp} ?
+        ''; # OR external-ip=${host.ip}/${host.vpnIp} -> NOT WORKING
       };
 
       #------------------------------------------------------------------------

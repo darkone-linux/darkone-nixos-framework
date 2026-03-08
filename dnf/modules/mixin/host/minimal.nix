@@ -100,6 +100,11 @@ in
       default = attrsets.hasAttrByPath [ "services" "element" ] host;
       description = "Enable Element-Web interface (matrix)";
     };
+    darkone.host.minimal.enableAi = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "ai" ] host;
+      description = "Enable AI environment (ollama, open-webui, llms...)";
+    };
 
     # Deactivated
     # darkone.host.minimal.enableMattermost = mkOption {
@@ -143,6 +148,7 @@ in
 
     # Enabled services
     darkone.service = {
+      ai.enable = cfg.enableAi;
       element.enable = cfg.enableElement;
       forgejo.enable = cfg.enableForgejo;
       homepage.enable = cfg.enableHomepage;
