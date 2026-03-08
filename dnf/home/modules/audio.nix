@@ -24,6 +24,7 @@ in
       #(lib.mkIf cfg.enableTools noisetorch) # Realtime noise reduction (pulseaudio only)
       (lib.mkIf cfg.enableTools audacity)
       lame
+      vlc
     ];
 
     # https://github.com/wwmm/easyeffects
