@@ -190,13 +190,11 @@ in
       hibernate.enable = !cfg.disableSuspend;
       hybrid-sleep.enable = !cfg.disableSuspend;
     };
-    systemd.sleep = lib.mkIf cfg.disableSuspend {
-      extraConfig = ''
-        AllowSuspend=no
-        AllowHibernation=no
-        AllowHybridSleep=no
-        AllowSuspendThenHibernate=no
-      '';
+    systemd.sleep.settings.Sleep = lib.mkIf cfg.disableSuspend {
+      AllowSuspend = "no";
+      AllowHibernation = "no";
+      AllowHybridSleep = "no";
+      AllowSuspendThenHibernate = "no";
     };
 
     # Suspend: by default do not sleep / suspend to manage hosts through the network
