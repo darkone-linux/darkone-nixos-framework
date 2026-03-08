@@ -121,6 +121,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableMatrix** `bool` Enable a matrix server
 * **enableTurn** `bool` Enable a coturn server (STUN/TURN) for VOIP
 * **enableElement** `bool` Enable Element-Web interface (matrix)
+* **enableAi** `bool` Enable AI environment (ollama, open-webui, llms...)
 
 ```nix
 darkone.host.minimal = {
@@ -142,6 +143,7 @@ darkone.host.minimal = {
   enableMatrix = attrsets.hasAttrByPath [ "services" "matrix" ] host;
   enableTurn = attrsets.hasAttrByPath [ "services" "turn" ] host;
   enableElement = attrsets.hasAttrByPath [ "services" "element" ] host;
+  enableAi = attrsets.hasAttrByPath [ "services" "ai" ] host;
 };
 ```
 
@@ -393,7 +395,7 @@ darkone.service.adguardhome.enable = false;
 
 ### &#x1F48E; darkone.service.ai
 
-Artifical Intelligence (open-webui + ollama + llms).
+Local Artifical Intelligence (open-webui + ollama + llms).
 
 * **enable** `bool` Enable local AI service
 
