@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "bash": {
+      "git status": "allow",
+      "git diff *": "allow",
+      "git log *": "allow",
+      "just clean": "allow",
+      "just check-flake": "allow",
+      "just generate": "allow",
+      "just *": "ask",
+      "composer *": "allow",
+      "cargo *": "allow",
+      "*": "ask"
+    },
+    "write": { "*": "ask" },
+    "external_directory": { "*": "deny" }
+  }
+}
