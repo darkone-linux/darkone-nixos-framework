@@ -543,9 +543,12 @@ pull:
 		rsync -av --delete \
 			--exclude 'usr' \
 			--exclude 'var' \
-			--exclude '.*' \
+			--exclude '.idea' \
+			--exclude '.Trash*' \
+			--exclude '.git' \
 			--exclude '*.lock' \
 			--exclude node_modules \
+			-exclude src/vendor \
 			--exclude doc/dist \
 			--exclude doc/darkone-linux.github.io \
 			{{dnfDir}}/ {{workDir}}/
@@ -561,9 +564,13 @@ push:
 	rsync -av --delete \
 		--exclude 'usr' \
 		--exclude 'var' \
-		--exclude '.*' \
+		--exclude '.idea' \
+		--exclude '.Trash*' \
+		--exclude '.trash' \
+		--exclude '.git' \
 		--exclude '*.lock' \
 		--exclude doc/node_modules \
+		--exclude src/vendor \
 		--exclude doc/dist \
 		--exclude doc/darkone-linux.github.io \
 		--delete {{workDir}}/ {{dnfDir}}/
