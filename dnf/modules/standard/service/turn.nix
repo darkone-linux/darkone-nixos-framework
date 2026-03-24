@@ -115,7 +115,6 @@ in
 
       services.coturn = {
         enable = true;
-
         realm = turnDomain;
 
         listening-ips = [ host.ip ] ++ (lib.optional (host ? vpnIp) host.vpnIp);

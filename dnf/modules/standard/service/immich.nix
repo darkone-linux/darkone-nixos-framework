@@ -137,11 +137,11 @@ in
           inherit (config.services.redis.servers.immich) port;
         };
 
-        # Database fix
-        database = {
-          enableVectors = false;
-          enableVectorChord = true;
-        };
+        # Database fix (deprecated)
+        #database = {
+        #  enableVectors = false;
+        #  # enableVectorChord = true; # Deprecated. From now on, vectorchord is always enabled.
+        #};
 
         # Machine learning configuration
         machine-learning = lib.mkIf cfg.enableMachineLearning {
