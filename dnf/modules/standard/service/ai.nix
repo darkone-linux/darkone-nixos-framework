@@ -54,7 +54,10 @@ in
       #------------------------------------------------------------------------
 
       networking.firewall = lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
-        allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [ internalPort ];
+        allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [
+          internalPort
+          config.services.ollama.port
+        ];
       };
 
       #------------------------------------------------------------------------
@@ -73,10 +76,12 @@ in
       services.ollama = {
         enable = true;
         openFirewall = false;
+        host = "0.0.0.0";
         loadModels = [
           "deepseek-r1:latest" # 8b
           "gemma3:27b"
           "gpt-oss:latest" # 20b
+          "llama3.1:8b"
           "llama3.2:3b"
           "mistral-small3.2:latest" # 24b
           "qwen3.5:latest" # 8b
@@ -124,7 +129,7 @@ in
           ANONYMIZED_TELEMETRY = "False";
           DO_NOT_TRACK = "True";
           SCARF_NO_ANALYTICS = "True";
-          OLLAMA_API_BASE_URL = "http://127.0.0.1:${toString config.services.ollama.port}";
+          OLLAMA_API_BASE_URL = "http://${params.ip}:${toString config.services.ollama.port}";
           WEBUI_AUTH = "True";
 
           # Required for OIDC
