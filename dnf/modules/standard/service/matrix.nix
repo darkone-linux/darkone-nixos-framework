@@ -217,6 +217,7 @@ in
         environmentFile = config.sops.templates.mautrix-meta-env.path;
         settings = mautrixCommonSettings // {
           network.mode = "messenger";
+          network.chat_sync_max_age = "168h"; # ne sync que les convos actives dans les 7 derniers jours
           appservice = {
             id = "messenger";
             as_token = "$MAUTRIX_META_APPSERVICE_AS_TOKEN";
