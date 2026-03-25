@@ -7,6 +7,7 @@
   network,
   inputs,
   pkgs,
+  pkgs-stable,
   host,
   ...
 }:
@@ -260,7 +261,7 @@ in
       (mkIf cfg.enableTools iotas) # Simple note taking with mobile-first design and Nextcloud sync
       (mkIf cfg.enableTools snapshot) # Webcam
       (mkIf cfg.enableProductivity obsidian)
-      (mkIf cfg.enableProductivity logseq)
+      (mkIf cfg.enableProductivity pkgs-stable.logseq)
       (mkIf cfg.enableBrave brave)
       (mkIf cfg.enableSecurity keepassxc)
       (mkIf cfg.enableSecurity keepmenu) # Dmenu/Rofi frontend for Keepass databases
