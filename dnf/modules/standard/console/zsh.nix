@@ -6,6 +6,7 @@
 # - `vz`: vim + fzf
 # - `treef`: tree with files (eza)
 # - `treed`: tree only dirs (eza)
+# - `locate`: localsearch search (if localsearch is installed instead of locate)
 #
 # For nix/dnf admin profile:
 # - `nx`: cd /etc/nixos
@@ -54,7 +55,11 @@ in
         vz = "vim `fzf`";
         treef = "eza --icons --tree --group-directories-first";
         treed = "eza --icons --tree --group-directories-first --only-dirs";
-      };
+      }
+      // lib.optionalAttrs (
+        builtins.elem pkgs.localsearch config.environment.systemPackages
+        || config.services.gnome.localsearch.enable
+      ) { search = "localsearch search"; };
       promptInit = "source ${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/powerlevel10k.zsh-theme";
       shellInit = ''
         export MANPAGER="less -M -R -i --use-color -Dd+R -Du+B -DHkC -j5";

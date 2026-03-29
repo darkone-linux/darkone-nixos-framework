@@ -73,7 +73,6 @@ in
     #============================================================================
 
     home.packages = with pkgs; [
-      #findutils # locate
       (lib.mkIf (graphic && (cfg.enableDeveloper || cfg.enableAdmin)) vscode) # TODO: module
       (lib.mkIf (graphic && (cfg.enableDeveloper || cfg.enableAdmin)) vscode-extensions.antfu.slidev)
       (lib.mkIf (graphic && cfg.enableAdmin) filezilla)
@@ -99,6 +98,7 @@ in
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) age)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) colmena)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) deadnix)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) hugo)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) just)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) moreutils) # sponge
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nixfmt)
