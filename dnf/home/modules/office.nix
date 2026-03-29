@@ -251,6 +251,7 @@ in
       (mkIf cfg.enableOffice hunspell)
       (mkIf cfg.enableOffice hunspellDicts.${cfg.huntspellLang})
       (mkIf cfg.enableOffice libreoffice-fresh) # Force visible icon theme
+      (mkIf cfg.enableOffice lato) # Lato fonts
       (mkIf cfg.enableTools authenticator) # Two-factor authentication code generator
       (mkIf cfg.enableTools dialect) # translate
       (mkIf cfg.enableTools gnome-characters)

@@ -389,12 +389,24 @@ in
         optional isHcs {
           ${network.domain} =
             let
+              localPath = ./../../../../usr/www/public;
+              staticDirExists = builtins.pathExists localPath;
               matrixWellKnown = optionalString hasMatrix matrixWellKnownSection;
               mainAction =
 
+                # S'il existe des fichiers statiques dans usr/www/public, alors
+                # on sert ces fichiers situés dans le store. Sinon on redirige vers l'IDM.
+                if staticDirExists then
+                  ''
+                    handle {
+                      root * ${localPath}
+                      file_server
+                    }
+                  ''
+
                 # On encapsule dans un "handle" pour que le challenge fonctionne, sinon
                 # le handle automatique pour let's encrypt ne fonctionne pas.
-                if hasIdmClient then
+                else if hasIdmClient then
                   ''
                     handle {
                       redir / https://idm.${network.domain}
