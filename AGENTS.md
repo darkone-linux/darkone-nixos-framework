@@ -5,22 +5,28 @@
 - `dnf/` : le framework NixOS (Code NIX commun à toutes les installations, NixOS et home-manager)
   - `dnf/modules` : modules NixOS
   - `dnf/lib` : librairie de code NIX complémentaire, accessible en important `dnfLib`
-  - `dnf/home` : modules et profiles home-manager (sauf `home/nixos` qui contient du code NixOS à charger si tel ou tel profil home manager est présent sur la machine)
-  - `dnf/tests` : tests unitaires (todo) et scripts de génération des VMs de tests pour tests de recette (todo)
-  - `dnf/hosts` : code nix pour générer l'ISO d'installation des machines du réseau et les configurations disko
-  - `dnf/dotfiles` et `dnf/assets` : fichiers non-nix utiles
-- `src/` : générateur -> génère : 
+- `dnf/home/` : modules et profils home-manager
+  - `dnf/home/modules/` : modules home-manager
+  - `dnf/home/nixos/` : configuration nixos (non home-manager) utile pour certains profils home-manager
+  - `dnf/home/profiles/` : profils d'utilisateur home-manager
+- `dnf/tests` : tests unitaires (todo) et scripts de génération des VMs de tests pour tests de recette (todo)
+- `dnf/hosts` : code nix pour générer l'ISO d'installation des machines du réseau et les configurations disko des machines
+- `dnf/dotfiles` et `dnf/assets` : fichiers non-nix utiles à la configuration nix
+- `src/` : générateur -> génère :
   - du code Nix dans `var/generated` (hosts.nix, network.nix, users.nix) à partir de `usr/config.yaml`
   - les fichiers d'inclusion `default.nix`
   - la configuration initiale des nouvelles machines `usr/machines` et nouveaux utilisateurs `usr/users`.
   - la documentation des modules dans `doc/src/content/docs/ref/modules.mdx`
-- `usr/` : configuration d'une installation
+- `usr/` : configuration de l'installation locale
   - `usr/config.yaml` est la configuration haut niveau du réseau (machines, utilisateurs, services, etc.) -> NE PAS MODIFIER sans avis
+  - `usr/home/modules`, `usr/home/profiles` : surcharge et complètent `dnf/home/modules` et `dnf/home/profiles`
   - `usr/modules`, `usr/home` surchargent et complètent respectivement `dnf/modules` et `dnf/home`
-  - `usr/machines` contient les configurations spécifiques de chaque machine (hôte du réseau) déclaré dans `config.yaml`
+  - `usr/machines` contient les configurations spécifiques de chaque machine (hôte du réseau) déclarée dans `config.yaml`
   - `usr/users` contient les configurations spécifiques de chaque utilisateur déclaré dans `config.yaml`
-  - `usr/secrets` contient les secrets sops -> NE PAS MODIFIER sans avis
-- `var/` : données variables et générées (code nix généré, logs)
+  - `usr/secrets` contient les secrets sops -> NE PAS MODIFIER
+- `var/generated` : fichiers générés depuis config.yaml (hosts.nix, network.nix, users.nix, config.yaml)
+- `var/log/` : logs du générateur
+- `var/security/` : clés et certificats (ssh, etc.)
 - `doc/` : documentation starlight
 - `.trash/` : le code non utilisé mais qui pourrait être ré-utilisé plus tard (respecter la structure des dossiers / fichiers de provenance)
 
@@ -90,6 +96,14 @@ Justfile à la racine :
 - `just format` → nixfmt récursif
 - `just check` → deadnix + statix
 
+**Alias utiles :**
+- `just c` → clean
+- `just d` → develop
+- `just e` → enter
+- `just a` → apply
+- `just al` → apply-local
+- `just av` → apply-verbose
+
 Justfile dans `doc/` : pour le moment l'utilisation de ces commandes est interdit.
 
 ## Glossaire
@@ -133,7 +147,7 @@ Le générateur lit `usr/config.yaml` et produit :
 | Mise à jour flake | `flake.nix`, `flake.lock` | Tout le reste |
 | Config machines/users | `usr/machines/`, `usr/users/` | `usr/config.yaml`, `usr/secrets/` |
 
-## Stratégie de tests (en cours de mise en place)
+## Stratégie de tests (à implémenter)
 
 - **Tests unitaires** (`dnf/tests/unit/`) : avec `nix-unit`, tester les fonctions de `dnfLib` et la logique des modules (évaluation Nix pure, sans VM)
 - **Tests de recette** (`dnf/tests/vms/`) : avec `nixosTest`, démarrer des VMs NixOS minimales qui activent un ou plusieurs modules et vérifient leur comportement
