@@ -1,14 +1,16 @@
 # Services helpers
 
 { lib, strings }:
-with lib;
+let
+  inherit (lib) hasAttr hasAttrByPath findFirst;
+in
 rec {
 
   # Extract params to use in the service.
   extractServiceParams =
     serviceHost: network: serviceName: defaults:
     let
-      overloadParams = lib.findFirst (
+      overloadParams = findFirst (
         s: s.name == serviceName && s.host == serviceHost.hostname && s.zone == serviceHost.zone
       ) { } network.services;
     in
@@ -106,13 +108,13 @@ rec {
     };
 
   # If "vpnIp" exists, it is a headscale client but not a gateway.
-  isVpnClient = host: lib.hasAttr "vpnIp" host;
+  isVpnClient = host: hasAttr "vpnIp" host;
 
   # Is a gateway of a local zone.
   isGateway =
     host: zone:
     !(isVpnClient host)
-    && lib.hasAttrByPath [ "gateway" "hostname" ] zone
+    && hasAttrByPath [ "gateway" "hostname" ] zone
     && host.hostname == zone.gateway.hostname;
 
   # Zone is a local zone, not the global one

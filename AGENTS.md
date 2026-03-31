@@ -1,5 +1,7 @@
 # Contexte du projet pour agents IA
 
+NOTE : ce fichier est en cours de préparation, il n'est pas encore utilisé.
+
 ## Architecture
 
 - `dnf/` : le framework NixOS (Code NIX commun à toutes les installations, NixOS et home-manager)
