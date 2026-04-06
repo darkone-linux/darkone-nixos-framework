@@ -2,6 +2,7 @@
 
 {
   pkgs,
+  pkgs-stable,
   lib,
   host,
   hosts,
@@ -77,7 +78,7 @@ in
       # )) # Not dark without this hack, too long to build...
       #(lib.mkIf cfg.enableMpd sonata) # ymuse alternative (old, not dark)
       #(lib.mkIf cfg.enableMpd ario) # Not free dependency
-      (lib.mkIf cfg.enableFun mixxx)
+      (lib.mkIf cfg.enableFun pkgs-stable.mixxx)
       (lib.mkIf cfg.enableFun mousai) # Identify any songs in seconds
       (lib.mkIf cfg.enablePro ardour)
       (lib.mkIf cfg.enablePro reaper)
