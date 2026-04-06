@@ -112,6 +112,11 @@ in
       };
       users.groups.open-webui = { };
 
+      # On limite le nombre de file descriptors car ce service est très gourmand
+      systemd.services.open-webui.serviceConfig = {
+        LimitNOFILE = 65536;
+      };
+
       # Main Open WebUI service configuration
       services.open-webui = {
         enable = true;
