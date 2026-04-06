@@ -432,13 +432,22 @@ in
 
           # Coturn (visio)
           turn_uris = lib.optionals hasTurn [
+
+            # STUN -> Beaucoup de clients WebRTC (surtout mobiles) essaient d’abord STUN avant de tomber sur TURN.
+            "stun:turn.${network.domain}:${toString coturn.listening-port}"
+
+            # TURN classique (UDP prioritaire)
             "turn:turn.${network.domain}:${toString coturn.listening-port}?transport=udp"
             "turn:turn.${network.domain}:${toString coturn.listening-port}?transport=tcp"
-            "turn:turn.${network.domain}:${toString coturn.tls-listening-port}?transport=udp"
-            "turn:turn.${network.domain}:${toString coturn.tls-listening-port}?transport=tcp"
+
+            # TURN sécurisé (TLS, TCP)
+            "turns:turn.${network.domain}:${toString coturn.tls-listening-port}?transport=tcp"
+
+            # UDP n'existe pas vraiment → on garde uniquement TCP pour le TLS
+            # "turns:turn.${network.domain}:${toString coturn.tls-listening-port}?transport=udp"
           ];
           turn_shared_secret_path = lib.mkIf hasTurn config.sops.secrets.turn-secret-matrix.path;
-          turn_user_lifetime = lib.mkIf hasTurn "1h";
+          turn_user_lifetime = lib.mkIf hasTurn "24h";
           turn_allow_guests = true; # Default... voir si false serait pas mieux.
 
           # TODO: https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#registration

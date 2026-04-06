@@ -5,6 +5,9 @@
 # ```
 # Type,Name,Priority,Pds,Port,Target
 # SRV,_stun._udp,0,0,3478,turn.mydomain.tld
+# SRV,_stun._tcp,0,0,3478,turn.mydomain.tld
+# SRV,_turn._udp,0,0,3478,turn.mydomain.tld
+# SRV,_turn._tcp,0,0,3478,turn.mydomain.tld
 # SRV,_turns._tcp,0,0,5349,turn.mydomain.tld
 # ```
 
@@ -116,6 +119,8 @@ in
       services.coturn = {
         enable = true;
         realm = turnDomain;
+        no-cli = true;
+        no-tcp-relay = true;
 
         listening-ips = [ host.ip ] ++ (lib.optional (host ? vpnIp) host.vpnIp);
         relay-ips = [ host.ip ];
@@ -137,16 +142,36 @@ in
           #verbose
           log-file stdout
           no-multicast-peers
-          total-quota=50
-          external-ip=${host.ip}
 
-          # Pour que le TLS fonctionne bien avec Matrix
-          no-sslv3
-          no-tlsv1
-          no-tlsv1.1
+          total-quota=500
+          user-quota=12 # max 12 allocations par utilisateur (suffisant pour 2-3 appels)
+          max-allocate-timeout=3600
+
+          external-ip=${host.ip}
+          no-cli
+
+          # on force l'usage de UDP quand possible (plus rapide...)
+          no-tcp-relay
+
+          # utile pour les clients mobiles qui changent de réseau (dégrade la connexion)
+          mobility
+
+          # recommandé pour WebRTC
+          fingerprint
+
+          # Blocage des réseaux privés non pertinents...
+          denied-peer-ip=0.0.0.0-0.255.255.255
+          denied-peer-ip=127.0.0.0-127.255.255.255
+          denied-peer-ip=172.16.0.0-172.31.255.255
+          denied-peer-ip=192.168.0.0-192.168.255.255
+
+          # Autorisation de l'ip publique et des réseaux privés réels
+          allowed-peer-ip=${host.ip}
+          allowed-peer-ip=100.64.0.0-100.127.255.255
+          allowed-peer-ip=10.0.0.0-10.255.255.255
 
           # On force des ciphers modernes (TLS)
-          cipher-list="ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+          #cipher-list="ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305"
         ''; # OR external-ip=${host.ip}/${host.vpnIp} -> NOT WORKING
       };
 
@@ -157,13 +182,19 @@ in
       networking.firewall = {
         allowedUDPPorts = [
           srv.listening-port # 3478
-          srv.tls-listening-port # 5349
+          # srv.tls-listening-port # 5349
         ];
         allowedTCPPorts = [
           srv.listening-port # 3478
           srv.tls-listening-port # 5349
         ];
         allowedUDPPortRanges = [
+          {
+            from = srv.min-port; # 49152
+            to = srv.max-port; # 65535
+          }
+        ];
+        allowedTCPPortRanges = [
           {
             from = srv.min-port; # 49152
             to = srv.max-port; # 65535
