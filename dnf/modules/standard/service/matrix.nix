@@ -384,8 +384,8 @@ in
           #retention # Politique de rétention de message si nécessaire (default false)
 
           # Media store
-          max_upload_size = "1M";
-          max_image_pixels = "12M";
+          max_upload_size = "100M";
+          max_image_pixels = "50M";
           dynamic_thumbnails = false; # Resize en fonction des clients, voir si c'est utile...
           #media_retention # https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#media_retention
 
@@ -443,7 +443,7 @@ in
 
           # TODO: https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#registration
         };
-      };
+      }; # matrix-synapse
     })
   ];
 }
