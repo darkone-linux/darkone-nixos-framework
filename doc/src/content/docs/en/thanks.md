@@ -41,7 +41,7 @@ The communities:
 | Name                                                                  | Usage                               |
 |-----------------------------------------------------------------------|-------------------------------------|
 | [nixpkgs](https://github.com/NixOS/nixpkgs)                           | The collection of software packages |
-| [nixfmt](https://github.com/NixOS/nixfmt)                             | The nix formater                    |
+| [nixfmt](https://github.com/NixOS/nixfmt)                             | The nix formatter                  |
 | [nixos-generators](https://github.com/nix-community/nixos-generators) | Collection of image builders        |
 | [Colmena](https://github.com/zhaofengli/colmena)                      | The deployment tool                 |
 | [sops-nix](https://github.com/Mic92/sops-nix)                         | Secrets management with sops        |

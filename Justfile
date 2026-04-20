@@ -171,7 +171,7 @@ _gen what:
 # Launch a "nix develop" with zsh (dev env)
 [group('dev')]
 develop:
-	@just _log "Lauching nix develop with zsh..."
+	@just _log "Launching nix develop with zsh..."
 	{{nix}} develop -c zsh
 
 # Copy pub key to the node (nix user must exists)
@@ -361,7 +361,7 @@ install host user='nix' ip='auto' do='install':
 			--generate-hardware-config nixos-generate-config ./usr/machines/{{host}}/hardware-configuration.nix \
 			--target-host {{user}}@$TARGET_HOST
 	else
-		echo 'ERR: unkown action "{{do}}"'
+		echo 'ERR: unknown action "{{do}}"'
 	fi;
 	just _log "Now you can test nix@{{host}} and run 'just configure {{host}}'"
 
@@ -465,7 +465,7 @@ passwd-default:
 		echo "{}" >> {{generatedConfigFile}}
 	fi
 	yq -y --arg pw "$BCRYPT_HASH" '.network.default."password-hash" = $pw' {{generatedConfigFile}} | sponge {{generatedConfigFile}}
-	just _log "Password updated, dont forget to deploy" "SOPS"
+	just _log "Password updated, don't forget to deploy" "SOPS"
 
 # Update a user password
 [group('install')]
@@ -536,7 +536,7 @@ pull:
 		just _fail "Please commit your changes before."
 	fi
 	if [ ! -d "{{dnfDir}}" ] ;then
-		just _fail "{{dnfDir}} do not exists."
+		just _fail "{{dnfDir}} does not exist."
 	fi
 	cd {{dnfDir}} && \
 		git pull --rebase --force && \
@@ -559,7 +559,7 @@ push:
 	#!/usr/bin/env bash
 	just _log "Pushing changes to DNF main project..."
 	if [ ! -d "{{dnfDir}}" ] ;then
-		just _fail "{{dnfDir}} do not exists."
+		just _fail "{{dnfDir}} does not exist."
 	fi
 	rsync -av --delete \
 		--exclude 'usr' \

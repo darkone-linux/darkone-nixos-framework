@@ -4,7 +4,7 @@
 _default:
 	@just --list
 
-# Lauch the dev environment
+# Launch the dev environment
 dev:
 	@echo Launching dev environment...
 	npm run dev
