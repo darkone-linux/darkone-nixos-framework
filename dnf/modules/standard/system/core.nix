@@ -64,8 +64,8 @@ in
     # Bootloader (enabled by default, but not with RPI dependencies)
     boot = lib.mkIf cfg.enableSystemdBoot {
 
-      # Last linux kernel
-      kernelPackages = pkgs.linuxPackages_latest;
+      # Linux kernel (LTS by default)
+      kernelPackages = pkgs.linuxPackages;
 
       loader = {
         timeout = lib.mkDefault 3;
