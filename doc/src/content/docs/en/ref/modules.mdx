@@ -116,6 +116,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableRestic** `bool` Enable Restic service
 * **enableJellyfin** `bool` Enable Jellyfin server
 * **enableOutline** `bool` Enable Outline WIKI service
+* **enableDocs** `bool` Enable LaSuite Docs service
 * **enableMealie** `bool` Enable Mealie service
 * **enableSearx** `bool` Enable Searx service
 * **enableMatrix** `bool` Enable a matrix server
@@ -138,6 +139,7 @@ darkone.host.minimal = {
   enableRestic = builtins.hasAttr "restic" host.services;
   enableJellyfin = builtins.hasAttr "jellyfin" host.services;
   enableOutline = builtins.hasAttr "outline" host.services;
+  enableDocs = builtins.hasAttr "docs" host.services;
   enableMealie = builtins.hasAttr "mealie" host.services;
   enableSearx = builtins.hasAttr "searx" host.services;
   enableMatrix = attrsets.hasAttrByPath [ "services" "matrix" ] host;
@@ -437,7 +439,7 @@ darkone.service.dnsmasq.enable = false;
 
 ### &#x1F48E; darkone.service.docs
 
-A full-configured lasuite-docs module.
+A full-configured LaSuite Docs module. (wip)
 
 * **enable** `bool` Enable local docs service
 

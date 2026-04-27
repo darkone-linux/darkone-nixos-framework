@@ -101,6 +101,7 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 | 🤗 | Services intelligents | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [Jellyfin](https://jellyfin.org/), [etc.](https://darkone-linux.github.io/ref/modules/#-darkoneserviceadguardhome) |
 | 💻 | GNOME épuré | Hôtes NixOS avec un [GNOME](https://www.gnome.org/) allégée et des applications stables et utiles |
 | 💾 | Sauvegardes 3-2-1 | Sauvegardes robustes, simplifiées et distribuées avec [Restic](https://restic.net/) |
+| 🤖 | IA Générative | IA générative locale et sécurisée, avec [Open WebUI](https://openwebui.com/) et [Ollama](https://ollama.com/) |
 | 🏠 | Page d’accueil | [Page d’accueil automatisée](#page-daccueil-dynamique) → accès rapide à tous les services configurés |
 
 ## Sous le capot
@@ -128,6 +129,7 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 | Mealie | ✅ | ✅ | ✅ | ✅ | ✅ | Fonctionne parfaitement |
 | Vaultwarden | ✅ | ✅ | ✅ | ✅ | ✅ | Fonctionne parfaitement |
 | Matrix Synapse | ✅ | ✅ | ✅ | ✅ | ✅ | Marche bien (+Element +Coturn) |
+| Open WebUI | ✅ | ✅ | ✅ | ✅ | ✅ | Marche bien (+Ollama) |
 | Immich | ✅ | ✅ | ✅ | ⚠️ | ✅ | Configuration manuelle |
 | Forgejo | ✅ | ✅ | ✅ | ❌ | ✅ | Configuration manuelle |
 | Nextcloud | ✅ | ❌ | ❌ | ❌ | ✅ | Plugin + configuration manuelle |

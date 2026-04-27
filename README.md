@@ -26,6 +26,7 @@ This project is constantly evolving according to my needs. If you'd like to be i
 | 🤗 | Smart services | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [Jellyfin](https://jellyfin.org/), [etc.](https://darkone-linux.github.io/ref/modules/#-darkoneserviceadguardhome) |
 | 💻 | Clean Gnome | NixOS hosts with streamlined [GNOME UI](https://www.gnome.org/) + stable and useful apps |
 | 💾 | 3-2-1 Backups | Robust, simplified, and widespread backups with [Restic](https://restic.net/) |
+| 🤖 | Generative AI | Secure, on-premises generative AI, using [Open WebUI](https://openwebui.com/) and [Ollama](https://ollama.com/) |
 | 🏠 | Homepage | [Automated homepage](#homepage-screenshot) -> quick access to all configured services |
 
 ## Under the hood
@@ -53,6 +54,7 @@ This project is constantly evolving according to my needs. If you'd like to be i
 | Mealie | ✅ | ✅ | ✅ | ✅ | ✅ | Works perfectly |
 | Vaultwarden | ✅ | ✅ | ✅ | ✅ | ✅ | Fill the right e-mail first |
 | Matrix Synapse | ✅ |  ✅ |  ✅ |  ✅ |  ✅ | Works Fine (+Element +Coturn) |
+| Open WebUI | ✅ |  ✅ |  ✅ |  ✅ |  ✅ | Works Fine (+Ollama) |
 | Immich | ✅ | ✅ | ✅ | ⚠️ | ✅ | Non-declarative configuration |
 | Forgejo | ✅ | ✅ | ✅ | ❌ | ✅ | Non-declarative configuration |
 | Nextcloud | ✅ | ❌ | ❌ | ❌ | ✅ | Requires a plugin, non-declarative |
