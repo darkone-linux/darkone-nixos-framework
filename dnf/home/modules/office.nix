@@ -343,6 +343,7 @@ in
     programs.firefox = mkIf cfg.enableFirefox {
       enable = true;
       package = pkgs.firefox-esr;
+      configPath = "${config.xdg.configHome}/mozilla/firefox";
 
       # Lang https://releases.mozilla.org/pub/firefox/releases/140.7.0esr/linux-x86_64/
       languagePacks = [ "${lang}" ];
