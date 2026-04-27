@@ -1,4 +1,4 @@
-# A full-configured lasuite-docs module.
+# A full-configured LaSuite Docs module. (wip)
 
 {
   lib,
@@ -37,84 +37,6 @@ in
         inherit defaultParams;
         persist.dirs = [ "/var/lib/lasuite-docs" ];
         proxy.servicePort = srvPort;
-        proxy.extraConfig = ''
-          root * ${cfg.frontendPackage}
-
-          # Error pages
-          handle_errors {
-            @401 expression {http.error.status_code} == 401
-            @403 expression {http.error.status_code} == 403
-            @404 expression {http.error.status_code} == 404
-            rewrite @401 /401
-            rewrite @403 /403
-            rewrite @404 /404
-            file_server
-          }
-
-          # location ~ '^/docs/<uuid>/?$'
-          @docs path_regexp ^/docs/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/?$
-          handle @docs {
-            try_files {path} /docs/[id]/index.html
-            file_server
-          }
-
-          # location ~ '^/user-reconciliations/(active|inactive)/<uuid>/?$'
-          # {re.recon.1} est l'équivalent de $1 pour le groupe capturé (active|inactive)
-          @reconciliations path_regexp recon ^/user-reconciliations/(active|inactive)/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/?$
-          handle @reconciliations {
-            rewrite * /user-reconciliations/{re.recon.1}/[id]/index.html
-            file_server
-          }
-
-          # WebSocket avant /collaboration/api/ (plus spécifique en premier)
-          handle /collaboration/ws/* {
-            reverse_proxy localhost:${toString cfg.collaborationServer.port}
-          }
-
-          handle /collaboration/api/* {
-            reverse_proxy localhost:${toString cfg.collaborationServer.port}
-          }
-
-          # Endpoint d'auth (pour les requêtes directes)
-          # Caddy forward_auth ne transmet pas le body nativement, idem pour proxy_pass_request_body off
-          handle /media-auth {
-            reverse_proxy http://${cfg.bind}/api/v1.0/documents/media-auth/ {
-              header_up X-Original-URL    {uri}
-              header_up X-Original-Method {method}
-              header_up Content-Length    ""
-            }
-          }
-
-          # Équivalent auth_request + proxy vers S3
-          # forward_auth remplace auth_request : envoie la requête sans body à l'endpoint d'auth,
-          # puis copy_headers copie les headers de la réponse d'auth sur la requête sortante vers S3
-          handle /media/* {
-            forward_auth http://${cfg.bind}/api/v1.0/documents/media-auth/ {
-              header_up X-Original-URL    {uri}
-              header_up X-Original-Method {method}
-              header_up Content-Length    ""
-              copy_headers Authorization X-Amz-Date X-Amz-Content-SHA256
-            }
-            header Content-Security-Policy "default-src 'none'"
-            reverse_proxy ${cfg.s3Url}
-          }
-
-          # location /api — path /api couvre /api sans slash, /api/* couvre le reste
-          @api path /api /api/*
-          handle @api {
-            reverse_proxy ${cfg.bind}
-          }
-
-          @admin path /admin /admin/*
-          handle @admin {
-            reverse_proxy ${cfg.bind}
-          }
-
-          # Fallback : fichiers statiques
-          handle {
-            file_server
-          }
-        '';
       };
     }
 
@@ -135,12 +57,19 @@ in
       };
 
       #------------------------------------------------------------------------
-      # docs Service
+      # Secrets
       #------------------------------------------------------------------------
+
+      # We need an explicit lasuite-docs user for sops
+      users.users.lasuite-docs = {
+        isSystemUser = true;
+        group = "lasuite-docs";
+      };
+      users.groups.lasuite-docs = { };
 
       # OIDC Secret
       sops.secrets.oidc-secret-lasuite-docs = { };
-      sops.templates.searx-env = {
+      sops.templates.docs-env = {
         content = ''
           OIDC_RP_CLIENT_SECRET=${config.sops.placeholder.oidc-secret-lasuite-docs}
         '';
@@ -149,12 +78,35 @@ in
         restartUnits = [ "lasuite-docs.service" ];
       };
 
+      #------------------------------------------------------------------------
+      # docs Services
+      #------------------------------------------------------------------------
+
+      # Nginx LaSuite Docs virtualhost
+      # Caddy reverse proxy -> LaSuite Docs Nginx virtualhost -> LaSuite Docs service
+      services.nginx = {
+        #enableGixy = false;
+
+        # Redirige TOUS les virtualhosts (y compris celui de lasuite-docs)
+        # vers localhost:4445 au lieu de 0.0.0.0:80
+        defaultListen = [
+          {
+            addr = "127.0.0.1";
+            port = 4445;
+            ssl = false;
+          }
+        ];
+
+        # Propage les headers upstream vers l'app
+        recommendedProxySettings = true;
+      };
+
       # Main service
       services.lasuite-docs = {
         enable = true;
-        enableNginx = false;
+        enableNginx = true;
         domain = params.fqdn;
-        bind = "${srvInternalIp}:${srvPort}";
+        s3Url = ""; # TODO: S3 service + bucket
         redis.createLocally = true;
         postgresql.createLocally = true;
         settings = {

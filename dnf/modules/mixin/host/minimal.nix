@@ -75,6 +75,11 @@ in
       default = builtins.hasAttr "outline" host.services;
       description = "Enable Outline WIKI service";
     };
+    darkone.host.minimal.enableDocs = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "docs" host.services;
+      description = "Enable LaSuite Docs service";
+    };
     darkone.host.minimal.enableMealie = lib.mkOption {
       type = lib.types.bool;
       default = builtins.hasAttr "mealie" host.services;
@@ -149,6 +154,7 @@ in
     # Enabled services
     darkone.service = {
       ai.enable = cfg.enableAi;
+      docs.enable = cfg.enableDocs;
       element.enable = cfg.enableElement;
       forgejo.enable = cfg.enableForgejo;
       homepage.enable = cfg.enableHomepage;
