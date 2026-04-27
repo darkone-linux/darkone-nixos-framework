@@ -37,7 +37,7 @@ class NixService
     ];
 
     // Doit être contacté avec son adresse ip fixe externe !
-    public const array EXTERNAL_ACCESS_SERVICES = ['headscale'];
+    public const array EXTERNAL_ACCESS_SERVICES = ['headscale', 'turn'];
 
     private string $name;
     private string $host;
