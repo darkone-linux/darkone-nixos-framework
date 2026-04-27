@@ -164,10 +164,10 @@ in
           denied-peer-ip=127.0.0.0-127.255.255.255
           denied-peer-ip=172.16.0.0-172.31.255.255
           denied-peer-ip=192.168.0.0-192.168.255.255
+          denied-peer-ip=100.64.0.0-100.127.255.255
 
           # Autorisation de l'ip publique et des réseaux privés réels
           allowed-peer-ip=${host.ip}
-          allowed-peer-ip=100.64.0.0-100.127.255.255
           allowed-peer-ip=10.0.0.0-10.255.255.255
 
           # On force des ciphers modernes (TLS)

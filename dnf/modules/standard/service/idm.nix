@@ -107,6 +107,7 @@ in
             "oidc-secret-mealie"
             "oidc-secret-matrix-synapse"
             "oidc-secret-open-webui"
+            "oidc-secret-lasuite-docs"
             #"oidc-secret-vaultwarden"
           ]
       );
@@ -355,6 +356,18 @@ in
               originLanding = "https://matrix.${network.domain}/";
               basicSecretFile = secrets.oidc-secret-matrix-synapse.path;
               preferShortUsername = true;
+              inherit scopeMaps;
+            };
+
+            # Lasuite Docs
+            # -> https://github.com/laurentS/lasuite-docs/blob/main/docs/env.md
+            lasuite-docs = {
+              displayName = "LaSuite Docs";
+              imageFile = ./../../../assets/app-icons/docs-collaboration.svg;
+              originUrl = [ "https://docs.${network.domain}" ];
+              originLanding = "https://docs.${network.domain}/";
+              basicSecretFile = secrets.oidc-secret-lasuite-docs.path;
+              preferShortUsername = false;
               inherit scopeMaps;
             };
 

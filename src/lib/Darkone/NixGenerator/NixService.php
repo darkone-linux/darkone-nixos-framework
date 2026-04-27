@@ -33,6 +33,7 @@ class NixService
         'turn',
         'users',
         'vaultwarden',
+        'docs',
     ];
 
     // Doit être contacté avec son adresse ip fixe externe !
