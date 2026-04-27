@@ -257,26 +257,27 @@ Available recipes:
 ### En cours
 
 - [ ] SSO avec [Kanidm](https://kanidm.com/) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.idm))
-- [ ] SSO -> configuration plus cohérente + gestion des droits.
+- [ ] SSO -> configuration paramétrable + gestion des droits.
 - [ ] Ponts Mautrix pour Matrix (whatsapp, telegram, messenger, discord).
+- [ ] IA générative self-hosted + agents.
+  - [x] Interface Open WebUI + Ollama + Modèles locaux.
+  - [x] Comptes OIDC, cloisonnés à chaque utilisateur.
+  - [ ] Agents MCP personnels.
+  - [ ] Générateur d'images et de médias.
+- [ ] Remplacer le générateur PHP par un générateur Rust + parseur nix complet.
 
 ### Planifié
 
+- [ ] Linux durci selon les [recommandations ANSSI](https://messervices.cyber.gouv.fr/guides/recommandations-de-securite-relatives-un-systeme-gnulinux).
 - [ ] Services -> réorganiser la manière dont on les déclare -> services uniques + avec sous-domaine fixe, sous-domaines interdits déclarables, services multiples avec OIDC.
 - [ ] Kanidm -> réplicats de zone.
 - [ ] Séparer en 2 projets : flake DNF comme dépendance d'un flake utilisateur.
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
 - [ ] Automatisation des secrets OIDC et similaires.
-- [ ] IA générative self-hosted + agents, [AnythingLLM](https://github.com/Mintplex-Labs/anything-llm), [OpenClaw](https://openclaw.ai/) ou autre.
-  - [ ] Requêtes générales, générations d'images, etc. locales.
-  - [ ] Requêtage des données locales, cloisonné à chaque utilisateur.
-  - [ ] Agents MCP personnels.
 
 ### Axes d'amélioration
 
-- [ ] Remplacer le générateur PHP par un générateur Rust + parseur nix complet.
 - [ ] Tests unitaires + tests de recette.
-- [ ] Faire travailler claude code...
 - [ ] Remplacer Nextcloud par un équivalent plus simple, stable, performant et OIDC natif
   - [ ] [Ocis](https://doc.owncloud.com/ocis/next/), [OpenCloud](https://opencloud.eu/en/features) ([nix](https://search.nixos.org/options?channel=unstable&query=services.opencloud)), [Filebrowser Quantum](https://filebrowserquantum.com/en/) ([oidc](https://filebrowserquantum.com/en/docs/configuration/authentication/oidc/)), [OxiCloud](https://github.com/DioCrafts/OxiCloud) (un peu jeune)
   - [ ] [Rustical](https://github.com/lennart-k/rustical) ([pr nix](https://github.com/NixOS/nixpkgs/pull/424188), [oidc natif](https://lennart-k.github.io/rustical/setup/oidc/)) ou [Radical](https://github.com/Kozea/Radicale) ([nix](https://search.nixos.org/options?channel=unstable&query=services.radical)) pour calendar / contacts si nécessaire.
