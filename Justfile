@@ -563,6 +563,16 @@ status:
 # Pull / Push
 #==============================================================================
 
+# Build the Rust generator
+[group('dev')]
+build-generator:
+	just --justfile src/generator/Justfile build
+
+# Run Rust generator unit tests
+[group('dev')]
+test-generator:
+	just --justfile src/generator/Justfile test
+
 # Pull common files from DNF repository
 [group('dev')]
 pull:
@@ -591,6 +601,7 @@ pull:
 			--exclude 'AGENTS.md' \
 			--exclude '.claudeignore' \
 			--exclude '.claude' \
+			--exclude 'src/generator/target' \
 			{{dnfDir}}/ {{workDir}}/
 
 # Push common files to DNF repository
@@ -617,4 +628,5 @@ push:
 		--exclude 'AGENTS.md' \
 		--exclude '.claudeignore' \
 		--exclude '.claude' \
+		--exclude 'src/generator/target' \
 		{{workDir}}/ {{dnfDir}}/
