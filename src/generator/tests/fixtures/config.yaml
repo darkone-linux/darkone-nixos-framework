@@ -1,0 +1,80 @@
+# Test configuration for dnf-generator unit tests
+# All data is anonymized
+
+network:
+  domain: "test.lan"
+  default:
+    locale: "fr_FR.UTF-8"
+    timezone: "Europe/Paris"
+  coordination:
+    enable: false
+    hostname: "coord"
+    domain: "headscale"
+
+zones:
+  local:
+    description: "Local test network"
+    ipPrefix: "10.9"
+    gateway:
+      wan:
+        interface: "eth0"
+      lan:
+        interfaces: ["eth1"]
+      vpn:
+        ipv4: "100.64.0.50"
+
+users:
+  admin:
+    uid: 1000
+    name: "Admin User"
+    email: "admin@test.lan"
+    profile: "admin-profile"
+    groups: ["staff", "admins"]
+  bob:
+    uid: 1001
+    name: "Bob"
+    profile: "user-profile"
+    groups: ["staff"]
+
+hosts:
+
+  # External VPS (zone www)
+  - hostname: "vps"
+    name: "Virtual Private Server"
+    profile: "server-profile"
+    tags: ["online"]
+    features: ["monitoring:local"]
+    ipv4:
+      external: "1.2.3.4"
+      internal: "100.64.0.10"
+    services:
+      headscale:
+      nextcloud:
+        title: "Cloud"
+        description: "My files"
+        domain: "cloud"
+        global: true
+
+  # Gateway (local zone, ip ends in .1.1)
+  - hostname: "gw"
+    name: "Gateway"
+    zone: "local:1.1"
+    profile: "gateway-profile"
+    tags: ["online"]
+    features: ["monitoring", "dns"]
+    services:
+      adguardhome:
+        title: "DNS"
+        description: "Ad blocking DNS"
+      homepage:
+
+  # Workstation (local zone, with groups → users resolved)
+  - hostname: "ws"
+    name: "Workstation"
+    zone: "local:2.1"
+    profile: "desktop-profile"
+    mac: "aa:bb:cc:dd:ee:ff"
+    groups: ["staff"]
+    features: ["nfs-client"]
+    services:
+      restic:

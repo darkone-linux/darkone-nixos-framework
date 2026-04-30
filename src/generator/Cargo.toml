@@ -1,0 +1,25 @@
+[package]
+name = "dnf-generator"
+version = "0.1.0"
+edition = "2021"
+description = "Darkone NixOS Framework - configuration generator"
+
+[[bin]]
+name = "dnf-generator"
+path = "src/main.rs"
+
+[lib]
+name = "dnf_generator"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+thiserror = "1"
+regex = "1"
+rnix = "0.11"
+rowan = "0.15"
+indexmap = "2"
+
+[dev-dependencies]
+tempfile = "3"
