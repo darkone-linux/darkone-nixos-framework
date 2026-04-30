@@ -239,5 +239,8 @@ in
       description = "User / Group for several services common files";
     };
     users.users.nix.extraGroups = lib.mkIf cfg.enableCommonFilesUser [ "common-files" ];
+
+    # TMP : On retarde le switch vers broker pour le moment...
+    #services.dbus.implementation = "dbus";
   };
 }

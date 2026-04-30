@@ -95,6 +95,29 @@ check-statix:
 	just _log "Checking nix configuration..." "STATIX"
 	statix check .
 
+# Run unit tests
+[group('check')]
+unit-tests:
+	#!/usr/bin/env bash
+	just _log "Running unit tests..." "TESTS"
+	cd dnf/tests/unit
+	test_files=$(find . -name '*_test.nix' 2>/dev/null || true)
+	if [ -z "$test_files" ]; then
+		just _warn "No unit tests found in dnf/tests/unit"
+		exit 0
+	fi
+	echo "$test_files" | while read -r test; do
+		test_name=$(basename "$test" .nix)
+		echo -n "  Running $test_name..."
+		result=$({{nix}} eval --impure --expr "let lib = (import <nixpkgs> {}).lib; in import \".$test\" { inherit lib; }" 2>&1) || true
+		if echo "$result" | grep -q "FAIL:"; then
+			echo " {{RED}}FAILED{{NORMAL}}"
+			echo " -> {{RED}}$result{{NORMAL}}"
+		else
+			echo " {{GREEN}}OK{{NORMAL}}"
+		fi
+	done
+
 #==============================================================================
 # Development
 #==============================================================================
@@ -524,6 +547,19 @@ apply-local what='switch':
 	colmena apply-local --sudo {{what}}
 
 #==============================================================================
+# Info / Diagnostic
+#==============================================================================
+
+# Show git status and flake info
+[group('info')]
+status:
+	@just _log "Git status..." "INFO"
+	@git -C . status --short
+	@echo ""
+	@just _log "Flake inputs and hosts..." "INFO"
+	{{nix}} flake show
+
+#==============================================================================
 # Pull / Push
 #==============================================================================
 
@@ -548,9 +584,13 @@ pull:
 			--exclude '.git' \
 			--exclude '*.lock' \
 			--exclude node_modules \
-			-exclude src/vendor \
+			--exclude src/vendor \
 			--exclude doc/dist \
 			--exclude doc/darkone-linux.github.io \
+			--exclude 'CLAUDE.md' \
+			--exclude 'AGENTS.md' \
+			--exclude '.claudeignore' \
+			--exclude '.claude' \
 			{{dnfDir}}/ {{workDir}}/
 
 # Push common files to DNF repository
@@ -573,4 +613,8 @@ push:
 		--exclude src/vendor \
 		--exclude doc/dist \
 		--exclude doc/darkone-linux.github.io \
-		--delete {{workDir}}/ {{dnfDir}}/
+		--exclude 'CLAUDE.md' \
+		--exclude 'AGENTS.md' \
+		--exclude '.claudeignore' \
+		--exclude '.claude' \
+		{{workDir}}/ {{dnfDir}}/

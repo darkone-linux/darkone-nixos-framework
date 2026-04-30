@@ -205,6 +205,7 @@
             just
             mkpasswd
             moreutils # sponge
+            nix-unit
             nixfmt
             php84
             php84Packages.composer
