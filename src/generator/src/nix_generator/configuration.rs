@@ -6,9 +6,9 @@ use serde_yaml::Value;
 
 use crate::error::{NixError, Result};
 use crate::nix_generator::item::host::{Host, ServiceParams};
-use crate::nix_generator::item::user::User;
+use crate::nix_generator::item::user::{User, UserBuildConfig};
 use crate::nix_generator::nix_network::NixNetwork;
-use crate::nix_generator::nix_zone::{EXTERNAL_ZONE_KEY, NixZone};
+use crate::nix_generator::nix_zone::{NixZone, EXTERNAL_ZONE_KEY};
 
 const MAX_RANGE_BOUND: i64 = 1000;
 const DEFAULT_PROFILE: &str = "minimal";
@@ -160,16 +160,16 @@ impl Configuration {
                 })
                 .unwrap_or_default();
 
-            let user = User::new(
+            let user = User::build(UserBuildConfig {
                 login,
                 uid,
                 name,
                 email,
                 profile,
                 groups,
-                &mut uid_tracker,
+                uid_tracker: &mut uid_tracker,
                 project_root,
-            )?;
+            })?;
             self.users.insert(login.to_string(), user);
         }
 
@@ -225,17 +225,17 @@ impl Configuration {
                     NixError::validation(format!("A host profile is required for \"{hostname}\""))
                 })?;
 
-            let arch = host_val.get("arch").and_then(|v| v.as_str()).map(str::to_string);
+            let arch = host_val
+                .get("arch")
+                .and_then(|v| v.as_str())
+                .map(str::to_string);
 
             let (zone_name, ip) = self.extract_zone_and_ip(host_val, hostname)?;
 
             let zone_domain = if zone_name == EXTERNAL_ZONE_KEY {
                 self.network.config.domain.clone()
             } else {
-                self.network
-                    .get_zone(&zone_name)?
-                    .domain()
-                    .to_string()
+                self.network.get_zone(&zone_name)?.domain().to_string()
             };
             let network_domain = self.network.config.domain.clone();
 
@@ -349,7 +349,8 @@ impl Configuration {
             }
 
             // Register services
-            self.network.register_services(hostname, &zone_name, &host.services)?;
+            self.network
+                .register_services(hostname, &zone_name, &host.services)?;
 
             // DNS host record
             if let Some(ref ip_str) = ip {
@@ -370,10 +371,14 @@ impl Configuration {
                 .and_then(|r| r.as_sequence())
                 .filter(|r| r.len() == 2)
                 .ok_or_else(|| NixError::validation("Bad range type"))?;
-            let start = range[0].as_i64().ok_or_else(|| NixError::validation("Bad range start"))?;
-            let end = range[1].as_i64().ok_or_else(|| NixError::validation("Bad range end"))?;
+            let start = range[0]
+                .as_i64()
+                .ok_or_else(|| NixError::validation("Bad range start"))?;
+            let end = range[1]
+                .as_i64()
+                .ok_or_else(|| NixError::validation("Bad range end"))?;
             let count = end - start;
-            if count < 0 || count > MAX_RANGE_BOUND {
+            if !(0..=MAX_RANGE_BOUND).contains(&count) {
                 return Err(NixError::validation(format!(
                     "Range [{start}, {end}] out of bound"
                 )));
@@ -408,7 +413,7 @@ impl Configuration {
                 if let Some(mac_val) = group
                     .get("mac")
                     .and_then(|m| m.as_mapping())
-                    .and_then(|m| m.get(&Value::from(i)))
+                    .and_then(|m| m.get(Value::from(i)))
                 {
                     host_map.insert("mac".into(), mac_val.clone());
                 }
@@ -416,7 +421,7 @@ impl Configuration {
                 if let Some(overrides) = group
                     .get("hosts")
                     .and_then(|h| h.as_mapping())
-                    .and_then(|m| m.get(&Value::from(i)))
+                    .and_then(|m| m.get(Value::from(i)))
                     .and_then(|v| v.as_mapping())
                 {
                     for (k, v) in overrides {
@@ -491,13 +496,11 @@ impl Configuration {
 
         for (hostname, zone, ip, vpn_ip) in &hosts {
             // Gateway detection: local host whose IP ends with ".1.1"
-            if zone != EXTERNAL_ZONE_KEY {
-                if ip.as_deref().map_or(false, |s| s.ends_with(".1.1")) {
-                    let z = self.network.get_zone_mut(zone)?;
-                    z.set_gateway_hostname(&hostname)?;
-                    if let Some(ip_str) = ip {
-                        z.set_gateway_lan_ip(ip_str);
-                    }
+            if zone != EXTERNAL_ZONE_KEY && ip.as_deref().is_some_and(|s| s.ends_with(".1.1")) {
+                let z = self.network.get_zone_mut(zone)?;
+                z.set_gateway_hostname(hostname)?;
+                if let Some(ip_str) = ip {
+                    z.set_gateway_lan_ip(ip_str);
                 }
             }
 
@@ -511,9 +514,11 @@ impl Configuration {
                     .cloned()
                     .collect();
                 for local_name in local_zone_names {
-                    self.network
-                        .get_zone_mut(&local_name)?
-                        .register_host(hostname, ip.as_deref(), true)?;
+                    self.network.get_zone_mut(&local_name)?.register_host(
+                        hostname,
+                        ip.as_deref(),
+                        true,
+                    )?;
                 }
                 if let Some(vpn) = vpn_ip {
                     let z = self.network.get_zone_mut(EXTERNAL_ZONE_KEY)?;
@@ -574,12 +579,7 @@ impl Configuration {
         users
     }
 
-    fn register_host_record(
-        &mut self,
-        hostname: &str,
-        zone_domain: &str,
-        ip: &str,
-    ) -> Result<()> {
+    fn register_host_record(&mut self, hostname: &str, zone_domain: &str, ip: &str) -> Result<()> {
         if !ip.is_empty() {
             self.host_records
                 .push(format!("{hostname},{hostname}.{zone_domain},{ip}"));
@@ -588,10 +588,7 @@ impl Configuration {
     }
 }
 
-fn parse_services(
-    host_val: &Value,
-    hostname: &str,
-) -> Result<IndexMap<String, ServiceParams>> {
+fn parse_services(host_val: &Value, hostname: &str) -> Result<IndexMap<String, ServiceParams>> {
     let mut result = IndexMap::new();
     let services = match host_val.get("services").and_then(|v| v.as_mapping()) {
         Some(m) => m,
@@ -602,26 +599,14 @@ fn parse_services(
         let params = params_val
             .as_mapping()
             .map(|m| ServiceParams {
-                title: m
-                    .get("title")
-                    .and_then(|v| v.as_str())
-                    .map(str::to_string),
+                title: m.get("title").and_then(|v| v.as_str()).map(str::to_string),
                 description: m
                     .get("description")
                     .and_then(|v| v.as_str())
                     .map(str::to_string),
-                domain: m
-                    .get("domain")
-                    .and_then(|v| v.as_str())
-                    .map(str::to_string),
-                icon: m
-                    .get("icon")
-                    .and_then(|v| v.as_str())
-                    .map(str::to_string),
-                global: m
-                    .get("global")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false),
+                domain: m.get("domain").and_then(|v| v.as_str()).map(str::to_string),
+                icon: m.get("icon").and_then(|v| v.as_str()).map(str::to_string),
+                global: m.get("global").and_then(|v| v.as_bool()).unwrap_or(false),
             })
             .unwrap_or_default();
         if result.contains_key(&name) {
@@ -649,7 +634,7 @@ fn apply_template(template: &str, value: i64) -> String {
             if s.len() >= width {
                 s.clone()
             } else {
-                let padding: String = std::iter::repeat(pad_char).take(width - s.len()).collect();
+                let padding: String = std::iter::repeat_n(pad_char, width - s.len()).collect();
                 format!("{padding}{s}")
             }
         })

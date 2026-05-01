@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use crate::mdx_generator::mdx_parser::{
-    ModuleOption, extract_first_comment, extract_module_options, extract_module_path,
-    extract_nix_files,
+    extract_first_comment, extract_module_options, extract_module_path, extract_nix_files,
+    ModuleOption,
 };
 
 pub struct ModuleDoc {

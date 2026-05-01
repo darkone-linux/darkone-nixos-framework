@@ -10,22 +10,26 @@ pub const RE_FQDN: &str = r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)
 pub const RE_LOGIN: &str = r"^[a-zA-Z][a-zA-Z0-9_-]{1,59}$";
 pub const RE_IDENTIFIER: &str = r"^[a-z][a-zA-Z0-9-]{0,62}[a-zA-Z0-9]$";
 pub const RE_DEVICE: &str = r"^/dev(/[a-zA-Z0-9]+){1,3}$";
-pub const RE_MAC_ADDRESS: &str = r"^[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}$";
+pub const RE_MAC_ADDRESS: &str =
+    r"^[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}$";
 pub const RE_NAME: &str = r"^.{3,128}$";
-pub const RE_IPV4: &str = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
+pub const RE_IPV4: &str =
+    r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
 pub const RE_LOCALE: &str = r"^[a-z][a-z]_[A-Z][A-Z]\.UTF-8$";
 pub const RE_TIMEZONE: &str = r"^([A-Za-z]+)/([A-Za-z0-9_-]+)(/([A-Za-z0-9_-]+))?$";
 pub const RE_SMTP_PROTOCOL: &str = r"^(http|https|submission|submissions)$";
 pub const RE_IP_SUFFIX: &str = r"^([0-9]{1,3}\.)?[0-9]{1,3}$";
 
 // Tailscale CGNAT range: 100.64.0.0/10
-const TAILSCALE_MIN: u32 = (100 << 24) | (64 << 16);   // 100.64.0.1
+const TAILSCALE_MIN: u32 = (100 << 24) | (64 << 16); // 100.64.0.1
 const TAILSCALE_MAX: u32 = (100 << 24) | (127 << 16) | (255 << 8) | 255; // 100.127.255.254
 
 pub fn assert_regex(pattern: &str, value: &str, err: &str) -> Result<()> {
     let re = Regex::new(pattern).expect("Invalid regex pattern");
     if !re.is_match(value) {
-        return Err(NixError::validation(format!("Syntax error for \"{value}\": {err}")));
+        return Err(NixError::validation(format!(
+            "Syntax error for \"{value}\": {err}"
+        )));
     }
     Ok(())
 }
@@ -45,7 +49,7 @@ pub fn assert_email(value: &str, err: &str) -> Result<()> {
 pub fn assert_tailscale_ip(ip: &str) -> Result<()> {
     let long = ipv4_to_u32(ip)
         .ok_or_else(|| NixError::validation(format!("ipv4 \"{ip}\" is not a valid address.")))?;
-    if long < TAILSCALE_MIN + 1 || long > TAILSCALE_MAX {
+    if !(TAILSCALE_MIN + 1..=TAILSCALE_MAX).contains(&long) {
         return Err(NixError::validation(format!(
             "ipv4 \"{ip}\" is not a tailnet address (100.64.0.0/10)."
         )));

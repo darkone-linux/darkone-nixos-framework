@@ -14,30 +14,41 @@ pub struct User {
     pub groups: Vec<String>,
 }
 
+#[derive(Debug)]
+pub struct UserBuildConfig<'a> {
+    pub login: &'a str,
+    pub uid: u32,
+    pub name: &'a str,
+    pub email: Option<&'a str>,
+    pub profile: &'a str,
+    pub groups: Vec<String>,
+    pub uid_tracker: &'a mut std::collections::HashMap<u32, String>,
+    pub project_root: &'a Path,
+}
+
 impl User {
-    pub fn new(
-        login: &str,
-        uid: u32,
-        name: &str,
-        email: Option<&str>,
-        profile: &str,
-        groups: Vec<String>,
-        uid_tracker: &mut std::collections::HashMap<u32, String>,
-        project_root: &Path,
-    ) -> Result<Self> {
-        // UID range check
+    pub fn build(config: UserBuildConfig<'_>) -> Result<Self> {
+        let UserBuildConfig {
+            login,
+            uid,
+            name,
+            email,
+            profile,
+            groups,
+            uid_tracker,
+            project_root,
+        } = config;
+
         if !(1000..=64999).contains(&uid) {
             return Err(NixError::validation(format!(
                 "UID '{uid}' out of bound, must be between 1000 and 64999"
             )));
         }
-        // Duplicate UID check
         if let Some(existing) = uid_tracker.get(&uid) {
             return Err(NixError::validation(format!(
                 "Duplicated uid \"{uid}\" for {login} and {existing}"
             )));
         }
-        // Duplicate login check (login values in tracker)
         if uid_tracker.values().any(|v| v == login) {
             return Err(NixError::validation(format!(
                 "Duplicated login \"{login}\""
@@ -90,9 +101,17 @@ mod tests {
         tracker: &mut HashMap<u32, String>,
         root: &Path,
     ) -> Result<User> {
-        // create a dummy profile directory
         fs::create_dir_all(root.join("dnf/home/profiles/minimal")).unwrap();
-        User::new(login, uid, "Test User", None, "minimal", vec![], tracker, root)
+        User::build(UserBuildConfig {
+            login,
+            uid,
+            name: "Test User",
+            email: None,
+            profile: "minimal",
+            groups: vec![],
+            uid_tracker: tracker,
+            project_root: root,
+        })
     }
 
     #[test]
@@ -107,7 +126,16 @@ mod tests {
         let dir = tempdir().unwrap();
         fs::create_dir_all(dir.path().join("dnf/home/profiles/minimal")).unwrap();
         let mut tracker = HashMap::new();
-        let err = User::new("bob", 999, "Bob", None, "minimal", vec![], &mut tracker, dir.path());
+        let err = User::build(UserBuildConfig {
+            login: "bob",
+            uid: 999,
+            name: "Bob",
+            email: None,
+            profile: "minimal",
+            groups: vec![],
+            uid_tracker: &mut tracker,
+            project_root: dir.path(),
+        });
         assert!(err.is_err());
     }
 

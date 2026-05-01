@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
 
@@ -14,7 +14,14 @@ fn setup_test_root() -> (TempDir, PathBuf) {
     let root = dir.path().to_path_buf();
 
     // Profile dirs referenced by fixtures/config.yaml (host profiles and user profiles)
-    for profile in &["server-profile", "gateway-profile", "desktop-profile", "nix-admin", "admin-profile", "user-profile"] {
+    for profile in &[
+        "server-profile",
+        "gateway-profile",
+        "desktop-profile",
+        "nix-admin",
+        "admin-profile",
+        "user-profile",
+    ] {
         fs::create_dir_all(root.join("dnf/home/profiles").join(profile)).unwrap();
     }
 
@@ -36,7 +43,7 @@ fn setup_test_root() -> (TempDir, PathBuf) {
     (dir, root)
 }
 
-fn make_generate(root: &PathBuf) -> Generate {
+fn make_generate(root: &Path) -> Generate {
     let main_yaml = root.join("usr/config.yaml");
     let gen_yaml = root.join("var/generated/config.yaml");
     Generate::new(&main_yaml, &gen_yaml).expect("Generate::new should succeed")
@@ -54,6 +61,7 @@ fn assert_str_field(output: &str, key: &str, value: &str) {
 }
 
 /// Assert the output contains `key = true;` or `key = false;`
+#[allow(dead_code)]
 fn assert_bool_field(output: &str, key: &str, value: bool) {
     let expected = format!("{key} = {value};");
     assert!(
@@ -80,7 +88,10 @@ fn generate_hosts_returns_nix_list() {
 
     // Must start with the header comment and then a Nix list
     assert!(output.contains("DO NOT EDIT"), "Missing header comment");
-    assert!(output.trim_start().contains('['), "Output must be a Nix list");
+    assert!(
+        output.trim_start().contains('['),
+        "Output must be a Nix list"
+    );
     assert!(output.contains(']'), "Output must close the Nix list");
 }
 
@@ -190,10 +201,7 @@ fn vps_colmena_tags() {
         vps_block.contains(r#""feature-monitoring""#),
         "Missing tag: feature-monitoring"
     );
-    assert!(
-        vps_block.contains(r#""zone-www""#),
-        "Missing tag: zone-www"
-    );
+    assert!(vps_block.contains(r#""zone-www""#), "Missing tag: zone-www");
     // nix user must NOT appear in colmena tags
     assert!(
         !vps_block.contains(r#""user-nix""#),
@@ -406,7 +414,10 @@ fn ws_colmena_tags_structure() {
     assert!(ws_block.contains(r#""feature-nfs-client""#));
     assert!(ws_block.contains(r#""user-admin""#));
     assert!(ws_block.contains(r#""user-bob""#));
-    assert!(!ws_block.contains(r#""user-nix""#), "nix must not be in user-* tags");
+    assert!(
+        !ws_block.contains(r#""user-nix""#),
+        "nix must not be in user-* tags"
+    );
     assert!(ws_block.contains(r#""zone-local""#));
 
     // Order: group before feature before user before zone

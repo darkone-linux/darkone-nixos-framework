@@ -66,10 +66,10 @@ pub fn extract_nix_files(dir: &Path) -> Vec<PathBuf> {
             let path = entry.path();
             if path.is_dir() {
                 files.extend(extract_nix_files(&path));
-            } else if path.extension().and_then(|e| e.to_str()) == Some("nix") {
-                if path.file_name().and_then(|n| n.to_str()) != Some("default.nix") {
-                    files.push(path);
-                }
+            } else if path.extension().and_then(|e| e.to_str()) == Some("nix")
+                && path.file_name().and_then(|n| n.to_str()) != Some("default.nix")
+            {
+                files.push(path);
             }
         }
     }
@@ -160,10 +160,7 @@ fn extract_option_name(line: &str) -> String {
 fn parse_option_field(line: &str, field: &str) -> Option<String> {
     let prefix = format!("{field} =");
     let stripped = line.strip_prefix(&prefix)?.trim();
-    let value = stripped
-        .trim_end_matches(';')
-        .trim_matches('"')
-        .to_string();
+    let value = stripped.trim_end_matches(';').trim_matches('"').to_string();
     Some(value)
 }
 

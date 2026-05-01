@@ -4,7 +4,7 @@ use std::path::Path;
 use indexmap::IndexMap;
 
 use crate::error::{NixError, Result};
-use crate::nix_generator::validation::{RE_DEVICE, RE_IDENTIFIER, RE_LOGIN, assert_regex};
+use crate::nix_generator::validation::{assert_regex, RE_DEVICE, RE_IDENTIFIER, RE_LOGIN};
 
 #[derive(Debug, Default)]
 pub struct ServiceParams {
@@ -143,7 +143,9 @@ mod tests {
     fn set_users_valid() {
         let mut host = Host::new("myhost");
         host.zone = "lab".to_string();
-        assert!(host.set_users(vec!["alice".to_string(), "bob".to_string()]).is_ok());
+        assert!(host
+            .set_users(vec!["alice".to_string(), "bob".to_string()])
+            .is_ok());
         assert_eq!(host.users.len(), 2);
     }
 
@@ -165,9 +167,21 @@ mod tests {
     #[test]
     fn populate_service_duplicate_fails() {
         let mut host = Host::new("myhost");
-        let params = ServiceParams { title: None, description: None, domain: None, icon: None, global: false };
+        let params = ServiceParams {
+            title: None,
+            description: None,
+            domain: None,
+            icon: None,
+            global: false,
+        };
         host.populate_service("nextcloud", params).unwrap();
-        let params2 = ServiceParams { title: None, description: None, domain: None, icon: None, global: false };
+        let params2 = ServiceParams {
+            title: None,
+            description: None,
+            domain: None,
+            icon: None,
+            global: false,
+        };
         assert!(host.populate_service("nextcloud", params2).is_err());
     }
 
@@ -177,15 +191,22 @@ mod tests {
         fs::create_dir_all(dir.path().join("dnf/hosts/disko")).unwrap();
         fs::write(dir.path().join("dnf/hosts/disko/nvme.nix"), "{}").unwrap();
         let mut host = Host::new("myhost");
-        assert!(host.set_disko(Some("nvme"), HashMap::new(), dir.path()).is_ok());
-        assert_eq!(host.disko.profile.as_deref(), Some("dnf/hosts/disko/nvme.nix"));
+        assert!(host
+            .set_disko(Some("nvme"), HashMap::new(), dir.path())
+            .is_ok());
+        assert_eq!(
+            host.disko.profile.as_deref(),
+            Some("dnf/hosts/disko/nvme.nix")
+        );
     }
 
     #[test]
     fn set_disko_profile_not_found() {
         let dir = tempdir().unwrap();
         let mut host = Host::new("myhost");
-        assert!(host.set_disko(Some("ghost"), HashMap::new(), dir.path()).is_err());
+        assert!(host
+            .set_disko(Some("ghost"), HashMap::new(), dir.path())
+            .is_err());
     }
 
     #[test]

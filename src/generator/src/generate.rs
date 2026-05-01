@@ -20,7 +20,10 @@ impl Generate {
             .to_path_buf();
 
         let config = Configuration::load(main_yaml, generated_yaml)?;
-        Ok(Self { config, project_root })
+        Ok(Self {
+            config,
+            project_root,
+        })
     }
 
     pub fn run(&self, command: &str) -> Result<String> {
@@ -48,7 +51,7 @@ impl Generate {
 
             attrs.set_string("hostname", &host.hostname);
             attrs.set_string("zone", &host.zone);
-            attrs.set_string("fqdn", &format!("{}.{}", host.hostname, host.zone_domain));
+            attrs.set_string("fqdn", format!("{}.{}", host.hostname, host.zone_domain));
             attrs.set_string("name", &host.name);
             attrs.set_string("profile", &host.profile);
 
@@ -92,17 +95,17 @@ impl Generate {
                 tags.add_string(t);
             }
             for g in &host.groups {
-                tags.add_string(&format!("group-{g}"));
+                tags.add_string(format!("group-{g}"));
             }
             for k in host.features.keys() {
-                tags.add_string(&format!("feature-{k}"));
+                tags.add_string(format!("feature-{k}"));
             }
             for u in &host.users {
                 if u != "nix" {
-                    tags.add_string(&format!("user-{u}"));
+                    tags.add_string(format!("user-{u}"));
                 }
             }
-            tags.add_string(&format!("zone-{}", host.zone));
+            tags.add_string(format!("zone-{}", host.zone));
 
             let mut deployment = NixAttrSet::new();
             deployment.set("tags", Box::new(tags));
@@ -152,12 +155,7 @@ impl Generate {
         todo!("generate_doc")
     }
 
-    fn register_content(
-        &self,
-        target: &Path,
-        content: &str,
-        display: bool,
-    ) -> Result<String> {
+    fn register_content(&self, target: &Path, content: &str, display: bool) -> Result<String> {
         if display {
             return Ok(content.to_string());
         }

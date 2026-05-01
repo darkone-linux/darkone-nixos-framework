@@ -2,8 +2,8 @@ use std::fmt;
 
 use indexmap::IndexMap;
 
-use super::NixItem;
 use super::nix_value::NixValue;
+use super::NixItem;
 
 #[derive(Debug, Default)]
 pub struct NixAttrSet(IndexMap<String, Box<dyn NixItem>>);
@@ -43,7 +43,8 @@ impl NixAttrSet {
 
     /// Keys containing non-alphanumeric/non-underscore chars must be quoted in Nix.
     fn needs_quoting(key: &str) -> bool {
-        !key.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+        !key.chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
     }
 }
 

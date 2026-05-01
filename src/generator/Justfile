@@ -1,5 +1,9 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
+# Default -> just --list
+_default:
+    @just --list
+
 # Build the generator (release)
 build:
     cargo build --release

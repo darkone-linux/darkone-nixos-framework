@@ -4,9 +4,9 @@ use indexmap::IndexMap;
 
 use crate::error::{NixError, Result};
 use crate::nix_generator::nix_service::{NixService, UNIQUE_SERVICES_BY_ZONE};
-use crate::nix_generator::nix_zone::{EXTERNAL_ZONE_KEY, NixZone};
+use crate::nix_generator::nix_zone::{NixZone, EXTERNAL_ZONE_KEY};
 use crate::nix_generator::validation::{
-    RE_FQDN, RE_HOSTNAME, RE_LOCALE, RE_SMTP_PROTOCOL, RE_TIMEZONE, assert_email, assert_regex,
+    assert_email, assert_regex, RE_FQDN, RE_HOSTNAME, RE_LOCALE, RE_SMTP_PROTOCOL, RE_TIMEZONE,
 };
 
 const DEFAULT_DOMAIN: &str = "darkone.lan";
@@ -169,9 +169,17 @@ impl NixNetwork {
 
         // Validate
         assert_regex(RE_LOCALE, &locale, "Bad default network locale syntax")?;
-        assert_regex(RE_TIMEZONE, &timezone, "Bad default network timezone syntax")?;
+        assert_regex(
+            RE_TIMEZONE,
+            &timezone,
+            "Bad default network timezone syntax",
+        )?;
         if !coord_hostname.is_empty() {
-            assert_regex(RE_HOSTNAME, &coord_hostname, "Bad coordination hostname type")?;
+            assert_regex(
+                RE_HOSTNAME,
+                &coord_hostname,
+                "Bad coordination hostname type",
+            )?;
         }
         assert_regex(RE_HOSTNAME, &coord_domain, "Bad Headscale domain name")?;
 

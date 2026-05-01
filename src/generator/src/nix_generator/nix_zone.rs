@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::error::{NixError, Result};
-use crate::nix_generator::validation::{RE_MAC_ADDRESS, assert_regex, assert_tailscale_ip};
+use crate::nix_generator::validation::{assert_regex, assert_tailscale_ip, RE_MAC_ADDRESS};
 
 const DEFAULT_LAN_IP_PREFIX: &str = "10.1";
 const LAN_PREFIX_LENGTH: u8 = 16;
@@ -18,7 +18,7 @@ pub struct NixZone {
     aliases: HashMap<String, Vec<String>>,
     /// All aliases registered (for duplicate detection)
     all_aliases: HashSet<String>,
-    /// hostname -> Option<ip>
+    /// hostname -> `Option<ip>`
     hosts: HashMap<String, Option<String>>,
     pub dhcp_range: Vec<String>,
     pub config: HashMap<String, serde_yaml::Value>,
@@ -61,11 +61,7 @@ impl NixZone {
     }
 
     pub fn gateway_lan_ip(&self) -> Option<&str> {
-        self.config
-            .get("gateway")?
-            .get("lan")?
-            .get("ip")?
-            .as_str()
+        self.config.get("gateway")?.get("lan")?.get("ip")?.as_str()
     }
 
     pub fn gateway_vpn_ipv4(&self) -> Option<&str> {
@@ -93,7 +89,9 @@ impl NixZone {
             return Ok(());
         }
         if !force && self.hosts.contains_key(host) {
-            return Err(NixError::validation(format!("Hostname {host} already declared")));
+            return Err(NixError::validation(format!(
+                "Hostname {host} already declared"
+            )));
         }
         if let Some(ip_str) = ip {
             if self.hosts.values().any(|v| v.as_deref() == Some(ip_str)) {
@@ -115,9 +113,15 @@ impl NixZone {
 
     pub fn register_mac_addresses(&mut self, mac: &str, ip: &str) -> Result<()> {
         for part in mac.split(',') {
-            assert_regex(RE_MAC_ADDRESS, part, &format!("Bad mac address syntax \"{mac}\""))?;
+            assert_regex(
+                RE_MAC_ADDRESS,
+                part,
+                &format!("Bad mac address syntax \"{mac}\""),
+            )?;
             if self.all_macs.contains(part) {
-                return Err(NixError::validation(format!("Mac address {part} duplicated")));
+                return Err(NixError::validation(format!(
+                    "Mac address {part} duplicated"
+                )));
             }
             self.all_macs.insert(part.to_string());
         }
@@ -242,23 +246,19 @@ impl NixZone {
                 .to_string();
             cfg.entry("ipPrefix".to_string())
                 .or_insert_with(|| ip_prefix.clone().into());
-            cfg.insert(
-                "networkIp".to_string(),
-                format!("{ip_prefix}.0.0").into(),
-            );
+            cfg.insert("networkIp".to_string(), format!("{ip_prefix}.0.0").into());
             cfg.insert(
                 "prefixLength".to_string(),
                 (LAN_PREFIX_LENGTH as i64).into(),
             );
 
             // Validate gateway config if present
-            if cfg.get("gateway").is_some() {
+            if cfg.contains_key("gateway") {
                 self.assert_gw_cfg(&cfg)?;
             }
 
             // DHCP range: use configured or default
-            let default_range =
-                format!("{ip_prefix}.3.200,{ip_prefix}.3.249,24h");
+            let default_range = format!("{ip_prefix}.3.200,{ip_prefix}.3.249,24h");
             self.dhcp_range = cfg
                 .get("gateway")
                 .and_then(|g| g.get("lan"))
@@ -279,14 +279,19 @@ impl NixZone {
 
     fn assert_gw_cfg(&self, cfg: &HashMap<String, serde_yaml::Value>) -> Result<()> {
         let gw = cfg.get("gateway").expect("gateway key checked above");
-        if gw.get("wan").and_then(|w| w.get("interface")).and_then(|i| i.as_str()).is_none() {
+        if gw
+            .get("wan")
+            .and_then(|w| w.get("interface"))
+            .and_then(|i| i.as_str())
+            .is_none()
+        {
             return Err(NixError::validation("A WAN interface is required"));
         }
         let lan_ifaces = gw
             .get("lan")
             .and_then(|l| l.get("interfaces"))
             .and_then(|i| i.as_sequence());
-        if lan_ifaces.map_or(true, |s| s.is_empty()) {
+        if lan_ifaces.is_none_or(|s| s.is_empty()) {
             return Err(NixError::validation("Valid LAN interfaces are required"));
         }
         if let Some(vpn_ip) = gw
@@ -340,7 +345,8 @@ mod tests {
     #[test]
     fn register_mac_duplicate_fails() {
         let mut z = NixZone::new("lab");
-        z.register_mac_addresses("aa:bb:cc:dd:ee:ff", "10.1.2.1").unwrap();
+        z.register_mac_addresses("aa:bb:cc:dd:ee:ff", "10.1.2.1")
+            .unwrap();
         assert!(z
             .register_mac_addresses("aa:bb:cc:dd:ee:ff", "10.1.2.2")
             .is_err());

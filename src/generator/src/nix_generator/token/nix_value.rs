@@ -67,6 +67,7 @@ impl fmt::Display for NixValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::f64::consts::PI;
 
     #[test]
     fn string_display() {
@@ -75,7 +76,10 @@ mod tests {
 
     #[test]
     fn string_with_quotes_escaped() {
-        assert_eq!(NixValue::string(r#"say "hi""#).to_string(), r#""say \"hi\"""#);
+        assert_eq!(
+            NixValue::string(r#"say "hi""#).to_string(),
+            r#""say \"hi\"""#
+        );
     }
 
     #[test]
@@ -95,7 +99,7 @@ mod tests {
 
     #[test]
     fn float_display() {
-        assert_eq!(NixValue::float(3.14).to_string(), "3.14");
+        assert_eq!(NixValue::float(PI).to_string(), "3.141592653589793");
     }
 
     #[test]

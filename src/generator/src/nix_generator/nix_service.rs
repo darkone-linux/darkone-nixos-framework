@@ -106,21 +106,30 @@ mod tests {
     #[test]
     fn fqdn_local_service() {
         let svc = NixService::new("nextcloud", "nas", "lab");
-        assert_eq!(svc.fqdn("lab.example.lan", "example.lan"), "nextcloud.lab.example.lan");
+        assert_eq!(
+            svc.fqdn("lab.example.lan", "example.lan"),
+            "nextcloud.lab.example.lan"
+        );
     }
 
     #[test]
     fn fqdn_global_service() {
         let mut svc = NixService::new("headscale", "vpn", "lab");
         svc.global = true;
-        assert_eq!(svc.fqdn("lab.example.lan", "example.lan"), "headscale.example.lan");
+        assert_eq!(
+            svc.fqdn("lab.example.lan", "example.lan"),
+            "headscale.example.lan"
+        );
     }
 
     #[test]
     fn fqdn_custom_domain() {
         let mut svc = NixService::new("auth", "server", "prod");
         svc.domain = Some("sso".to_string());
-        assert_eq!(svc.fqdn("prod.example.lan", "example.lan"), "sso.prod.example.lan");
+        assert_eq!(
+            svc.fqdn("prod.example.lan", "example.lan"),
+            "sso.prod.example.lan"
+        );
     }
 
     #[test]
