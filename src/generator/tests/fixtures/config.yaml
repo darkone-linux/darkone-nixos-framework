@@ -1,5 +1,4 @@
 # Test configuration for dnf-generator unit tests
-# All data is anonymized
 
 network:
   domain: "test.lan"
@@ -47,6 +46,10 @@ hosts:
     ipv4:
       external: "1.2.3.4"
       internal: "100.64.0.10"
+    disko:
+      profile: "simple"
+      devices:
+        main: "/dev/sda"
     services:
       headscale:
       nextcloud:
@@ -68,7 +71,7 @@ hosts:
         description: "Ad blocking DNS"
       homepage:
 
-  # Workstation (local zone, with groups → users resolved)
+  # Workstation (local zone, with groups → users resolved, has mdadm+neededforboot)
   - hostname: "ws"
     name: "Workstation"
     zone: "local:2.1"
@@ -76,5 +79,10 @@ hosts:
     mac: "aa:bb:cc:dd:ee:ff"
     groups: ["staff"]
     features: ["nfs-client"]
+    disko:
+      profile: "raid"
+      devices:
+        disk0: "/dev/sdb"
+        disk1: "/dev/sdc"
     services:
       restic:

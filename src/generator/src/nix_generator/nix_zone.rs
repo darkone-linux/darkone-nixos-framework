@@ -273,6 +273,15 @@ impl NixZone {
                 .unwrap_or_else(|| vec![default_range]);
         }
 
+        // Remove keys that are processed internally and must not appear in Nix output
+        cfg.remove("extraHosts");
+        // Remove dhcp-range from gateway.lan (used internally for DHCP range computation)
+        if let Some(serde_yaml::Value::Mapping(gw)) = cfg.get_mut("gateway") {
+            if let Some(serde_yaml::Value::Mapping(lan)) = gw.get_mut(serde_yaml::Value::String("lan".to_string())) {
+                lan.remove("dhcp-range");
+            }
+        }
+
         self.config = cfg;
         Ok(())
     }

@@ -9,6 +9,8 @@ use dnf_generator::generate::Generate;
 /// - usr/config.yaml (our test fixture)
 /// - var/generated/config.yaml (empty overlay)
 /// - dnf/home/profiles/{profile}/ for each profile used in the fixture
+/// - dnf/hosts/disko/{profile}.nix for each disko profile in the fixture
+/// - dnf/hosts/templates/usr-machines-default.nix
 fn setup_test_root() -> (TempDir, PathBuf) {
     let dir = TempDir::new().unwrap();
     let root = dir.path().to_path_buf();
@@ -24,6 +26,28 @@ fn setup_test_root() -> (TempDir, PathBuf) {
     ] {
         fs::create_dir_all(root.join("dnf/home/profiles").join(profile)).unwrap();
     }
+
+    // Disko templates
+    fs::create_dir_all(root.join("dnf/hosts/disko")).unwrap();
+    fs::write(
+        root.join("dnf/hosts/disko/simple.nix"),
+        "{ disko.devices.disk.main.device = \"/dev/sda\"; }\n",
+    )
+    .unwrap();
+    // raid profile with mdadm and NEEDEDFORBOOT markers
+    fs::write(
+        root.join("dnf/hosts/disko/raid.nix"),
+        "# NEEDEDFORBOOT:/boot;/nix\n# Raid disko config\n{ disko.devices.disk.disk0.type = \"mdadm\"; }\n",
+    )
+    .unwrap();
+
+    // Machine default template
+    fs::create_dir_all(root.join("dnf/hosts/templates")).unwrap();
+    fs::write(
+        root.join("dnf/hosts/templates/usr-machines-default.nix"),
+        "{ modulesPath, ... }: { imports = [ ./generated-configuration.nix ./hardware-configuration.nix ./disko.nix ]; }\n",
+    )
+    .unwrap();
 
     // YAML paths
     fs::create_dir_all(root.join("usr")).unwrap();
@@ -441,5 +465,552 @@ fn ws_services_restic_empty() {
     assert!(
         ws_block.contains("restic = { }") || ws_block.contains("restic={ }"),
         "restic must be an empty attr set\n\nws block:\n{ws_block}"
+    );
+}
+
+// ─── generate_users tests ────────────────────────────────────────────────────
+
+#[test]
+fn generate_users_returns_nix_attrset() {
+    let (_dir, root) = setup_test_root();
+    let gen = make_generate(&root);
+    let output = gen.generate_users_raw().unwrap();
+
+    assert!(output.contains("DO NOT EDIT"), "Missing header comment");
+    // Outer container is a Nix attr set, not a list
+    let trimmed = output.trim_start_matches(|c: char| c == '#' || c == '\n' || c == ' ');
+    let content = output.trim();
+    assert!(
+        content.ends_with('}'),
+        "Output must end with }} (Nix attr set)\n\nActual:\n{output}"
+    );
+    let _ = trimmed; // suppress unused warning
+}
+
+#[test]
+fn generate_users_has_all_users() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_users_raw().unwrap();
+
+    assert!(output.contains("admin"), "Missing admin user");
+    assert!(output.contains("bob"), "Missing bob user");
+    assert!(output.contains("nix"), "Missing nix user");
+}
+
+#[test]
+fn generate_users_admin_fields() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_users_raw().unwrap();
+
+    assert_str_field(&output, "email", "admin@test.lan");
+    assert_str_field(&output, "name", "Admin User");
+    // Profile resolved to dnf/home/profiles/admin-profile
+    assert!(
+        output.contains(r#"profile = "dnf/home/profiles/admin-profile""#),
+        "admin profile path must be resolved\n\nActual:\n{output}"
+    );
+}
+
+#[test]
+fn generate_users_admin_uid() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_users_raw().unwrap();
+
+    assert!(
+        output.contains("uid = 1000"),
+        "admin uid must be 1000\n\nActual:\n{output}"
+    );
+}
+
+#[test]
+fn generate_users_bob_gets_default_email() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_users_raw().unwrap();
+
+    // bob has no email in YAML → default is login@domain = "bob@test.lan"
+    assert_str_field(&output, "email", "bob@test.lan");
+}
+
+#[test]
+fn generate_users_nix_user_uid() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_users_raw().unwrap();
+
+    // The nix user must appear with uid 65000
+    assert!(
+        output.contains("uid = 65000"),
+        "nix user must have uid 65000\n\nActual:\n{output}"
+    );
+}
+
+#[test]
+fn generate_users_nix_user_profile() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_users_raw().unwrap();
+
+    assert!(
+        output.contains(r#"profile = "dnf/home/profiles/nix-admin""#),
+        "nix user profile must be nix-admin\n\nActual:\n{output}"
+    );
+}
+
+#[test]
+fn generate_users_nix_user_gets_default_email() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_users_raw().unwrap();
+
+    // nix user has no email in config → default is "nix@test.lan"
+    assert_str_field(&output, "email", "nix@test.lan");
+}
+
+#[test]
+fn generate_users_admin_groups() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_users_raw().unwrap();
+
+    assert!(
+        output.contains(r#""staff""#),
+        "admin groups must include staff"
+    );
+    assert!(
+        output.contains(r#""admins""#),
+        "admin groups must include admins"
+    );
+}
+
+#[test]
+fn generate_users_admin_groups_order() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_users_raw().unwrap();
+
+    // admin has groups: ["staff", "admins"] — staff declared first
+    let pos_staff = output.find(r#""staff""#).unwrap();
+    let pos_admins = output.find(r#""admins""#).unwrap();
+    assert!(
+        pos_staff < pos_admins,
+        "staff must come before admins (declaration order)"
+    );
+}
+
+#[test]
+fn generate_users_nix_user_has_empty_groups() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_users_raw().unwrap();
+
+    let nix_start = output.find("nix =").unwrap();
+    let nix_block = &output[nix_start..];
+    assert!(
+        nix_block.contains("groups = [ ]") || nix_block.contains("groups = []"),
+        "nix user must have empty groups\n\nnix block:\n{nix_block}"
+    );
+}
+
+// ─── generate_network tests ──────────────────────────────────────────────────
+
+#[test]
+fn generate_network_structure() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    assert!(output.contains("DO NOT EDIT"), "Missing header");
+    assert!(output.contains("domain"), "Missing domain key");
+    assert!(output.contains("services"), "Missing services key");
+    assert!(output.contains("zones"), "Missing zones key");
+}
+
+#[test]
+fn generate_network_domain() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    assert_str_field(&output, "domain", "test.lan");
+}
+
+#[test]
+fn generate_network_coordination() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // coordination section from fixture: enable=false, hostname="coord", domain="headscale"
+    assert!(output.contains("coordination"), "Missing coordination");
+    assert_str_field(&output, "hostname", "coord");
+    assert_str_field(&output, "domain", "headscale");
+}
+
+#[test]
+fn generate_network_services_all_present() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // All 5 services from the fixture
+    assert!(output.contains(r#"name = "headscale""#), "Missing headscale service");
+    assert!(output.contains(r#"name = "nextcloud""#), "Missing nextcloud service");
+    assert!(output.contains(r#"name = "adguardhome""#), "Missing adguardhome service");
+    assert!(output.contains(r#"name = "homepage""#), "Missing homepage service");
+    assert!(output.contains(r#"name = "restic""#), "Missing restic service");
+}
+
+#[test]
+fn generate_network_service_headscale_fields() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // headscale: global www service, no title/description
+    assert!(output.contains(r#"zone = "www""#), "Missing zone www");
+    assert!(output.contains(r#"host = "vps""#), "Missing host vps");
+    assert!(output.contains("global = true"), "Missing global=true");
+}
+
+#[test]
+fn generate_network_service_nextcloud_domain() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // nextcloud has domain = "cloud"
+    assert_str_field(&output, "domain", "cloud");
+    assert_str_field(&output, "title", "Cloud");
+    assert_str_field(&output, "description", "My files");
+}
+
+#[test]
+fn generate_network_service_insertion_order() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // services_as_vec preserves host declaration order (PHP behaviour).
+    // Fixture host order: vps (headscale, nextcloud) → gw (adguardhome, homepage) → ws (restic).
+    let pos_headscale = output.find(r#"name = "headscale""#).unwrap();
+    let pos_adguard = output.find(r#"name = "adguardhome""#).unwrap();
+    assert!(
+        pos_headscale < pos_adguard,
+        "services must follow host insertion order: vps before gw"
+    );
+}
+
+#[test]
+fn generate_network_zones_both_present() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    assert!(output.contains(r#"www = {"#) || output.contains("www ="), "Missing www zone");
+    assert!(output.contains(r#"local = {"#) || output.contains("local ="), "Missing local zone");
+}
+
+#[test]
+fn generate_network_www_zone_config() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // www zone: domain = test.lan (network domain), locale, timezone
+    assert_str_field(&output, "locale", "fr_FR.UTF-8");
+    assert_str_field(&output, "timezone", "Europe/Paris");
+    // www zone name field
+    assert!(output.contains(r#"name = "www""#), "www zone must have name = \"www\"");
+}
+
+#[test]
+fn generate_network_www_gateway_hostname() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // vps is the www gateway (has vpn_ip)
+    assert_str_field(&output, "hostname", "vps");
+}
+
+#[test]
+fn generate_network_local_zone_config() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    assert_str_field(&output, "ipPrefix", "10.9");
+    assert_str_field(&output, "networkIp", "10.9.0.0");
+    assert!(output.contains("prefixLength = 16"), "Missing prefixLength");
+    assert!(output.contains(r#"name = "local""#), "local zone must have name field");
+}
+
+#[test]
+fn generate_network_local_zone_dhcp_range() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    assert!(
+        output.contains("10.9.3.200,10.9.3.249,24h"),
+        "Missing DHCP range"
+    );
+}
+
+#[test]
+fn generate_network_local_zone_dhcp_host() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // ws has mac = "aa:bb:cc:dd:ee:ff", ip = 10.9.2.1
+    assert!(
+        output.contains("aa:bb:cc:dd:ee:ff,10.9.2.1"),
+        "Missing DHCP host entry for ws"
+    );
+}
+
+#[test]
+fn generate_network_local_zone_address() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // address = /local.test.lan/10.9.1.1 (gw is the gateway)
+    assert!(
+        output.contains("/local.test.lan/10.9.1.1"),
+        "Missing address entry"
+    );
+}
+
+#[test]
+fn generate_network_local_zone_server_www() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // server forward to www zone via vps vpn_ip
+    assert!(
+        output.contains("/test.lan/100.64.0.10"),
+        "Missing server forward to www zone"
+    );
+}
+
+#[test]
+fn generate_network_local_zone_host_records_hosts() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // All 3 hosts in host-record
+    assert!(output.contains("gw.local.test.lan"), "Missing gw host-record");
+    assert!(output.contains("ws.local.test.lan"), "Missing ws host-record");
+    assert!(output.contains("vps.test.lan"), "Missing vps host-record");
+}
+
+#[test]
+fn generate_network_local_zone_host_records_services() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // Local zone services (same zone → domain_label alias)
+    assert!(
+        output.contains("adguardhome.local.test.lan"),
+        "Missing adguardhome service record"
+    );
+    assert!(
+        output.contains("homepage.local.test.lan"),
+        "Missing homepage service record"
+    );
+    assert!(
+        output.contains("restic.local.test.lan"),
+        "Missing restic service record"
+    );
+    // headscale is EXTERNAL_ACCESS → in local host-record with vps external IP
+    assert!(
+        output.contains("headscale.test.lan"),
+        "Missing headscale external service record"
+    );
+}
+
+#[test]
+fn generate_network_local_zone_headscale_ip() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // headscale (EXTERNAL_ACCESS) → vps external IP = 1.2.3.4
+    assert!(
+        output.contains("headscale.test.lan,1.2.3.4"),
+        "headscale must point to vps external IP"
+    );
+}
+
+#[test]
+fn generate_network_www_tls_builder_hosts() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // tls-builder-hosts: non-global local zone services
+    assert!(
+        output.contains("adguardhome.local.test.lan"),
+        "adguardhome must be in tls-builder-hosts"
+    );
+    assert!(
+        output.contains("homepage.local.test.lan"),
+        "homepage must be in tls-builder-hosts"
+    );
+    assert!(
+        output.contains("restic.local.test.lan"),
+        "restic must be in tls-builder-hosts"
+    );
+    // nextcloud is global → not in tls-builder-hosts
+    // headscale is in www zone → not in tls-builder-hosts
+}
+
+#[test]
+fn generate_network_www_unbound_data() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // nextcloud(cloud) is www global, NOT in EXTERNAL_ACCESS → goes in unbound.local-data
+    // VPN IP of www zone = vps.vpn_ip = 100.64.0.10
+    assert!(
+        output.contains("cloud.test.lan. IN A 100.64.0.10"),
+        "nextcloud must be in unbound.local-data\n\nActual:\n{output}"
+    );
+    // headscale is in EXTERNAL_ACCESS → NOT in unbound
+}
+
+#[test]
+fn generate_network_local_zone_reverse_proxy_uses_gateway_ip() {
+    let (_dir, root) = setup_test_root();
+    let output = make_generate(&root).generate_network_raw().unwrap();
+    // adguardhome and homepage are reverse-proxy services on gw (10.9.1.1)
+    assert!(
+        output.contains("adguardhome.local.test.lan,10.9.1.1"),
+        "adguardhome must use gateway LAN IP"
+    );
+    assert!(
+        output.contains("homepage.local.test.lan,10.9.1.1"),
+        "homepage must use gateway LAN IP"
+    );
+    // restic is NOT a reverse-proxy service on ws (10.9.2.1)
+    assert!(
+        output.contains("restic.local.test.lan,10.9.2.1"),
+        "restic must use actual host IP"
+    );
+}
+
+// ─── generate_disko tests ────────────────────────────────────────────────────
+
+#[test]
+fn generate_disko_creates_machine_dir() {
+    let (_dir, root) = setup_test_root();
+    make_generate(&root).run("disko").unwrap();
+    assert!(
+        root.join("usr/machines/vps").is_dir(),
+        "vps machine dir must be created"
+    );
+}
+
+#[test]
+fn generate_disko_skips_hosts_without_disko() {
+    let (_dir, root) = setup_test_root();
+    make_generate(&root).run("disko").unwrap();
+    // gw has no disko config → no machine dir created by disko
+    assert!(
+        !root.join("usr/machines/gw").exists(),
+        "gw has no disko, no dir should be created"
+    );
+}
+
+#[test]
+fn generate_disko_copies_default_nix_template() {
+    let (_dir, root) = setup_test_root();
+    make_generate(&root).run("disko").unwrap();
+    let content = fs::read_to_string(root.join("usr/machines/vps/default.nix")).unwrap();
+    assert!(
+        content.contains("imports"),
+        "default.nix must be copied from template"
+    );
+}
+
+#[test]
+fn generate_disko_creates_empty_hardware_configuration() {
+    let (_dir, root) = setup_test_root();
+    make_generate(&root).run("disko").unwrap();
+    let content =
+        fs::read_to_string(root.join("usr/machines/vps/hardware-configuration.nix")).unwrap();
+    assert_eq!(content.trim(), "{}", "hardware-configuration.nix must be empty attrset");
+}
+
+#[test]
+fn generate_disko_copies_disko_profile() {
+    let (_dir, root) = setup_test_root();
+    make_generate(&root).run("disko").unwrap();
+    assert!(
+        root.join("usr/machines/vps/disko.nix").exists(),
+        "disko.nix must be copied"
+    );
+}
+
+#[test]
+fn generate_disko_generated_conf_has_device() {
+    let (_dir, root) = setup_test_root();
+    make_generate(&root).run("disko").unwrap();
+    let content =
+        fs::read_to_string(root.join("usr/machines/vps/generated-configuration.nix")).unwrap();
+    assert!(
+        content.contains("/dev/sda"),
+        "generated-configuration.nix must contain device path\n\nActual:\n{content}"
+    );
+}
+
+#[test]
+fn generate_disko_generated_conf_has_header() {
+    let (_dir, root) = setup_test_root();
+    make_generate(&root).run("disko").unwrap();
+    let content =
+        fs::read_to_string(root.join("usr/machines/vps/generated-configuration.nix")).unwrap();
+    assert!(
+        content.contains("DO NOT EDIT"),
+        "generated-configuration.nix must have header\n\nActual:\n{content}"
+    );
+}
+
+#[test]
+fn generate_disko_generated_conf_no_swraid_for_simple() {
+    let (_dir, root) = setup_test_root();
+    make_generate(&root).run("disko").unwrap();
+    let content =
+        fs::read_to_string(root.join("usr/machines/vps/generated-configuration.nix")).unwrap();
+    assert!(
+        !content.contains("swraid"),
+        "simple profile must not have swraid\n\nActual:\n{content}"
+    );
+}
+
+#[test]
+fn generate_disko_raid_has_swraid_and_neededforboot() {
+    let (_dir, root) = setup_test_root();
+    make_generate(&root).run("disko").unwrap();
+    let content =
+        fs::read_to_string(root.join("usr/machines/ws/generated-configuration.nix")).unwrap();
+    assert!(
+        content.contains("swraid"),
+        "raid profile must enable swraid\n\nActual:\n{content}"
+    );
+    assert!(
+        content.contains("neededForBoot"),
+        "raid profile must set neededForBoot\n\nActual:\n{content}"
+    );
+    assert!(
+        content.contains("/boot"),
+        "raid profile must include /boot partition\n\nActual:\n{content}"
+    );
+    assert!(
+        content.contains("/nix"),
+        "raid profile must include /nix partition\n\nActual:\n{content}"
+    );
+}
+
+#[test]
+fn generate_disko_does_not_overwrite_existing_disko_nix() {
+    let (_dir, root) = setup_test_root();
+    // Pre-create disko.nix with custom content
+    fs::create_dir_all(root.join("usr/machines/vps")).unwrap();
+    fs::write(
+        root.join("usr/machines/vps/disko.nix"),
+        "# custom disko",
+    )
+    .unwrap();
+    make_generate(&root).run("disko").unwrap();
+    let content = fs::read_to_string(root.join("usr/machines/vps/disko.nix")).unwrap();
+    assert_eq!(
+        content, "# custom disko",
+        "existing disko.nix must not be overwritten"
+    );
+}
+
+#[test]
+fn generate_disko_always_overwrites_generated_configuration() {
+    let (_dir, root) = setup_test_root();
+    // Pre-create generated-configuration.nix with stale content
+    fs::create_dir_all(root.join("usr/machines/vps")).unwrap();
+    // Also need disko.nix to exist (since we always read it)
+    fs::copy(
+        root.join("dnf/hosts/disko/simple.nix"),
+        root.join("usr/machines/vps/disko.nix"),
+    )
+    .unwrap();
+    fs::write(
+        root.join("usr/machines/vps/generated-configuration.nix"),
+        "# stale content",
+    )
+    .unwrap();
+    make_generate(&root).run("disko").unwrap();
+    let content =
+        fs::read_to_string(root.join("usr/machines/vps/generated-configuration.nix")).unwrap();
+    assert!(
+        !content.contains("stale"),
+        "generated-configuration.nix must be overwritten\n\nActual:\n{content}"
     );
 }

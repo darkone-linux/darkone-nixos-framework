@@ -82,19 +82,18 @@ impl Configuration {
             None => return Ok(()),
         };
 
-        let common_cfg = zones
-            .get("common")
-            .cloned()
-            .unwrap_or(Value::Mapping(Default::default()));
-
+        // Note: PHP `Configuration::loadZones` discards the common-merge result
+        // (the array_merge_recursive call writes back but the original $zoneConfig is
+        // passed to registerZoneConfig). Mirror that behaviour: ignore zones.common.
         for (zone_name_val, zone_cfg) in zones {
             let zone_name = zone_name_val.as_str().unwrap_or_default();
             if zone_name == "common" {
                 continue;
             }
-            // Merge common config into zone config (zone-specific values take priority)
-            let merged = deep_merge(common_cfg.clone(), zone_cfg.clone());
-            let cfg_map = yaml_to_string_map(merged);
+            let cfg_map = yaml_to_string_map(zone_cfg.clone());
+
+            // Capture extraHosts before register_zone_config strips it from cfg
+            let extra_hosts = cfg_map.get("extraHosts").cloned();
 
             let mut zone = NixZone::new(zone_name);
             zone.register_zone_config(
@@ -103,9 +102,70 @@ impl Configuration {
                 &self.network.config.default_timezone,
                 &self.network.config.domain,
             )?;
+            let ip_prefix = zone.ip_prefix().to_string();
             self.network.add_zone(zone);
+
+            if let Some(eh) = extra_hosts {
+                self.process_extra_hosts(zone_name, &ip_prefix, &eh)?;
+            }
         }
 
+        Ok(())
+    }
+
+    /// Mirrors PHP `NixZone::registerZoneConfig` extraHosts loop.
+    fn process_extra_hosts(
+        &mut self,
+        zone_name: &str,
+        ip_prefix: &str,
+        extra_hosts: &Value,
+    ) -> Result<()> {
+        let map = match extra_hosts.as_mapping() {
+            Some(m) => m,
+            None => return Ok(()),
+        };
+        for (hostname_val, host_cfg) in map {
+            let hostname = match hostname_val.as_str() {
+                Some(h) => h,
+                None => continue,
+            };
+            let ip_suffix = host_cfg
+                .get("ip")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| {
+                    NixError::validation(format!("extraHosts \"{hostname}\" requires an ip"))
+                })?;
+            let host_ip = format!("{ip_prefix}.{ip_suffix}");
+
+            let aliases: Vec<String> = host_cfg
+                .get("aliases")
+                .and_then(|v| v.as_sequence())
+                .map(|s| {
+                    s.iter()
+                        .filter_map(|v| v.as_str())
+                        .map(str::to_string)
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            let services = parse_services(host_cfg, hostname)?;
+
+            {
+                let zone = self.network.get_zone_mut(zone_name)?;
+                zone.register_host(hostname, Some(&host_ip), false)?;
+                if let Some(mac) = host_cfg.get("mac").and_then(|v| v.as_str()) {
+                    zone.register_mac_addresses(mac, &host_ip)?;
+                }
+                if !aliases.is_empty() {
+                    zone.register_aliases(hostname, &aliases)?;
+                }
+            }
+
+            if !services.is_empty() {
+                self.network
+                    .register_services(hostname, zone_name, &services)?;
+            }
+        }
         Ok(())
     }
 
@@ -117,18 +177,8 @@ impl Configuration {
 
         let mut uid_tracker: HashMap<u32, String> = HashMap::new();
 
-        // Special nix maintenance user (uid 65000, bypass range check via direct insertion)
+        // Reserve nix user UID to prevent conflicts, insert AFTER regular users (matches PHP order)
         uid_tracker.insert(NIX_USER_UID, NIX_USER_NAME.to_string());
-        let nix_user = User {
-            login: NIX_USER_NAME.to_string(),
-            uid: NIX_USER_UID,
-            name: NIX_USER_DISPLAY.to_string(),
-            email: None,
-            profile: User::filter_profile_unchecked(NIX_USER_PROFILE, project_root)
-                .unwrap_or_else(|_| format!("dnf/home/profiles/{NIX_USER_PROFILE}")),
-            groups: vec![],
-        };
-        self.users.insert(NIX_USER_NAME.to_string(), nix_user);
 
         for (login_val, user_cfg) in users {
             let login = login_val.as_str().unwrap_or_default();
@@ -172,6 +222,18 @@ impl Configuration {
             })?;
             self.users.insert(login.to_string(), user);
         }
+
+        // Special nix maintenance user inserted LAST (matches PHP behaviour)
+        let nix_user = User {
+            login: NIX_USER_NAME.to_string(),
+            uid: NIX_USER_UID,
+            name: NIX_USER_DISPLAY.to_string(),
+            email: None,
+            profile: User::filter_profile_unchecked(NIX_USER_PROFILE, project_root)
+                .unwrap_or_else(|_| format!("dnf/home/profiles/{NIX_USER_PROFILE}")),
+            groups: vec![],
+        };
+        self.users.insert(NIX_USER_NAME.to_string(), nix_user);
 
         Ok(())
     }

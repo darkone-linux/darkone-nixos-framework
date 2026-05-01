@@ -8,6 +8,7 @@ use crate::nix_generator::nix_zone::{NixZone, EXTERNAL_ZONE_KEY};
 use crate::nix_generator::validation::{
     assert_email, assert_regex, RE_FQDN, RE_HOSTNAME, RE_LOCALE, RE_SMTP_PROTOCOL, RE_TIMEZONE,
 };
+use crate::nix_generator::item::host::ServiceParams;
 
 const DEFAULT_DOMAIN: &str = "darkone.lan";
 const DEFAULT_LOCALE: &str = "fr_FR.UTF-8";
@@ -30,7 +31,8 @@ pub struct NetworkConfig {
 pub struct NixNetwork {
     pub config: NetworkConfig,
     pub zones: HashMap<String, NixZone>,
-    services: HashMap<String, NixService>,
+    /// Services in declaration order (IndexMap preserves insertion order)
+    services: IndexMap<String, NixService>,
     /// Track unique services per zone: (zone, service_name) -> bool
     uniq_services: HashMap<(String, String), bool>,
     /// Track global service domain names to detect conflicts
@@ -54,14 +56,13 @@ impl NixNetwork {
             .ok_or_else(|| NixError::validation(format!("Undefined zone \"{name}\"")))
     }
 
-    pub fn services(&self) -> &HashMap<String, NixService> {
+    pub fn services(&self) -> &IndexMap<String, NixService> {
         &self.services
     }
 
+    /// Services in declaration order (matches PHP insertion order).
     pub fn services_as_vec(&self) -> Vec<&NixService> {
-        let mut v: Vec<_> = self.services.values().collect();
-        v.sort_by_key(|s| (&s.zone, &s.name));
-        v
+        self.services.values().collect()
     }
 
     /// Register all services declared on a host.
@@ -72,7 +73,7 @@ impl NixNetwork {
         &mut self,
         hostname: &str,
         zone: &str,
-        services: &IndexMap<String, crate::nix_generator::item::host::ServiceParams>,
+        services: &IndexMap<String, ServiceParams>,
     ) -> Result<()> {
         for (service_name, params) in services {
             let mut is_global = params.global;
