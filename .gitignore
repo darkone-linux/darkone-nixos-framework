@@ -4,5 +4,6 @@ result
 .network
 .Trash*
 .gitmodules
+.opencode
 .claude
 target
