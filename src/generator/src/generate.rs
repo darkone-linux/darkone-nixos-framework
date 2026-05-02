@@ -530,7 +530,7 @@ impl Generate {
     }
 
     fn generate_doc(&self) -> Result<String> {
-        todo!("generate_doc")
+        crate::mdx_generator::generator::generate(&self.project_root, false)
     }
 
     fn register_content(&self, target: &Path, content: &str, display: bool) -> Result<String> {

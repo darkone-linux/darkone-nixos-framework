@@ -67,6 +67,6 @@ upgrade:
 
 # Generate documentation from code
 codegen:
-	@echo Full upgrade of doc dependencies...
-	php ../src/generate.php doc
+	@echo Generating documentation from source code...
+	cd ../src/generator && cargo run --release --quiet -- doc
 	@echo Done.
