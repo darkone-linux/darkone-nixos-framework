@@ -592,6 +592,7 @@ pull:
 			--exclude 'var' \
 			--exclude '.idea' \
 			--exclude '.Trash*' \
+			--exclude '.trash' \
 			--exclude '.git' \
 			--exclude '*.lock' \
 			--exclude node_modules \

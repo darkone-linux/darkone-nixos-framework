@@ -264,7 +264,7 @@ Available recipes:
   - [x] Comptes OIDC, cloisonnés à chaque utilisateur.
   - [ ] Agents MCP personnels.
   - [ ] Générateur d'images et de médias.
-- [ ] Remplacer le générateur PHP par un générateur Rust + parseur nix complet.
+- [x] Remplacer le générateur PHP par un générateur Rust + parseur nix complet. (finalisation des tests)
 
 ### Planifié
 
@@ -274,6 +274,7 @@ Available recipes:
 - [ ] Séparer en 2 projets : flake DNF comme dépendance d'un flake utilisateur.
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
 - [ ] Automatisation des secrets OIDC et similaires.
+- [ ] Corriger l'arbre de démarrage des services, un redémarrage de passerelle ou du HCS laisse certains services (kanidm, prometheus-node-exporter, mnt-nfs-homes) en berne.
 
 ### Axes d'amélioration
 
@@ -282,6 +283,7 @@ Available recipes:
   - [ ] [Ocis](https://doc.owncloud.com/ocis/next/), [OpenCloud](https://opencloud.eu/en/features) ([nix](https://search.nixos.org/options?channel=unstable&query=services.opencloud)), [Filebrowser Quantum](https://filebrowserquantum.com/en/) ([oidc](https://filebrowserquantum.com/en/docs/configuration/authentication/oidc/)), [OxiCloud](https://github.com/DioCrafts/OxiCloud) (un peu jeune)
   - [ ] [Rustical](https://github.com/lennart-k/rustical) ([pr nix](https://github.com/NixOS/nixpkgs/pull/424188), [oidc natif](https://lennart-k.github.io/rustical/setup/oidc/)) ou [Radical](https://github.com/Kozea/Radicale) ([nix](https://search.nixos.org/options?channel=unstable&query=services.radical)) pour calendar / contacts si nécessaire.
 - [ ] Remplacer fail2ban par [CrowdSec](https://github.com/crowdsecurity/crowdsec) ([nix](https://search.nixos.org/options?channel=unstable&query=services.crowdsec)) ?
+- [ ] Isolation des services : étudier la pertinence d'une isolation et le meilleur moyen d'isoler les services des serveurs (systemd-nspawn containers.xxx, Docker / Podman, systemd sandboxing...)
 
 ### A voir
 
