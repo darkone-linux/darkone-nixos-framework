@@ -96,15 +96,18 @@ in
       (lib.mkIf (hasRestic && cfg.enableAdmin) restic) # Already in nixos configuration...
       (lib.mkIf (hasRestic && cfg.enableAdmin) restic-browser)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) age)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) cargo)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) colmena)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) deadnix)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) hugo)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) gcc) # Useful for rust generator
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) hugo) # TODO: deprecated
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) just)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) moreutils) # sponge
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nix-unit)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nixfmt)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) php84)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) php84Packages.composer)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) php84) # TODO: deprecated
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) php84Packages.composer) # TODO: deprecated
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) rustc)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) sops)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) statix)
       (lib.mkIf cfg.enableAdmin bridge-utils)

@@ -189,7 +189,8 @@ _gen-default dir:
 _gen what:
 	#!/usr/bin/env bash
 	just _log "{{what}} file(s)..." "GENERATOR"
-	php ./src/generate.php "{{what}}"
+	cd src/generator && cargo run --quiet -- {{what}} > /dev/null
+	#php ./src/generate.php "{{what}}"
 
 # Launch a "nix develop" with zsh (dev env)
 [group('dev')]
