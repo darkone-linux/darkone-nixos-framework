@@ -56,23 +56,23 @@ Une seule connexion suffit pour chacun d’eux (pas besoin de rentrer 36 mots de
 
 | **Service** | **Appli** | **Utilité** |
 |----|----|----|
-| 🔐 [Coffre-fort](#-vaultwarden) | Vaultwarden | Mes mots de passe, clés et données critiques. |
-| 🖼️ [Photos & vidéos](#%EF%B8%8F-immich-photos) | Immich | Gestionnaire complet de photos et vidéos avec IA. |
-| ☁️ [Données](#%EF%B8%8F-nextcloud-fichiers--données) | Nextcloud | Un endroit sécurisé pour mes données. |
-| 💬 [Messages & visio](#-matrix-messages--visio) | Matrix | Alternative à « WhatsApp » (messagerie et visio). |
-| 🎬&nbsp;[Films&nbsp;&&nbsp;Musiques](#-jellyfin-films--musiques) | jellyfin | Une super médiathèque à la « Netflix ». |
-| 📝 [Notes](#-outline-notes) | Outline | Prises de notes individuelles et collectives. |
-| 🍽️ [Cuisine](#%EF%B8%8F-mealie-recettes-de-cuisine) | Mealie | Application de recettes de cuisine. |
-| 🔎 [Recherche](#-searxng-recherche) | Searxng | Recherche globale, sécurisée, sans publicité. |
-| 🤖 [IA Générative](#-open-webui-ia) | Open WebUI | Intelligence artificielle locale et souveraine. |
+| 🔐 [Coffre-fort](#vaultwarden) | Vaultwarden | Mes mots de passe, clés et données critiques. |
+| 🖼️ [Photos & vidéos](#immich-photos) | Immich | Gestionnaire complet de photos et vidéos avec IA. |
+| ☁️ [Données](#nextcloud-fichiers--données) | Nextcloud | Un endroit sécurisé pour mes données. |
+| 💬 [Messages & visio](#matrix-messages--visio) | Matrix | Alternative à « WhatsApp » (messagerie et visio). |
+| 🎬&nbsp;[Films&nbsp;&&nbsp;Musiques](#jellyfin-films--musiques) | jellyfin | Une super médiathèque à la « Netflix ». |
+| 📝 [Notes](#outline-notes) | Outline | Prises de notes individuelles et collectives. |
+| 🍽️ [Cuisine](#mealie-recettes-de-cuisine) | Mealie | Application de recettes de cuisine. |
+| 🔎 [Recherche](#searxng-recherche) | Searxng | Recherche globale, sécurisée, sans publicité. |
+| 🤖 [IA Générative](#open-webui-ia) | Open WebUI | Intelligence artificielle locale et souveraine. |
 
 Services techniques :
 
 | **Service** | **Appli** | **Utilité** |
 |----|----|----|
-| 👨 [Identité](#-kanidm-idm) | Kanidm | Mon identité (mot de passe unique - SSO). |
-| 🛑 [Anti-pub](#-adguardhome-firewall-anti-pub) | AdguardHome | Pare-feu et filtre anti-malware qui accélère Internet. |
-| 🧑‍💻&nbsp;[Forge&nbsp;GIT](#-forgejo-forge-git) | Forgejo | Dépôt et gestionnaire [GIT](https://git-scm.com/) pour informaticiens. |
+| 👨 [Identité](#kanidm-idm) | Kanidm | Mon identité (mot de passe unique - SSO). |
+| 🛑 [Anti-pub](#adguardhome-firewall-anti-pub) | AdguardHome | Pare-feu et filtre anti-malware qui accélère Internet. |
+| 🧑‍💻&nbsp;[Forge&nbsp;GIT](#forgejo-forge-git) | Forgejo | Dépôt et gestionnaire [GIT](https://git-scm.com/) pour informaticiens. |
 
 ### Les postes Linux (NixOS)
 
@@ -192,7 +192,7 @@ Mais il est vivement recommandé de lui adjoindre un 2ème facteur pour sécuris
 
 Tous les services du cloud sont open-source et ont leur propre documentation en ligne. Mais voici quelques petites introductions utiles.
 
-### 🔐 Vaultwarden
+### Vaultwarden
 
 Vaultwarden est mon coffre-fort. Il contient mes mots de passe, clés numériques, cartes de crédit et informations confidentielles. 
 Ces informations sont stockées chiffrées et sauvegardées automatiquement. Par défaut, je suis le seul a y avoir accès.
@@ -216,12 +216,11 @@ Il faut sélectionner "self-hosted" puis entrer l'URL de Vaultwarden pour pouvoi
 ⚠️ JE NE DOIS PAS SAISIR MON MOT DE PASSE PRINCIPAL AVANT D'AVOIR FAIT CELA.
 :::
 
-
-### 👨 Kanidm (idm)
+### Kanidm (idm)
 
 Mon gestionnaire d'identité, qui permet de m'identifier facilement aux services du cloud.
 
-### 🖼️ Immich (photos)
+### Immich (photos)
 
 Mon gestionnaire de photos et vidéos personnelles, avec des fonctions de recherche et reconnaissance faciale IA souveraines et efficaces.
 
@@ -230,11 +229,11 @@ Pour synchroniser les photos de mon smartphone dans Immich :
 * Installer l'application immich sur le smartphone.
 * Paramétrer la synchronisation en donnant l'url de Immich.
 
-### ☁️ Nextcloud (fichiers & données)
+### Nextcloud (fichiers & données)
 
 Un espace pour mes fichiers, contacts, calendriers et nombreuses autres données personnelles, que je peux synchroniser et partager.
 
-### 💬 Matrix (messages & visio)
+### Matrix (messages & visio)
 
 Mon réseau-social. Toutes mes conversations sont chiffrées et restent chez moi. Je peux le lier à la fédérations (autres réseaux matrix) ou non. 
 Je peux aussi synchroniser mes comptes WhatsApp, Messenger, Telegram, Signal, Discord...
@@ -250,31 +249,31 @@ Je peux aussi synchroniser mes comptes WhatsApp, Messenger, Telegram, Signal, Di
 Cliquer sur "Self-Hosted" puis entrer le domaine matrix du cloud.
 :::
 
-### 🎬 Jellyfin (films & musiques)
+### Jellyfin (films & musiques)
 
 Ma médiathèque personnelle pour mes films, ma musique, que je peux utiliser avec mon téléviseur.
 
-### 🤖 Open WebUI (IA)
+### Open WebUI (IA)
 
 Une IA générative locale et souveraine, basée sur Open WebUI et Ollama, avec des modèles locaux et un stockage local et sécurisé des historiques.
 
-### 📝 Outline (notes)
+### Outline (notes)
 
 Un espace pratique pour prendre des notes personnelles ou partagées, écrire des documentations, faire des check-lists.
 
-### 🍽️ Mealie (recettes de cuisine)
+### Mealie (recettes de cuisine)
 
 Une appli très pratique pour importer, saisir, affiner mes recettes de cuisine.
 
-### 🔎 Searxng (recherche)
+### Searxng (recherche)
 
 Un multi-moteur de recherche qui croise les informations de nombreux autres moteurs et permet des recherches sécurisées.
 
-### 🛑 AdguardHome (firewall anti-pub)
+### AdguardHome (firewall anti-pub)
 
 AdguardHome est hébergé sur les passerelles et retire les publicités et traceurs, tout isolant la zone avec un firewall. Grâce à lui, je navigue plus vite et mieux sur internet.
 
-### 🧑‍💻 Forgejo (forge git)
+### Forgejo (forge git)
 
 Forgejo est une forge git, un GitHub personnel et souverain. Il permet d'héberger des projets, gérer des issues, des pool request et bien plus encore.
 GIT est aussi un excellent moyen d'organiser, versionner et sauvegarder ses documents.
