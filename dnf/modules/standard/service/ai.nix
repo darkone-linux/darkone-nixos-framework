@@ -79,12 +79,9 @@ in
         host = "0.0.0.0";
         loadModels = [
           "deepseek-r1:latest" # 8b
-          "gemma3:27b"
-          "gpt-oss:latest" # 20b
-          "llama3.1:8b"
+          "gemma4:e4b"
           "llama3.2:3b"
           "mistral-small3.2:latest" # 24b
-          "qwen3.5:latest" # 8b
           "translategemma:27b"
         ];
       };
