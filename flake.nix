@@ -197,8 +197,9 @@
           inherit (inputs.colmena.packages.${system}) colmena;
         in
         pkgs.mkShell {
-          buildInputs = with pkgs; [
+          packages = with pkgs; [
             age
+            cargo
             colmena
             deadnix
             git
@@ -207,14 +208,16 @@
             moreutils # sponge
             nix-unit
             nixfmt
-            php84
-            php84Packages.composer
+            php84 # TODO: deprecated
+            php84Packages.composer # TODO: deprecated
+            rustc
             sops
             ssh-to-age
             statix
             yq
             zsh
           ];
+          shellHook = "exec zsh";
         };
 
       # DNF tools
