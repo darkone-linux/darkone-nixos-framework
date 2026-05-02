@@ -1,5 +1,5 @@
 ---
-title: Thanks!
+title: Thanks
 description: About Darkone NixOS Configuration and people who inspire it.
 sidebar:
   order: 2
