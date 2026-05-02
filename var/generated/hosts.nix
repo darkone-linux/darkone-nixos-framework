@@ -105,7 +105,6 @@
         title = "Local common photos";
         description = "Shared pictures application";
         domain = "photos";
-        icon = "google-photos";
       };
     };
   }

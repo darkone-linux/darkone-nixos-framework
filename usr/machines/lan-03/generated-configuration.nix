@@ -2,4 +2,4 @@
 # from the configuration file usr/config.yaml
 # --> DO NOT EDIT <--
 
-{ ... }: { }
+{ lib, ... }: { }

@@ -91,7 +91,6 @@
       zone = "local";
       title = "Local common photos";
       description = "Shared pictures application";
-      icon = "google-photos";
     }
     {
       name = "adguardhome";
@@ -125,132 +124,9 @@
     }
   ];
   zones = {
-    www = {
-      locale = "fr_FR.UTF-8";
-      description = "www network zone";
-      lang = "fr";
-      timezone = "Europe/Paris";
-      domain = "darkone.yt";
-      gateway = {
-        hostname = "hcs";
-        vpn = {
-          ipv4 = "100.64.0.2";
-        };
-      };
-      name = "www";
-      tls-builder-hosts = [
-        "adguardhome.local.darkone.yt"
-        "homepage.local.darkone.yt"
-        "ncps.local.darkone.yt"
-        "auth.local.darkone.yt"
-        "users.local.darkone.yt"
-        "forgejo.local.darkone.yt"
-        "monitoring.local.darkone.yt"
-        "nfs.local.darkone.yt"
-        "nextcloud.local.darkone.yt"
-        "restic.local.darkone.yt"
-        "photos.local.darkone.yt"
-        "adguardhome.lan.darkone.yt"
-        "homepage.lan.darkone.yt"
-        "ncps.lan.darkone.yt"
-        "forgejo.lan.darkone.yt"
-        "monitoring.lan.darkone.yt"
-        "nfs.lan.darkone.yt"
-      ];
-      unbound = {
-        local-data = [
-          "\"mattermost.darkone.yt. IN A 100.64.0.2\""
-          "\"vaultwarden.darkone.yt. IN A 100.64.0.2\""
-        ];
-      };
-    };
-    local = {
-      description = "My main network zone";
-      locale = "fr_FR.UTF-8";
-      timezone = "America/Miquelon";
-      ipPrefix = "10.1";
-      gateway = {
-        wan = {
-          interface = "enp1s0";
-        };
-        lan = {
-          interfaces = [
-            "enp2s0"
-            "wlp0s20f0u1u3"
-          ];
-          ip = "10.1.1.1";
-        };
-        vpn = {
-          ipv4 = "100.64.0.2";
-        };
-        hostname = "gw-local";
-      };
-      lang = "fr";
-      domain = "local.darkone.yt";
-      networkIp = "10.1.0.0";
-      prefixLength = 16;
-      name = "local";
-      extraDnsmasqSettings = {
-        dhcp-host = [
-          "38:ff:dd:cd:8b:45,10.1.1.2"
-          "f0:1f:af:14:62:a5,bc:82:56:25:b8:45,10.1.2.1"
-          "8c:dc:d4:3e:be:d1,10.1.3.1"
-          "8c:dc:d4:3e:be:d2,10.1.3.2"
-          "8c:dc:d4:3e:be:d3,10.1.3.3"
-          "8c:dc:d4:3e:be:d4,10.1.3.4"
-          "f0:1f:af:13:61:c1,10.1.4.1"
-          "f0:1f:af:13:61:c2,10.1.4.2"
-        ];
-        dhcp-range = [ "10.1.3.200,10.1.3.249,24h" ];
-        address = [ "/local.darkone.yt/10.1.1.1" ];
-        server = [
-          "/darkone.yt/100.64.0.2"
-          "/lan.darkone.yt/10.2.1.1"
-        ];
-        host-record = [
-          "adguardhome,adguardhome.local.darkone.yt,10.1.1.1"
-          "adguardhome.lan.darkone.yt,10.2.1.1"
-          "auth,auth.local.darkone.yt,10.1.1.1"
-          "desktop-01,desktop-01.local.darkone.yt,10.1.3.1"
-          "desktop-02,desktop-02.local.darkone.yt,10.1.3.2"
-          "desktop-03,desktop-03.local.darkone.yt,10.1.3.3"
-          "desktop-04,desktop-04.local.darkone.yt,10.1.3.4"
-          "forgejo,forgejo.local.darkone.yt,10.1.1.1"
-          "forgejo.lan.darkone.yt,10.2.1.1"
-          "gw,gw.local.darkone.yt,10.1.1.1"
-          "gw-lan,gw-lan.lan.darkone.yt,10.2.1.1"
-          "gw-local,gw-local.local.darkone.yt,10.1.1.1"
-          "hcs,hcs.darkone.yt,222.222.222.222"
-          "headscale.darkone.yt,222.222.222.222"
-          "home-lab,home-lab.local.darkone.yt,10.1.1.2"
-          "homelab,homelab.local.darkone.yt,10.1.1.2"
-          "homepage,homepage.local.darkone.yt,10.1.1.1"
-          "homepage.lan.darkone.yt,10.2.1.1"
-          "lan-01,lan-01.lan.darkone.yt,10.2.2.1"
-          "lan-02,lan-02.lan.darkone.yt,10.2.2.2"
-          "lan-03,lan-03.lan.darkone.yt,10.2.2.3"
-          "lan-04,lan-04.lan.darkone.yt,10.2.2.4"
-          "monitoring,monitoring.local.darkone.yt,10.1.1.1"
-          "monitoring.lan.darkone.yt,10.2.1.1"
-          "my-laptop,my-laptop.local.darkone.yt,10.1.2.1"
-          "ncps,ncps.local.darkone.yt,10.1.1.1"
-          "ncps.lan.darkone.yt,10.2.1.1"
-          "nextcloud,nextcloud.local.darkone.yt,10.1.1.1"
-          "nfs,nfs.local.darkone.yt,10.1.1.2"
-          "nfs.lan.darkone.yt,10.2.1.1"
-          "office-laptop,office-laptop.local.darkone.yt,10.1.4.1"
-          "photos,photos.local.darkone.yt,10.1.1.1"
-          "restic,restic.local.darkone.yt,10.1.1.2"
-          "saloon-laptop,saloon-laptop.local.darkone.yt,10.1.4.2"
-          "users,users.local.darkone.yt,10.1.1.1"
-        ];
-      };
-    };
     lan = {
       description = "A network for may LAN party";
-      locale = "fr_FR.UTF-8";
-      timezone = "America/Miquelon";
-      ipPrefix = "10.2";
+      domain = "lan.darkone.yt";
       gateway = {
         wan = {
           interface = "enp1s0";
@@ -264,10 +140,12 @@
         };
         hostname = "gw-lan";
       };
+      ipPrefix = "10.2";
       lang = "fr";
-      domain = "lan.darkone.yt";
+      locale = "fr_FR.UTF-8";
       networkIp = "10.2.0.0";
       prefixLength = 16;
+      timezone = "America/Miquelon";
       name = "lan";
       extraDnsmasqSettings = {
         dhcp-host = [
@@ -316,6 +194,127 @@
           "restic.local.darkone.yt,10.1.1.2"
           "saloon-laptop,saloon-laptop.local.darkone.yt,10.1.4.2"
           "users.local.darkone.yt,10.1.1.1"
+        ];
+      };
+    };
+    local = {
+      description = "My main network zone";
+      domain = "local.darkone.yt";
+      gateway = {
+        wan = {
+          interface = "enp1s0";
+        };
+        lan = {
+          interfaces = [
+            "enp2s0"
+            "wlp0s20f0u1u3"
+          ];
+          ip = "10.1.1.1";
+        };
+        vpn = {
+          ipv4 = "100.64.0.2";
+        };
+        hostname = "gw-local";
+      };
+      ipPrefix = "10.1";
+      lang = "fr";
+      locale = "fr_FR.UTF-8";
+      networkIp = "10.1.0.0";
+      prefixLength = 16;
+      timezone = "America/Miquelon";
+      name = "local";
+      extraDnsmasqSettings = {
+        dhcp-host = [
+          "38:ff:dd:cd:8b:45,10.1.1.2"
+          "8c:dc:d4:3e:be:d1,10.1.3.1"
+          "8c:dc:d4:3e:be:d2,10.1.3.2"
+          "8c:dc:d4:3e:be:d3,10.1.3.3"
+          "8c:dc:d4:3e:be:d4,10.1.3.4"
+          "f0:1f:af:13:61:c1,10.1.4.1"
+          "f0:1f:af:13:61:c2,10.1.4.2"
+          "f0:1f:af:14:62:a5,bc:82:56:25:b8:45,10.1.2.1"
+        ];
+        dhcp-range = [ "10.1.3.200,10.1.3.249,24h" ];
+        address = [ "/local.darkone.yt/10.1.1.1" ];
+        server = [
+          "/darkone.yt/100.64.0.2"
+          "/lan.darkone.yt/10.2.1.1"
+        ];
+        host-record = [
+          "adguardhome,adguardhome.local.darkone.yt,10.1.1.1"
+          "adguardhome.lan.darkone.yt,10.2.1.1"
+          "auth,auth.local.darkone.yt,10.1.1.1"
+          "desktop-01,desktop-01.local.darkone.yt,10.1.3.1"
+          "desktop-02,desktop-02.local.darkone.yt,10.1.3.2"
+          "desktop-03,desktop-03.local.darkone.yt,10.1.3.3"
+          "desktop-04,desktop-04.local.darkone.yt,10.1.3.4"
+          "forgejo,forgejo.local.darkone.yt,10.1.1.1"
+          "forgejo.lan.darkone.yt,10.2.1.1"
+          "gw,gw.local.darkone.yt,10.1.1.1"
+          "gw-lan,gw-lan.lan.darkone.yt,10.2.1.1"
+          "gw-local,gw-local.local.darkone.yt,10.1.1.1"
+          "hcs,hcs.darkone.yt,222.222.222.222"
+          "headscale.darkone.yt,222.222.222.222"
+          "home-lab,home-lab.local.darkone.yt,10.1.1.2"
+          "homelab,homelab.local.darkone.yt,10.1.1.2"
+          "homepage,homepage.local.darkone.yt,10.1.1.1"
+          "homepage.lan.darkone.yt,10.2.1.1"
+          "lan-01,lan-01.lan.darkone.yt,10.2.2.1"
+          "lan-02,lan-02.lan.darkone.yt,10.2.2.2"
+          "lan-03,lan-03.lan.darkone.yt,10.2.2.3"
+          "lan-04,lan-04.lan.darkone.yt,10.2.2.4"
+          "monitoring,monitoring.local.darkone.yt,10.1.1.1"
+          "monitoring.lan.darkone.yt,10.2.1.1"
+          "my-laptop,my-laptop.local.darkone.yt,10.1.2.1"
+          "ncps,ncps.local.darkone.yt,10.1.1.1"
+          "ncps.lan.darkone.yt,10.2.1.1"
+          "nextcloud,nextcloud.local.darkone.yt,10.1.1.1"
+          "nfs,nfs.local.darkone.yt,10.1.1.2"
+          "nfs.lan.darkone.yt,10.2.1.1"
+          "office-laptop,office-laptop.local.darkone.yt,10.1.4.1"
+          "photos,photos.local.darkone.yt,10.1.1.1"
+          "restic,restic.local.darkone.yt,10.1.1.2"
+          "saloon-laptop,saloon-laptop.local.darkone.yt,10.1.4.2"
+          "users,users.local.darkone.yt,10.1.1.1"
+        ];
+      };
+    };
+    www = {
+      description = "www network zone";
+      domain = "darkone.yt";
+      gateway = {
+        hostname = "hcs";
+        vpn = {
+          ipv4 = "100.64.0.2";
+        };
+      };
+      lang = "fr";
+      locale = "fr_FR.UTF-8";
+      timezone = "Europe/Paris";
+      name = "www";
+      tls-builder-hosts = [
+        "adguardhome.local.darkone.yt"
+        "homepage.local.darkone.yt"
+        "ncps.local.darkone.yt"
+        "auth.local.darkone.yt"
+        "users.local.darkone.yt"
+        "forgejo.local.darkone.yt"
+        "monitoring.local.darkone.yt"
+        "nfs.local.darkone.yt"
+        "nextcloud.local.darkone.yt"
+        "restic.local.darkone.yt"
+        "photos.local.darkone.yt"
+        "adguardhome.lan.darkone.yt"
+        "homepage.lan.darkone.yt"
+        "ncps.lan.darkone.yt"
+        "forgejo.lan.darkone.yt"
+        "monitoring.lan.darkone.yt"
+        "nfs.lan.darkone.yt"
+      ];
+      unbound = {
+        local-data = [
+          "\"mattermost.darkone.yt. IN A 100.64.0.2\""
+          "\"vaultwarden.darkone.yt. IN A 100.64.0.2\""
         ];
       };
     };
