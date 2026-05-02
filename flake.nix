@@ -208,8 +208,6 @@
             moreutils # sponge
             nix-unit
             nixfmt
-            php84 # TODO: deprecated
-            php84Packages.composer # TODO: deprecated
             rustc
             sops
             ssh-to-age

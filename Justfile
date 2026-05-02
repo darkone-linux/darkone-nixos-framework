@@ -190,7 +190,6 @@ _gen what:
 	#!/usr/bin/env bash
 	just _log "{{what}} file(s)..." "GENERATOR"
 	cd src/generator && cargo run --quiet -- {{what}} > /dev/null
-	#php ./src/generate.php "{{what}}"
 
 # Launch a "nix develop" with zsh (dev env)
 [group('dev')]
@@ -603,6 +602,7 @@ pull:
 			--exclude 'AGENTS.md' \
 			--exclude '.claudeignore' \
 			--exclude '.claude' \
+			--exclude '.opencode' \
 			--exclude 'src/generator/target' \
 			{{dnfDir}}/ {{workDir}}/
 
@@ -630,5 +630,6 @@ push:
 		--exclude 'AGENTS.md' \
 		--exclude '.claudeignore' \
 		--exclude '.claude' \
+		--exclude '.opencode' \
 		--exclude 'src/generator/target' \
 		{{workDir}}/ {{dnfDir}}/

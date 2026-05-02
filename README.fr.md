@@ -294,12 +294,8 @@ Available recipes:
 
 ### TODO extraits du code source
 
-- [ ] flake.nix:211 php84 est deprecated, à supprimer après replacement du générateur PHP par RUST
-- [ ] flake.nix:212 php84Packages.composer est deprecated, à supprimer après replacement du générateur PHP par RUST
 - [ ] dnf/home/modules/advanced.nix:76 vscode a besoin d'un module home-manager
 - [ ] dnf/home/modules/advanced.nix:103 hugo est deprecated, à remplacer par la version standard
-- [ ] dnf/home/modules/advanced.nix:108 php84 est deprecated, à supprimer après replacement du générateur PHP par RUST
-- [ ] dnf/home/modules/advanced.nix:109 php84Packages.composer est deprecated, à supprimer après replacement du générateur PHP par RUST
 - [ ] dnf/modules/standard/system/core.nix:186 Mettre en oeuvre wakeonlan à partir du mode veille
 - [ ] dnf/home/modules/office.nix:25 Simplifier la recherche de la page d'accueil de la zone DNS
 - [ ] dnf/home/modules/office.nix:145 Ajouter le support pour les profils enfants
