@@ -1,5 +1,6 @@
 use std::fmt;
 
+use super::nix_value::NixValue;
 use super::NixItem;
 
 #[derive(Debug, Default)]
@@ -10,36 +11,25 @@ impl NixList {
         Self::default()
     }
 
+    /// Build a list of strings in one shot — covers the vast majority of call sites.
+    pub fn from_strings<I, S>(items: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let mut list = Self::new();
+        for s in items {
+            list.add_string(s);
+        }
+        list
+    }
+
     pub fn add(&mut self, item: Box<dyn NixItem>) {
         self.0.push(item);
     }
 
     pub fn add_string(&mut self, s: impl Into<String>) {
-        use super::nix_value::NixValue;
         self.0.push(Box::new(NixValue::string(s)));
-    }
-
-    pub fn add_int(&mut self, n: i64) {
-        use super::nix_value::NixValue;
-        self.0.push(Box::new(NixValue::int(n)));
-    }
-
-    pub fn populate(&mut self, items: Vec<Box<dyn NixItem>>) {
-        self.0.extend(items);
-    }
-
-    pub fn populate_strings(&mut self, strings: Vec<impl Into<String>>) {
-        for s in strings {
-            self.add_string(s);
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
     }
 }
 
@@ -71,17 +61,8 @@ mod tests {
     }
 
     #[test]
-    fn list_with_ints() {
-        let mut list = NixList::new();
-        list.add_int(1);
-        list.add_int(2);
-        assert_eq!(list.to_string(), "[ 1 2 ]");
-    }
-
-    #[test]
-    fn populate_strings() {
-        let mut list = NixList::new();
-        list.populate_strings(vec!["a", "b", "c"]);
+    fn from_strings_helper() {
+        let list = NixList::from_strings(["a", "b", "c"]);
         assert_eq!(list.to_string(), r#"[ "a" "b" "c" ]"#);
     }
 }

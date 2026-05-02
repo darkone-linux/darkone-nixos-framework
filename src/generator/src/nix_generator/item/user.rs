@@ -69,6 +69,8 @@ impl User {
     }
 }
 
+/// Look up `profile` in `usr/home/profiles/` first, then `dnf/home/profiles/`.
+/// Returns the relative path that the generated Nix file will import.
 pub fn filter_profile(profile: &str, project_root: &Path) -> Result<String> {
     for template in PROFILE_PATHS {
         let relative = template.replace("{}", profile);
@@ -79,13 +81,6 @@ pub fn filter_profile(profile: &str, project_root: &Path) -> Result<String> {
     Err(NixError::validation(format!(
         "No user profile path found for profile \"{profile}\" in usr and dnf declarations."
     )))
-}
-
-impl User {
-    /// Like filter_profile but returns Ok even when not found (for the special nix user).
-    pub fn filter_profile_unchecked(profile: &str, project_root: &Path) -> Result<String> {
-        filter_profile(profile, project_root)
-    }
 }
 
 #[cfg(test)]

@@ -76,27 +76,6 @@ impl NixService {
         }
     }
 
-    pub fn to_map(&self) -> Vec<(&'static str, String)> {
-        let mut out = vec![
-            ("name", self.name.clone()),
-            ("host", self.host.clone()),
-            ("zone", self.zone.clone()),
-            ("global", self.global.to_string()),
-        ];
-        if let Some(d) = &self.domain {
-            out.push(("domain", d.clone()));
-        }
-        if let Some(t) = &self.title {
-            out.push(("title", t.clone()));
-        }
-        if let Some(d) = &self.description {
-            out.push(("description", d.clone()));
-        }
-        if let Some(i) = &self.icon {
-            out.push(("icon", i.clone()));
-        }
-        out
-    }
 }
 
 #[cfg(test)]

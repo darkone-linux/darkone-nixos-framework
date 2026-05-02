@@ -5,6 +5,8 @@ use indexmap::IndexMap;
 use super::nix_value::NixValue;
 use super::NixItem;
 
+/// Ordered Nix attribute set: insertion order is preserved in the output, which
+/// matters because we want generated files to diff stably.
 #[derive(Debug, Default)]
 pub struct NixAttrSet(IndexMap<String, Box<dyn NixItem>>);
 
@@ -29,19 +31,8 @@ impl NixAttrSet {
         self.set(key, Box::new(NixValue::bool(value)));
     }
 
-    pub fn set_float(&mut self, key: impl Into<String>, value: f64) {
-        self.set(key, Box::new(NixValue::float(value)));
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Keys containing non-alphanumeric/non-underscore chars must be quoted in Nix.
+    /// Keys with non-identifier characters (e.g. an IP address used as a key)
+    /// must be quoted in the Nix source.
     fn needs_quoting(key: &str) -> bool {
         !key.chars()
             .all(|c| c.is_alphanumeric() || c == '_' || c == '-')

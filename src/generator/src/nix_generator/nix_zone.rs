@@ -161,33 +161,11 @@ impl NixZone {
     }
 
     pub fn set_gateway_lan_ip(&mut self, ip: &str) {
-        let gw = self
-            .config
-            .entry("gateway".to_string())
-            .or_insert_with(|| serde_yaml::Value::Mapping(Default::default()));
-        if let serde_yaml::Value::Mapping(m) = gw {
-            let lan = m
-                .entry("lan".into())
-                .or_insert_with(|| serde_yaml::Value::Mapping(Default::default()));
-            if let serde_yaml::Value::Mapping(lm) = lan {
-                lm.insert("ip".into(), ip.into());
-            }
-        }
+        self.set_gateway_field(&["lan", "ip"], ip.into());
     }
 
     pub fn set_gateway_vpn_ipv4(&mut self, ip: &str) {
-        let gw = self
-            .config
-            .entry("gateway".to_string())
-            .or_insert_with(|| serde_yaml::Value::Mapping(Default::default()));
-        if let serde_yaml::Value::Mapping(m) = gw {
-            let vpn = m
-                .entry("vpn".into())
-                .or_insert_with(|| serde_yaml::Value::Mapping(Default::default()));
-            if let serde_yaml::Value::Mapping(vm) = vpn {
-                vm.insert("ipv4".into(), ip.into());
-            }
-        }
+        self.set_gateway_field(&["vpn", "ipv4"], ip.into());
     }
 
     pub fn set_gateway_hostname(&mut self, hostname: &str) -> Result<()> {
@@ -195,21 +173,30 @@ impl NixZone {
             .config
             .get("gateway")
             .and_then(|g| g.get("hostname"))
-            .and_then(|h| h.as_str())
+            .and_then(serde_yaml::Value::as_str)
         {
             return Err(NixError::validation(format!(
                 "Zone \"{}\" already has a gateway \"{existing}\", cannot set \"{hostname}\"",
                 self.name
             )));
         }
+        self.set_gateway_field(&["hostname"], hostname.into());
+        Ok(())
+    }
+
+    /// Insert `value` at `gateway.<path…>` inside `self.config`, creating any
+    /// intermediate mappings as needed. Mirrors PHP's nested-array assignment.
+    fn set_gateway_field(&mut self, path: &[&str], value: serde_yaml::Value) {
         let gw = self
             .config
             .entry("gateway".to_string())
             .or_insert_with(|| serde_yaml::Value::Mapping(Default::default()));
-        if let serde_yaml::Value::Mapping(m) = gw {
-            m.insert("hostname".into(), hostname.into());
+        if !matches!(gw, serde_yaml::Value::Mapping(_)) {
+            *gw = serde_yaml::Value::Mapping(Default::default());
         }
-        Ok(())
+        if let serde_yaml::Value::Mapping(map) = gw {
+            insert_nested(map, path, value);
+        }
     }
 
     /// Validate and set zone config from YAML, applying defaults.
@@ -312,6 +299,30 @@ impl NixZone {
         }
         Ok(())
     }
+}
+
+/// Walk `path` inside `root`, creating intermediate mappings, and insert `value`
+/// at the final key. Used by `set_gateway_*` to mirror PHP nested-assignment.
+fn insert_nested(root: &mut serde_yaml::Mapping, path: &[&str], value: serde_yaml::Value) {
+    let Some((last, prefix)) = path.split_last() else {
+        return;
+    };
+    let mut cursor = root;
+    for segment in prefix {
+        let entry = cursor
+            .entry(serde_yaml::Value::String((*segment).to_string()))
+            .or_insert_with(|| serde_yaml::Value::Mapping(Default::default()));
+        let serde_yaml::Value::Mapping(map) = entry else {
+            *entry = serde_yaml::Value::Mapping(Default::default());
+            let serde_yaml::Value::Mapping(map) = entry else {
+                unreachable!()
+            };
+            cursor = map;
+            continue;
+        };
+        cursor = map;
+    }
+    cursor.insert(serde_yaml::Value::String((*last).to_string()), value);
 }
 
 #[cfg(test)]

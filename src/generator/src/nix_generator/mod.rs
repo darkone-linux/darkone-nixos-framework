@@ -6,3 +6,4 @@ pub mod nix_service;
 pub mod nix_zone;
 pub mod token;
 pub mod validation;
+pub mod yaml;

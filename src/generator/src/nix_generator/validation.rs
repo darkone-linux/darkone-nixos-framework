@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use regex::Regex;
 
 use crate::error::{NixError, Result};
@@ -63,22 +61,6 @@ fn ipv4_to_u32(ip: &str) -> Option<u32> {
         return None;
     }
     Some((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3])
-}
-
-/// Track unique names across the whole configuration run.
-/// Returns an error if the name was already registered.
-pub fn assert_uniq_name(
-    tracker: &mut HashMap<String, String>,
-    name: &str,
-    context: &str,
-) -> Result<()> {
-    if let Some(existing) = tracker.get(name) {
-        return Err(NixError::validation(format!(
-            "Name \"{name}\" already exists ({context} vs {existing})"
-        )));
-    }
-    tracker.insert(name.to_string(), context.to_string());
-    Ok(())
 }
 
 #[cfg(test)]
@@ -152,13 +134,6 @@ mod tests {
     #[test]
     fn invalid_email() {
         assert!(assert_email("not-an-email", "").is_err());
-    }
-
-    #[test]
-    fn uniq_name_tracker() {
-        let mut tracker = HashMap::new();
-        assert!(assert_uniq_name(&mut tracker, "foo", "ctx1").is_ok());
-        assert!(assert_uniq_name(&mut tracker, "foo", "ctx2").is_err());
     }
 
     #[test]

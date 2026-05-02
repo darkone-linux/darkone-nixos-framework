@@ -1,7 +1,4 @@
 //! Generic helpers for producing MDX source.
-//!
-//! Kept tiny on purpose — anything specific to a particular doc page lives
-//! next to that page's generator.
 
 /// Encode `<`, `>`, `&` for safe inclusion in markdown text.
 pub fn escape(text: &str) -> String {
@@ -17,20 +14,12 @@ pub fn escape(text: &str) -> String {
     out
 }
 
-/// Build a Starlight-style YAML frontmatter block.
-pub fn frontmatter(lines: &[(&str, &str)]) -> String {
-    let mut out = String::from("---\n");
-    for (k, v) in lines {
-        out.push_str(k);
-        out.push_str(": ");
-        out.push_str(v);
-        out.push('\n');
-    }
-    out.push_str("---\n");
-    out
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// Wrap a Nix snippet in a fenced ` ```nix … ``` ` block.
-pub fn nix_code_block(body: &str) -> String {
-    format!("```nix\n{body}```\n")
+    #[test]
+    fn escape_html_chars() {
+        assert_eq!(escape("a<b & c>d"), "a&lt;b &amp; c&gt;d");
+    }
 }

@@ -470,12 +470,8 @@ fn find_submodule_options(type_expr: &Expr) -> Option<ast::AttrSet> {
         match current {
             Expr::Apply(apply) => {
                 let lambda = apply.lambda();
-                let argument = apply.argument();
                 let fname = lambda.as_ref().and_then(trailing_ident_name);
-                let arg = match argument {
-                    Some(a) => a,
-                    None => return None,
-                };
+                let arg = apply.argument()?;
                 match fname.as_deref() {
                     Some("submodule") => {
                         return options_in_submodule_arg(&arg);

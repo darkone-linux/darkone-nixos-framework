@@ -79,22 +79,6 @@ impl Host {
         }
     }
 
-    pub fn populate_service(&mut self, name: &str, params: ServiceParams) -> Result<String> {
-        if self.services.contains_key(name) {
-            return Err(NixError::validation(format!(
-                "Service {}:{name} already registered",
-                self.hostname
-            )));
-        }
-        let domain = params.domain.clone().unwrap_or_else(|| name.to_string());
-        self.services.insert(name.to_string(), params);
-        Ok(domain)
-    }
-
-    pub fn features_keys(&self) -> Vec<&str> {
-        self.features.keys().map(String::as_str).collect()
-    }
-
     /// Resolve and validate disko config. Sets `disko.profile` to the relative path.
     pub fn set_disko(
         &mut self,
@@ -162,27 +146,6 @@ mod tests {
         host.set_features(&["vpn".to_string(), "dns:prod".to_string()]);
         assert_eq!(host.features.get("vpn").map(String::as_str), Some("lab"));
         assert_eq!(host.features.get("dns").map(String::as_str), Some("prod"));
-    }
-
-    #[test]
-    fn populate_service_duplicate_fails() {
-        let mut host = Host::new("myhost");
-        let params = ServiceParams {
-            title: None,
-            description: None,
-            domain: None,
-            icon: None,
-            global: false,
-        };
-        host.populate_service("nextcloud", params).unwrap();
-        let params2 = ServiceParams {
-            title: None,
-            description: None,
-            domain: None,
-            icon: None,
-            global: false,
-        };
-        assert!(host.populate_service("nextcloud", params2).is_err());
     }
 
     #[test]
