@@ -479,7 +479,9 @@ impl Configuration {
                 {
                     host_map.insert("mac".into(), mac_val.clone());
                 }
-                // Per-index overrides from hosts sub-key
+                // Per-index overrides from hosts sub-key.
+                // PHP `$hosts[$id] += $extraConfig` is array union: existing
+                // keys are kept, only NEW keys from $extraConfig are added.
                 if let Some(overrides) = group
                     .get("hosts")
                     .and_then(|h| h.as_mapping())
@@ -487,7 +489,7 @@ impl Configuration {
                     .and_then(|v| v.as_mapping())
                 {
                     for (k, v) in overrides {
-                        host_map.insert(k.clone(), v.clone());
+                        host_map.entry(k.clone()).or_insert(v.clone());
                     }
                 }
                 static_hosts.push(Value::Mapping(host_map));
@@ -514,16 +516,17 @@ impl Configuration {
                 let tpl_hostname = group
                     .get("hostname")
                     .and_then(|v| v.as_str())
-                    .map(|t| t.replace("{}", hostname))
+                    .map(|t| t.replace("%s", hostname))
                     .unwrap_or_else(|| hostname.to_string());
                 let tpl_name = group
                     .get("name")
                     .and_then(|v| v.as_str())
-                    .map(|t| t.replace("{}", host_name))
+                    .map(|t| t.replace("%s", host_name))
                     .unwrap_or_else(|| host_name.to_string());
 
+                // PHP: array_merge($hostCfg, [hostname, name, profile, users, groups, ...])
+                // → second array wins; missing group-level keys default to [].
                 let mut merged = serde_yaml::Mapping::new();
-                // Start with host-specific config
                 if let Some(m) = host_cfg.as_mapping() {
                     for (k, v) in m {
                         merged.insert(k.clone(), v.clone());
@@ -531,10 +534,12 @@ impl Configuration {
                 }
                 merged.insert("hostname".into(), tpl_hostname.into());
                 merged.insert("name".into(), tpl_name.into());
-                for key in &["profile", "users", "groups", "features", "tags", "disko"] {
-                    if let Some(v) = group.get(key) {
-                        merged.entry((*key).into()).or_insert(v.clone());
-                    }
+                if let Some(v) = group.get("profile") {
+                    merged.insert("profile".into(), v.clone());
+                }
+                for key in &["users", "groups", "features", "tags", "disko"] {
+                    let v = group.get(key).cloned().unwrap_or(Value::Sequence(vec![]));
+                    merged.insert((*key).into(), v);
                 }
                 static_hosts.push(Value::Mapping(merged));
             }
