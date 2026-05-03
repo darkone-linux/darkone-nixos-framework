@@ -164,7 +164,7 @@ darkone.host.portable.enable = false;
 
 <hr/>
 
-### &#x1F4E6; darkone.host.serveur
+### &#x1F4E6; darkone.host.server
 
 Configuration améliorée pour les serveurs (minimal, pas de veille, watchdog...).
 
@@ -212,7 +212,7 @@ Ce module active les fonctionnalités pour tous les utilisateurs du système.
 Utilisez les profils HomeManager pour fournir des logiciels personnalisés à chaque utilisateur (admin, avancé, étudiant, enfant, adolescent, etc.).
 :::
 
-* **enable** `bool` Utilisateur avancé (admin sys, developper)
+* **enable** `bool` Utilisateur avancé (admin sys, développeur)
 
 ```nix
 darkone.profile.advanced.enable = false;
@@ -278,7 +278,7 @@ darkone.console.pandoc.enable = false;
 
 ### &#x1F48E; darkone.console.zsh
 
-Une installation zsh complète avec aliases, bindkeys et prompt optimisé.
+Une installation zsh complète avec alias, bindkeys et prompt optimisé.
 
 :::tip[Quelques raccourcis]
 Général:
@@ -637,7 +637,7 @@ Pour chaque zone:
 
 * **enable** `bool` Activer le monitoring avec prometheus, grafana et node exporter
 * **isNode** `bool` Est un nœud de monitoring
-* **retentionTime** `str` Pourcentage de conservation des métriques Prometheus
+* **retentionTime** `str` Durée de rétention des métriques Prometheus
 
 ```nix
 darkone.service.monitoring = {
@@ -785,7 +785,7 @@ darkone.service.restic = {
   enable = true;
   enableSystemBackup = true;
 };
-:::
+```
 
 Paramètres par défaut:
 
@@ -794,6 +794,7 @@ Paramètres par défaut:
 /mnt/medias/(music|videos) -> /mnt/backup/restic/[host]/mnt/medias
 / -> /mnt/backup/restic/[host]/system
 ```
+:::
 
 * **enable** `bool` Activer le service de sauvegarde restic principal
 * **enableDryRun** `bool` Mode Dry Run
@@ -1039,8 +1040,8 @@ Ce module est utilisé pour enregistrer et configurer les modules DNF:
   * **proxy.hasReverseProxy** `bool` Ceci est un proxy inverse (ou autre configuration virtualhost via extraConfig)
   * **proxy.defaultService** `bool` Est le service par défaut
   * **proxy.servicePort** `nullOr port` Port interne du service
-* **proxy.preExtraConfig** `lines` Configuration Caddy supplémentaire (préfixe pour hôte virtuel)
-* **proxy.extraConfig** `lines` Configuration Caddy supplémentaire pour hôte virtuel
+  * **proxy.preExtraConfig** `lines` Configuration Caddy supplémentaire (préfixe pour hôte virtuel)
+  * **proxy.extraConfig** `lines` Configuration Caddy supplémentaire pour hôte virtuel
   * **proxy.extraGlobalConfig** `lines` Configuration caddy supplémentaire globale
   * **proxy.scheme** `str` Schéma interne du service (http / https)
 
@@ -1164,8 +1165,6 @@ darkone.user.root.enable = true;
 
 <hr/>
 
-
-
 ## Modules Home Manager
 
 :::note
@@ -1174,7 +1173,7 @@ darkone.user.root.enable = true;
 
 ### 🏠 darkone.home.advanced
 
-Profil home pour utilisateurs avançés (informaticiens, développeurs, administrateurs).
+Profil home pour utilisateurs avancés (informaticiens, développeurs, administrateurs).
 
 * **enable** `bool` Activer les fonctionnalités utilisateur avancées
 * **enableTools** `bool` Divers outils pour utilisateurs avancés
@@ -1253,7 +1252,7 @@ darkone.home.education = {
 Plusieurs paquets de jeux graphiques.
 
 * **enable** `bool` Activer les jeux
-* **enableBaby** `bool` Jeux pour bébé)s (&lt;=6 ans)
+* **enableBaby** `bool` Jeux pour bébé(s) (&lt;=6 ans)
 * **enableChild** `bool` Jeux pour enfants (6-12 ans)
 * **enableTeenager** `bool` Jeux pour adolescents et adultes (>=12 ans)
 * **enable3D** `bool` Plus de jeux 3D
