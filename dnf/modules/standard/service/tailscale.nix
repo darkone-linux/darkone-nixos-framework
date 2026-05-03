@@ -11,6 +11,7 @@
   config,
   zone,
   network,
+  dnfLib,
   ...
 }:
 let
@@ -20,8 +21,8 @@ let
   hasHeadscale = coord.enable;
   isHcsSubnetGateway = hasHeadscale && cfg.isGateway;
   hcsFqdn = "${coord.domain}.${network.domain}";
-  hcsInternalFqdn = network.zones.www.gateway.vpn.ipv4;
-  caddyStorage = "/var/lib/caddy/storage"; # TODO: factorize with services.nix
+  hcsInternalFqdn = network.zones.${dnfLib.constants.globalZone}.gateway.vpn.ipv4;
+  inherit (dnfLib.constants) caddyStorage;
   caddyStorTmp = "/tmp/caddy-storage-sync";
 in
 {

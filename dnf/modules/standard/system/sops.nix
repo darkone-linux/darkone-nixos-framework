@@ -1,9 +1,17 @@
-# DNF sops, passwords and secrets management
+# DNF sops, passwords and secrets management.
 #
 # :::danger[Critical module]
 # This module is enabled by default in core module.
 # It is recommended to keep it enabled and configure it (`just passwd*` commands).
 # :::
+#
+# Wires sops-nix to `usr/secrets/secrets.yaml` and unlocks it with the
+# host SSH key (`ssh_host_ed25519_key`) plus the dedicated infrastructure
+# age key (`/etc/sops/age/infra.key`). Pre-declares a shared `sops` group,
+# the `default-password` / `default-password-hash` secrets (group-readable
+# by `sops`), and one `user/<login>/password-hash` secret per host user
+# (with `neededForUsers = true` so the hash is available before the user
+# accounts are created).
 
 {
   lib,

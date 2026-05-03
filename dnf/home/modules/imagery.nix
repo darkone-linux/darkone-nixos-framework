@@ -1,4 +1,10 @@
-# Image processing softwares (gimp, geeqie, pinta + blender, inkscape, krita...).
+# Image processing software.
+#
+# Always installs the lightweight viewer (`geeqie`) and editor (`gimp`),
+# then layers tooling by audience: `enableBeginner` adds `pinta`,
+# `enablePro` adds `inkscape`/`krita`/`yed`, `enable3D` (with
+# `enablePro`) adds `blender`, `enableCAD` adds `freecad` (from stable
+# nixpkgs to avoid Qt churn), and `enableCli` adds `imagemagick`/`jhead`.
 
 {
   lib,

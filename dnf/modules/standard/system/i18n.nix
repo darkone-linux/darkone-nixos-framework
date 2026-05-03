@@ -2,6 +2,9 @@
 #
 # :::note
 # By default, the configuration of this module adapts to the global configuration usr/config.yaml.
+# The locale must follow the canonical `xx_YY.UTF-8` shape (eg. `fr_FR.UTF-8`)
+# so the language and country codes can be safely derived for the console
+# keymap, XKB layout, and Nextcloud phone region defaults.
 # :::
 
 {
@@ -12,19 +15,26 @@
 }:
 let
   cfg = config.darkone.system.i18n;
+
+  # Match `xx_YY.UTF-8`, capturing language (group 0) and country (group 1).
+  # `strMatching` on the option already rejects malformed values at evaluation
+  # time, so the match is guaranteed to succeed here.
+  localeRegex = "^([a-z]{2})_([A-Z]{2})\\.UTF-8$";
+  localeParts = builtins.match localeRegex cfg.locale;
+  countryCode = builtins.elemAt localeParts 1;
 in
 {
   options = {
     darkone.system.i18n.enable = lib.mkEnableOption "Enable i18n with network zone configuration by default";
     darkone.system.i18n.locale = lib.mkOption {
-      type = lib.types.str;
-      default = "${zone.locale}";
+      type = lib.types.strMatching localeRegex;
+      default = zone.locale;
       example = "fr_FR.UTF-8";
-      description = "Network locale";
+      description = "Network locale, must match the `xx_YY.UTF-8` shape.";
     };
     darkone.system.i18n.timeZone = lib.mkOption {
       type = lib.types.str;
-      default = "${zone.timezone}";
+      default = zone.timezone;
       example = "Europe/Paris";
       description = "Network time zone";
     };
@@ -33,9 +43,11 @@ in
   # Useful man & nix documentation
   config = lib.mkIf cfg.enable {
 
-    # Configure console keymap
+    # Configure console keymap.
+    # The country code is used as the keymap name (eg. `FR` -> `fr`), which
+    # matches the kbd convention for the locales DNF supports.
     console = {
-      keyMap = lib.toLower (builtins.substring 3 2 cfg.locale);
+      keyMap = lib.toLower countryCode;
       #useXkbConfig = true;
     };
 

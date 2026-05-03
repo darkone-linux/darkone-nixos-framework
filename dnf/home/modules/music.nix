@@ -1,4 +1,18 @@
 # Graphical music and sound creation apps.
+#
+# Categorised by audience: `enablePro` (ardour, reaper, renoise,
+# rosegarden), `enableCreator` (decibels, hydrogen), `enableScore`
+# (musescore, muse-sounds-manager), `enableFun` (mixxx, mousai),
+# `enableCli` (mpg123, cmus, lilypond), `enableEasy` (gnome-music vs.
+# audacious), `enableMpd` (MPD daemon, ncmpcpp, mpdris2), and
+# `enableDev` (lilypond).
+#
+# :::note[NFS-aware music library]
+# When the host is an NFS client and the network exposes an `nfs` service
+# in the same zone, MPD reads its music directory from the NFS mount
+# (`/mnt/nfs/homes/$USER/Music`). Otherwise it falls back to the local
+# `srv-dirs.homes` value, then to `~/Music`.
+# :::
 
 {
   pkgs,
@@ -10,6 +24,7 @@
   network,
   config,
   osConfig,
+  dnfLib,
   ...
 }:
 
@@ -17,7 +32,7 @@ let
   cfg = config.darkone.home.music;
   #graphic = osConfig.darkone.graphic.gnome.enable;
   hasNfsServer = osConfig.darkone.service.nfs.enable;
-  nfsServer = (lib.findFirst (s: s.name == "nfs" && s.zone == zone.name) null network.services).host;
+  nfsServer = (dnfLib.findService "nfs" zone.name network.services).host;
   isNfsClient =
     host.hostname != nfsServer
     && lib.hasAttr "nfs-client" host.features

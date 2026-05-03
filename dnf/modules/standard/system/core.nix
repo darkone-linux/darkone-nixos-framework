@@ -4,6 +4,18 @@
 # This module is enabled by default (required by DNF configuration).
 # It is required for the proper functioning of every NixOS computer on the local network.
 # :::
+#
+# Sets up the systemd-boot loader, the LTS kernel, JetBrains Mono Nerd
+# Font (with `kmscon` for the TTY), nightly Nix store optimisation and
+# weekly garbage collection (30 d retention), the firewall, suspend
+# policy (servers can fully disable it via `disableSuspend`), polkit
+# rules letting `wheel` halt/reboot, and a shared `common-files`
+# group/user for cross-service media folders.
+#
+# :::note[Mixin entry point]
+# Activates the host's profile mixin (`darkone.host.${host.profile}.enable`)
+# and propagates `enableSops` to the sops module.
+# :::
 
 {
   lib,

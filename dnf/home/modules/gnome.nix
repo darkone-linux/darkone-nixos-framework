@@ -1,4 +1,15 @@
-# Gnome tweaks for home manager.
+# Gnome tweaks for home-manager.
+#
+# Hides the bare `xterm` launcher unconditionally, registers polished
+# `.desktop` entries for `scrcpy` and `scrcpy-console` when the package
+# is part of the user's `home.packages`, and (when `hideTechnicalIcons`
+# is set) hides Settings, Extensions, Printers and File Roller icons for
+# beginner / child profiles.
+#
+# :::caution[NFS bookmarks]
+# Do not declare `gtk.gtk3.bookmarks` from this module — the NFS module
+# (`service/nfs.nix`) owns this file and will overwrite it.
+# :::
 
 {
   lib,
@@ -9,7 +20,6 @@
 
 let
   cfg = config.darkone.home.gnome;
-  #hasNFS = (nfsServerCount = lib.count (s: s.name == "nfs" && s.zone == zone.name) osConfig.network.services) == 1;
 in
 {
   options = {
@@ -17,7 +27,6 @@ in
     darkone.home.gnome.hideTechnicalIcons = lib.mkEnableOption "Hide some icons for beginners / children / babies";
   };
 
-  # NOTE: do not declare gtk.gtk3.bookmarks, "nfs.nix" creates this file!
   config = lib.mkIf cfg.enable {
 
     # Hide xterm app

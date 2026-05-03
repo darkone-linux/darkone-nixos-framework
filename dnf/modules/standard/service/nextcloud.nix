@@ -1,4 +1,10 @@
 # Nextcloud full-configured service.
+#
+# :::caution[Required sops secret]
+# When enabled, this module reads the Nextcloud admin password from the sops
+# secret `nextcloud-admin-password`. Add the entry to `usr/secrets/` before
+# rebuilding, otherwise sops-nix activation will fail.
+# :::
 
 {
   lib,
@@ -26,11 +32,6 @@ in
       type = lib.types.str;
       default = "admin";
       description = "Admin username for Nextcloud";
-    };
-    darkone.service.nextcloud.adminPassword = lib.mkOption {
-      type = lib.types.str;
-      default = "changeme";
-      description = "Admin password for Nextcloud (change this!)";
     };
   };
 
@@ -83,8 +84,12 @@ in
       # Nextcloud dependencies
       #------------------------------------------------------------------------
 
-      # Initial admin password
-      environment.etc."nextcloud-admin-pass".text = "changeme";
+      # Initial admin password, provisioned from sops.
+      # The corresponding entry must exist in usr/secrets/.
+      sops.secrets."nextcloud-admin-password" = {
+        mode = "0400";
+        owner = "nextcloud";
+      };
 
       # Internal nginx
       services.nginx = {
@@ -135,7 +140,7 @@ in
         # Configuration de base
         config = {
           adminuser = cfg.adminUser;
-          adminpassFile = "/etc/nextcloud-admin-pass";
+          adminpassFile = config.sops.secrets."nextcloud-admin-password".path;
           dbtype = "pgsql";
         };
 

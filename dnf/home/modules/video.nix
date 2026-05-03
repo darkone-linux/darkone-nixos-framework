@@ -1,4 +1,11 @@
-# Video tools and apps.
+# Video tools and applications.
+#
+# Always installs the GNOME viewer (`showtime`) and gates the rest by
+# audience: `enableTools` (ffmpeg, mlt, vlc, video-trimmer, parabolic),
+# `enableEditing` (kdenlive + shotcut from stable nixpkgs),
+# `enableCreator` (OBS Studio with `obs-backgroundremoval`,
+# `obs-vkcapture`, etc.), `enableUnfree` (davinci-resolve from stable),
+# and `enableAlternative` (mpv).
 
 {
   pkgs,

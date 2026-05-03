@@ -1,22 +1,42 @@
-# Services helpers
+# DNF — services helpers
+#
+# Pure helpers that resolve service-related values (parameters, host
+# membership, firewall paths) from the flat data structures coming out of
+# `var/generated/` (hosts, network, services). All functions are total and
+# free of side effects so they can be reused by any DNF module.
 
-{ lib, strings }:
+{
+  lib,
+  strings,
+  constants,
+}:
 let
   inherit (lib) hasAttr hasAttrByPath findFirst;
 in
 rec {
 
-  # Extract params to use in the service.
-  extractServiceParams =
-    serviceHost: network: serviceName: defaults:
-    let
-      overloadParams = findFirst (
-        s: s.name == serviceName && s.host == serviceHost.hostname && s.zone == serviceHost.zone
-      ) { } network.services;
-    in
-    buildServiceParams serviceHost network overloadParams defaults;
+  # Look up a host by hostname and zone in a list of hosts.
+  # Returns `{}` when not found, matching the convention used by the rest
+  # of the helpers (callers may then probe with `hasAttr` before access).
+  findHost =
+    hostname: zoneName: hosts:
+    findFirst (h: h.hostname == hostname && h.zone == zoneName) { } hosts;
 
-  # Params calculated and used in services.nix
+  # Look up a service by name and zone in a list of services.
+  # Returns `null` when not found so callers can branch explicitly.
+  findService =
+    serviceName: zoneName: services:
+    findFirst (s: s.name == serviceName && s.zone == zoneName) null services;
+
+  # Resolve effective service parameters by merging, in order:
+  # 1. fields explicitly set on the network service entry,
+  # 2. defaults declared by the service module,
+  # 3. derived values (FQDN, href, IP) computed from the host topology.
+  #
+  # Empty strings in defaults are treated as missing so the derived values
+  # take over (eg. `domain` falls back to the service name).
+  #
+  # Used as a building block by `extractServiceParams`.
   buildServiceParams =
     serviceHost: network: service: defaults:
     let
@@ -72,24 +92,24 @@ rec {
       fqdn =
         if global then "${domain}.${serviceHost.networkDomain}" else "${domain}.${serviceHost.zoneDomain}";
       href = (if network.coordination.enable then "https://" else "http://") + fqdn;
+
+      # IP resolution cascade:
+      # 1. value explicitly set on the service or its defaults,
+      # 2. on the HCS itself, services answer on loopback (127.0.0.1),
+      # 3. external host registered in our tailnet -> reach via vpnIp,
+      # 4. plain host in a local zone -> reach via host.ip.
       ip =
         if hasAttr "ip" service then
           service.ip
         else if (hasAttr "ip" defaults) && defaults.ip != "" then
           defaults.ip
-
-        # Is HCS -> service is located in HCS reverse proxy -> IP is 120.0.0.1
         else if
           (hasAttrByPath [ "coordination" "hostname" ] network)
           && (serviceHost.hostname == network.coordination.hostname)
         then
           "127.0.0.1"
-
-        # Is in an external host of our tailnet -> internal VPN IP
         else if (hasAttr "vpnIp" serviceHost) && serviceHost.vpnIp != "" then
           serviceHost.vpnIp
-
-        # Is a host in a zone -> host IP
         else
           serviceHost.ip;
     in
@@ -107,40 +127,65 @@ rec {
       inherit ip;
     };
 
-  # If "vpnIp" exists, it is a headscale client but not a gateway.
-  isVpnClient = host: hasAttr "vpnIp" host;
+  # Look up a service entry matching the (host, zone) pair and call
+  # `buildServiceParams` on it. When no entry is found, an empty attrset is
+  # passed so all values fall back on `defaults` and topology.
+  extractServiceParams =
+    serviceHost: network: serviceName: defaults:
+    let
+      overloadParams = findFirst (
+        s: s.name == serviceName && s.host == serviceHost.hostname && s.zone == serviceHost.zone
+      ) { } network.services;
+    in
+    buildServiceParams serviceHost network overloadParams defaults;
 
-  # Is a gateway of a local zone.
+  # True when `host` has a non-empty `vpnIp` field, ie. when it is
+  # registered as a headscale (tailscale) client. The non-empty check
+  # avoids classifying a host as VPN client based solely on the attribute
+  # being present (the generated data may emit empty strings).
+  isVpnClient = host: hasAttr "vpnIp" host && host.vpnIp != "";
+
+  # True when `host` is the gateway of a local zone. A VPN client is never
+  # a gateway by construction.
   isGateway =
     host: zone:
     !(isVpnClient host)
     && hasAttrByPath [ "gateway" "hostname" ] zone
     && host.hostname == zone.gateway.hostname;
 
-  # Zone is a local zone, not the global one
-  inLocalZone = zone: zone.name != "www";
+  # True when `zone` is a local zone (not the global, Internet-facing one).
+  inLocalZone = zone: zone.name != constants.globalZone;
 
-  # This configuration have a headscale coordination server
+  # True when `host` is the headscale coordination server (HCS) of the
+  # network. The HCS lives in the global zone and matches the coordination
+  # hostname declared at the network level.
   isHcs =
     host: zone: network:
     (!(inLocalZone zone))
     && network.coordination.enable
     && network.coordination.hostname == host.hostname;
 
-  # Usage : ${dnfLib.getInternalInterface networking host zone} = { allowedTCPPorts = [ port ]; };
+  # Path inside `networking.firewall` selecting the internal interface to
+  # which a service should be exposed. Returns `[]` for hosts that have no
+  # internal interface (eg. external clients without VPN).
+  #
+  # Usage:
+  #   networking.firewall = lib.setAttrByPath
+  #     (dnfLib.getInternalInterfaceFwPath host zone)
+  #     { allowedTCPPorts = [ port ]; };
   getInternalInterfaceFwPath =
     host: zone:
     if (isGateway host zone) then
       [
         "interfaces"
-        "lan0"
+        constants.lanInterface
       ]
     else
       (
         if (isVpnClient host) then
           [
             "interfaces"
-            "tailscale0"
+            constants.vpnInterface
           ]
         else
           [ ]

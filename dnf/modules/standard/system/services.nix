@@ -36,9 +36,9 @@ let
 
   # Build services list from real and default values
   services = map (service: {
-    params = dnfLib.buildServiceParams (findFirst (
-      h: h.hostname == service.host && h.zone == service.zone
-    ) { } hosts) network service cfg.service.${service.name}.defaultParams;
+    params = dnfLib.buildServiceParams (dnfLib.findHost service.host service.zone
+      hosts
+    ) network service cfg.service.${service.name}.defaultParams;
     inherit (service) name;
     inherit (cfg.service.${service.name}) enable;
     inherit (cfg.service.${service.name}) displayOnHomepage;
@@ -150,8 +150,7 @@ let
   # Services to display on homepage dashboard
   homepageServices = filter (s: s.displayOnHomepage) services;
 
-  # TODO: factorize with tailscale.nix
-  caddyStorage = "/var/lib/caddy/storage";
+  inherit (dnfLib.constants) caddyStorage;
 
   mkHomeSection =
     services:

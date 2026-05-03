@@ -681,15 +681,19 @@ darkone.service.ncps = {
 
 Nextcloud full-configured service.
 
+:::caution[Required sops secret]
+When enabled, this module reads the Nextcloud admin password from the sops
+secret `nextcloud-admin-password`. Add the entry to `usr/secrets/` before
+rebuilding, otherwise sops-nix activation will fail.
+:::
+
 * **enable** `bool` Enable local nextcloud service
 * **adminUser** `str` Admin username for Nextcloud
-* **adminPassword** `str` Admin password for Nextcloud (change this!)
 
 ```nix
 darkone.service.nextcloud = {
   enable = false;
   adminUser = "admin";
-  adminPassword = "changeme";
 };
 ```
 
@@ -917,6 +921,18 @@ This module is enabled by default (required by DNF configuration).
 It is required for the proper functioning of every NixOS computer on the local network.
 :::
 
+Sets up the systemd-boot loader, the LTS kernel, JetBrains Mono Nerd
+Font (with `kmscon` for the TTY), nightly Nix store optimisation and
+weekly garbage collection (30 d retention), the firewall, suspend
+policy (servers can fully disable it via `disableSuspend`), polkit
+rules letting `wheel` halt/reboot, and a shared `common-files`
+group/user for cross-service media folders.
+
+:::note[Mixin entry point]
+Activates the host's profile mixin (`darkone.host.${host.profile}.enable`)
+and propagates `enableSops` to the sops module.
+:::
+
 * **enable** `bool` Darkone framework core system (activated by default)
 * **enableSystemdBoot** `bool` Enable the default boot loader
 * **enableFstrim** `bool` SSD optimisation with fstrim
@@ -983,10 +999,13 @@ Location and lang configuration.
 
 :::note
 By default, the configuration of this module adapts to the global configuration usr/config.yaml.
+The locale must follow the canonical `xx_YY.UTF-8` shape (eg. `fr_FR.UTF-8`)
+so the language and country codes can be safely derived for the console
+keymap, XKB layout, and Nextcloud phone region defaults.
 :::
 
 * **enable** `bool` Enable i18n with network zone configuration by default
-* **locale** `str` Network locale
+* **locale** `strMatching localeRegex` Network locale, must match the `xx_YY.UTF-8` shape.
 * **timeZone** `str` Network time zone
 
 ```nix
@@ -1080,12 +1099,20 @@ darkone.system.services = {
 
 ### &#x1F48E; darkone.system.sops
 
-DNF sops, passwords and secrets management
+DNF sops, passwords and secrets management.
 
 :::danger[Critical module]
 This module is enabled by default in core module.
 It is recommended to keep it enabled and configure it (`just passwd*` commands).
 :::
+
+Wires sops-nix to `usr/secrets/secrets.yaml` and unlocks it with the
+host SSH key (`ssh_host_ed25519_key`) plus the dedicated infrastructure
+age key (`/etc/sops/age/infra.key`). Pre-declares a shared `sops` group,
+the `default-password` / `default-password-hash` secrets (group-readable
+by `sops`), and one `user/<login>/password-hash` secret per host user
+(with `neededForUsers = true` so the hash is available before the user
+accounts are created).
 
 * **enable** `bool` Enable sops automated configuration for DNF
 
@@ -1199,7 +1226,13 @@ darkone.home.advanced = {
 
 ### &#x1F3E0; darkone.home.audio
 
-Audio tools.
+Audio tools and effects.
+
+Installs an audio player (`vlc`) and the MP3 encoder (`lame`)
+unconditionally, then layers editors and effects (`audacity`,
+`easyeffects` with the `easyeffects-fw16` preset) when `enableTools` is
+set. Real-time noise reduction (`noisetorch`) is intentionally disabled
+because it requires PulseAudio.
 
 * **enable** `bool` Audio tools
 * **enableTools** `bool` Audio tools / editors (audacity, easyeffect, noisetorch...)
@@ -1279,7 +1312,18 @@ darkone.home.games = {
 
 ### &#x1F3E0; darkone.home.gnome
 
-Gnome tweaks for home manager.
+Gnome tweaks for home-manager.
+
+Hides the bare `xterm` launcher unconditionally, registers polished
+`.desktop` entries for `scrcpy` and `scrcpy-console` when the package
+is part of the user's `home.packages`, and (when `hideTechnicalIcons`
+is set) hides Settings, Extensions, Printers and File Roller icons for
+beginner / child profiles.
+
+:::caution[NFS bookmarks]
+Do not declare `gtk.gtk3.bookmarks` from this module — the NFS module
+(`service/nfs.nix`) owns this file and will overwrite it.
+:::
 
 * **enable** `bool` Enable gnome settings for home manager
 * **hideTechnicalIcons** `bool` Hide some icons for beginners / children / babies
@@ -1295,7 +1339,13 @@ darkone.home.gnome = {
 
 ### &#x1F3E0; darkone.home.imagery
 
-Image processing softwares (gimp, geeqie, pinta + blender, inkscape, krita...).
+Image processing software.
+
+Always installs the lightweight viewer (`geeqie`) and editor (`gimp`),
+then layers tooling by audience: `enableBeginner` adds `pinta`,
+`enablePro` adds `inkscape`/`krita`/`yed`, `enable3D` (with
+`enablePro`) adds `blender`, `enableCAD` adds `freecad` (from stable
+nixpkgs to avoid Qt churn), and `enableCli` adds `imagemagick`/`jhead`.
 
 * **enable** `bool` Imagery creation
 * **enablePro** `bool` Additional image processing software for professionals
@@ -1338,6 +1388,20 @@ darkone.home.mime.enable = false;
 ### &#x1F3E0; darkone.home.music
 
 Graphical music and sound creation apps.
+
+Categorised by audience: `enablePro` (ardour, reaper, renoise,
+rosegarden), `enableCreator` (decibels, hydrogen), `enableScore`
+(musescore, muse-sounds-manager), `enableFun` (mixxx, mousai),
+`enableCli` (mpg123, cmus, lilypond), `enableEasy` (gnome-music vs.
+audacious), `enableMpd` (MPD daemon, ncmpcpp, mpdris2), and
+`enableDev` (lilypond).
+
+:::note[NFS-aware music library]
+When the host is an NFS client and the network exposes an `nfs` service
+in the same zone, MPD reads its music directory from the NFS mount
+(`/mnt/nfs/homes/$USER/Music`). Otherwise it falls back to the local
+`srv-dirs.homes` value, then to `~/Music`.
+:::
 
 * **enable** `bool` Music creation home module
 * **enablePro** `bool` Hard tools for professionals (rose, ardour...)
@@ -1413,7 +1477,14 @@ darkone.home.office = {
 
 ### &#x1F3E0; darkone.home.video
 
-Video tools and apps.
+Video tools and applications.
+
+Always installs the GNOME viewer (`showtime`) and gates the rest by
+audience: `enableTools` (ffmpeg, mlt, vlc, video-trimmer, parabolic),
+`enableEditing` (kdenlive + shotcut from stable nixpkgs),
+`enableCreator` (OBS Studio with `obs-backgroundremoval`,
+`obs-vkcapture`, etc.), `enableUnfree` (davinci-resolve from stable),
+and `enableAlternative` (mpv).
 
 * **enable** `bool` Video creation and tools home module
 * **enableTools** `bool` Video tools for professionals

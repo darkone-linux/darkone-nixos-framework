@@ -1,4 +1,10 @@
-# Audio tools.
+# Audio tools and effects.
+#
+# Installs an audio player (`vlc`) and the MP3 encoder (`lame`)
+# unconditionally, then layers editors and effects (`audacity`,
+# `easyeffects` with the `easyeffects-fw16` preset) when `enableTools` is
+# set. Real-time noise reduction (`noisetorch`) is intentionally disabled
+# because it requires PulseAudio.
 
 {
   pkgs,
