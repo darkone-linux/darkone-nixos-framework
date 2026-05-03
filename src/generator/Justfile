@@ -10,7 +10,7 @@ build:
 
 # Run unit tests
 test:
-    cargo test
+    cargo test --quiet
 
 # Run unit tests with output
 test-verbose:

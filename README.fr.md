@@ -256,7 +256,7 @@ Available recipes:
 
 ### En cours
 
-- [ ] SSO avec [Kanidm](https://kanidm.com/) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.idm))
+- [x] SSO avec [Kanidm](https://kanidm.com/) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.idm)) (finalisation)
 - [ ] SSO -> configuration paramétrable + gestion des droits.
 - [ ] Ponts Mautrix pour Matrix (whatsapp, telegram, messenger, discord).
 - [ ] IA générative self-hosted + agents.

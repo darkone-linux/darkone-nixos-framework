@@ -37,10 +37,12 @@ _default:
 # Log
 _log msg context="":
 	#!/usr/bin/env bash
-	if [ "{{context}}" == "" ] ;then
-		echo "[ {{BOLD + CYAN}}DNF{{NORMAL}} ] {{msg}}"
-	else
-		echo "[ {{BOLD + CYAN}}DNF{{NORMAL}} ] {{BOLD + MAGENTA}}{{context}}{{NORMAL}} • {{msg}}"
+	if [ -z "$QUIET" ] ;then
+		if [ "{{context}}" == "" ] ;then
+			echo "[ {{BOLD + CYAN}}DNF{{NORMAL}} ] {{msg}}"
+		else
+			echo "[ {{BOLD + CYAN}}DNF{{NORMAL}} ] {{BOLD + MAGENTA}}{{context}}{{NORMAL}} • {{msg}}"
+		fi
 	fi
 
 # Error
@@ -86,7 +88,7 @@ check:
 # Check the main flake
 [group('check')]
 check-flake:
-	{{nix}} flake check --all-systems
+	{{nix}} flake check --all-systems --quiet
 
 # Check with statix
 [group('check')]
@@ -108,13 +110,13 @@ unit-tests:
 	fi
 	echo "$test_files" | while read -r test; do
 		test_name=$(basename "$test" .nix)
-		echo -n "  Running $test_name..."
+		if [ -z "$QUIET" ]; then echo -n "  Running $test_name..."; fi
 		result=$({{nix}} eval --impure --expr "let lib = (import <nixpkgs> {}).lib; in import \".$test\" { inherit lib; }" 2>&1) || true
 		if echo "$result" | grep -q "FAIL:"; then
-			echo " {{RED}}FAILED{{NORMAL}}"
-			echo " -> {{RED}}$result{{NORMAL}}"
+			if [ -z "$QUIET" ]; then echo " {{RED}}FAILED{{NORMAL}}"; fi
+			echo " [ERR] {{RED}}$result{{NORMAL}}"
 		else
-			echo " {{GREEN}}OK{{NORMAL}}"
+			if [ -z "$QUIET" ]; then echo " {{GREEN}}OK{{NORMAL}}"; fi
 		fi
 	done
 
@@ -560,18 +562,22 @@ status:
 	{{nix}} flake show
 
 #==============================================================================
-# Pull / Push
+# Sub-projects
 #==============================================================================
 
 # Build the Rust generator
-[group('dev')]
-build-generator:
+[group('src')]
+gen-build:
 	just --justfile src/generator/Justfile build
 
 # Run Rust generator unit tests
-[group('dev')]
-test-generator:
+[group('src')]
+gen-test:
 	just --justfile src/generator/Justfile test
+
+#==============================================================================
+# Pull / Push
+#==============================================================================
 
 # Pull common files from DNF repository
 [group('dev')]
