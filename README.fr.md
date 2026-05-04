@@ -265,6 +265,7 @@ Available recipes:
   - [ ] Agents MCP personnels.
   - [ ] Générateur d'images et de médias.
 - [x] Remplacer le générateur PHP par un générateur Rust + parseur nix complet. (finalisation des tests)
+- [ ] Tests unitaires + tests de recette.
 
 ### Planifié
 
@@ -275,10 +276,10 @@ Available recipes:
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
 - [ ] Automatisation des secrets OIDC et similaires.
 - [ ] Corriger l'arbre de démarrage des services, un redémarrage de passerelle ou du HCS laisse certains services (kanidm, prometheus-node-exporter, mnt-nfs-homes) en berne.
+- [ ] Suite de tests de recette complète, intégrée à une stratégie d'intégration continue déclarative et utilisable par chaque instance DNF.
 
 ### Axes d'amélioration
 
-- [ ] Tests unitaires + tests de recette.
 - [ ] Remplacer Nextcloud par un équivalent plus simple, stable, performant et OIDC natif
   - [ ] [Ocis](https://doc.owncloud.com/ocis/next/), [OpenCloud](https://opencloud.eu/en/features) ([nix](https://search.nixos.org/options?channel=unstable&query=services.opencloud)), [Filebrowser Quantum](https://filebrowserquantum.com/en/) ([oidc](https://filebrowserquantum.com/en/docs/configuration/authentication/oidc/)), [OxiCloud](https://github.com/DioCrafts/OxiCloud) (un peu jeune)
   - [ ] [Rustical](https://github.com/lennart-k/rustical) ([pr nix](https://github.com/NixOS/nixpkgs/pull/424188), [oidc natif](https://lennart-k.github.io/rustical/setup/oidc/)) ou [Radical](https://github.com/Kozea/Radicale) ([nix](https://search.nixos.org/options?channel=unstable&query=services.radical)) pour calendar / contacts si nécessaire.
@@ -291,6 +292,7 @@ Available recipes:
 - [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
 - [ ] Serveur de mails.
 - [ ] Interface [headplane](https://github.com/tale/headplane) pour headscale.
+- [ ] Ajout de Grafana Loki sur les logs Caddy pour avoir des stats de fréquentation.
 
 ### TODO extraits du code source
 

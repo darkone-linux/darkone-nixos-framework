@@ -1,7 +1,8 @@
 # Darkone NixOS Framework
 
 - [The official documentation](https://darkone-linux.github.io)
-- [The french readme with a todo list](README.fr.md)
+- [Ce README en français](README.fr.md)
+- [To-Do list (fr)](README.fr.md#a-faire)
 
 ## A multi-user, multi-services & multi-host configuration
 
