@@ -36,6 +36,7 @@
     ./standard/service/jitsi-meet.nix
     ./standard/service/matrix.nix
     ./standard/service/mealie.nix
+    ./standard/service/minio.nix
     ./standard/service/monitoring.nix
     ./standard/service/ncps.nix
     ./standard/service/nextcloud.nix

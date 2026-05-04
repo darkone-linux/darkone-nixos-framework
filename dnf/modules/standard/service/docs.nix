@@ -4,6 +4,7 @@
   lib,
   dnfLib,
   config,
+  pkgs,
   network,
   zone,
   host,
@@ -20,10 +21,27 @@ let
     ip = "127.0.0.1";
   };
   params = dnfLib.extractServiceParams host network "docs" defaultParams;
+  usesLocalMinio = cfg.s3Host == "127.0.0.1" || cfg.s3Host == "localhost";
+  s3Url = "http://${cfg.s3Host}:${toString cfg.s3Port}/${cfg.s3Bucket}";
 in
 {
   options = {
     darkone.service.docs.enable = lib.mkEnableOption "Enable local docs service";
+    darkone.service.docs.s3Host = lib.mkOption {
+      type = lib.types.str;
+      default = "127.0.0.1";
+      description = "S3 backend hostname";
+    };
+    darkone.service.docs.s3Port = lib.mkOption {
+      type = lib.types.port;
+      default = 9000;
+      description = "S3 backend port";
+    };
+    darkone.service.docs.s3Bucket = lib.mkOption {
+      type = lib.types.str;
+      default = "docs";
+      description = "S3 bucket name for document storage";
+    };
   };
 
   config = lib.mkMerge [
@@ -101,12 +119,23 @@ in
         recommendedProxySettings = true;
       };
 
+      # Require local MinIO when using localhost S3 backend
+      darkone.service.minio.enable = lib.mkIf usesLocalMinio true;
+
+      # Create the S3 bucket after MinIO starts (local only)
+      systemd.services.minio.postStart = lib.mkIf usesLocalMinio ''
+        ${pkgs.mc}/bin/mc alias set docs-local http://${cfg.s3Host}:${toString cfg.s3Port} \
+          "$(cat ${config.sops.secrets.minio-root-user.path})" \
+          "$(cat ${config.sops.secrets.minio-root-password.path})" && \
+        ${pkgs.mc}/bin/mc mb --ignore-existing docs-local/${cfg.s3Bucket}
+      '';
+
       # Main service
       services.lasuite-docs = {
         enable = true;
         enableNginx = true;
         domain = params.fqdn;
-        s3Url = ""; # TODO: S3 service + bucket
+        inherit s3Url;
         redis.createLocally = true;
         postgresql.createLocally = true;
         settings = {

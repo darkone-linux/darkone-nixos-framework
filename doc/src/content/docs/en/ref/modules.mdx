@@ -442,9 +442,17 @@ darkone.service.dnsmasq.enable = false;
 A full-configured LaSuite Docs module. (wip)
 
 * **enable** `bool` Enable local docs service
+* **s3Host** `str` S3 backend hostname
+* **s3Port** `port` S3 backend port
+* **s3Bucket** `str` S3 bucket name for document storage
 
 ```nix
-darkone.service.docs.enable = false;
+darkone.service.docs = {
+  enable = false;
+  s3Host = "127.0.0.1";
+  s3Port = 9000;
+  s3Bucket = "docs";
+};
 ```
 
 <hr/>
@@ -615,6 +623,29 @@ Mealie Recipe Management
 
 ```nix
 darkone.service.mealie.enable = false;
+```
+
+<hr/>
+
+### &#x1F48E; darkone.service.minio
+
+A full-configured local MinIO S3 service. (wip)
+
+Provides an internal S3-compatible object storage backend accessible
+only on 127.0.0.1:9000. The console web UI runs on 127.0.0.1:9001
+for administration and debugging.
+
+:::note
+Buckets are NOT created automatically by this module.
+Each consumer service is responsible for creating its own buckets
+via a systemd postStart hook using the `mc` (MinIO Client) tool.
+Credentials are managed through sops.
+:::
+
+* **enable** `bool` Enable local MinIO S3 service
+
+```nix
+darkone.service.minio.enable = false;
 ```
 
 <hr/>
