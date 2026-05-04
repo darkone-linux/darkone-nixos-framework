@@ -123,140 +123,78 @@ pub fn parse_module_options(source: &str) -> Vec<NixOption> {
         return vec![];
     };
 
-    let bindings: Vec<ast::AttrpathValue> = options_attrset.attrpath_values().collect();
+    // Recursively collect (full_dotted_path, value) for every option declaration,
+    // descending into plain attrsets (which serve as namespace groupings).
+    let mut leaves: Vec<(String, Expr)> = vec![];
+    collect_option_leaves(&options_attrset, "", &mut leaves);
 
-    // Detect nested case: any binding's value is a plain attrset containing options.
-    // e.g.  darkone.service.docs = { enable = …; s3Host = …; };
-    // When nested, the module prefix is the attrpath of that binding.
-    // Otherwise fall back to the original heuristic (strip last attr piece).
-    let prefix = if let Some(nested_binding) = bindings
-        .iter()
-        .find(|b| matches!(b.value(), Some(Expr::AttrSet(_))))
-    {
-        nested_binding
-            .attrpath()
-            .map(|p| attrpath_to_dotted(&p))
-            .unwrap_or_default()
-    } else {
-        common_module_prefix(&bindings)
-    };
+    if leaves.is_empty() {
+        return vec![];
+    }
+
+    // Determine the module namespace prefix common to all leaves
+    // (e.g. "darkone.service.docs"), then strip it to get option-relative names.
+    let prefix = common_leaf_prefix(&leaves);
 
     let mut out = vec![];
-    for binding in &bindings {
-        let (Some(attrpath), Some(value)) = (binding.attrpath(), binding.value()) else {
+    for (path, value) in &leaves {
+        let name = strip_prefix(path, &prefix);
+        if name.is_empty() {
             continue;
-        };
-
-        let binding_path = attrpath_to_dotted(&attrpath);
-
-        // Nested container: the attrset value itself holds the options.
-        if let Expr::AttrSet(inner_set) = &value {
-            // Find the real option container path (e.g., "darkone.service.docs" if
-            // the options are inside `docs = { ... }`).
-            let real_container = find_option_container(inner_set, &binding_path);
-            let strip_prefix = if real_container.is_empty() {
-                binding_path.clone()
-            } else {
-                real_container
-            };
-            collect_nested_options(inner_set, &mut out, &strip_prefix, &strip_prefix, 1);
-        } else {
-            // Flat binding: strip the module prefix and collect the option.
-            let dotted = attrpath_to_dotted(&attrpath);
-            let name = strip_prefix(&dotted, &prefix);
-            if name.is_empty() {
-                continue;
-            }
-            collect_option(&mut out, &name, 1, &value);
         }
+        collect_option(&mut out, &name, 1, value);
     }
     out
 }
 
-/// Find the option container within a nested attrset.
-/// Returns the path to the attrset that directly contains option declarations.
-fn find_option_container(attrset: &ast::AttrSet, current_path: &str) -> String {
-    // Check if this attrset directly contains option declarations.
-    for binding in attrset.attrpath_values() {
-        let Some(value) = binding.value() else {
-            continue;
-        };
-        if is_option_declaration(&value) {
-            return current_path.to_string();
-        }
-    }
-
-    // Look for a nested attrset that is the container.
+/// Recursively traverses `attrset`, descending into nested attrsets (namespace
+/// groupings) and pushing a `(full_path, expr)` entry for every non-attrset
+/// binding (option declarations like `mkOption { … }` or `mkEnableOption "…"`).
+fn collect_option_leaves(attrset: &ast::AttrSet, path: &str, out: &mut Vec<(String, Expr)>) {
     for binding in attrset.attrpath_values() {
         let (Some(attrpath), Some(value)) = (binding.attrpath(), binding.value()) else {
             continue;
         };
-        if let Expr::AttrSet(child_set) = &value {
-            let child_name = attrpath_to_dotted(&attrpath);
-            let child_path = if current_path.is_empty() {
-                child_name.clone()
-            } else {
-                format!("{}.{}", current_path, child_name)
-            };
-            let result = find_option_container(child_set, &child_path);
-            if !result.is_empty() {
-                return result;
-            }
-        }
-    }
-
-    String::new()
-}
-
-/// Check if an expression is an option declaration (mkOption or mkEnableOption call).
-fn is_option_declaration(expr: &Expr) -> bool {
-    if let Expr::Apply(app) = expr {
-        if let Some(lambda) = app.lambda() {
-            let lambda_str = lambda.to_string();
-            return lambda_str.contains("mkOption") || lambda_str.contains("mkEnableOption");
-        }
-    }
-    false
-}
-
-/// Recursively collect options from a nested attrset.
-/// `current_path` is the full path to this attrset (used to build option names).
-/// `prefix` is the module prefix to strip from option names.
-fn collect_nested_options(
-    attrset: &ast::AttrSet,
-    out: &mut Vec<NixOption>,
-    container_path: &str,
-    prefix: &str,
-    level: usize,
-) {
-    for binding in attrset.attrpath_values() {
-        let (Some(attrpath), Some(value)) = (binding.attrpath(), binding.value()) else {
-            continue;
+        let segment = attrpath_to_dotted(&attrpath);
+        let full_path = if path.is_empty() {
+            segment
+        } else {
+            format!("{}.{}", path, segment)
         };
 
-        let binding_name = attrpath_to_dotted(&attrpath);
-        let full_path = if container_path.is_empty() {
-            binding_name.clone()
-        } else {
-            format!("{}.{}", container_path, binding_name)
-        };
-
-        if let Expr::AttrSet(inner_set) = &value {
-            // Recurse into nested attrsets
-            collect_nested_options(inner_set, out, &full_path, prefix, level + 1);
-        } else {
-            // This is a leaf option
-            let name = if prefix.is_empty() {
-                binding_name.clone()
-            } else {
-                strip_prefix(&full_path, prefix)
-            };
-            if name.is_empty() {
-                continue;
-            }
-            collect_option(out, &name, level, &value);
+        match &value {
+            // Plain attrset = namespace grouping; recurse into it.
+            Expr::AttrSet(inner) => collect_option_leaves(inner, &full_path, out),
+            // Anything else is treated as a potential option declaration.
+            _ => out.push((full_path, value)),
         }
     }
+}
+
+/// Returns the longest dotted-path prefix shared by all leaves, ensuring each
+/// leaf still contributes at least one segment as its option name.
+fn common_leaf_prefix(leaves: &[(String, Expr)]) -> String {
+    let segs_list: Vec<Vec<&str>> = leaves
+        .iter()
+        .map(|(p, _)| p.split('.').collect())
+        .collect();
+
+    let first = &segs_list[0];
+    // Upper bound: all-but-last segment count of the first path.
+    let mut prefix_len = first.len() - 1;
+    for segs in &segs_list[1..] {
+        // Ensure every leaf retains at least one name segment.
+        prefix_len = prefix_len.min(segs.len() - 1);
+        // Shrink to the actually shared prefix.
+        let common = first
+            .iter()
+            .zip(segs.iter())
+            .take_while(|(a, b)| a == b)
+            .count();
+        prefix_len = prefix_len.min(common);
+    }
+
+    first[..prefix_len].join(".")
 }
 
 /// Walks the file's top expression to locate the attrset that holds `options = { … }`.
@@ -307,20 +245,6 @@ fn innermost_body(mut expr: Expr) -> Expr {
             other => return other,
         }
     }
-}
-
-fn common_module_prefix(bindings: &[ast::AttrpathValue]) -> String {
-    // For darkone modules the prefix is everything but the last attr of the
-    // first binding (e.g. `darkone.host.gateway` from `darkone.host.gateway.enable`).
-    for av in bindings {
-        let Some(path) = av.attrpath() else { continue };
-        let attrs: Vec<String> = path.attrs().map(|a| attr_to_string(&a)).collect();
-        if attrs.len() < 2 {
-            return String::new();
-        }
-        return attrs[..attrs.len() - 1].join(".");
-    }
-    String::new()
 }
 
 fn strip_prefix(dotted: &str, prefix: &str) -> String {
