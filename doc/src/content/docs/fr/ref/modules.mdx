@@ -682,15 +682,19 @@ darkone.service.ncps = {
 
 Service Nextcloud entièrement configuré.
 
+:::caution[Secret sops requis]
+Lorsque ce module est activé, il lit le mot de passe administrateur Nextcloud
+depuis le secret sops `nextcloud-admin-password`. Ajoutez cette entrée dans
+`usr/secrets/` avant de reconstruire, sinon l'activation de sops-nix échouera.
+:::
+
 * **enable** `bool` Activer le service nextcloud local
 * **adminUser** `str` Nom d'utilisateur admin pour Nextcloud
-* **adminPassword** `str` Mot de passe admin pour Nextcloud (changez ceci!)
 
 ```nix
 darkone.service.nextcloud = {
   enable = false;
   adminUser = "admin";
-  adminPassword = "changeme";
 };
 ```
 
@@ -919,6 +923,19 @@ Ce module est activé par défaut (requis par la configuration DNF).
 Il est requis pour le bon fonctionnement de chaque ordinateur NixOS sur le réseau local.
 :::
 
+Configure le chargeur de démarrage systemd-boot, le noyau LTS, la police
+JetBrains Mono Nerd (avec `kmscon` pour le TTY), l'optimisation nocturne du
+store Nix et le nettoyage hebdomadaire (rétention de 30 jours), le pare-feu,
+la politique de suspension (les serveurs peuvent la désactiver complètement
+via `disableSuspend`), les règles polkit permettant à `wheel` d'arrêter/redémarrer,
+et un groupe/utilisateur partagé `common-files` pour les dossiers médias
+inter-services.
+
+:::note[Point d'entrée des mixins]
+Active le mixin du profil de l'hôte (`darkone.host.${host.profile}.enable`)
+et propage `enableSops` au module sops.
+:::
+
 * **enable** `bool` Système central du framework Darkone (activé par défaut)
 * **enableSystemdBoot** `bool` Activer le chargeur de boot par défaut
 * **enableFstrim** `bool` Optimisation SSD avec fstrim
@@ -928,7 +945,7 @@ Il est requis pour le bon fonctionnement de chaque ordinateur NixOS sur le rése
 * **enableKmscon** `bool` Activer la police nerd pour TTY
 * **enableBoost** `bool` Activer l'overclocking, corectl
 * **enableAutoSuspend** `bool` Activer la suspension automatique (pour laptops, ignoré si disableSuspend est true)
-* **disableSuspend** `bool` Désactivation complètes de la suspend (pour serveurs)
+* **disableSuspend** `bool` Désactivation complète de la suspension (pour serveurs)
 * **enableCommonFilesUser** `bool` Activer l'utilisateur common-files utilisé par plusieurs services
 
 ```nix
@@ -985,10 +1002,13 @@ Configuration de la locale et de la langue.
 
 :::note
 Par défaut, la configuration de ce module s'adapte à la configuration globale usr/config.yaml.
+La locale doit suivre la forme canonique `xx_YY.UTF-8` (ex. `fr_FR.UTF-8`)
+afin que les codes de langue et de pays puissent être dérivés en toute sécurité pour la
+console, la disposition XKB et les valeurs par défaut de région téléphonique Nextcloud.
 :::
 
 * **enable** `bool` Activer i18n avec configuration de zone réseau par défaut
-* **locale** `str` Locale réseau
+* **locale** `strMatching localeRegex` Locale réseau, doit correspondre à la forme `xx_YY.UTF-8`.
 * **timeZone** `str` Fuseau horaire réseau
 
 ```nix
@@ -1089,6 +1109,14 @@ Ce module est activé par défaut dans le module core.
 Il est recommandé de le garder activé et de le configurer (`just passwd*` commandes).
 :::
 
+Connecte sops-nix à `usr/secrets/secrets.yaml` et le déverrouille avec la clé
+SSH de l'hôte (`ssh_host_ed25519_key`) ainsi que la clé age d'infrastructure
+dédiée (`/etc/sops/age/infra.key`). Pré-déclare un groupe partagé `sops`,
+les secrets `default-password` / `default-password-hash` (lisibles par le groupe
+`sops`), et un secret `user/<login>/password-hash` par utilisateur de l'hôte
+(avec `neededForUsers = true` pour que le hash soit disponible avant la création
+des comptes utilisateur).
+
 * **enable** `bool` Activer la configuration sops automatisée pour DNF
 
 ```nix
@@ -1171,7 +1199,7 @@ darkone.user.root.enable = true;
 **Un module home manager** fonctionne avec les profils [home manager](https://github.com/nix-community/home-manager).
 :::
 
-### 🏠 darkone.home.advanced
+### &#x1F3E0; darkone.home.advanced
 
 Profil home pour utilisateurs avancés (informaticiens, développeurs, administrateurs).
 
@@ -1197,9 +1225,15 @@ darkone.home.advanced = {
 
 <hr/>
 
-### 🏠 darkone.home.audio
+### &#x1F3E0; darkone.home.audio
 
-Outils audio.
+Outils et effets audio.
+
+Installe un lecteur audio (`vlc`) et l'encodeur MP3 (`lame`)
+inconditionnellement, puis ajoute les éditeurs et effets (`audacity`,
+`easyeffects` avec le préréglage `easyeffects-fw16`) lorsque `enableTools`
+est activé. La réduction de bruit en temps réel (`noisetorch`) est intentionnellement
+désactivée car elle nécessite PulseAudio.
 
 * **enable** `bool` Outils audio
 * **enableTools** `bool` Outils / éditeurs audio (audacity, easyeffect, noisetorch...)
@@ -1213,7 +1247,7 @@ darkone.home.audio = {
 
 <hr/>
 
-### 🏠 darkone.home.education
+### &#x1F3E0; darkone.home.education
 
 Plusieurs paquets graphiques éducatifs.
 
@@ -1247,7 +1281,7 @@ darkone.home.education = {
 
 <hr/>
 
-### 🏠 darkone.home.games
+### &#x1F3E0; darkone.home.games
 
 Plusieurs paquets de jeux graphiques.
 
@@ -1277,9 +1311,20 @@ darkone.home.games = {
 
 <hr/>
 
-### 🏠 darkone.home.gnome
+### &#x1F3E0; darkone.home.gnome
 
-Ajustements Gnome pour home manager.
+Ajustements Gnome pour home-manager.
+
+Masque le lanceur `xterm` brut inconditionnellement, enregistre des entrées
+`.desktop` soignées pour `scrcpy` et `scrcpy-console` lorsque le paquet
+fait partie des `home.packages` de l'utilisateur, et (lorsque `hideTechnicalIcons`
+est activé) masque les icônes Paramètres, Extensions, Imprimantes et Gestionnaire
+d'archives pour les profils débutant / enfant.
+
+:::caution[Signets NFS]
+Ne déclarez pas `gtk.gtk3.bookmarks` depuis ce module — le module NFS
+(`service/nfs.nix`) est propriétaire de ce fichier et l'écrasera.
+:::
 
 * **enable** `bool` Activer les paramètres gnome pour home manager
 * **hideTechnicalIcons** `bool` Masquer quelques icônes pour débutants / enfants / bebés
@@ -1293,9 +1338,16 @@ darkone.home.gnome = {
 
 <hr/>
 
-### 🏠 darkone.home.imagery
+### &#x1F3E0; darkone.home.imagery
 
-Logiciels de traitement d'image (gimp, geeqie, pinta + blender, inkscape, krita...).
+Logiciels de traitement d'image.
+
+Installe toujours le visionneur léger (`geeqie`) et l'éditeur (`gimp`),
+puis ajoute les outils par public : `enableBeginner` ajoute `pinta`,
+`enablePro` ajoute `inkscape`/`krita`/`yed`, `enable3D` (avec
+`enablePro`) ajoute `blender`, `enableCAD` ajoute `freecad` (depuis
+nixpkgs stable pour éviter les changements Qt), et `enableCli` ajoute
+`imagemagick`/`jhead`.
 
 * **enable** `bool` Création d'images
 * **enablePro** `bool` Logiciels de traitement d'image supplémentaires pour professionnels
@@ -1317,7 +1369,7 @@ darkone.home.imagery = {
 
 <hr/>
 
-### 🏠 darkone.home.mime
+### &#x1F3E0; darkone.home.mime
 
 Module DNF pour les types MIME. (wip)
 
@@ -1335,17 +1387,31 @@ darkone.home.mime.enable = false;
 
 <hr/>
 
-### 🏠 darkone.home.music
+### &#x1F3E0; darkone.home.music
 
 Applications graphiques de création musicale et sonore.
 
+Catégorisées par public : `enablePro` (ardour, reaper, renoise,
+rosegarden), `enableCreator` (decibels, hydrogen), `enableScore`
+(musescore, muse-sounds-manager), `enableFun` (mixxx, mousai),
+`enableCli` (mpg123, cmus, lilypond), `enableEasy` (gnome-music vs.
+audacious), `enableMpd` (démon MPD, ncmpcpp, mpdris2), et
+`enableDev` (lilypond).
+
+:::note[Bibliothèque musicale compatible NFS]
+Lorsque l'hôte est un client NFS et que le réseau expose un service `nfs`
+dans la même zone, MPD lit son répertoire de musique depuis le montage NFS
+(`/mnt/nfs/homes/$USER/Music`). Sinon, il utilise la valeur locale
+`srv-dirs.homes`, puis `~/Music` en dernier recours.
+:::
+
 * **enable** `bool` Module home de création musicale
-* **enablePro** `bool` Outils difficiles pour professionnels (rose, ardour...)
+* **enablePro** `bool` Outils complexes pour professionnels (rose, ardour...)
 * **enableFun** `bool` Outils audio amusants (mixxx...)
 * **enableCli** `bool` Outils audio en ligne de commande (mpg123, cmus, moc...)
 * **enableDev** `bool` Logiciels audio pour développeurs (lilypond...)
 * **enableMpd** `bool` Démon MPD et lecteurs (mpd, ncmpcpp...)
-* **enableEasy** `bool` Outils simples au lieu de efficaces (gnome-music vs audacious...)
+* **enableEasy** `bool` Outils simples au lieu d'efficaces (gnome-music vs audacious...)
 * **enableScore** `bool` Logiciels de partition (musescore...)
 * **enableCreator** `bool` Outils de création pour débutants (lmms, hydrogen...)
 
@@ -1365,7 +1431,7 @@ darkone.home.music = {
 
 <hr/>
 
-### 🏠 darkone.home.office
+### &#x1F3E0; darkone.home.office
 
 Outils communs pour bureau.
 
@@ -1411,9 +1477,16 @@ darkone.home.office = {
 
 <hr/>
 
-### 🏠 darkone.home.video
+### &#x1F3E0; darkone.home.video
 
 Outils et applications vidéo.
+
+Installe toujours le visionneur GNOME (`showtime`) et conditionne le reste
+par public : `enableTools` (ffmpeg, mlt, vlc, video-trimmer, parabolic),
+`enableEditing` (kdenlive + shotcut depuis nixpkgs stable),
+`enableCreator` (OBS Studio avec `obs-backgroundremoval`,
+`obs-vkcapture`, etc.), `enableUnfree` (davinci-resolve depuis stable),
+et `enableAlternative` (mpv).
 
 * **enable** `bool` Module home de création et outils vidéo
 * **enableTools** `bool` Outils vidéo pour professionnels
