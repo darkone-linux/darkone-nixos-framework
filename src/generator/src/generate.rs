@@ -161,7 +161,10 @@ impl Generate {
         attrs.set_string("name", &zone.name);
 
         if zone.is_external() {
-            attrs.set("tls-builder-hosts", Box::new(self.compute_tls_builder_hosts()));
+            attrs.set(
+                "tls-builder-hosts",
+                Box::new(self.compute_tls_builder_hosts()),
+            );
             let unbound_data = self.compute_unbound_local_data(zone);
             if !unbound_data.is_empty() {
                 let mut unbound = NixAttrSet::new();
@@ -182,15 +185,15 @@ impl Generate {
         let mut settings = NixAttrSet::new();
 
         // dhcp-host: sorted MAC entries (stable diffs)
-        let mut dhcp_entries: Vec<&str> = zone
-            .mac_addresses()
-            .values()
-            .map(String::as_str)
-            .collect();
+        let mut dhcp_entries: Vec<&str> =
+            zone.mac_addresses().values().map(String::as_str).collect();
         dhcp_entries.sort();
         settings.set("dhcp-host", Box::new(NixList::from_strings(dhcp_entries)));
 
-        settings.set("dhcp-range", Box::new(NixList::from_strings(&zone.dhcp_range)));
+        settings.set(
+            "dhcp-range",
+            Box::new(NixList::from_strings(&zone.dhcp_range)),
+        );
 
         // address: /<zone.domain>/<gateway-lan-ip>
         let mut address = NixList::new();
@@ -396,8 +399,11 @@ impl Generate {
                 std::fs::write(machine_dir.join("hardware-configuration.nix"), "{}")
             })?;
             seed_if_missing(&machine_dir.join("disko.nix"), || {
-                std::fs::copy(self.project_root.join(profile_path), machine_dir.join("disko.nix"))
-                    .map(|_| ())
+                std::fs::copy(
+                    self.project_root.join(profile_path),
+                    machine_dir.join("disko.nix"),
+                )
+                .map(|_| ())
             })?;
 
             // generated-configuration.nix: always (re)written from the host's

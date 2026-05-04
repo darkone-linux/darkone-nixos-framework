@@ -26,21 +26,23 @@ let
 in
 {
   options = {
-    darkone.service.docs.enable = lib.mkEnableOption "Enable local docs service";
-    darkone.service.docs.s3Host = lib.mkOption {
-      type = lib.types.str;
-      default = "127.0.0.1";
-      description = "S3 backend hostname";
-    };
-    darkone.service.docs.s3Port = lib.mkOption {
-      type = lib.types.port;
-      default = 9000;
-      description = "S3 backend port";
-    };
-    darkone.service.docs.s3Bucket = lib.mkOption {
-      type = lib.types.str;
-      default = "docs";
-      description = "S3 bucket name for document storage";
+    darkone.service.docs = {
+      enable = lib.mkEnableOption "Enable local docs service";
+      s3Host = lib.mkOption {
+        type = lib.types.str;
+        default = "127.0.0.1";
+        description = "S3 backend hostname";
+      };
+      s3Port = lib.mkOption {
+        type = lib.types.port;
+        default = 9000;
+        description = "S3 backend port";
+      };
+      s3Bucket = lib.mkOption {
+        type = lib.types.str;
+        default = "docs";
+        description = "S3 bucket name for document storage";
+      };
     };
   };
 

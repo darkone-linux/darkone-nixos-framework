@@ -3,12 +3,12 @@ use std::collections::{HashMap, HashSet};
 use indexmap::IndexMap;
 
 use crate::error::{NixError, Result};
+use crate::nix_generator::item::host::ServiceParams;
 use crate::nix_generator::nix_service::{NixService, UNIQUE_SERVICES_BY_ZONE};
 use crate::nix_generator::nix_zone::{NixZone, EXTERNAL_ZONE_KEY};
 use crate::nix_generator::validation::{
     assert_email, assert_regex, RE_FQDN, RE_HOSTNAME, RE_LOCALE, RE_SMTP_PROTOCOL, RE_TIMEZONE,
 };
-use crate::nix_generator::item::host::ServiceParams;
 
 const DEFAULT_DOMAIN: &str = "darkone.lan";
 const DEFAULT_LOCALE: &str = "fr_FR.UTF-8";

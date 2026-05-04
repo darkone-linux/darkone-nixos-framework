@@ -10,7 +10,8 @@ use crate::mdx_generator::nix_parser::{
     extract_first_comment, extract_module_path, extract_nix_files, parse_module_options, NixOption,
 };
 
-const FRONTMATTER: &str = "---\ntitle: Modules\nsidebar:\n  order: 1\n  badge:\n    text: New\n    variant: tip\n---\n";
+const FRONTMATTER: &str =
+    "---\ntitle: Modules\nsidebar:\n  order: 1\n  badge:\n    text: New\n    variant: tip\n---\n";
 
 struct Category {
     title: &'static str,
@@ -70,6 +71,7 @@ fn render_category(category: &Category, dir: &Path) -> String {
     out
 }
 
+// Collect nix modules contents
 fn collect_entries(dir: &Path, prefix: &str) -> Vec<ModuleEntry> {
     let files: Vec<PathBuf> = extract_nix_files(dir);
     let mut entries = vec![];
@@ -129,10 +131,7 @@ fn render_options(entry: &ModuleEntry) -> String {
             // Diving in: the previous option's name becomes a parent dotted prefix.
             while opened_levels.len() < opt.level - 1 {
                 let idx = opened_levels.len() + 1;
-                let parent = names_by_level
-                    .get(idx)
-                    .cloned()
-                    .unwrap_or_default();
+                let parent = names_by_level.get(idx).cloned().unwrap_or_default();
                 opened_levels.push(parent);
             }
         } else if opt.level <= last_level {

@@ -187,12 +187,9 @@ impl Configuration {
 
         for (login_val, user_cfg) in users {
             let login = login_val.as_str().unwrap_or_default();
-            let uid = user_cfg
-                .get("uid")
-                .and_then(Value::as_u64)
-                .ok_or_else(|| {
-                    NixError::validation(format!("A valid uid is required for {login}"))
-                })? as u32;
+            let uid = user_cfg.get("uid").and_then(Value::as_u64).ok_or_else(|| {
+                NixError::validation(format!("A valid uid is required for {login}"))
+            })? as u32;
             let name = as_str_opt(user_cfg, "name").ok_or_else(|| {
                 NixError::validation(format!("A valid user name is required for {login}"))
             })?;
@@ -300,7 +297,11 @@ impl Configuration {
                 .and_then(Value::as_str)
                 .map(str::to_string);
             host.services = services;
-            host.set_disko(disko_profile(host_val), disko_devices(host_val), project_root)?;
+            host.set_disko(
+                disko_profile(host_val),
+                disko_devices(host_val),
+                project_root,
+            )?;
 
             // Mirror the host into the zone (DHCP, aliases) and into the
             // service registry, then publish a DNS record.

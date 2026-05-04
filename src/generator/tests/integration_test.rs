@@ -639,11 +639,26 @@ fn generate_network_services_all_present() {
     let (_dir, root) = setup_test_root();
     let output = make_generate(&root).generate_network_raw().unwrap();
     // All 5 services from the fixture
-    assert!(output.contains(r#"name = "headscale""#), "Missing headscale service");
-    assert!(output.contains(r#"name = "nextcloud""#), "Missing nextcloud service");
-    assert!(output.contains(r#"name = "adguardhome""#), "Missing adguardhome service");
-    assert!(output.contains(r#"name = "homepage""#), "Missing homepage service");
-    assert!(output.contains(r#"name = "restic""#), "Missing restic service");
+    assert!(
+        output.contains(r#"name = "headscale""#),
+        "Missing headscale service"
+    );
+    assert!(
+        output.contains(r#"name = "nextcloud""#),
+        "Missing nextcloud service"
+    );
+    assert!(
+        output.contains(r#"name = "adguardhome""#),
+        "Missing adguardhome service"
+    );
+    assert!(
+        output.contains(r#"name = "homepage""#),
+        "Missing homepage service"
+    );
+    assert!(
+        output.contains(r#"name = "restic""#),
+        "Missing restic service"
+    );
 }
 
 #[test]
@@ -684,8 +699,14 @@ fn generate_network_service_insertion_order() {
 fn generate_network_zones_both_present() {
     let (_dir, root) = setup_test_root();
     let output = make_generate(&root).generate_network_raw().unwrap();
-    assert!(output.contains(r#"www = {"#) || output.contains("www ="), "Missing www zone");
-    assert!(output.contains(r#"local = {"#) || output.contains("local ="), "Missing local zone");
+    assert!(
+        output.contains(r#"www = {"#) || output.contains("www ="),
+        "Missing www zone"
+    );
+    assert!(
+        output.contains(r#"local = {"#) || output.contains("local ="),
+        "Missing local zone"
+    );
 }
 
 #[test]
@@ -696,7 +717,10 @@ fn generate_network_www_zone_config() {
     assert_str_field(&output, "locale", "fr_FR.UTF-8");
     assert_str_field(&output, "timezone", "Europe/Paris");
     // www zone name field
-    assert!(output.contains(r#"name = "www""#), "www zone must have name = \"www\"");
+    assert!(
+        output.contains(r#"name = "www""#),
+        "www zone must have name = \"www\""
+    );
 }
 
 #[test]
@@ -714,7 +738,10 @@ fn generate_network_local_zone_config() {
     assert_str_field(&output, "ipPrefix", "10.9");
     assert_str_field(&output, "networkIp", "10.9.0.0");
     assert!(output.contains("prefixLength = 16"), "Missing prefixLength");
-    assert!(output.contains(r#"name = "local""#), "local zone must have name field");
+    assert!(
+        output.contains(r#"name = "local""#),
+        "local zone must have name field"
+    );
 }
 
 #[test]
@@ -765,8 +792,14 @@ fn generate_network_local_zone_host_records_hosts() {
     let (_dir, root) = setup_test_root();
     let output = make_generate(&root).generate_network_raw().unwrap();
     // All 3 hosts in host-record
-    assert!(output.contains("gw.local.test.lan"), "Missing gw host-record");
-    assert!(output.contains("ws.local.test.lan"), "Missing ws host-record");
+    assert!(
+        output.contains("gw.local.test.lan"),
+        "Missing gw host-record"
+    );
+    assert!(
+        output.contains("ws.local.test.lan"),
+        "Missing ws host-record"
+    );
     assert!(output.contains("vps.test.lan"), "Missing vps host-record");
 }
 
@@ -899,7 +932,11 @@ fn generate_disko_creates_empty_hardware_configuration() {
     make_generate(&root).run("disko").unwrap();
     let content =
         fs::read_to_string(root.join("usr/machines/vps/hardware-configuration.nix")).unwrap();
-    assert_eq!(content.trim(), "{}", "hardware-configuration.nix must be empty attrset");
+    assert_eq!(
+        content.trim(),
+        "{}",
+        "hardware-configuration.nix must be empty attrset"
+    );
 }
 
 #[test]
@@ -977,11 +1014,7 @@ fn generate_disko_does_not_overwrite_existing_disko_nix() {
     let (_dir, root) = setup_test_root();
     // Pre-create disko.nix with custom content
     fs::create_dir_all(root.join("usr/machines/vps")).unwrap();
-    fs::write(
-        root.join("usr/machines/vps/disko.nix"),
-        "# custom disko",
-    )
-    .unwrap();
+    fs::write(root.join("usr/machines/vps/disko.nix"), "# custom disko").unwrap();
     make_generate(&root).run("disko").unwrap();
     let content = fs::read_to_string(root.join("usr/machines/vps/disko.nix")).unwrap();
     assert_eq!(

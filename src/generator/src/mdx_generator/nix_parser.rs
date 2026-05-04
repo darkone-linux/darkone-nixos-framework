@@ -123,26 +123,140 @@ pub fn parse_module_options(source: &str) -> Vec<NixOption> {
         return vec![];
     };
 
-    // The first non-trivial binding's attrpath determines the module prefix
-    // we strip from all sibling bindings (e.g. `darkone.host.gateway`).
     let bindings: Vec<ast::AttrpathValue> = options_attrset.attrpath_values().collect();
-    let prefix = common_module_prefix(&bindings);
+
+    // Detect nested case: any binding's value is a plain attrset containing options.
+    // e.g.  darkone.service.docs = { enable = …; s3Host = …; };
+    // When nested, the module prefix is the attrpath of that binding.
+    // Otherwise fall back to the original heuristic (strip last attr piece).
+    let prefix = if let Some(nested_binding) = bindings
+        .iter()
+        .find(|b| matches!(b.value(), Some(Expr::AttrSet(_))))
+    {
+        nested_binding
+            .attrpath()
+            .map(|p| attrpath_to_dotted(&p))
+            .unwrap_or_default()
+    } else {
+        common_module_prefix(&bindings)
+    };
 
     let mut out = vec![];
     for binding in &bindings {
-        let attrpath = binding.attrpath();
-        let value = binding.value();
-        let (Some(attrpath), Some(value)) = (attrpath, value) else {
+        let (Some(attrpath), Some(value)) = (binding.attrpath(), binding.value()) else {
             continue;
         };
-        let dotted = attrpath_to_dotted(&attrpath);
-        let name = strip_prefix(&dotted, &prefix);
-        if name.is_empty() {
-            continue;
+
+        let binding_path = attrpath_to_dotted(&attrpath);
+
+        // Nested container: the attrset value itself holds the options.
+        if let Expr::AttrSet(inner_set) = &value {
+            // Find the real option container path (e.g., "darkone.service.docs" if
+            // the options are inside `docs = { ... }`).
+            let real_container = find_option_container(inner_set, &binding_path);
+            let strip_prefix = if real_container.is_empty() {
+                binding_path.clone()
+            } else {
+                real_container
+            };
+            collect_nested_options(inner_set, &mut out, &strip_prefix, &strip_prefix, 1);
+        } else {
+            // Flat binding: strip the module prefix and collect the option.
+            let dotted = attrpath_to_dotted(&attrpath);
+            let name = strip_prefix(&dotted, &prefix);
+            if name.is_empty() {
+                continue;
+            }
+            collect_option(&mut out, &name, 1, &value);
         }
-        collect_option(&mut out, &name, 1, &value);
     }
     out
+}
+
+/// Find the option container within a nested attrset.
+/// Returns the path to the attrset that directly contains option declarations.
+fn find_option_container(attrset: &ast::AttrSet, current_path: &str) -> String {
+    // Check if this attrset directly contains option declarations.
+    for binding in attrset.attrpath_values() {
+        let Some(value) = binding.value() else {
+            continue;
+        };
+        if is_option_declaration(&value) {
+            return current_path.to_string();
+        }
+    }
+
+    // Look for a nested attrset that is the container.
+    for binding in attrset.attrpath_values() {
+        let (Some(attrpath), Some(value)) = (binding.attrpath(), binding.value()) else {
+            continue;
+        };
+        if let Expr::AttrSet(child_set) = &value {
+            let child_name = attrpath_to_dotted(&attrpath);
+            let child_path = if current_path.is_empty() {
+                child_name.clone()
+            } else {
+                format!("{}.{}", current_path, child_name)
+            };
+            let result = find_option_container(child_set, &child_path);
+            if !result.is_empty() {
+                return result;
+            }
+        }
+    }
+
+    String::new()
+}
+
+/// Check if an expression is an option declaration (mkOption or mkEnableOption call).
+fn is_option_declaration(expr: &Expr) -> bool {
+    if let Expr::Apply(app) = expr {
+        if let Some(lambda) = app.lambda() {
+            let lambda_str = lambda.to_string();
+            return lambda_str.contains("mkOption") || lambda_str.contains("mkEnableOption");
+        }
+    }
+    false
+}
+
+/// Recursively collect options from a nested attrset.
+/// `current_path` is the full path to this attrset (used to build option names).
+/// `prefix` is the module prefix to strip from option names.
+fn collect_nested_options(
+    attrset: &ast::AttrSet,
+    out: &mut Vec<NixOption>,
+    container_path: &str,
+    prefix: &str,
+    level: usize,
+) {
+    for binding in attrset.attrpath_values() {
+        let (Some(attrpath), Some(value)) = (binding.attrpath(), binding.value()) else {
+            continue;
+        };
+
+        let binding_name = attrpath_to_dotted(&attrpath);
+        let full_path = if container_path.is_empty() {
+            binding_name.clone()
+        } else {
+            format!("{}.{}", container_path, binding_name)
+        };
+
+        if let Expr::AttrSet(inner_set) = &value {
+            // Recurse into nested attrsets
+            collect_nested_options(inner_set, out, &full_path, prefix, level + 1);
+        } else {
+            // This is a leaf option
+            let name = if prefix.is_empty() {
+                binding_name.clone()
+            } else {
+                strip_prefix(&full_path, prefix)
+            };
+            if name.is_empty() {
+                continue;
+            }
+            collect_option(out, &name, level, &value);
+        }
+    }
 }
 
 /// Walks the file's top expression to locate the attrset that holds `options = { … }`.
@@ -153,7 +267,10 @@ fn find_options_attrset(expr: &Expr) -> Option<ast::AttrSet> {
         _ => return None,
     };
     for av in attrset.attrpath_values() {
-        let dotted = av.attrpath().map(|p| attrpath_to_dotted(&p)).unwrap_or_default();
+        let dotted = av
+            .attrpath()
+            .map(|p| attrpath_to_dotted(&p))
+            .unwrap_or_default();
         if dotted == "options" {
             if let Some(Expr::AttrSet(inner)) = av.value() {
                 return Some(inner);
@@ -325,7 +442,8 @@ fn option_call(expr: &Expr) -> Option<OptionCall> {
                     "default" => fields.default = Some(node_text(&v)),
                     "example" => fields.example = Some(node_text(&v)),
                     "description" => {
-                        fields.description = Some(expr_string_value(&v).unwrap_or_else(|| node_text(&v)));
+                        fields.description =
+                            Some(expr_string_value(&v).unwrap_or_else(|| node_text(&v)));
                     }
                     _ => {}
                 }
@@ -397,7 +515,10 @@ fn attrpath_to_dotted(path: &ast::Attrpath) -> String {
 
 fn attr_to_string(attr: &Attr) -> String {
     match attr {
-        Attr::Ident(i) => i.ident_token().map(|t| t.text().to_string()).unwrap_or_default(),
+        Attr::Ident(i) => i
+            .ident_token()
+            .map(|t| t.text().to_string())
+            .unwrap_or_default(),
         Attr::Str(s) => expr_string_value(&Expr::Str(s.clone())).unwrap_or_default(),
         Attr::Dynamic(d) => d.syntax().text().to_string(),
     }
@@ -519,6 +640,175 @@ fn find_options_inside(set: &ast::AttrSet) -> Option<ast::AttrSet> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nested_options() {
+        let src = r#"
+{ lib, ... }: {
+  options = {
+    darkone.service.docs = {
+      enable = lib.mkEnableOption "Enable local docs service";
+      s3Host = lib.mkOption {
+        type = lib.types.str;
+        default = "127.0.0.1";
+        description = "S3 backend hostname";
+      };
+      s3Port = lib.mkOption {
+        type = lib.types.port;
+        default = 9000;
+        description = "S3 backend port";
+      };
+      s3Bucket = lib.mkOption {
+        type = lib.types.str;
+        default = "docs";
+        description = "S3 bucket name for document storage";
+      };
+    };
+  };
+}
+"#;
+        let opts = parse_module_options(src);
+        assert_eq!(opts.len(), 4, "Expected 4 options, got {}", opts.len());
+        assert_eq!(opts[0].name, "enable");
+        assert_eq!(opts[0].type_label, "bool");
+        assert_eq!(opts[1].name, "s3Host");
+        assert_eq!(opts[1].type_label, "str");
+        assert_eq!(opts[1].default.as_deref(), Some("\"127.0.0.1\""));
+        assert_eq!(opts[2].name, "s3Port");
+        assert_eq!(opts[3].name, "s3Bucket");
+    }
+
+    #[test]
+    fn flat_options_alt() {
+        let src = r#"
+{ lib, ... }: {
+  options = {
+    darkone.service.docs.enable = lib.mkEnableOption "Enable local docs service";
+    darkone.service.docs.s3Host = lib.mkOption {
+      type = lib.types.str;
+      default = "127.0.0.1";
+      description = "S3 backend hostname";
+    };
+    darkone.service.docs.s3Port = lib.mkOption {
+      type = lib.types.port;
+      default = 9000;
+      description = "S3 backend port";
+    };
+    darkone.service.docs.s3Bucket = lib.mkOption {
+      type = lib.types.str;
+      default = "docs";
+      description = "S3 bucket name for document storage";
+    };
+  };
+}
+"#;
+        let opts = parse_module_options(src);
+        assert_eq!(opts.len(), 4, "Expected 4 options, got {}", opts.len());
+        assert_eq!(opts[0].name, "enable");
+        assert_eq!(opts[0].type_label, "bool");
+        assert_eq!(opts[1].name, "s3Host");
+        assert_eq!(opts[1].type_label, "str");
+        assert_eq!(opts[1].default.as_deref(), Some("\"127.0.0.1\""));
+        assert_eq!(opts[2].name, "s3Port");
+        assert_eq!(opts[3].name, "s3Bucket");
+    }
+
+    #[test]
+    fn deeply_nested_options() {
+        let src = r#"
+{ lib, ... }: {
+  options = {
+    darkone.service.docs = {
+      enable = lib.mkEnableOption "Enable";
+      s3Host = lib.mkOption {
+        type = lib.types.str;
+        default = "127.0.0.1";
+        description = "Host";
+      };
+      s3Port = lib.mkOption {
+        type = lib.types.port;
+        default = 9000;
+        description = "Port";
+      };
+    };
+  };
+}
+"#;
+        let opts = parse_module_options(src);
+        assert_eq!(opts.len(), 3, "Expected 3 options, got {}", opts.len());
+        assert_eq!(opts[0].name, "enable");
+        assert_eq!(opts[0].type_label, "bool");
+        assert_eq!(opts[1].name, "s3Host");
+        assert_eq!(opts[1].type_label, "str");
+        assert_eq!(opts[2].name, "s3Port");
+    }
+
+    #[test]
+    fn flat_docs_options() {
+        let src = r#"
+{ lib, ... }: {
+  options = {
+    darkone.service.docs.enable = lib.mkEnableOption "Enable local docs service";
+    darkone.service.docs.s3Host = lib.mkOption {
+      type = lib.types.str;
+      default = "127.0.0.1";
+      description = "S3 backend hostname";
+    };
+    darkone.service.docs.s3Port = lib.mkOption {
+      type = lib.types.port;
+      default = 9000;
+      description = "S3 backend port";
+    };
+    darkone.service.docs.s3Bucket = lib.mkOption {
+      type = lib.types.str;
+      default = "docs";
+      description = "S3 bucket name for document storage";
+    };
+  };
+}
+"#;
+        let opts = parse_module_options(src);
+        assert_eq!(opts.len(), 4, "Expected 4 options, got {}", opts.len());
+        assert_eq!(opts[0].name, "enable");
+        assert_eq!(opts[0].type_label, "bool");
+        assert_eq!(opts[1].name, "s3Host");
+        assert_eq!(opts[1].type_label, "str");
+        assert_eq!(opts[1].default.as_deref(), Some("\"127.0.0.1\""));
+        assert_eq!(opts[2].name, "s3Port");
+        assert_eq!(opts[3].name, "s3Bucket");
+    }
+
+    #[test]
+    fn deeper_nested_docs_options() {
+        let src = r#"
+{ lib, ... }: {
+  options = {
+    darkone.service.docs = {
+      enable = lib.mkEnableOption "Enable";
+      s3 = {
+        host = lib.mkOption {
+          type = lib.types.str;
+          default = "127.0.0.1";
+          description = "S3 host";
+        };
+        port = lib.mkOption {
+          type = lib.types.port;
+          default = 9000;
+          description = "S3 port";
+        };
+      };
+    };
+  };
+}
+"#;
+        let opts = parse_module_options(src);
+        assert_eq!(opts.len(), 3, "Expected 3 options, got {}", opts.len());
+        assert_eq!(opts[0].name, "enable");
+        assert_eq!(opts[0].type_label, "bool");
+        assert_eq!(opts[1].name, "s3.host");
+        assert_eq!(opts[1].type_label, "str");
+        assert_eq!(opts[2].name, "s3.port");
+    }
 
     #[test]
     fn first_comment_block() {

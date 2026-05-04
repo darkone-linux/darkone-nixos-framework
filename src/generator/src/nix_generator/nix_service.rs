@@ -75,7 +75,6 @@ impl NixService {
             format!("{label}.{zone_domain}")
         }
     }
-
 }
 
 #[cfg(test)]
