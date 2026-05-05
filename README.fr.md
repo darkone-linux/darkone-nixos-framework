@@ -266,6 +266,8 @@ Available recipes:
   - [ ] Générateur d'images et de médias.
 - [x] Remplacer le générateur PHP par un générateur Rust + parseur nix complet. (finalisation des tests)
 - [ ] Tests unitaires + tests de recette.
+- [ ] Module LaSuite Docs
+- [ ] Module MinIO
 
 ### Planifié
 
