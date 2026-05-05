@@ -6,3 +6,4 @@ result
 .gitmodules
 .direnv
 target
+tmp
