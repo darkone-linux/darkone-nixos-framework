@@ -6,6 +6,7 @@
   config,
   pkgs,
   host,
+  hosts,
   zone,
   network,
   ...
@@ -19,6 +20,15 @@ let
     icon = "conduit-open-webui";
   };
   params = dnfLib.extractServiceParams host network "ai" defaultParams;
+
+  # Historical kanidm client name predates the service-name convention.
+  clientId = dnfLib.oauth2ClientName {
+    name = "ai";
+    clientName = "open-webui";
+  } params;
+  
+  secret = "oidc-secret-${clientId}";
+  idmUrl = dnfLib.idmHref network hosts;
 in
 {
   options = {
@@ -38,6 +48,16 @@ in
           dirs = [ config.services.open-webui.stateDir ];
         };
         proxy.servicePort = internalPort;
+      };
+
+      # Kanidm OAuth2 client template (historical name kept via clientName override)
+      darkone.service.idm.oauth2.ai = {
+        clientName = "open-webui";
+        displayName = "Open WebUI";
+        imageFile = ./../../../assets/app-icons/open-webui.svg;
+        redirectPaths = [ "/oauth/oidc/callback" ];
+        landingPath = "/";
+        preferShortUsername = false;
       };
     }
 
@@ -91,11 +111,11 @@ in
       #------------------------------------------------------------------------
 
       # Sops secret
-      sops.secrets.oidc-secret-open-webui = { };
+      sops.secrets.${secret} = { };
       sops.secrets.default-password = { };
       sops.templates.open-webui-env-file = {
         content = ''
-          OAUTH_CLIENT_SECRET=${config.sops.placeholder.oidc-secret-open-webui}
+          OAUTH_CLIENT_SECRET=${config.sops.placeholder.${secret}}
           WEBUI_ADMIN_PASSWORD=${config.sops.placeholder.default-password}
         '';
         mode = "0400";
@@ -135,8 +155,8 @@ in
           WEBUI_AUTH = "True";
 
           # Required for OIDC
-          OAUTH_CLIENT_ID = "open-webui";
-          OPENID_PROVIDER_URL = "https://idm.${network.domain}/oauth2/openid/open-webui/.well-known/openid-configuration";
+          OAUTH_CLIENT_ID = clientId;
+          OPENID_PROVIDER_URL = "${idmUrl}/oauth2/openid/${clientId}/.well-known/openid-configuration";
           OAUTH_CODE_CHALLENGE_METHOD = "S256"; # PKCE -> https://docs.openwebui.com/reference/env-configuration#oauth_code_challenge_method
 
           # Auto-signup

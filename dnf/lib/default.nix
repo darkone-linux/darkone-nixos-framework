@@ -20,6 +20,8 @@ in
     findService
     buildServiceParams
     extractServiceParams
+    oauth2ClientName
+    idmHref
     isVpnClient
     isGateway
     inLocalZone

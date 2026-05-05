@@ -554,9 +554,34 @@ darkone.service.homepage = {
 Kanidm (identity manager) DNF Service.
 
 * **enable** `bool` Enable local SSO with Kanidm
+* **oauth2** `attrs` OAuth2/OIDC client templates contributed by service modules.
+Kanidm provisions one client per matching entry in `network.services`,
+with `clientId = dnfLib.oauth2ClientName`.
+  * **enable** `bool` Whether to provision OAuth2 clients for this template.
+  * **clientName** `nullOr str` Override the kanidm client name. Defaults to dnfLib.oauth2ClientName.
+  * **displayName** `str` Human-readable name shown on the kanidm consent screen.
+  * **imageFile** `path` Application icon. Re-uploaded on every kanidm-provision run.
+  * **redirectPaths** `listOf str` OAuth2 redirect paths (one per accepted callback URL).
+  * **landingPath** `str` Auto-connect entry point path on the service.
+  * **enableLegacyCrypto** `bool` Allow legacy JWT signing algorithms (eg. RS256).
+  * **allowInsecureClientDisablePkce** `bool` Disable PKCE on the client (only for clients that do not implement it).
+  * **preferShortUsername** `nullOr bool` Use the short username (no domain) in the `preferred_username` claim.
+  * **extra** `attrs` Extra attributes merged into the provisioned client (claimMaps, etc).
 
 ```nix
-darkone.service.idm.enable = false;
+darkone.service.idm = {
+  enable = false;
+  oauth2.enable = true;
+  oauth2.clientName = null;
+  oauth2.displayName = null;
+  oauth2.imageFile = null;
+  oauth2.redirectPaths = [ ];
+  oauth2.landingPath = "/";
+  oauth2.enableLegacyCrypto = false;
+  oauth2.allowInsecureClientDisablePkce = false;
+  oauth2.preferShortUsername = null;
+  oauth2.extra = { };
+};
 ```
 
 <hr/>

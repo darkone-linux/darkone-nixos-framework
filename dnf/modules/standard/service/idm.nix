@@ -5,6 +5,7 @@
   dnfLib,
   network,
   host,
+  hosts,
   zone,
   config,
   users,
@@ -39,10 +40,134 @@ let
     icon = "kanidm";
   };
   params = dnfLib.extractServiceParams host network "idm" defaultParams;
+
+  # OAuth2 client expansion: cross-product of registered templates with the
+  # service instances declared in `network.services`. Each pair becomes one
+  # provisioned kanidm client and one sops secret.
+  oauth2Templates = config.darkone.service.idm.oauth2;
+  oauth2Pairs = concatMap (
+    svc:
+    let
+      tpl = oauth2Templates.${svc.name} or null;
+    in
+    if tpl == null || !tpl.enable then
+      [ ]
+    else
+      let
+        svcHost = dnfLib.findHost svc.host svc.zone hosts;
+        svcRegistration = config.darkone.system.services.service.${svc.name} or { };
+        svcDflts = svcRegistration.defaultParams or { };
+        svcParams = dnfLib.buildServiceParams svcHost network svc svcDflts;
+        clientId = dnfLib.oauth2ClientName {
+          inherit (svc) name;
+          inherit (tpl) clientName;
+        } svcParams;
+      in
+      [
+        {
+          inherit clientId tpl;
+          params = svcParams;
+          secret = "oidc-secret-${clientId}";
+        }
+      ]
+  ) network.services;
+
+  # Prefix path templates with the resolved service href, but pass through
+  # absolute URLs (eg. mobile-app schemes like `app.immich:///oauth-callback`).
+  fullUrl = href: p: if hasInfix "://" p then p else "${href}${p}";
 in
 {
   options = {
     darkone.service.idm.enable = mkEnableOption "Enable local SSO with Kanidm";
+
+    # OAuth2 client registry. Each service module that supports OIDC contributes
+    # a template here unconditionally; when the idm module is enabled, kanidm
+    # iterates `network.services` and provisions one client per (template,
+    # instance) pair (see the expansion in the `config` block below).
+    #
+    # Service modules declare path templates only (no scheme/host); idm.nix
+    # prefixes them with the resolved `params.href` of each service instance
+    # to eliminate hardcoded subdomains.
+    darkone.service.idm.oauth2 = mkOption {
+      default = { };
+      description = ''
+        OAuth2/OIDC client templates contributed by service modules.
+        Kanidm provisions one client per matching entry in `network.services`,
+        with `clientId = dnfLib.oauth2ClientName`.
+      '';
+      type = types.attrsOf (
+        types.submodule (_: {
+          options = {
+            # Disable the template without unloading the consumer module.
+            enable = mkOption {
+              type = types.bool;
+              default = true;
+              description = "Whether to provision OAuth2 clients for this template.";
+            };
+
+            # Override the auto-derived client name. Use this only when an
+            # historical identifier must be preserved (eg. "matrix-synapse",
+            # "open-webui", "lasuite-docs").
+            clientName = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Override the kanidm client name. Defaults to dnfLib.oauth2ClientName.";
+            };
+
+            displayName = mkOption {
+              type = types.str;
+              description = "Human-readable name shown on the kanidm consent screen.";
+            };
+
+            imageFile = mkOption {
+              type = types.path;
+              description = "Application icon. Re-uploaded on every kanidm-provision run.";
+            };
+
+            # Path components only (eg. `/oauth/callback`). idm.nix expands
+            # them per instance with `${params.href}${path}`.
+            redirectPaths = mkOption {
+              type = types.listOf types.str;
+              default = [ ];
+              description = "OAuth2 redirect paths (one per accepted callback URL).";
+            };
+
+            landingPath = mkOption {
+              type = types.str;
+              default = "/";
+              description = "Auto-connect entry point path on the service.";
+            };
+
+            enableLegacyCrypto = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Allow legacy JWT signing algorithms (eg. RS256).";
+            };
+
+            allowInsecureClientDisablePkce = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Disable PKCE on the client (only for clients that do not implement it).";
+            };
+
+            preferShortUsername = mkOption {
+              type = types.nullOr types.bool;
+              default = null;
+              description = "Use the short username (no domain) in the `preferred_username` claim.";
+            };
+
+            # Future home for service-specific extras: `claimMaps`,
+            # `scopeMaps` overrides, etc. Merged verbatim into the
+            # generated kanidm provision attrset.
+            extra = mkOption {
+              type = types.attrs;
+              default = { };
+              description = "Extra attributes merged into the provisioned client (claimMaps, etc).";
+            };
+          };
+        })
+      );
+    };
   };
 
   config = mkMerge [
@@ -84,33 +209,38 @@ in
       # Kanidm user & secrets
       #========================================================================
 
-      # Kanidm secrets auths
-      sops.secrets = builtins.listToAttrs (
-        map
-          (item: {
-            name = item;
+      # Kanidm internal secrets + OAuth2 client secrets (one per provisioned
+      # client, generated from `oauth2Pairs`). The `oidc-secret-internal`
+      # entry is consumed by oauth2-proxy (in `system/services.nix`), not by
+      # kanidm provisioning, hence its presence in the static list.
+      sops.secrets = mkMerge [
+        (listToAttrs (
+          map
+            (item: {
+              name = item;
+              value = {
+                mode = "0400";
+                owner = "kanidm";
+              };
+            })
+            [
+              "kanidm-idm-admin-password"
+              "kanidm-admin-password"
+              "kanidm-tls-chain"
+              "kanidm-tls-key"
+              "oidc-secret-internal"
+            ]
+        ))
+        (listToAttrs (
+          map (p: {
+            name = p.secret;
             value = {
               mode = "0400";
               owner = "kanidm";
             };
-          })
-          [
-            "kanidm-idm-admin-password"
-            "kanidm-admin-password"
-            "kanidm-tls-chain"
-            "kanidm-tls-key"
-            "oidc-secret-outline"
-            "oidc-secret-forgejo"
-            "oidc-secret-internal"
-            "oidc-secret-immich"
-            "oidc-secret-nextcloud"
-            "oidc-secret-mealie"
-            "oidc-secret-matrix-synapse"
-            "oidc-secret-open-webui"
-            "oidc-secret-lasuite-docs"
-            #"oidc-secret-vaultwarden"
-          ]
-      );
+          }) oauth2Pairs
+        ))
+      ];
 
       #========================================================================
       # Kanidm service
@@ -238,152 +368,35 @@ in
           };
 
           #----------------------------------------------------------------------
-          # Oauth2 provisioning (TODO: automatiser... URLs, etc.)
+          # OAuth2 provisioning
           #----------------------------------------------------------------------
+          #
+          # Each entry below comes from a `darkone.service.idm.oauth2.<name>`
+          # template contributed by a service module, expanded against the
+          # matching `network.services` instances. See the `oauth2Pairs`
+          # let-binding above for the full computation, and the OAuth2
+          # template in `service/forgejo.nix` for the canonical example.
+          # -> https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
 
-          # TODO: affiner -> https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
-          systems.oauth2 = {
-
-            # https://forgejo.org/docs/next/user/oauth2-provider/
-            forgejo = {
-              displayName = "Forgejo Git Service";
-
-              # Application image to display in the WebUI.
-              # Kanidm supports “image/jpeg”, “image/png”, “image/gif”, “image/svg+xml”, and “image/webp”.
-              # The image will be uploaded each time kanidm-provision is run.
-              # -> https://selfh.st/icons/
-              imageFile = ./../../../assets/app-icons/forgejo.svg;
-
-              # Enable legacy crypto on this client. Allows JWT signing algorthms like RS256.
-              enableLegacyCrypto = false;
-
-              # The redirect URL of the service. These need to exactly match the OAuth2 redirect target.
-              originUrl = "https://git.${network.domain}/user/oauth2/idm/callback";
-              originLanding = "https://git.${network.domain}/user/oauth2/idm"; # Auto-connect
-
-              # https://forgejo.org/docs/next/user/oauth2-provider/#public-client-pkce
-              allowInsecureClientDisablePkce = false;
-
-              basicSecretFile = secrets.oidc-secret-forgejo.path;
-
-              inherit scopeMaps;
-            };
-
-            # Outline WIKI (domain="notes")
-            outline = {
-              displayName = "Outline Documentation";
-              imageFile = ./../../../assets/app-icons/outline.svg;
-              originUrl = "https://notes.${network.domain}/auth/oidc.callback";
-              originLanding = "https://notes.${network.domain}/";
-              basicSecretFile = secrets.oidc-secret-outline.path;
-              allowInsecureClientDisablePkce = true;
-              inherit scopeMaps;
-            };
-
-            # Immich
-            immich = {
-              displayName = "Immich";
-              imageFile = ./../../../assets/app-icons/immich.svg;
-              originUrl = [
-                "https://photos.${network.domain}/auth/login"
-                "https://photos.${network.domain}/user-settings"
-                "app.immich:///oauth-callback"
-              ];
-              originLanding = "https://photos.${network.domain}/";
-              basicSecretFile = secrets.oidc-secret-immich.path;
-              allowInsecureClientDisablePkce = false;
-              inherit scopeMaps;
-            };
-
-            # Nextcloud
-            nextcloud = {
-              displayName = "Nextcloud";
-              imageFile = ./../../../assets/app-icons/nextcloud.svg;
-              originUrl = [
-                "https://cloud.${network.domain}/login"
-                "https://cloud.${network.domain}/apps/sociallogin/custom_oauth2/IDM"
-                "https://cloud.${network.domain}/apps/sociallogin/custom_oidc/IDM"
-                "https://cloud.${network.domain}/ui/oauth2"
-              ];
-              originLanding = "https://cloud.${network.domain}/";
-              basicSecretFile = secrets.oidc-secret-nextcloud.path;
-              allowInsecureClientDisablePkce = true;
-              inherit scopeMaps;
-            };
-
-            # Mealie
-            mealie = {
-              displayName = "Mealie";
-              imageFile = ./../../../assets/app-icons/mealie.svg;
-              originUrl = [
-                "https://mealie.${network.domain}/login"
-                "https://mealie.${network.domain}/login?direct=1"
-              ];
-              originLanding = "https://mealie.${network.domain}/";
-              basicSecretFile = secrets.oidc-secret-mealie.path;
-              inherit scopeMaps;
-            };
-
-            # Open WebUI + Ollama
-            open-webui = {
-              displayName = "Open WebUI";
-              imageFile = ./../../../assets/app-icons/open-webui.svg;
-              originUrl = [ "https://ai.cp.${network.domain}/oauth/oidc/callback" ];
-              originLanding = "https://ai.cp.${network.domain}/";
-              basicSecretFile = secrets.oidc-secret-open-webui.path;
-              preferShortUsername = false;
-              inherit scopeMaps;
-            };
-
-            # Vaultwarden
-            # -> https://github.com/dani-garcia/vaultwarden/wiki/Enabling-SSO-support-using-OpenId-Connect
-            # vaultwarden = {
-            #   displayName = "Vaultwarden";
-            #   imageFile = ./../../../assets/app-icons/vaultwarden.svg;
-            #   originUrl = [ "https://vaultwarden.${network.domain}/identity/connect/oidc-signin" ];
-            #   originLanding = "https://vaultwarden.${network.domain}/";
-            #   basicSecretFile = secrets.oidc-secret-vaultwarden.path;
-            #   preferShortUsername = false;
-            #   inherit scopeMaps;
-            # };
-
-            # Matrix Synapse
-            # -> https://element-hq.github.io/synapse/latest/openid.html
-            matrix-synapse = {
-              displayName = "Matrix Synapse";
-              imageFile = ./../../../assets/app-icons/synapse.svg;
-              originUrl = [ "https://matrix.${network.domain}/_synapse/client/oidc/callback" ];
-              originLanding = "https://matrix.${network.domain}/";
-              basicSecretFile = secrets.oidc-secret-matrix-synapse.path;
-              preferShortUsername = true;
-              inherit scopeMaps;
-            };
-
-            # Lasuite Docs
-            # -> https://github.com/laurentS/lasuite-docs/blob/main/docs/env.md
-            lasuite-docs = {
-              displayName = "LaSuite Docs";
-              imageFile = ./../../../assets/app-icons/docs-collaboration.svg;
-              originUrl = [ "https://docs.${network.domain}" ];
-              originLanding = "https://docs.${network.domain}/";
-              basicSecretFile = secrets.oidc-secret-lasuite-docs.path;
-              preferShortUsername = false;
-              inherit scopeMaps;
-            };
-
-            # Internal Service (TODO)
-            # internal-service = {
-            #   present = true;
-            #   displayName = "Internal Service Proxy";
-            #   imageFile = ./../../../assets/app-icons/oauth2-proxy.svg;
-            #   originUrl = "https://auth.${zone.domain}/oauth2/callback";
-            #   originLanding = "https://auth.${zone.domain}/";
-            #   basicSecretFile = secrets.oidc-secret-internal.path;
-            #   allowInsecureClientDisablePkce = true;
-            #   inherit scopeMaps;
-            #   claimMaps.outline.valuesByGroup = valuesByGroup;
-            # };
-          };
+          systems.oauth2 = listToAttrs (
+            map (p: {
+              name = p.clientId;
+              value = {
+                inherit (p.tpl)
+                  displayName
+                  imageFile
+                  enableLegacyCrypto
+                  allowInsecureClientDisablePkce
+                  ;
+                originUrl = map (path: fullUrl p.params.href path) p.tpl.redirectPaths;
+                originLanding = fullUrl p.params.href p.tpl.landingPath;
+                basicSecretFile = config.sops.secrets.${p.secret}.path;
+                inherit scopeMaps;
+              }
+              // optionalAttrs (p.tpl.preferShortUsername != null) { inherit (p.tpl) preferShortUsername; }
+              // p.tpl.extra;
+            }) oauth2Pairs
+          );
 
           #----------------------------------------------------------------------
           # Users provisioning

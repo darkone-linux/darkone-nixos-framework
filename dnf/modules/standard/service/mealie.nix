@@ -6,6 +6,7 @@
   config,
   network,
   host,
+  hosts,
   pkgs-stable,
   ...
 }:
@@ -14,6 +15,9 @@ let
   srv = config.services.mealie;
   inherit (network) smtp;
   params = dnfLib.extractServiceParams host network "mealie" { };
+  clientId = dnfLib.oauth2ClientName { name = "mealie"; } params;
+  secret = "oidc-secret-${clientId}";
+  idmUrl = dnfLib.idmHref network hosts;
 in
 {
   options = {
@@ -31,6 +35,17 @@ in
         persist.dirs = [ "/var/lib/mealie" ];
         proxy.servicePort = srv.port;
       };
+
+      # Kanidm OAuth2 client template
+      darkone.service.idm.oauth2.mealie = {
+        displayName = "Mealie";
+        imageFile = ./../../../assets/app-icons/mealie.svg;
+        redirectPaths = [
+          "/login"
+          "/login?direct=1"
+        ];
+        landingPath = "/";
+      };
     }
 
     (lib.mkIf cfg.enable {
@@ -42,11 +57,11 @@ in
       };
 
       sops.secrets."smtp/password" = { };
-      sops.secrets.oidc-secret-mealie = { };
+      sops.secrets.${secret} = { };
       sops.templates.mealie-credentials = {
         content = ''
           SMTP_PASSWORD=${config.sops.placeholder."smtp/password"}
-          OIDC_CLIENT_SECRET=${config.sops.placeholder.oidc-secret-mealie}
+          OIDC_CLIENT_SECRET=${config.sops.placeholder.${secret}}
         '';
         mode = "0400";
         owner = "mealie";
@@ -79,12 +94,12 @@ in
           SMTP_AUTH_STRATEGY = if smtp.tls then "SSL" else "NONE";
 
           OIDC_AUTH_ENABLED = "true";
-          OIDC_CLIENT_ID = "mealie";
+          OIDC_CLIENT_ID = clientId;
           OIDC_USER_GROUP = "users@${network.domain}";
           OIDC_ADMIN_GROUP = "admins@${network.domain}";
           OIDC_AUTO_REDIRECT = "true";
           OIDC_SIGNING_ALGORITHM = "ES256";
-          OIDC_CONFIGURATION_URL = "https://idm.${network.domain}/oauth2/openid/mealie/.well-known/openid-configuration";
+          OIDC_CONFIGURATION_URL = "${idmUrl}/oauth2/openid/${clientId}/.well-known/openid-configuration";
           OIDC_PROVIDER_NAME = "IDM";
         };
       };

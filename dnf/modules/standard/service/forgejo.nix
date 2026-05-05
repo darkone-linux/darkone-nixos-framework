@@ -35,6 +35,39 @@ in
         ];
         proxy.servicePort = srv.HTTP_PORT;
       };
+
+      #----------------------------------------------------------------------
+      # Kanidm OAuth2 client template (model for other services)
+      #----------------------------------------------------------------------
+
+      # https://forgejo.org/docs/next/user/oauth2-provider/
+      darkone.service.idm.oauth2.forgejo = {
+
+        # The service sub-domain is `git`, so the auto-derived client name
+        # would be `forgejo-git`. We override it to keep the historical
+        # `forgejo` identifier (and its matching `oidc-secret-forgejo` key).
+        clientName = "forgejo";
+
+        displayName = "Forgejo Git Service";
+
+        # Application image to display in the WebUI.
+        # Kanidm supports "image/jpeg", "image/png", "image/gif", "image/svg+xml", and "image/webp".
+        # The image will be uploaded each time kanidm-provision is run.
+        # -> https://selfh.st/icons/
+        imageFile = ./../../../assets/app-icons/forgejo.svg;
+
+        # Enable legacy crypto on this client. Allows JWT signing algorithms like RS256.
+        enableLegacyCrypto = false;
+
+        # https://forgejo.org/docs/next/user/oauth2-provider/#public-client-pkce
+        allowInsecureClientDisablePkce = false;
+
+        # Path templates relative to params.href (https://git.<domain>).
+        # idm.nix prefixes them with the resolved href to produce the final URLs.
+        # These need to exactly match the OAuth2 redirect target on the consumer side.
+        redirectPaths = [ "/user/oauth2/idm/callback" ];
+        landingPath = "/user/oauth2/idm"; # Auto-connect entry point
+      };
     }
 
     (lib.mkIf cfg.enable {

@@ -8,6 +8,7 @@
   network,
   zone,
   host,
+  hosts,
   ...
 }:
 let
@@ -21,6 +22,15 @@ let
     ip = "127.0.0.1";
   };
   params = dnfLib.extractServiceParams host network "docs" defaultParams;
+
+  # Historical kanidm client name predates the service-name convention.
+  clientId = dnfLib.oauth2ClientName {
+    name = "docs";
+    clientName = "lasuite-docs";
+  } params;
+  
+  secret = "oidc-secret-${clientId}";
+  idmUrl = dnfLib.idmHref network hosts;
   usesLocalMinio = cfg.s3Host == "127.0.0.1" || cfg.s3Host == "localhost";
   s3Url = "http://${cfg.s3Host}:${toString cfg.s3Port}/${cfg.s3Bucket}";
 in
@@ -58,6 +68,17 @@ in
         persist.dirs = [ "/var/lib/lasuite-docs" ];
         proxy.servicePort = srvPort;
       };
+
+      # Kanidm OAuth2 client template (historical name kept via clientName override).
+      # -> https://github.com/laurentS/lasuite-docs/blob/main/docs/env.md
+      darkone.service.idm.oauth2.docs = {
+        clientName = "lasuite-docs";
+        displayName = "LaSuite Docs";
+        imageFile = ./../../../assets/app-icons/docs-collaboration.svg;
+        redirectPaths = [ "" ]; # The redirect target is the bare service URL (no callback path).
+        landingPath = "/";
+        preferShortUsername = false;
+      };
     }
 
     (lib.mkIf cfg.enable {
@@ -88,10 +109,10 @@ in
       users.groups.lasuite-docs = { };
 
       # OIDC Secret
-      sops.secrets.oidc-secret-lasuite-docs = { };
+      sops.secrets.${secret} = { };
       sops.templates.docs-env = {
         content = ''
-          OIDC_RP_CLIENT_SECRET=${config.sops.placeholder.oidc-secret-lasuite-docs}
+          OIDC_RP_CLIENT_SECRET=${config.sops.placeholder.${secret}}
         '';
         mode = "0400";
         owner = "lasuite-docs";
@@ -143,9 +164,9 @@ in
         settings = {
           LANGUAGE_CODE = zone.lang;
           DJANGO_ALLOWED_HOSTS = srvInternalIp;
-          OIDC_OP_AUTHORIZATION_ENDPOINT = "https://idm.${zone.domain}/ui/oauth2";
-          OIDC_OP_TOKEN_ENDPOINT = "https://idm.${zone.domain}/oauth2/token";
-          OIDC_RP_CLIENT_ID = "lasuite-docs";
+          OIDC_OP_AUTHORIZATION_ENDPOINT = "${idmUrl}/ui/oauth2";
+          OIDC_OP_TOKEN_ENDPOINT = "${idmUrl}/oauth2/token";
+          OIDC_RP_CLIENT_ID = clientId;
         };
         environmentFile = config.sops.templates.docs-env.path;
       };

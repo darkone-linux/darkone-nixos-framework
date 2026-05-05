@@ -9,6 +9,7 @@
   config,
   network,
   host,
+  hosts,
   pkgs,
   ...
 }:
@@ -62,6 +63,15 @@ let
     icon = "element";
   };
   params = dnfLib.extractServiceParams host network "matrix" defaultParams;
+
+  # Historical kanidm client name predates the service-name convention.
+  clientId = dnfLib.oauth2ClientName {
+    name = "matrix";
+    clientName = "matrix-synapse";
+  } params;
+  
+  secret = "oidc-secret-${clientId}";
+  idmUrl = dnfLib.idmHref network hosts;
 in
 {
   options = {
@@ -75,6 +85,18 @@ in
     #------------------------------------------------------------------------
 
     {
+      # Kanidm OAuth2 client template (historical name kept via clientName override)
+      darkone.service.idm.oauth2.matrix = {
+        clientName = "matrix-synapse";
+        displayName = "Matrix Synapse";
+        imageFile = ./../../../assets/app-icons/synapse.svg;
+
+        # -> https://element-hq.github.io/synapse/latest/openid.html
+        redirectPaths = [ "/_synapse/client/oidc/callback" ];
+        landingPath = "/";
+        preferShortUsername = true;
+      };
+
       darkone.system.services.service.matrix = {
         inherit defaultParams;
         displayOnHomepage = false;
@@ -123,9 +145,9 @@ in
 
       # OIDC secret
       # -> Note: put client secret in extra config do not works.
-      sops.secrets.oidc-secret-matrix-synapse = { };
+      sops.secrets.${secret} = { };
       sops.templates.oidc-secret-synapse = {
-        content = config.sops.placeholder.oidc-secret-matrix-synapse;
+        content = config.sops.placeholder.${secret};
         mode = "0400";
         owner = "matrix-synapse";
       };
@@ -416,8 +438,8 @@ in
             {
               idp_id = "kanidm";
               idp_name = "IDM";
-              issuer = "https://idm.${network.domain}/oauth2/openid/matrix-synapse";
-              client_id = "matrix-synapse";
+              issuer = "${idmUrl}/oauth2/openid/${clientId}";
+              client_id = clientId;
               client_secret_path = config.sops.templates.oidc-secret-synapse.path;
               scopes = [
                 "openid"

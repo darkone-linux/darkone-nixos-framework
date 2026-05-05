@@ -28,6 +28,54 @@ rec {
     serviceName: zoneName: services:
     findFirst (s: s.name == serviceName && s.zone == zoneName) null services;
 
+  # Canonical Kanidm OAuth2 client identifier for a service instance.
+  #
+  # Given the service name (and an optional `clientName` override) plus the
+  # resolved `params` (from `buildServiceParams`), return the unique client
+  # name used for both Kanidm provisioning and the consumer-side `clientId`.
+  #
+  # Naming rule:
+  #   1. an explicit `clientName` always wins (used to preserve historical
+  #      identifiers like "matrix-synapse" or "open-webui"),
+  #   2. when the public sub-domain matches the service name, the client is
+  #      named after the service (eg. `mealie`, `forgejo`),
+  #   3. otherwise the sub-domain disambiguates (eg. `outline-notes`).
+  #
+  # This keeps the secrets registry (`oidc-secret-${clientId}`) and the
+  # Kanidm OpenID issuer URL stable per (service, sub-domain) tuple, which
+  # is also the natural unit of unicity in `network.services`.
+  oauth2ClientName =
+    {
+      name,
+      clientName ? null,
+    }:
+    params:
+    if clientName != null then
+      clientName
+    else if params.domain == name then
+      name
+    else
+      "${name}-${params.domain}";
+
+  # Resolve the public URL of the Kanidm (idm) instance reachable from the
+  # current network. Looks up the first `idm` entry in `network.services`
+  # and returns its computed `href` (eg. `https://idm.example.com`).
+  #
+  # Returns `null` when no `idm` service is registered, so callers can
+  # short-circuit OIDC wiring on hosts where Kanidm is not deployed.
+  idmHref =
+    network: hosts:
+    let
+      svc = findFirst (s: s.name == "idm") null network.services;
+    in
+    if svc == null then
+      null
+    else
+      let
+        svcHost = findHost svc.host svc.zone hosts;
+      in
+      (buildServiceParams svcHost network svc { }).href;
+
   # Resolve effective service parameters by merging, in order:
   # 1. fields explicitly set on the network service entry,
   # 2. defaults declared by the service module,

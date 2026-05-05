@@ -7,12 +7,16 @@
   network,
   zone,
   host,
+  hosts,
   ...
 }:
 let
   cfg = config.darkone.service.outline;
   srvPort = 3003;
   params = dnfLib.extractServiceParams host network "outline" { };
+  clientId = dnfLib.oauth2ClientName { name = "outline"; } params;
+  secret = "oidc-secret-${clientId}";
+  idmUrl = dnfLib.idmHref network hosts;
 in
 {
   options = {
@@ -29,6 +33,15 @@ in
       darkone.system.services.service.outline = {
         persist.dirs = [ "/var/lib/outline" ];
         proxy.servicePort = srvPort;
+      };
+
+      # Kanidm OAuth2 client template
+      darkone.service.idm.oauth2.outline = {
+        displayName = "Outline Documentation";
+        imageFile = ./../../../assets/app-icons/outline.svg;
+        redirectPaths = [ "/auth/oidc.callback" ];
+        landingPath = "/";
+        allowInsecureClientDisablePkce = true;
       };
     }
 
@@ -52,11 +65,12 @@ in
       # outline Service
       #------------------------------------------------------------------------
 
-      # password
-      sops.secrets.oidc-secret-outline-service = {
+      # Re-encrypted alias of the kanidm-owned OAuth2 secret, readable by the
+      # outline user (sops `key` field unmaps the master secret name).
+      sops.secrets."${secret}-service" = {
         mode = "0400";
         owner = "outline";
-        key = "oidc-secret-outline";
+        key = secret;
       };
 
       services.outline = {
@@ -66,11 +80,11 @@ in
         forceHttps = false;
         storage.storageType = "local";
         oidcAuthentication = {
-          authUrl = "https://idm.${zone.domain}/ui/oauth2";
-          tokenUrl = "https://idm.${zone.domain}/oauth2/token";
-          userinfoUrl = "https://idm.${zone.domain}/oauth2/openid/outline/userinfo";
-          clientId = "outline";
-          clientSecretFile = config.sops.secrets.oidc-secret-outline-service.path;
+          authUrl = "${idmUrl}/ui/oauth2";
+          tokenUrl = "${idmUrl}/oauth2/token";
+          userinfoUrl = "${idmUrl}/oauth2/openid/${clientId}/userinfo";
+          inherit clientId;
+          clientSecretFile = config.sops.secrets."${secret}-service".path;
           displayName = "idm";
         };
       };

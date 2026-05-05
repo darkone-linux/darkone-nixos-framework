@@ -252,5 +252,59 @@ in
         p = srv.extractServiceParams mockHost net "ghost" { domain = "ghosts"; };
       in
       p.domain == "ghosts" && p.zone == "lan"
+    )
+
+    # ----- oauth2ClientName: domaine == nom du service -----
+    + " | "
+    + check "oauth2NameDefault" (
+      srv.oauth2ClientName { name = "forgejo"; } { domain = "forgejo"; } == "forgejo"
+    )
+
+    # ----- oauth2ClientName: domaine personnalisé -> nom suffixé -----
+    + " | "
+    + check "oauth2NameRenamedDomain" (
+      srv.oauth2ClientName { name = "outline"; } { domain = "notes"; } == "outline-notes"
+    )
+
+    # ----- oauth2ClientName: clientName override préservé -----
+    + " | "
+    + check "oauth2NameOverride" (
+      srv.oauth2ClientName {
+        name = "matrix";
+        clientName = "matrix-synapse";
+      } { domain = "matrix"; } == "matrix-synapse"
+    )
+
+    # ----- oauth2ClientName: clientName explicitement null -> règle par défaut -----
+    + " | "
+    + check "oauth2NameNullOverride" (
+      srv.oauth2ClientName {
+        name = "mealie";
+        clientName = null;
+      } { domain = "mealie"; } == "mealie"
+    )
+
+    # ----- idmHref: idm trouvé dans les services -----
+    + " | "
+    + check "idmHrefPresent" (
+      let
+        net = mockNetworkHcs // {
+          services = [
+            {
+              name = "idm";
+              host = "hcshost";
+              zone = constants.globalZone;
+              global = true;
+            }
+          ];
+        };
+      in
+      srv.idmHref net mockHosts == "https://idm.example.com"
+    )
+
+    # ----- idmHref: pas d'idm -> null -----
+    + " | "
+    + check "idmHrefMissing" (
+      srv.idmHref (mockNetworkHcs // { services = mockServices; }) mockHosts == null
     );
 }

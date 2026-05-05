@@ -70,6 +70,20 @@ in
           encode gzip
         '';
       };
+
+      # Kanidm OAuth2 client template (consumer wiring is TODO — see user_oidc / sociallogin)
+      darkone.service.idm.oauth2.nextcloud = {
+        displayName = "Nextcloud";
+        imageFile = ./../../../assets/app-icons/nextcloud.svg;
+        redirectPaths = [
+          "/login"
+          "/apps/sociallogin/custom_oauth2/IDM"
+          "/apps/sociallogin/custom_oidc/IDM"
+          "/ui/oauth2"
+        ];
+        landingPath = "/";
+        allowInsecureClientDisablePkce = true;
+      };
     }
 
     (lib.mkIf cfg.enable {

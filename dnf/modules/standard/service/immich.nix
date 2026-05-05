@@ -69,6 +69,21 @@ in
           encode gzip
         '';
       };
+
+      # Kanidm OAuth2 client template (consumer wiring is TODO upstream)
+      darkone.service.idm.oauth2.immich = {
+        displayName = "Immich";
+        imageFile = ./../../../assets/app-icons/immich.svg;
+        redirectPaths = [
+          "/auth/login"
+          "/user-settings"
+          
+          # Custom scheme for the mobile app — kept as absolute URL by idm.nix.
+          "app.immich:///oauth-callback"
+        ];
+        landingPath = "/";
+        allowInsecureClientDisablePkce = false;
+      };
     }
 
     (lib.mkIf cfg.enable {
