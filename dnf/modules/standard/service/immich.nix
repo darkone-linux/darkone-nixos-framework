@@ -77,7 +77,7 @@ in
         redirectPaths = [
           "/auth/login"
           "/user-settings"
-          
+
           # Custom scheme for the mobile app — kept as absolute URL by idm.nix.
           "app.immich:///oauth-callback"
         ];

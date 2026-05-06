@@ -26,7 +26,7 @@ let
     name = "ai";
     clientName = "open-webui";
   } params;
-  
+
   secret = "oidc-secret-${clientId}";
   idmUrl = dnfLib.idmHref network hosts;
 in

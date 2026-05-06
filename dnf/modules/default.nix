@@ -19,6 +19,22 @@
     ./standard/graphic/supertuxkart.nix
     ./standard/graphic/virt-manager.nix
     ./standard/graphic/virtualbox.nix
+    ./standard/security/complement.nix
+    ./standard/security/filesystem.nix
+    ./standard/security/integrity.nix
+    ./standard/security/journaling.nix
+    ./standard/security/kernel-build.nix
+    ./standard/security/kernel-params.nix
+    ./standard/security/mac.nix
+    ./standard/security/mta.nix
+    ./standard/security/network.nix
+    ./standard/security/nss.nix
+    ./standard/security/packages.nix
+    ./standard/security/pam.nix
+    ./standard/security/preboot.nix
+    ./standard/security/services-hardening.nix
+    ./standard/security/sudo.nix
+    ./standard/security/users.nix
     ./standard/service/adguardhome.nix
     ./standard/service/ai.nix
     ./standard/service/audio.nix
@@ -53,6 +69,7 @@
     ./standard/system/documentation.nix
     ./standard/system/hardware.nix
     ./standard/system/i18n.nix
+    ./standard/system/security.nix
     ./standard/system/services.nix
     ./standard/system/sops.nix
     ./standard/system/srv-dirs.nix

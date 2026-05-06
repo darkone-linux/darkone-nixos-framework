@@ -28,7 +28,7 @@ let
     name = "docs";
     clientName = "lasuite-docs";
   } params;
-  
+
   secret = "oidc-secret-${clientId}";
   idmUrl = dnfLib.idmHref network hosts;
   usesLocalMinio = cfg.s3Host == "127.0.0.1" || cfg.s3Host == "localhost";

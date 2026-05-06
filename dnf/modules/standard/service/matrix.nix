@@ -69,7 +69,7 @@ let
     name = "matrix";
     clientName = "matrix-synapse";
   } params;
-  
+
   secret = "oidc-secret-${clientId}";
   idmUrl = dnfLib.idmHref network hosts;
 in

@@ -11,10 +11,12 @@ let
   constants = import ./constants.nix;
   strings = import ./strings.nix { inherit lib; };
   srv = import ./srv.nix { inherit lib strings constants; };
+  security = import ./security.nix { inherit lib; };
 in
 {
   inherit constants;
   inherit (strings) ucFirst cleanString;
+  inherit (security) mkIsActive;
   inherit (srv)
     findHost
     findService
