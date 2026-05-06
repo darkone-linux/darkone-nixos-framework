@@ -296,6 +296,9 @@ Available recipes:
 - [ ] Serveur de mails.
 - [ ] Interface [headplane](https://github.com/tale/headplane) pour headscale.
 - [ ] Ajout de Grafana Loki sur les logs Caddy pour avoir des stats de fréquentation.
+- [ ] Synchro NTP locales, en particulier en cas d'isolation (coupure internet longue)
+  - [ ] Serveur NTP authentifié sur chaque passerelle, pour synchro locale des horloges.
+  - [ ] Synchronisation NTP des passerelles de zone avec GPS ou Galiléo.
 
 ### TODO extraits du code source
 
@@ -309,7 +312,6 @@ Available recipes:
 - [ ] dnf/modules/standard/service/docs.nix:109 Configurer le stockage S3 pour les documents
 - [ ] dnf/modules/standard/service/turn.nix:44 Activer TLS avec le service ACME pour le certificat turn
 - [ ] dnf/modules/standard/service/turn.nix:65 Configurer un service ACME indépendant pour turn
-- [ ] dnf/modules/standard/service/idm.nix:241 Automatiser le provisioning OAuth2
 - [ ] dnf/modules/standard/service/idm.nix:244 Affiner les paramètres openid connect
 - [ ] dnf/modules/standard/service/idm.nix:374 Implémenter le service interne
 - [ ] dnf/modules/standard/service/matrix.nix:3 Intégrer LiveKit pour les appels vidéo
@@ -369,7 +371,6 @@ Available recipes:
 - [ ] dnf/modules/standard/service/monitoring.nix:14 Implémenter oauth2-proxy
 - [ ] dnf/modules/standard/service/monitoring.nix:63 Implémenter l'accès par mot de passe
 - [ ] dnf/modules/standard/service/monitoring.nix:85 Activer oauth2-proxy
-- [ ] dnf/modules/standard/service/forgejo.nix:106 Créer un lien déclaratif vers IDM
 
 ### Fait
 
