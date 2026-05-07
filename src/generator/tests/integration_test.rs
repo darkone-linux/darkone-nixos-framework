@@ -478,7 +478,7 @@ fn generate_users_returns_nix_attrset() {
 
     assert!(output.contains("DO NOT EDIT"), "Missing header comment");
     // Outer container is a Nix attr set, not a list
-    let trimmed = output.trim_start_matches(|c: char| c == '#' || c == '\n' || c == ' ');
+    let trimmed = output.trim_start_matches(['#', '\n', ' ']);
     let content = output.trim();
     assert!(
         content.ends_with('}'),

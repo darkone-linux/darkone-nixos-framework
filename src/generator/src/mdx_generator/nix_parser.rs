@@ -85,7 +85,7 @@ pub fn extract_module_path(file: &Path, base: &Path, prefix: &str) -> String {
     if parts.is_empty() {
         return prefix.trim_end_matches('.').to_string();
     }
-    format!("{prefix}{}", parts.join("."))
+    format!("{}.{}", prefix.trim_end_matches('.'), parts.join("."))
 }
 
 /// Recursively list `*.nix` files (excluding `default.nix`), sorted.
@@ -174,10 +174,7 @@ fn collect_option_leaves(attrset: &ast::AttrSet, path: &str, out: &mut Vec<(Stri
 /// Returns the longest dotted-path prefix shared by all leaves, ensuring each
 /// leaf still contributes at least one segment as its option name.
 fn common_leaf_prefix(leaves: &[(String, Expr)]) -> String {
-    let segs_list: Vec<Vec<&str>> = leaves
-        .iter()
-        .map(|(p, _)| p.split('.').collect())
-        .collect();
+    let segs_list: Vec<Vec<&str>> = leaves.iter().map(|(p, _)| p.split('.').collect()).collect();
 
     let first = &segs_list[0];
     // Upper bound: all-but-last segment count of the first path.

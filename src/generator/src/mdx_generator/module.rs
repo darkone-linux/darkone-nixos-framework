@@ -30,11 +30,46 @@ const CATEGORIES: &[Category] = &[
         icon: "&#x1F4E6;",
     },
     Category {
-        title: "Standard modules",
-        description: "**A standard module** contains auto-configured features.",
-        relative_dir: "dnf/modules/standard",
-        prefix: "darkone.",
-        icon: "&#x1F48E;",
+        title: "System modules",
+        description: "**A system module** manages common, important, and general configurations.",
+        relative_dir: "dnf/modules/system",
+        prefix: "darkone.system.",
+        icon: "&#x2699;",
+    },
+    Category {
+        title: "Security modules",
+        description: "**A security module** hardens the system, its programs and functionalities.",
+        relative_dir: "dnf/modules/security",
+        prefix: "darkone.security.",
+        icon: "&#x1F511;",
+    },
+    Category {
+        title: "CLI applications",
+        description: "**A CLI application module** installs terminal applications and their configuration optimized for DNF.",
+        relative_dir: "dnf/modules/console",
+        prefix: "darkone.console.",
+        icon: "&#x1F4BB;",
+    },
+    Category {
+        title: "GUI applications",
+        description: "**A GUI application module** installs graphical applications and their configuration optimized for DNF.",
+        relative_dir: "dnf/modules/graphic",
+        prefix: "darkone.graphic.",
+        icon: "&#x1F5BC;",
+    },
+    Category {
+        title: "Administration modules",
+        description: "**A administration module** deals with system-specific functionalities for administrators.",
+        relative_dir: "dnf/modules/admin",
+        prefix: "darkone.admin.",
+        icon: "&#x1F451;",
+    },
+    Category {
+        title: "User mgm modules",
+        description: "**A user module** manage user-related processing or special user settings.",
+        relative_dir: "dnf/modules/user",
+        prefix: "darkone.user.",
+        icon: "&#x1F464;",
     },
     Category {
         title: "Home Manager modules",
@@ -220,14 +255,14 @@ mod tests {
     #[test]
     fn renders_simple_module() {
         let dir = tempdir().unwrap();
-        let dnf = dir.path().join("dnf/modules/standard/service");
+        let dnf = dir.path().join("dnf/modules/security");
         fs::create_dir_all(&dnf).unwrap();
         fs::write(
             dnf.join("foo.nix"),
             r#"# A foo service.
 { lib, ... }: {
   options = {
-    darkone.service.foo.enable = lib.mkEnableOption "Enable foo";
+    darkone.security.foo.enable = lib.mkEnableOption "Enable foo";
   };
 }
 "#,
@@ -235,16 +270,16 @@ mod tests {
         .unwrap();
 
         let mdx = generate_mdx(dir.path());
-        assert!(mdx.contains("### &#x1F48E; darkone.service.foo"));
+        assert!(mdx.contains("### &#x1F511; darkone.security.foo"));
         assert!(mdx.contains("A foo service."));
         assert!(mdx.contains("* **enable** `bool` Enable foo"));
-        assert!(mdx.contains("darkone.service.foo.enable = false;"));
+        assert!(mdx.contains("darkone.security.foo.enable = false;"));
     }
 
     #[test]
     fn renders_submodule_block() {
         let dir = tempdir().unwrap();
-        let dnf = dir.path().join("dnf/modules/standard/system");
+        let dnf = dir.path().join("dnf/modules/system");
         fs::create_dir_all(&dnf).unwrap();
         fs::write(
             dnf.join("services.nix"),
@@ -272,6 +307,7 @@ mod tests {
         .unwrap();
 
         let mdx = generate_mdx(dir.path());
+        assert!(mdx.contains("### &#x2699; darkone.system.services"));
         assert!(mdx.contains("* **service** `attrs` Services"));
         assert!(mdx.contains("  * **enable** `bool` Enable proxy"));
         assert!(mdx.contains("  * **persist.dirs** `listOf str` Dirs"));

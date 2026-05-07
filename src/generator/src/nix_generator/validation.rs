@@ -36,6 +36,7 @@ pub fn assert_email(value: &str, err: &str) -> Result<()> {
     if value.is_empty() {
         return Ok(()); // email is optional
     }
+
     // Simple RFC-5322-compatible check: user@domain.tld
     let re = Regex::new(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").unwrap();
     if !re.is_match(value) {
