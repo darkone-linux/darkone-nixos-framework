@@ -111,6 +111,7 @@
         value = {
           imports = [
             ./dnf/home
+            ./usr/home
             ./usr/users/${login}
             (import ./${users.${login}.profile})
           ];
