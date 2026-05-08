@@ -36,7 +36,10 @@ in
     programs = {
       iotop.enable = lib.mkDefault true;
       less.enable = lib.mkDefault true;
-      direnv.enable = lib.mkDefault gnome.enable; # usefull for vscode plugins
+      direnv = {
+        enable = lib.mkDefault true;
+        nix-direnv.enable = lib.mkDefault true;
+      };
     };
   };
 }
