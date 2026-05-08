@@ -1,0 +1,31 @@
+name: Cargo Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/generator/**"
+  pull_request:
+    paths:
+      - "src/generator/**"
+
+jobs:
+  cargo-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/generator
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src/generator/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src/generator/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Run tests
+        run: cargo test --quiet

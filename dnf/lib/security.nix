@@ -1,4 +1,4 @@
-# Helpers pour le module security (règles ANSSI).
+# Helpers for the security modules (ANSSI rules).
 
 { lib }:
 let

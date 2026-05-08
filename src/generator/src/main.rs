@@ -1,5 +1,6 @@
 use dnf_generator::generate::Generate;
 
+/// The generator bootstrap
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let command = args.get(1).map(String::as_str).unwrap_or("?");
