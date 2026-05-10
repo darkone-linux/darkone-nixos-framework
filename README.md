@@ -8,7 +8,7 @@
 
 - [The official documentation](https://darkone-linux.github.io)
 - [Ce README en français](README.fr.md)
-- [To-Do list (fr)](README.fr.md#a-faire)
+- [To-Do list (fr)](TODO.fr.md)
 
 ## A multi-user, multi-services & multi-host configuration
 
