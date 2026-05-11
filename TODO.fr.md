@@ -2,6 +2,8 @@
 
 ### En cours
 
+- [x] Correction des déclarations de partitions disko (swap trop petit + améliorations). (en test)
+- [ ] Stratégie de test globale en 3 niveaux : tests unitaires, tests simulés (VMs légères), lab de staging complet (tests + introspection manuelle).
 - [ ] Linux durci selon les [recommandations ANSSI](https://messervices.cyber.gouv.fr/guides/recommandations-de-securite-relatives-un-systeme-gnulinux).
   - [x] [Architecture modulaire](https://darkone-linux.github.io/en/ref/modules/#security-modules) pour l'activation et le paramétrage des règles.
   - [ ] Gestion de noyaux durcis avec paramètres statiques durcis (profils, mise en cache)
@@ -33,7 +35,6 @@
   - [ ] Module MinIO utile à LaSuite Docs.
     - [x] Implémentation (version locale ou distante).
     - [ ] Tests et stabilisation.
-- [x] Correction des déclarations de partitions disko (swap trop petit + améliorations). (en test)
 
 ### Planifié
 
