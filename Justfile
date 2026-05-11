@@ -100,25 +100,8 @@ check-statix:
 # Run unit tests
 [group('check')]
 unit-tests:
-	#!/usr/bin/env bash
 	just _log "Running unit tests..." "TESTS"
-	cd dnf/tests/unit
-	test_files=$(find . -name '*_test.nix' 2>/dev/null || true)
-	if [ -z "$test_files" ]; then
-		just _warn "No unit tests found in dnf/tests/unit"
-		exit 0
-	fi
-	echo "$test_files" | while read -r test; do
-		test_name=$(basename "$test" .nix)
-		if [ -z "$QUIET" ]; then echo -n "  Running $test_name..."; fi
-		result=$({{nix}} eval --impure --expr "let lib = (import <nixpkgs> {}).lib; in import \".$test\" { inherit lib; }" 2>&1) || true
-		if echo "$result" | grep -q "FAIL:"; then
-			if [ -z "$QUIET" ]; then echo " {{RED}}FAILED{{NORMAL}}"; fi
-			echo " [ERR] {{RED}}$result{{NORMAL}}"
-		else
-			if [ -z "$QUIET" ]; then echo " {{GREEN}}OK{{NORMAL}}"; fi
-		fi
-	done
+	nix-unit --flake .#libTests
 
 #==============================================================================
 # Development

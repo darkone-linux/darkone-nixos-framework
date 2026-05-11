@@ -22,29 +22,4 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Run unit tests
-        run: |
-          cd dnf/tests/unit
-          failed=0
-          test_files=$(find . -name '*_test.nix' | sort)
-
-          if [ -z "$test_files" ]; then
-            echo "No unit tests found."
-            exit 0
-          fi
-
-          while IFS= read -r test; do
-            test_name=$(basename "$test" .nix)
-            echo -n "  Running $test_name... "
-            result=$(nix eval --impure --expr \
-              "let lib = (import <nixpkgs> {}).lib; in import \".$test\" { inherit lib; }" 2>&1) || true
-            if echo "$result" | grep -q "FAIL:"; then
-              echo "FAILED"
-              echo "  $result"
-              failed=1
-            else
-              echo "OK"
-              echo "  $result"
-            fi
-          done <<< "$test_files"
-
-          exit $failed
+        run: nix run nixpkgs#nix-unit -- --flake .#libTests

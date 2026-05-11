@@ -1,23 +1,25 @@
 # Tests for dnf/lib/strings.nix
-# Run with: nix eval --impure --expr 'let lib = (import <nixpkgs> {}).lib; in import ./dnf/tests/unit/lib/strings_test.nix { inherit lib; }'
-# Each test is a boolean - throws if false (fails), returns "PASS" if true
-
-{ lib }:
-let
-  strings = import ../../../lib/strings.nix { inherit lib; };
-  check = name: cond: if cond then "PASS: ${name}" else throw "FAIL: ${name}";
-in
+# Run with: nix-unit --flake .#libTests
+{ lib, dnfLib }:
 {
-  result =
-    check "ucFirst" (strings.ucFirst "hello" == "Hello")
-    + " | "
-    + check "ucFirstSingle" (strings.ucFirst "a" == "A")
-    + " | "
-    + check "ucFirstEmpty" (strings.ucFirst "" == "")
-    + " | "
-    + check "cleanNewlines" (strings.cleanString "hello\n\n\n\nworld" == "hello\n\nworld")
-    + " | "
-    + check "cleanClean" (
-      strings.cleanString "no consecutive newlines here" == "no consecutive newlines here"
-    );
+  testUcFirst = {
+    expr = dnfLib.ucFirst "hello";
+    expected = "Hello";
+  };
+  testUcFirstSingle = {
+    expr = dnfLib.ucFirst "a";
+    expected = "A";
+  };
+  testUcFirstEmpty = {
+    expr = dnfLib.ucFirst "";
+    expected = "";
+  };
+  testCleanNewlines = {
+    expr = dnfLib.cleanString "hello\n\n\n\nworld";
+    expected = "hello\n\nworld";
+  };
+  testCleanClean = {
+    expr = dnfLib.cleanString "no consecutive newlines here";
+    expected = "no consecutive newlines here";
+  };
 }

@@ -322,5 +322,8 @@
 
       # DNF library for leaf flakes
       lib = forAllSystems mkDnfLib;
+
+      # Unit tests — run with: nix-unit --flake .#libTests
+      libTests = import ./dnf/tests/unit { lib = nixpkgs.lib; };
     }; # outputs
 }

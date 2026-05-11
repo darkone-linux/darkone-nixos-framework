@@ -16,7 +16,7 @@ in
 {
   inherit constants;
   inherit (strings) ucFirst cleanString;
-  inherit (security) mkIsActive;
+  inherit (security) mkIsActive levelMapping;
   inherit (srv)
     findHost
     findService

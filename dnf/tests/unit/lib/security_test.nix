@@ -1,12 +1,7 @@
 # Tests for dnf/lib/security.nix
-# Run with: nix eval --impure --expr 'let lib = (import <nixpkgs> {}).lib; in import ./dnf/tests/unit/lib/security_test.nix { inherit lib; }'
-
-{ lib }:
+# Run with: nix-unit --flake .#libTests
+{ lib, dnfLib }:
 let
-  security = import ../../../lib/security.nix { inherit lib; };
-
-  check = name: cond: if cond then "PASS: ${name}" else throw "FAIL: ${name}";
-
   # cfg de base : module activé, niveau minimal, catégorie base, pas d'exclusion ni d'exception
   baseCfg = {
     enable = true;
@@ -15,84 +10,77 @@ let
     excludes = [ ];
     exceptions = { };
   };
-
-  isActive = security.mkIsActive;
-
+  isActive = dnfLib.mkIsActive;
 in
 {
-  result =
-    # Module désactivé → jamais actif
-    check "disabled-module" (!(isActive (baseCfg // { enable = false; }) "R1" "minimal" "base" [ ]))
+  # Module désactivé → jamais actif
+  testDisabledModule = {
+    expr = isActive (baseCfg // { enable = false; }) "R1" "minimal" "base" [ ];
+    expected = false;
+  };
 
-    # Niveau suffisant
-    + " | "
-    + check "level-exact-match" (isActive baseCfg "R1" "minimal" "base" [ ])
-    + " | "
-    + check "level-above" (isActive (baseCfg // { level = "high"; }) "R1" "intermediary" "base" [ ])
+  # Niveau suffisant
+  testLevelExactMatch = {
+    expr = isActive baseCfg "R1" "minimal" "base" [ ];
+    expected = true;
+  };
+  testLevelAbove = {
+    expr = isActive (baseCfg // { level = "high"; }) "R1" "intermediary" "base" [ ];
+    expected = true;
+  };
 
-    # Niveau insuffisant → inactif
-    + " | "
-    + check "level-too-low" (!(isActive baseCfg "R1" "intermediary" "base" [ ]))
+  # Niveau insuffisant → inactif
+  testLevelTooLow = {
+    expr = isActive baseCfg "R1" "intermediary" "base" [ ];
+    expected = false;
+  };
 
-    # Catégorie base = universel
-    + " | "
-    + check "category-base-universal" (
-      isActive (baseCfg // { category = "server"; }) "R1" "minimal" "base" [ ]
-    )
+  # Catégorie base = universel
+  testCategoryBaseUniversal = {
+    expr = isActive (baseCfg // { category = "server"; }) "R1" "minimal" "base" [ ];
+    expected = true;
+  };
 
-    # Catégorie spécifique : correspondance exacte requise
-    + " | "
-    + check "category-match" (
-      isActive (baseCfg // { category = "server"; }) "R1" "minimal" "server" [ ]
-    )
-    + " | "
-    + check "category-mismatch" (
-      !(isActive (baseCfg // { category = "client"; }) "R1" "minimal" "server" [ ])
-    )
+  # Catégorie spécifique : correspondance exacte requise
+  testCategoryMatch = {
+    expr = isActive (baseCfg // { category = "server"; }) "R1" "minimal" "server" [ ];
+    expected = true;
+  };
+  testCategoryMismatch = {
+    expr = isActive (baseCfg // { category = "client"; }) "R1" "minimal" "server" [ ];
+    expected = false;
+  };
 
-    # Tag dans excludes → inactif
-    + " | "
-    + check "excluded-tag" (
-      !(isActive (baseCfg // { excludes = [ "no-auditd" ]; }) "R1" "minimal" "base" [ "no-auditd" ])
-    )
+  # Tag dans excludes → inactif
+  testExcludedTag = {
+    expr = isActive (baseCfg // { excludes = [ "no-auditd" ]; }) "R1" "minimal" "base" [ "no-auditd" ];
+    expected = false;
+  };
 
-    # Tag non exclu → actif
-    + " | "
-    + check "non-excluded-tag" (
-      isActive (baseCfg // { excludes = [ "other-tag" ]; }) "R1" "minimal" "base" [ "no-auditd" ]
-    )
+  # Tag non exclu → actif
+  testNonExcludedTag = {
+    expr = isActive (baseCfg // { excludes = [ "other-tag" ]; }) "R1" "minimal" "base" [ "no-auditd" ];
+    expected = true;
+  };
 
-    # Exception explicite → inactif
-    + " | "
-    + check "exception" (
-      !(isActive (
-        baseCfg
-        // {
-          exceptions = {
-            R1 = true;
-          };
-        }
-      ) "R1" "minimal" "base" [ ])
-    )
+  # Exception explicite → inactif
+  testException = {
+    expr = isActive (baseCfg // { exceptions = { R1 = true; }; }) "R1" "minimal" "base" [ ];
+    expected = false;
+  };
 
-    # Pas d'exception pour cet id → actif
-    + " | "
-    + check "no-exception-for-id" (
-      isActive (
-        baseCfg
-        // {
-          exceptions = {
-            R2 = true;
-          };
-        }
-      ) "R1" "minimal" "base" [ ]
-    )
+  # Pas d'exception pour cet id → actif
+  testNoExceptionForId = {
+    expr = isActive (baseCfg // { exceptions = { R2 = true; }; }) "R1" "minimal" "base" [ ];
+    expected = true;
+  };
 
-    # levelMapping : ordre correct
-    + " | "
-    + check "levelMapping-order" (
-      security.levelMapping."minimal" < security.levelMapping."intermediary"
-      && security.levelMapping."intermediary" < security.levelMapping."reinforced"
-      && security.levelMapping."reinforced" < security.levelMapping."high"
-    );
+  # levelMapping : ordre correct
+  testLevelMappingOrder = {
+    expr =
+      dnfLib.levelMapping."minimal" < dnfLib.levelMapping."intermediary"
+      && dnfLib.levelMapping."intermediary" < dnfLib.levelMapping."reinforced"
+      && dnfLib.levelMapping."reinforced" < dnfLib.levelMapping."high";
+    expected = true;
+  };
 }
