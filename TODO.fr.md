@@ -24,7 +24,8 @@
   - [x] Implémentation + tests.
   - [ ] Corrections et optimisations à l'utilisation.
 - [ ] Tests unitaires + tests de recette.
-  - [ ] TU pour tout ce qui est dans lib/.
+  - [x] TU pour tout ce qui est dans lib/.
+  - [x] Migration vers [nix-unit](https://nix-community.github.io/nix-unit/).
   - [ ] Déplacement dans lib/ de tout algorithme un peu complexe ou comportant de possibles effets de bords, sous forme de fonctions durcies et testées, simplifiant le code utile des modules.
 - [ ] Module LaSuite Docs
   - [x] Implémentation de base. 
@@ -32,6 +33,7 @@
   - [ ] Module MinIO utile à LaSuite Docs.
     - [x] Implémentation (version locale ou distante).
     - [ ] Tests et stabilisation.
+- [x] Correction des déclarations de partitions disko (swap trop petit + améliorations). (en test)
 
 ### Planifié
 
