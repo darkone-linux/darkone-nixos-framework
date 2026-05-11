@@ -69,7 +69,7 @@
 
                     "@swap" = {
                       mountpoint = "/.swapfile";
-                      swap.swapfile.size = "1G";
+                      swap.swapfile.size = "8G";
                     };
 
                     # Snapshots (not mounted)

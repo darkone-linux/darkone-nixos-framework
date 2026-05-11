@@ -1,4 +1,4 @@
-# Simple machine with 1 disk, EXT4, LEGACY
+# Simple machine with 1 disk, EXT4, LEGACY (BIOS/CSM only, no swap)
 
 {
   disko.devices = {

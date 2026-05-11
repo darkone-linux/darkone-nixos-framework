@@ -1,21 +1,21 @@
-# Full server with 3 nvme disks, RAID0, BTRFS + EXT4
+# Single-disk NVMe server, BTRFS
 #
 # /dev/nvme0n1
 # ├── /boot (EFI, 1GB, vfat)
 # ├── BTRFS
 # ├   ├── subvol=@system    → /              (compress=zstd:1)
-# ├   ├── subvol=@nix       → /nix           (compress=zstd:1)
+# ├   ├── subvol=@nix       → /nix           (compress=zstd:3, metadata_ratio=3)
 # ├   ├── subvol=@home      → /home          (compress=zstd:1)
 # ├   ├── subvol=@media     → /mnt/media     (compress=zstd:1)
 # ├   ├── subvol=@backup    → /mnt/backup    (compress=no)
-# ├   ├── subvol=@databases → /mnt/databases (nodatacow,compress=no)
+# ├   ├── subvol=@databases → /mnt/databases (nodatacow)
 # ├   ├── subvol=@snapshots-home
 # ├   ├── subvol=@snapshots-system
 # ├   └── subvol=@snapshots-databases
-# └── swap (4GB)
+# └── swap (16GB)
 #
 # Do not remove:
-# NEEDEDFORBOOT:/boot;/nix;/home;/mnt/databases;/mnt/medias
+# NEEDEDFORBOOT:/boot;/nix;/home;/mnt/databases;/mnt/media
 #
 
 {
@@ -48,7 +48,6 @@
             # Main disk
             system = {
               size = "100%";
-              end = "-32";
               content = {
                 type = "btrfs";
                 extraArgs = [ "-f" ]; # Force overwrite
@@ -67,8 +66,9 @@
                   "@nix" = {
                     mountpoint = "/nix";
                     mountOptions = [
-                      "compress=zstd:1"
+                      "compress=zstd:3" # More compression, only for fast CPUs
                       "noatime"
+                      "metadata_ratio=3" # More space for metadata (lot of little files)
                     ];
                   };
 
@@ -116,7 +116,7 @@
               };
             };
             swap = {
-              size = "4G";
+              size = "16G";
               content = {
                 type = "swap";
                 randomEncryption = false;

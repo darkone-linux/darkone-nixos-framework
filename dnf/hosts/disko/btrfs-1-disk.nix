@@ -12,7 +12,7 @@
 
             # EFI
             boot = {
-              size = "512M";
+              size = "1G";
               type = "EF00";
               content = {
                 type = "filesystem";
@@ -62,7 +62,7 @@
 
                   "@swap" = {
                     mountpoint = "/.swapfile";
-                    swap.swapfile.size = "1G";
+                    swap.swapfile.size = "8G";
                   };
 
                   # Snapshots (not mounted)

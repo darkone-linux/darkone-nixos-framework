@@ -71,8 +71,9 @@
                   "@nix" = {
                     mountpoint = "/nix";
                     mountOptions = [
-                      "compress=zstd:1"
+                      "compress=zstd:3" # More compression, only for fast CPUs
                       "noatime"
+                      "metadata_ratio=3" # More space for metadata (lot of little files)
                     ];
                   };
 
