@@ -8,7 +8,6 @@
       "just check-flake": "allow",
       "just generate": "allow",
       "just *": "ask",
-      "composer *": "allow",
       "cargo *": "allow",
       "*": "ask"
     },

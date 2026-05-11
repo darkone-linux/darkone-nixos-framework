@@ -324,6 +324,6 @@
       lib = forAllSystems mkDnfLib;
 
       # Unit tests — run with: nix-unit --flake .#libTests
-      libTests = import ./dnf/tests/unit { lib = nixpkgs.lib; };
+      libTests = import ./dnf/tests/unit { inherit (nixpkgs) lib; };
     }; # outputs
 }

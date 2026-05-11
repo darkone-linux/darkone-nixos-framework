@@ -1,8 +1,8 @@
 # Tests for dnf/lib/srv.nix
 # Run with: nix-unit --flake .#libTests
-{ lib, dnfLib }:
+{ dnfLib }:
 let
-  constants = dnfLib.constants;
+  inherit (dnfLib) constants;
 
   mockHost = {
     hostname = "testhost";
@@ -50,14 +50,33 @@ let
 
   mockHosts = [
     mockHost
-    (mockHost // { hostname = "otherhost"; zone = "dmz"; })
+    (
+      mockHost
+      // {
+        hostname = "otherhost";
+        zone = "dmz";
+      }
+    )
     hcsHost
   ];
 
   mockServices = [
-    { name = "wiki"; host = "testhost"; zone = "lan"; }
-    { name = "wiki"; host = "otherhost"; zone = "dmz"; }
-    { name = "global-svc"; host = "hcshost"; zone = constants.globalZone; global = true; }
+    {
+      name = "wiki";
+      host = "testhost";
+      zone = "lan";
+    }
+    {
+      name = "wiki";
+      host = "otherhost";
+      zone = "dmz";
+    }
+    {
+      name = "global-svc";
+      host = "hcshost";
+      zone = constants.globalZone;
+      global = true;
+    }
   ];
 in
 {
@@ -116,11 +135,17 @@ in
   # ----- getInternalInterfaceFwPath -----
   testFwPathGateway = {
     expr = dnfLib.getInternalInterfaceFwPath mockHost mockZone;
-    expected = [ "interfaces" constants.lanInterface ];
+    expected = [
+      "interfaces"
+      constants.lanInterface
+    ];
   };
   testFwPathVpnClient = {
     expr = dnfLib.getInternalInterfaceFwPath (mockHost // { vpnIp = "100.64.1.1"; }) mockZone;
-    expected = [ "interfaces" constants.vpnInterface ];
+    expected = [
+      "interfaces"
+      constants.vpnInterface
+    ];
   };
   testFwPathRegularHost = {
     expr = dnfLib.getInternalInterfaceFwPath (mockHost // { hostname = "otherhost"; }) mockZone;
@@ -128,7 +153,13 @@ in
   };
   # Régression : vpnIp vide ne doit pas être classé comme client VPN
   testFwPathVpnEmptyIp = {
-    expr = dnfLib.getInternalInterfaceFwPath (mockHost // { hostname = "otherhost"; vpnIp = ""; }) mockZone;
+    expr = dnfLib.getInternalInterfaceFwPath (
+      mockHost
+      // {
+        hostname = "otherhost";
+        vpnIp = "";
+      }
+    ) mockZone;
     expected = [ ];
   };
 
@@ -155,8 +186,20 @@ in
   # ----- buildServiceParams : service local, defaults complets -----
   testBuildServiceParamsLocal = {
     expr =
-      let p = dnfLib.buildServiceParams mockHost mockNetworkPlain { name = "wiki"; } { };
-      in { inherit (p) domain title icon fqdn href ip global; };
+      let
+        p = dnfLib.buildServiceParams mockHost mockNetworkPlain { name = "wiki"; } { };
+      in
+      {
+        inherit (p)
+          domain
+          title
+          icon
+          fqdn
+          href
+          ip
+          global
+          ;
+      };
     expected = {
       domain = "wiki";
       title = "Wiki";
@@ -178,7 +221,9 @@ in
           description = "Internal docs";
         };
       in
-      { inherit (p) domain title description; };
+      {
+        inherit (p) domain title description;
+      };
     expected = {
       domain = "knowledge";
       title = "Knowledge Base";
@@ -189,8 +234,15 @@ in
   # ----- buildServiceParams : service global utilise networkDomain -----
   testBuildServiceParamsGlobalFqdn = {
     expr =
-      let p = dnfLib.buildServiceParams hcsHost mockNetworkHcs { name = "site"; global = true; } { };
-      in { inherit (p) fqdn href global; };
+      let
+        p = dnfLib.buildServiceParams hcsHost mockNetworkHcs {
+          name = "site";
+          global = true;
+        } { };
+      in
+      {
+        inherit (p) fqdn href global;
+      };
     expected = {
       fqdn = "site.example.com";
       href = "https://site.example.com";
@@ -212,7 +264,8 @@ in
 
   # ----- buildServiceParams : vpnIp vide retombe sur host.ip -----
   testBuildServiceParamsEmptyVpnIp = {
-    expr = (dnfLib.buildServiceParams (mockHost // { vpnIp = ""; }) mockNetworkPlain { name = "svc"; } { }).ip;
+    expr =
+      (dnfLib.buildServiceParams (mockHost // { vpnIp = ""; }) mockNetworkPlain { name = "svc"; } { }).ip;
     expected = "192.168.1.10";
   };
 
@@ -220,22 +273,37 @@ in
   testExtractServiceParamsFound = {
     expr =
       let
-        net = mockNetworkPlain // { services = mockServices; };
+        net = mockNetworkPlain // {
+          services = mockServices;
+        };
         p = dnfLib.extractServiceParams mockHost net "wiki" { description = "default desc"; };
       in
-      { inherit (p) domain zone host; };
-    expected = { domain = "wiki"; zone = "lan"; host = "testhost"; };
+      {
+        inherit (p) domain zone host;
+      };
+    expected = {
+      domain = "wiki";
+      zone = "lan";
+      host = "testhost";
+    };
   };
 
   # ----- extractServiceParams : service inexistant retombe sur defaults -----
   testExtractServiceParamsMissing = {
     expr =
       let
-        net = mockNetworkPlain // { services = mockServices; };
+        net = mockNetworkPlain // {
+          services = mockServices;
+        };
         p = dnfLib.extractServiceParams mockHost net "ghost" { domain = "ghosts"; };
       in
-      { inherit (p) domain zone; };
-    expected = { domain = "ghosts"; zone = "lan"; };
+      {
+        inherit (p) domain zone;
+      };
+    expected = {
+      domain = "ghosts";
+      zone = "lan";
+    };
   };
 
   # ----- oauth2ClientName -----
@@ -248,12 +316,18 @@ in
     expected = "outline-notes";
   };
   testOauth2NameOverride = {
-    expr = dnfLib.oauth2ClientName { name = "matrix"; clientName = "matrix-synapse"; } { domain = "matrix"; };
+    expr = dnfLib.oauth2ClientName {
+      name = "matrix";
+      clientName = "matrix-synapse";
+    } { domain = "matrix"; };
     expected = "matrix-synapse";
   };
   # clientName explicitement null → règle par défaut
   testOauth2NameNullOverride = {
-    expr = dnfLib.oauth2ClientName { name = "mealie"; clientName = null; } { domain = "mealie"; };
+    expr = dnfLib.oauth2ClientName {
+      name = "mealie";
+      clientName = null;
+    } { domain = "mealie"; };
     expected = "mealie";
   };
 
@@ -262,7 +336,14 @@ in
     expr =
       let
         net = mockNetworkHcs // {
-          services = [ { name = "idm"; host = "hcshost"; zone = constants.globalZone; global = true; } ];
+          services = [
+            {
+              name = "idm";
+              host = "hcshost";
+              zone = constants.globalZone;
+              global = true;
+            }
+          ];
         };
       in
       dnfLib.idmHref net mockHosts;

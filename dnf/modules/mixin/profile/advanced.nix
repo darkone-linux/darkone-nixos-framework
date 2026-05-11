@@ -9,7 +9,6 @@
 { lib, config, ... }:
 let
   cfg = config.darkone.profile.advanced;
-  inherit (config.darkone.graphic) gnome;
 in
 {
   options = {

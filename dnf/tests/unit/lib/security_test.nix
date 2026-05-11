@@ -1,6 +1,6 @@
 # Tests for dnf/lib/security.nix
 # Run with: nix-unit --flake .#libTests
-{ lib, dnfLib }:
+{ dnfLib }:
 let
   # cfg de base : module activé, niveau minimal, catégorie base, pas d'exclusion ni d'exception
   baseCfg = {
@@ -65,13 +65,27 @@ in
 
   # Exception explicite → inactif
   testException = {
-    expr = isActive (baseCfg // { exceptions = { R1 = true; }; }) "R1" "minimal" "base" [ ];
+    expr = isActive (
+      baseCfg
+      // {
+        exceptions = {
+          R1 = true;
+        };
+      }
+    ) "R1" "minimal" "base" [ ];
     expected = false;
   };
 
   # Pas d'exception pour cet id → actif
   testNoExceptionForId = {
-    expr = isActive (baseCfg // { exceptions = { R2 = true; }; }) "R1" "minimal" "base" [ ];
+    expr = isActive (
+      baseCfg
+      // {
+        exceptions = {
+          R2 = true;
+        };
+      }
+    ) "R1" "minimal" "base" [ ];
     expected = true;
   };
 
