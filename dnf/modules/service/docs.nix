@@ -22,11 +22,9 @@ let
   };
   params = dnfLib.extractServiceParams host network "docs" defaultParams;
 
-  # Historical kanidm client name predates the service-name convention.
   inherit
     (dnfLib.mkOidcContext {
       name = "docs";
-      clientName = "lasuite-docs";
       inherit params network hosts;
     })
     clientId
@@ -72,10 +70,9 @@ in
         proxy.servicePort = srvPort;
       };
 
-      # Kanidm OAuth2 client template (historical name kept via clientName override).
+      # Kanidm OAuth2 client template
       # -> https://github.com/numerique-gouv/docs/blob/main/docs/env.md
       darkone.service.idm.oauth2.docs = {
-        clientName = "lasuite-docs";
         displayName = "LaSuite Docs";
         imageFile = ./../../assets/app-icons/docs-collaboration.svg;
         # mozilla-django-oidc callback, monté sous le prefix API de LaSuite Docs.

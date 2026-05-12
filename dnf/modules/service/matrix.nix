@@ -64,11 +64,9 @@ let
   };
   params = dnfLib.extractServiceParams host network "matrix" defaultParams;
 
-  # Historical kanidm client name predates the service-name convention.
   inherit
     (dnfLib.mkOidcContext {
       name = "matrix";
-      clientName = "matrix-synapse";
       inherit params network hosts;
     })
     clientId
@@ -89,9 +87,8 @@ in
     #------------------------------------------------------------------------
 
     {
-      # Kanidm OAuth2 client template (historical name kept via clientName override)
+      # Kanidm OAuth2 client template
       darkone.service.idm.oauth2.matrix = {
-        clientName = "matrix-synapse";
         displayName = "Matrix Synapse";
         imageFile = ./../../assets/app-icons/synapse.svg;
 

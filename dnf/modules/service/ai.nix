@@ -21,11 +21,9 @@ let
   };
   params = dnfLib.extractServiceParams host network "ai" defaultParams;
 
-  # Historical kanidm client name predates the service-name convention.
   inherit
     (dnfLib.mkOidcContext {
       name = "ai";
-      clientName = "open-webui";
       inherit params network hosts;
     })
     clientId
@@ -54,9 +52,8 @@ in
         proxy.servicePort = internalPort;
       };
 
-      # Kanidm OAuth2 client template (historical name kept via clientName override)
+      # Kanidm OAuth2 client template
       darkone.service.idm.oauth2.ai = {
-        clientName = "open-webui";
         displayName = "Open WebUI";
         imageFile = ./../../assets/app-icons/open-webui.svg;
         redirectPaths = [ "/oauth/oidc/callback" ];

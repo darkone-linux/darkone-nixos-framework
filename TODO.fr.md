@@ -35,7 +35,7 @@
 - [ ] Tests unitaires + tests de recette.
   - [x] TU pour tout ce qui est dans lib/.
 - [ ] Module LaSuite Docs
-  - [x] Implémentation de base. 
+  - [x] Implémentation de base.
   - [ ] Tests et stabilisation.
   - [ ] Module MinIO utile à LaSuite Docs.
     - [x] Implémentation (version locale ou distante).
