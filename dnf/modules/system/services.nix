@@ -172,6 +172,22 @@ let
         };
       }
     ) services;
+
+  # Access logs Caddy en JSON pour ingestion par Alloy/Loki.
+  #
+  # Le module NixOS Caddy expose une option `logFormat` par vhost qui pose
+  # par défaut `output file /var/log/caddy/access-<hostName>.log` au format
+  # texte. Quand Loki est actif, on la surcharge pour produire du JSON +
+  # rotation. Sinon on laisse le défaut intact (un seul bloc `log` est alors
+  # généré, en texte).
+  accessLogEnabled = config.darkone.service.loki.isClient or false;
+  mkLogFormat = hostName: ''
+    output file /var/log/caddy/access-${hostName}.log {
+      roll_size 50MiB
+      roll_keep 5
+    }
+    format json
+  '';
 in
 {
   options = {
@@ -415,6 +431,7 @@ in
                   "respond \"Welcome to ${network.domain}\"";
             in
             {
+              logFormat = mkIf accessLogEnabled (mkLogFormat network.domain);
               extraConfig = ''
                 ${matrixWellKnown}
                 ${mainAction}
@@ -456,6 +473,7 @@ in
 
             # Reverse proxy to the target service
             "${vhPrefix}${srv.params.fqdn}" = {
+              logFormat = mkIf accessLogEnabled (mkLogFormat srv.params.fqdn);
               extraConfig = dnfLib.cleanString ''
                 ${prefix}
                 ${srv.proxy.preExtraConfig}
@@ -485,6 +503,7 @@ in
           in
           {
             "${srv.params.domain}.${network.domain}" = {
+              logFormat = mkIf accessLogEnabled (mkLogFormat "${srv.params.domain}.${network.domain}");
               extraConfig = dnfLib.cleanString ''
                 ${noRobots}
                 ${prefix}

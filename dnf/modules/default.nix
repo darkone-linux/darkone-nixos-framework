@@ -50,6 +50,7 @@
     ./service/immich.nix
     ./service/jellyfin.nix
     ./service/jitsi-meet.nix
+    ./service/loki.nix
     ./service/matrix.nix
     ./service/mealie.nix
     ./service/minio.nix

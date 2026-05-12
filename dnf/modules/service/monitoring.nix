@@ -11,8 +11,6 @@
 # - A tag "monitoring-node:[zone]" is attached to a monitoring host of the designed zone.
 # :::
 
-# TODO: access with https://search.nixos.org/options?channel=unstable&query=services.oauth2-proxy
-
 {
   lib,
   config,
@@ -43,6 +41,13 @@ let
     icon = "grafana";
   };
   params = dnfLib.extractServiceParams host network "monitoring" defaultParams;
+
+  # OIDC (Kanidm) — provisionnement automatique via le template
+  # `darkone.service.idm.oauth2.monitoring`. Secret généré par kanidm sous le
+  # nom `oidc-secret-monitoring` puis ré-alié pour Grafana (cf. mkIf cfg.enable).
+  clientId = dnfLib.oauth2ClientName { name = "monitoring"; } params;
+  secret = "oidc-secret-${clientId}";
+  idmUrl = dnfLib.idmHref network hosts;
 in
 {
   options = {
@@ -57,10 +62,19 @@ in
       default = "30d";
       description = "Durée de rétention des métriques Prometheus";
     };
+    darkone.service.monitoring.kioskTarget = lib.mkOption {
+      type = lib.types.str;
+      default = "d/rYdddlPWk/node-exporter-full?kiosk";
+      example = "d/dnf-monitoring-home/home?kiosk";
+      description = ''
+        Cible (relative, sans `/`) de la redirection automatique vers Grafana
+        depuis la racine du domaine monitoring. Surchargée par le module Loki
+        quand il est actif pour pointer vers un dashboard d'accueil multi-source.
+      '';
+    };
   };
 
   # Prometheus + Grafana + Node Exporter
-  # TODO: password access
   config = lib.mkMerge [
 
     #------------------------------------------------------------------------
@@ -82,9 +96,19 @@ in
         };
         proxy.enable = cfg.enable;
         proxy.servicePort = lib.mkIf cfg.enable port.grafana;
-        proxy.isProtected = false; # TODO: true; # Oauth2 Proxy
+
+        # Auth gérée nativement par Grafana via OIDC (cf. settings."auth.generic_oauth").
+        proxy.isProtected = false;
         proxy.isInternal = true;
-        proxy.extraConfig = lib.optionalString cfg.enable "redir / /d/rYdddlPWk/node-exporter-full?kiosk";
+        proxy.extraConfig = lib.optionalString cfg.enable "redir / /${cfg.kioskTarget}";
+      };
+
+      # Kanidm OAuth2 client template
+      darkone.service.idm.oauth2.monitoring = {
+        displayName = "Monitoring";
+        imageFile = ./../../assets/app-icons/grafana.svg;
+        redirectPaths = [ "/login/generic_oauth" ];
+        landingPath = "/";
       };
     }
 
@@ -104,9 +128,25 @@ in
       # Sops
       #--------------------------------------------------------------------------
 
-      sops.secrets.grafana-secret-key = lib.mkIf cfg.enable {
-        mode = "0400";
-        owner = "grafana";
+      # Secrets Grafana (clé interne) + alias du secret OIDC kanidm-owned.
+      # L'admin SOPS ajoute uniquement `oidc-secret-monitoring` (chiffré pour
+      # kanidm via le pattern de idm.nix). Cet alias le rend lisible par grafana.
+      #
+      # `optionalAttrs cfg.enable` (et non `mkIf` sur la valeur) car la clé
+      # `"${secret}-service"` dépend de `params` via `clientId` ; or `params`
+      # n'est résoluble que sur l'hôte qui porte le service monitoring. Sur un
+      # simple monitoring-node, `optionalAttrs` court-circuite la construction
+      # de la clé.
+      sops.secrets = lib.optionalAttrs cfg.enable {
+        grafana-secret-key = {
+          mode = "0400";
+          owner = "grafana";
+        };
+        "${secret}-service" = {
+          mode = "0400";
+          owner = "grafana";
+          key = secret;
+        };
       };
 
       #--------------------------------------------------------------------------
@@ -229,8 +269,30 @@ in
           news = {
             news_feed_enabled = false;
           };
+
+          # SSO Kanidm (OIDC). Tout utilisateur Kanidm authentifié accède en
+          # Viewer ; si le claim `groups` contient `admins` (nom court ou
+          # SPN), il est promu GrafanaAdmin. La restriction stricte au groupe
+          # admins (`allowed_groups`) est désactivée tant qu'on n'a pas
+          # confirmé le format exact du claim côté Kanidm — voir le TODO
+          # ci-dessous, possiblement via `darkone.service.idm.oauth2.monitoring.extra`
+          # (claimMaps / scopeMaps custom).
           auth.disable_login_form = true;
-          "auth.anonymous".enabled = true;
+          "auth.anonymous".enabled = false;
+          "auth.generic_oauth" = {
+            enabled = true;
+            name = "Kanidm";
+            client_id = clientId;
+            client_secret = "$__file{${config.sops.secrets."${secret}-service".path}}";
+            scopes = "openid email profile groups";
+            auth_url = "${idmUrl}/ui/oauth2";
+            token_url = "${idmUrl}/oauth2/token";
+            api_url = "${idmUrl}/oauth2/openid/${clientId}/userinfo";
+            role_attribute_path = "(contains(groups[*], 'admins') || contains(groups[*], 'admins@${network.domain}')) && 'GrafanaAdmin' || 'Viewer'";
+            allow_sign_up = true;
+            use_pkce = true;
+            auto_login = true;
+          };
         };
 
         provision = {
