@@ -12,11 +12,13 @@ let
   strings = import ./strings.nix { inherit lib; };
   srv = import ./srv.nix { inherit lib strings constants; };
   security = import ./security.nix { inherit lib; };
+  hive = import ./hive.nix { inherit lib; };
 in
 {
   inherit constants;
   inherit (strings) ucFirst cleanString;
   inherit (security) mkIsActive levelMapping;
+  inherit (hive) getHostArch mkNodeArgs;
   inherit (srv)
     findHost
     findService

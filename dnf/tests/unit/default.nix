@@ -6,7 +6,8 @@ let
   dnfLib = import ../../lib { inherit lib; };
 in
 {
-  lib_strings = import ./lib/strings_test.nix { inherit lib dnfLib; };
-  lib_srv = import ./lib/srv_test.nix { inherit lib dnfLib; };
-  lib_security = import ./lib/security_test.nix { inherit lib dnfLib; };
+  lib_strings = import ./lib/strings_test.nix { inherit dnfLib; };
+  lib_srv = import ./lib/srv_test.nix { inherit dnfLib; };
+  lib_security = import ./lib/security_test.nix { inherit dnfLib; };
+  lib_hive = import ./lib/hive_test.nix { inherit dnfLib; };
 }

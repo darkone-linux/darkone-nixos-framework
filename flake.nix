@@ -77,8 +77,9 @@
         "aarch64-linux"
       ];
 
-      # Function to get host architecture from host config or default to x86_64-linux
-      getHostArch = host: host.arch or "x86_64-linux";
+      # Pure hive helpers (imported directly — arch-independent, needed before mkDnfLib)
+      hiveLib = import ./dnf/lib/hive.nix { inherit (nixpkgs) lib; };
+      inherit (hiveLib) getHostArch mkNodeArgs;
 
       # Per-system initialization of pkgs
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
@@ -132,11 +133,10 @@
 
       mkNodeSpecialArgs = host: {
         name = host.hostname;
-        value = {
+        value = mkNodeArgs {
           inherit host hosts network;
-          zone = network.zones.${host.zone};
-        }
-        // mkCommonNodeArgs (getHostArch host);
+          extraArgs = mkCommonNodeArgs (getHostArch host);
+        };
       };
       nodeSpecialArgs = builtins.listToAttrs (map mkNodeSpecialArgs hosts);
 
@@ -168,17 +168,9 @@
                 # Load users profiles
                 users = builtins.listToAttrs (map mkHome host.users);
 
-                extraSpecialArgs = {
-                  inherit
-                    network
-                    host
-                    hosts
-                    users
-                    inputs
-                    ;
-                  zone = network.zones.${host.zone};
-                  pkgs-stable = nixpkgsStableFor.${getHostArch host};
-                  dnfLib = mkDnfLib (getHostArch host);
+                extraSpecialArgs = mkNodeArgs {
+                  inherit host hosts network;
+                  extraArgs = mkCommonNodeArgs (getHostArch host) // { inherit inputs; };
                 };
               };
             }
