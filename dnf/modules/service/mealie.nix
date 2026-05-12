@@ -15,9 +15,16 @@ let
   srv = config.services.mealie;
   inherit (network) smtp;
   params = dnfLib.extractServiceParams host network "mealie" { };
-  clientId = dnfLib.oauth2ClientName { name = "mealie"; } params;
-  secret = "oidc-secret-${clientId}";
-  idmUrl = dnfLib.idmHref network hosts;
+  inherit
+    (dnfLib.mkOidcContext {
+      name = "mealie";
+      inherit params network hosts;
+    })
+    clientId
+    secret
+    idmUrl
+    ;
+  oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
 in
 {
   options = {
@@ -51,10 +58,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.mealie.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "mealie";
 
       sops.secrets."smtp/password" = { };
       sops.secrets.${secret} = { };
@@ -99,7 +103,7 @@ in
           OIDC_ADMIN_GROUP = "admins@${network.domain}";
           OIDC_AUTO_REDIRECT = "true";
           OIDC_SIGNING_ALGORITHM = "ES256";
-          OIDC_CONFIGURATION_URL = "${idmUrl}/oauth2/openid/${clientId}/.well-known/openid-configuration";
+          OIDC_CONFIGURATION_URL = oidc.openidConfigUrl;
           OIDC_PROVIDER_NAME = "IDM";
         };
       };

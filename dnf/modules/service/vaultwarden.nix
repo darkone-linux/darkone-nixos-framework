@@ -52,10 +52,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.vaultwarden.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "vaultwarden";
 
       #--------------------------------------------------------------------------
       # Security

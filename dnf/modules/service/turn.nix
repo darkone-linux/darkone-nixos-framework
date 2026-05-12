@@ -13,6 +13,7 @@
 
 {
   lib,
+  dnfLib,
   config,
   network,
   host,
@@ -45,10 +46,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.turn.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "turn";
 
       #------------------------------------------------------------------------
       # Sops

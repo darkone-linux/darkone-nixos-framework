@@ -45,9 +45,16 @@ let
   # OIDC (Kanidm) — provisionnement automatique via le template
   # `darkone.service.idm.oauth2.monitoring`. Secret généré par kanidm sous le
   # nom `oidc-secret-monitoring` puis ré-alié pour Grafana (cf. mkIf cfg.enable).
-  clientId = dnfLib.oauth2ClientName { name = "monitoring"; } params;
-  secret = "oidc-secret-${clientId}";
-  idmUrl = dnfLib.idmHref network hosts;
+  inherit
+    (dnfLib.mkOidcContext {
+      name = "monitoring";
+      inherit params network hosts;
+    })
+    clientId
+    secret
+    idmUrl
+    ;
+  oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
 in
 {
   options = {
@@ -119,10 +126,7 @@ in
       #--------------------------------------------------------------------------
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.monitoring.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "monitoring";
 
       #--------------------------------------------------------------------------
       # Sops
@@ -158,7 +162,7 @@ in
         enable = true;
         port = port.nodeExporter;
         openFirewall = false;
-        listenAddress = host.vpnIp or host.ip;
+        listenAddress = dnfLib.preferredIp host;
         enabledCollectors = [
           "ethtool"
           "interrupts"
@@ -187,9 +191,7 @@ in
 
       # Open the node explorer port if needed
       networking.firewall = lib.mkIf cfg.isNode (
-        lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
-          allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [ port.nodeExporter ];
-        }
+        dnfLib.mkInternalFirewall host zone [ port.nodeExporter ]
       );
 
       # Additional packages
@@ -215,7 +217,7 @@ in
         scrapeConfigs = lib.optional cfg.enable {
           job_name = "node";
           static_configs = [
-            { targets = map (h: "${h.vpnIp or h.ip}:${toString port.nodeExporter}") nodes; }
+            { targets = map (h: "${dnfLib.preferredIp h}:${toString port.nodeExporter}") nodes; }
           ];
           scrape_interval = "15s";
         };
@@ -285,9 +287,9 @@ in
             client_id = clientId;
             client_secret = "$__file{${config.sops.secrets."${secret}-service".path}}";
             scopes = "openid email profile groups";
-            auth_url = "${idmUrl}/ui/oauth2";
-            token_url = "${idmUrl}/oauth2/token";
-            api_url = "${idmUrl}/oauth2/openid/${clientId}/userinfo";
+            auth_url = oidc.authUrl;
+            token_url = oidc.tokenUrl;
+            api_url = oidc.userinfoUrl;
             role_attribute_path = "(contains(groups[*], 'admins') || contains(groups[*], 'admins@${network.domain}')) && 'GrafanaAdmin' || 'Viewer'";
             allow_sign_up = true;
             use_pkce = true;

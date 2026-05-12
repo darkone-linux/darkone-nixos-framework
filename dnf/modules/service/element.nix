@@ -2,6 +2,7 @@
 
 {
   lib,
+  dnfLib,
   config,
   network,
   zone,
@@ -78,10 +79,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.element.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "element";
 
       # Get and expose element web sources
       environment.etc."element-web".source = elementWeb;

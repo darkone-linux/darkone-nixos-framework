@@ -42,10 +42,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.searx.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "searx";
 
       #------------------------------------------------------------------------
       # Dependencies

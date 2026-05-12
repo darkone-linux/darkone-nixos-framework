@@ -23,13 +23,17 @@ let
   params = dnfLib.extractServiceParams host network "docs" defaultParams;
 
   # Historical kanidm client name predates the service-name convention.
-  clientId = dnfLib.oauth2ClientName {
-    name = "docs";
-    clientName = "lasuite-docs";
-  } params;
-
-  secret = "oidc-secret-${clientId}";
-  idmUrl = dnfLib.idmHref network hosts;
+  inherit
+    (dnfLib.mkOidcContext {
+      name = "docs";
+      clientName = "lasuite-docs";
+      inherit params network hosts;
+    })
+    clientId
+    secret
+    idmUrl
+    ;
+  oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
   usesLocalMinio = cfg.s3Host == "127.0.0.1" || cfg.s3Host == "localhost";
   s3Url = "http://${cfg.s3Host}:${toString cfg.s3Port}/${cfg.s3Bucket}";
 in
@@ -86,10 +90,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.docs.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "docs";
 
       #------------------------------------------------------------------------
       # Secrets
@@ -165,11 +166,11 @@ in
           LANGUAGE_CODE = zone.lang;
 
           # OIDC (mozilla-django-oidc). Endpoints alignés sur l'API Kanidm ;
-          # secret + scope/algo signés ES256 (cf. mealie.nix:101).
-          OIDC_OP_AUTHORIZATION_ENDPOINT = "${idmUrl}/ui/oauth2";
-          OIDC_OP_TOKEN_ENDPOINT = "${idmUrl}/oauth2/token";
-          OIDC_OP_USER_ENDPOINT = "${idmUrl}/oauth2/openid/${clientId}/userinfo";
-          OIDC_OP_JWKS_ENDPOINT = "${idmUrl}/oauth2/openid/${clientId}/public_key.jwk";
+          # secret + scope/algo signés ES256.
+          OIDC_OP_AUTHORIZATION_ENDPOINT = oidc.authUrl;
+          OIDC_OP_TOKEN_ENDPOINT = oidc.tokenUrl;
+          OIDC_OP_USER_ENDPOINT = oidc.userinfoUrl;
+          OIDC_OP_JWKS_ENDPOINT = oidc.jwksUrl;
           OIDC_RP_CLIENT_ID = clientId;
           OIDC_RP_SIGN_ALGO = "ES256";
           OIDC_RP_SCOPES = "openid email profile";

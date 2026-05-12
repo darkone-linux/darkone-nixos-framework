@@ -22,13 +22,17 @@ let
   params = dnfLib.extractServiceParams host network "ai" defaultParams;
 
   # Historical kanidm client name predates the service-name convention.
-  clientId = dnfLib.oauth2ClientName {
-    name = "ai";
-    clientName = "open-webui";
-  } params;
-
-  secret = "oidc-secret-${clientId}";
-  idmUrl = dnfLib.idmHref network hosts;
+  inherit
+    (dnfLib.mkOidcContext {
+      name = "ai";
+      clientName = "open-webui";
+      inherit params network hosts;
+    })
+    clientId
+    secret
+    idmUrl
+    ;
+  oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
 in
 {
   options = {
@@ -64,21 +68,16 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.ai.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "ai";
 
       #------------------------------------------------------------------------
       # Firewall
       #------------------------------------------------------------------------
 
-      networking.firewall = lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
-        allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [
-          internalPort
-          config.services.ollama.port
-        ];
-      };
+      networking.firewall = dnfLib.mkInternalFirewall host zone [
+        internalPort
+        config.services.ollama.port
+      ];
 
       #------------------------------------------------------------------------
       # AI Tools & dependencies
@@ -156,7 +155,7 @@ in
 
           # Required for OIDC
           OAUTH_CLIENT_ID = clientId;
-          OPENID_PROVIDER_URL = "${idmUrl}/oauth2/openid/${clientId}/.well-known/openid-configuration";
+          OPENID_PROVIDER_URL = oidc.openidConfigUrl;
           OAUTH_CODE_CHALLENGE_METHOD = "S256"; # PKCE -> https://docs.openwebui.com/reference/env-configuration#oauth_code_challenge_method
 
           # Auto-signup

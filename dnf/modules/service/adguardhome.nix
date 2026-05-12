@@ -7,6 +7,7 @@
 
 {
   lib,
+  dnfLib,
   config,
   network,
   zone,
@@ -56,10 +57,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.adguardhome.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "adguardhome";
 
       #------------------------------------------------------------------------
       # AdguardHome Service

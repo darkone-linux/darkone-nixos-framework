@@ -152,26 +152,7 @@ let
 
   inherit (dnfLib.constants) caddyStorage;
 
-  mkHomeSection =
-    services:
-    map (
-      srv:
-      let
-        pubPriv =
-          if srv.params.global then
-            (if srv.params.zone == "www" then "🟢" else "🟡")
-          else
-            (if srv.params.zone == zone.name then "🔵" else "🟠");
-        mention = " (" + srv.params.zone + ":" + srv.params.host + ")";
-      in
-      {
-        "${srv.params.title}" = mkIf srv.displayOnHomepage {
-          description = srv.params.description + mention + " " + pubPriv;
-          inherit (srv.params) href;
-          inherit (srv.params) icon;
-        };
-      }
-    ) services;
+  mkHomeSection = dnfLib.mkHomepageSection zone.name;
 
   # Access logs Caddy en JSON pour ingestion par Alloy/Loki.
   #

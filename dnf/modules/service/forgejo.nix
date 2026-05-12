@@ -73,10 +73,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.forgejo.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "forgejo";
 
       # SMTP Relay
       darkone.service.postfix.enable = true;

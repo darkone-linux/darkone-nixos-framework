@@ -46,10 +46,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.jellyfin.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "jellyfin";
 
       #------------------------------------------------------------------------
       # jellyfin Service

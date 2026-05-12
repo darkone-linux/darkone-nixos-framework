@@ -197,10 +197,7 @@ in
     (mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.idm.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "idm";
 
       # SMTP Relay
       darkone.service.postfix.enable = true;

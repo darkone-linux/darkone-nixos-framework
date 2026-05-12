@@ -11,7 +11,12 @@
 # Credentials are managed through sops.
 # :::
 
-{ lib, config, ... }:
+{
+  lib,
+  dnfLib,
+  config,
+  ...
+}:
 let
   cfg = config.darkone.service.minio;
   srvPort = 9000;
@@ -46,10 +51,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.minio.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "minio";
 
       #------------------------------------------------------------------------
       # Secrets

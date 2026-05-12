@@ -65,13 +65,17 @@ let
   params = dnfLib.extractServiceParams host network "matrix" defaultParams;
 
   # Historical kanidm client name predates the service-name convention.
-  clientId = dnfLib.oauth2ClientName {
-    name = "matrix";
-    clientName = "matrix-synapse";
-  } params;
-
-  secret = "oidc-secret-${clientId}";
-  idmUrl = dnfLib.idmHref network hosts;
+  inherit
+    (dnfLib.mkOidcContext {
+      name = "matrix";
+      clientName = "matrix-synapse";
+      inherit params network hosts;
+    })
+    clientId
+    secret
+    idmUrl
+    ;
+  oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
 in
 {
   options = {
@@ -128,10 +132,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.matrix.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "matrix";
 
       #------------------------------------------------------------------------
       # Sops
@@ -438,7 +439,7 @@ in
             {
               idp_id = "kanidm";
               idp_name = "IDM";
-              issuer = "${idmUrl}/oauth2/openid/${clientId}";
+              issuer = oidc.issuerUrl;
               client_id = clientId;
               client_secret_path = config.sops.templates.oidc-secret-synapse.path;
               scopes = [

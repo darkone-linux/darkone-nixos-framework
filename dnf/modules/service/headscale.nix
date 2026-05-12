@@ -47,10 +47,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.headscale.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "headscale";
 
       #------------------------------------------------------------------------
       # Unbound (pivot DNS)

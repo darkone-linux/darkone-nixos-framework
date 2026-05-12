@@ -57,17 +57,7 @@ in
           ];
         };
         proxy.servicePort = srv.port;
-        proxy.extraConfig = ''
-          header {
-            X-Frame-Options "sameorigin"
-            X-Robots-Tag "noindex,nofollow"
-            Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
-          }
-          request_body {
-            max_size 4GB
-          }
-          encode gzip
-        '';
+        proxy.extraConfig = dnfLib.mkCaddySecurityHeaders { maxUploadSize = "4GB"; };
       };
 
       # Kanidm OAuth2 client template (consumer wiring is TODO upstream)
@@ -89,10 +79,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.immich.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "immich";
 
       #------------------------------------------------------------------------
       # Immich dependencies
@@ -121,9 +108,7 @@ in
 
       # Open internal port only if necessary on the right interface
       # https://github.com/NixOS/nixpkgs/blob/a6531044f6d0bef691ea18d4d4ce44d0daa6e816/nixos/modules/services/web-apps/immich.nix#L362C68-L362C71
-      networking.firewall = lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
-        allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [ srv.port ];
-      };
+      networking.firewall = dnfLib.mkInternalFirewall host zone [ srv.port ];
 
       # Medias pour bibliothèques externes
       darkone.system.srv-dirs.enableMedias = true;

@@ -221,10 +221,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.restic.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "restic";
 
       #------------------------------------------------------------------------
       # Restic service dependencies & configuration

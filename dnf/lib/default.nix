@@ -16,7 +16,7 @@ let
 in
 {
   inherit constants;
-  inherit (strings) ucFirst cleanString;
+  inherit (strings) ucFirst cleanString mkCaddySecurityHeaders;
   inherit (security) mkIsActive levelMapping;
   inherit (hive) getHostArch mkNodeArgs;
   inherit (srv)
@@ -31,5 +31,11 @@ in
     inLocalZone
     isHcs
     getInternalInterfaceFwPath
+    preferredIp
+    mkInternalFirewall
+    mkOidcContext
+    mkKanidmEndpoints
+    enableBlock
+    mkHomepageSection
     ;
 }

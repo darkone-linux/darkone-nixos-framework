@@ -170,7 +170,9 @@
 
                 extraSpecialArgs = mkNodeArgs {
                   inherit host hosts network;
-                  extraArgs = mkCommonNodeArgs (getHostArch host) // { inherit inputs; };
+                  extraArgs = mkCommonNodeArgs (getHostArch host) // {
+                    inherit inputs;
+                  };
                 };
               };
             }

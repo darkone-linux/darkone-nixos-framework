@@ -37,15 +37,11 @@ let
   monitoringSvc = lib.findFirst (s: s.name == "monitoring") null network.services;
   monitoringHost =
     if monitoringSvc != null then dnfLib.findHost monitoringSvc.host monitoringSvc.zone hosts else { };
-  lokiAddr =
-    if monitoringHost ? vpnIp && monitoringHost.vpnIp != "" then
-      monitoringHost.vpnIp
-    else
-      monitoringHost.ip or "127.0.0.1";
+  lokiAddr = dnfLib.preferredIp monitoringHost;
   lokiUrl = "http://${lokiAddr}:${toString port.loki}";
 
   # Adresse de binding locale (VPN si dispo, sinon LAN).
-  bindAddr = if host ? vpnIp && host.vpnIp != "" then host.vpnIp else host.ip or "127.0.0.1";
+  bindAddr = dnfLib.preferredIp host;
 in
 {
   options = {

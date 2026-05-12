@@ -353,4 +353,275 @@ in
     expr = dnfLib.idmHref (mockNetworkHcs // { services = mockServices; }) mockHosts;
     expected = null;
   };
+
+  # ----- preferredIp -----
+  testPreferredIpVpn = {
+    expr = dnfLib.preferredIp {
+      vpnIp = "100.64.1.5";
+      ip = "192.168.1.10";
+    };
+    expected = "100.64.1.5";
+  };
+  testPreferredIpFallbackLan = {
+    expr = dnfLib.preferredIp {
+      vpnIp = "";
+      ip = "192.168.1.10";
+    };
+    expected = "192.168.1.10";
+  };
+  testPreferredIpNoVpnAttr = {
+    expr = dnfLib.preferredIp { ip = "10.0.0.5"; };
+    expected = "10.0.0.5";
+  };
+  testPreferredIpLoopback = {
+    expr = dnfLib.preferredIp { };
+    expected = "127.0.0.1";
+  };
+
+  # ----- mkInternalFirewall -----
+  # Hôte non-gateway, non-VPN : path racine, ports actifs (mkIf true)
+  testMkInternalFirewallRegular = {
+    expr =
+      let
+        fw = dnfLib.mkInternalFirewall (mockHost // { hostname = "otherhost"; }) mockZone [ 3000 ];
+        v = fw.allowedTCPPorts;
+      in
+      {
+        inherit (v) _type condition content;
+      };
+    expected = {
+      _type = "if";
+      condition = true;
+      content = [ 3000 ];
+    };
+  };
+  # Gateway : path = [interfaces lan0], ports désactivés (mkIf false)
+  # On introspecte la structure `mkIf` produite sans dépendre de `lib`.
+  testMkInternalFirewallGateway = {
+    expr =
+      let
+        fw = dnfLib.mkInternalFirewall mockHost mockZone [ 3000 ];
+        v = fw.interfaces.${constants.lanInterface}.allowedTCPPorts;
+      in
+      {
+        inherit (v) _type condition content;
+      };
+    expected = {
+      _type = "if";
+      condition = false;
+      content = [ 3000 ];
+    };
+  };
+  # Client VPN : path = [interfaces tailscale0]
+  testMkInternalFirewallVpn = {
+    expr =
+      let
+        h = mockHost // {
+          hostname = "vpnhost";
+          vpnIp = "100.64.1.5";
+        };
+        fw = dnfLib.mkInternalFirewall h mockZone [ 8080 ];
+        v = fw.interfaces.${constants.vpnInterface}.allowedTCPPorts;
+      in
+      {
+        inherit (v) _type condition content;
+      };
+    expected = {
+      _type = "if";
+      condition = true;
+      content = [ 8080 ];
+    };
+  };
+
+  # ----- mkOidcContext -----
+  testMkOidcContextStandard = {
+    expr = dnfLib.mkOidcContext {
+      name = "outline";
+      params = {
+        domain = "outline";
+      };
+      network = mockNetworkHcs // {
+        services = [
+          {
+            name = "idm";
+            host = "hcshost";
+            zone = constants.globalZone;
+            global = true;
+          }
+        ];
+      };
+      hosts = mockHosts;
+    };
+    expected = {
+      clientId = "outline";
+      secret = "oidc-secret-outline";
+      idmUrl = "https://idm.example.com";
+    };
+  };
+  testMkOidcContextRenamedDomain = {
+    expr =
+      (dnfLib.mkOidcContext {
+        name = "outline";
+        params = {
+          domain = "notes";
+        };
+        network = mockNetworkPlain;
+        hosts = [ ];
+      }).clientId;
+    expected = "outline-notes";
+  };
+  testMkOidcContextClientNameOverride = {
+    expr =
+      (dnfLib.mkOidcContext {
+        name = "matrix";
+        clientName = "matrix-synapse";
+        params = {
+          domain = "matrix";
+        };
+        network = mockNetworkPlain;
+        hosts = [ ];
+      }).clientId;
+    expected = "matrix-synapse";
+  };
+  testMkOidcContextNoIdm = {
+    expr =
+      (dnfLib.mkOidcContext {
+        name = "mealie";
+        params = {
+          domain = "mealie";
+        };
+        network = mockNetworkPlain;
+        hosts = mockHosts;
+      }).idmUrl;
+    expected = null;
+  };
+
+  # ----- mkKanidmEndpoints -----
+  testMkKanidmEndpoints = {
+    expr = dnfLib.mkKanidmEndpoints "https://idm.example.com" "outline";
+    expected = {
+      authUrl = "https://idm.example.com/ui/oauth2";
+      tokenUrl = "https://idm.example.com/oauth2/token";
+      userinfoUrl = "https://idm.example.com/oauth2/openid/outline/userinfo";
+      jwksUrl = "https://idm.example.com/oauth2/openid/outline/public_key.jwk";
+      openidConfigUrl = "https://idm.example.com/oauth2/openid/outline/.well-known/openid-configuration";
+      issuerUrl = "https://idm.example.com/oauth2/openid/outline";
+    };
+  };
+
+  # ----- enableBlock -----
+  testEnableBlock = {
+    expr = dnfLib.enableBlock "forgejo";
+    expected = {
+      enable = true;
+      service.forgejo.enable = true;
+    };
+  };
+
+  # ----- mkHomepageSection -----
+  # Service global dans la zone www → vert
+  testMkHomepageSectionPublicGlobal = {
+    expr =
+      let
+        srv = {
+          displayOnHomepage = true;
+          params = {
+            title = "Site";
+            description = "Public";
+            href = "https://site.example.com";
+            icon = "sh-site";
+            global = true;
+            zone = constants.globalZone;
+            host = "hcshost";
+          };
+        };
+        out = builtins.head (dnfLib.mkHomepageSection "lan" [ srv ]);
+      in
+      builtins.match ".*🟢.*" out.Site.content.description != null;
+    expected = true;
+  };
+  # Service global hors zone www → jaune
+  testMkHomepageSectionPublicNonGlobal = {
+    expr =
+      let
+        srv = {
+          displayOnHomepage = true;
+          params = {
+            title = "Site";
+            description = "Public";
+            href = "https://site.example.com";
+            icon = "sh-site";
+            global = true;
+            zone = "dmz";
+            host = "host";
+          };
+        };
+        out = builtins.head (dnfLib.mkHomepageSection "lan" [ srv ]);
+      in
+      builtins.match ".*🟡.*" out.Site.content.description != null;
+    expected = true;
+  };
+  # Service privé local → bleu
+  testMkHomepageSectionPrivateLocal = {
+    expr =
+      let
+        srv = {
+          displayOnHomepage = true;
+          params = {
+            title = "Wiki";
+            description = "Internal";
+            href = "http://wiki.lan";
+            icon = "sh-wiki";
+            global = false;
+            zone = "lan";
+            host = "testhost";
+          };
+        };
+        out = builtins.head (dnfLib.mkHomepageSection "lan" [ srv ]);
+      in
+      builtins.match ".*🔵.*" out.Wiki.content.description != null;
+    expected = true;
+  };
+  # Service privé distant → orange
+  testMkHomepageSectionPrivateRemote = {
+    expr =
+      let
+        srv = {
+          displayOnHomepage = true;
+          params = {
+            title = "Wiki";
+            description = "Internal";
+            href = "http://wiki.dmz";
+            icon = "sh-wiki";
+            global = false;
+            zone = "dmz";
+            host = "otherhost";
+          };
+        };
+        out = builtins.head (dnfLib.mkHomepageSection "lan" [ srv ]);
+      in
+      builtins.match ".*🟠.*" out.Wiki.content.description != null;
+    expected = true;
+  };
+  # Mention "(zone:host)" injectée
+  testMkHomepageSectionMention = {
+    expr =
+      let
+        srv = {
+          displayOnHomepage = true;
+          params = {
+            title = "Svc";
+            description = "Desc";
+            href = "x";
+            icon = "y";
+            global = false;
+            zone = "lan";
+            host = "testhost";
+          };
+        };
+        out = builtins.head (dnfLib.mkHomepageSection "lan" [ srv ]);
+      in
+      builtins.match ".*\\(lan:testhost\\).*" out.Svc.content.description != null;
+    expected = true;
+  };
 }

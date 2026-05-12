@@ -51,24 +51,16 @@ in
         };
         proxy.servicePort = port;
 
-        # X-Frame-Options: sameorigin -> Empêche que la page soit intégrée dans une <iframe> provenant d’un autre domaine.
         # X-Content-Type-Options: nosniff -> Interdit au navigateur d’essayer de deviner le type MIME d’une ressource.
-        # X-Robots-Tag: noindex, nofollow -> Ne pas indexer, ne pas suivre les liens.
         # Referrer-Policy: no-referrer-when-downgrade -> Ne pas envoyer le referer dans le cas HTTPS → HTTP
-        # Strict-Transport-Security -> Force HTTPS (pendant 2 ans)
-        proxy.extraConfig = ''
-          header {
-            X-Frame-Options "sameorigin"
+        # (X-Frame-Options / X-Robots-Tag / Strict-Transport-Security viennent du helper.)
+        proxy.extraConfig = dnfLib.mkCaddySecurityHeaders {
+          maxUploadSize = "200MB";
+          extraHeaders = ''
             X-Content-Type-Options "nosniff"
-            X-Robots-Tag "noindex,nofollow"
             Referrer-Policy "no-referrer-when-downgrade"
-            Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
-          }
-          request_body {
-            max_size 200MB
-          }
-          encode gzip
-        '';
+          '';
+        };
       };
 
       # Kanidm OAuth2 client template (consumer wiring is TODO — see user_oidc / sociallogin)
@@ -89,10 +81,7 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.nextcloud.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "nextcloud";
 
       #------------------------------------------------------------------------
       # Nextcloud dependencies
@@ -133,9 +122,7 @@ in
       # Firewall
       #------------------------------------------------------------------------
 
-      networking.firewall = lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
-        allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [ port ];
-      };
+      networking.firewall = dnfLib.mkInternalFirewall host zone [ port ];
 
       #------------------------------------------------------------------------
       # Nextcloud Service

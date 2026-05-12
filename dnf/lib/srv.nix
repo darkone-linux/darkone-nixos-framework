@@ -238,4 +238,106 @@ rec {
         else
           [ ]
       );
+
+  # Resolve the preferred IP of a host: tailnet IP when registered, plain
+  # `ip` otherwise, falling back to loopback when neither is known. Mirrors
+  # the cascade used internally by `buildServiceParams` so consumer modules
+  # do not have to re-implement it.
+  preferredIp =
+    host:
+    if (hasAttr "vpnIp" host) && host.vpnIp != "" then
+      host.vpnIp
+    else if (hasAttr "ip" host) && host.ip != "" then
+      host.ip
+    else
+      "127.0.0.1";
+
+  # Firewall fragment opening `ports` on the internal interface of `host`
+  # in `zone`. The port list is only effective on non-gateway hosts: on a
+  # gateway, traffic flows through the reverse proxy so the service port
+  # stays closed on the internal interface.
+  #
+  # Returns a complete `networking.firewall` fragment ready to assign:
+  #
+  #   networking.firewall = dnfLib.mkInternalFirewall host zone [ port ];
+  mkInternalFirewall =
+    host: zone: ports:
+    lib.setAttrByPath (getInternalInterfaceFwPath host zone) {
+      allowedTCPPorts = lib.mkIf (!(isGateway host zone)) ports;
+    };
+
+  # Bundle the three values systematically derived together when wiring a
+  # service to Kanidm OIDC: the Kanidm client identifier, the SOPS secret
+  # name and the public Kanidm URL. Returns `{ clientId, secret, idmUrl }`
+  # with `idmUrl = null` when Kanidm is not deployed on this network.
+  #
+  # Equivalent to writing by hand:
+  #   clientId = dnfLib.oauth2ClientName { name = …; } params;
+  #   secret   = "oidc-secret-${clientId}";
+  #   idmUrl   = dnfLib.idmHref network hosts;
+  mkOidcContext =
+    {
+      name,
+      clientName ? null,
+      params,
+      network,
+      hosts,
+    }:
+    let
+      clientId = oauth2ClientName { inherit name clientName; } params;
+    in
+    {
+      inherit clientId;
+      secret = "oidc-secret-${clientId}";
+      idmUrl = idmHref network hosts;
+    };
+
+  # Kanidm OAuth2/OIDC endpoint URLs for a given client. Centralises the
+  # protocol-level routes so consumer modules don't hard-code them (and so
+  # a Kanidm route change is fixed in one place).
+  mkKanidmEndpoints = idmUrl: clientId: {
+    authUrl = "${idmUrl}/ui/oauth2";
+    tokenUrl = "${idmUrl}/oauth2/token";
+    userinfoUrl = "${idmUrl}/oauth2/openid/${clientId}/userinfo";
+    jwksUrl = "${idmUrl}/oauth2/openid/${clientId}/public_key.jwk";
+    openidConfigUrl = "${idmUrl}/oauth2/openid/${clientId}/.well-known/openid-configuration";
+    issuerUrl = "${idmUrl}/oauth2/openid/${clientId}";
+  };
+
+  # Activation fragment systematically repeated inside `lib.mkIf cfg.enable`
+  # blocks of every DNF service module. Returns the attrset that should be
+  # assigned to `darkone.system.services`.
+  enableBlock = name: {
+    enable = true;
+    service.${name}.enable = true;
+  };
+
+  # Build the homepage section entries for a list of services. Classifies
+  # each entry as public/private and local/remote relative to the current
+  # zone, prefixing the description with a colour-coded marker.
+  #
+  # `currentZoneName` is the zone the consuming host sits in (typically
+  # `zone.name` in the caller's scope). Each `srv` must expose
+  # `params.{title,description,zone,host,global,href,icon}` and a
+  # `displayOnHomepage` flag.
+  mkHomepageSection =
+    currentZoneName: services:
+    map (
+      srv:
+      let
+        pubPriv =
+          if srv.params.global then
+            (if srv.params.zone == constants.globalZone then "🟢" else "🟡")
+          else
+            (if srv.params.zone == currentZoneName then "🔵" else "🟠");
+        mention = " (" + srv.params.zone + ":" + srv.params.host + ")";
+      in
+      {
+        "${srv.params.title}" = lib.mkIf srv.displayOnHomepage {
+          description = srv.params.description + mention + " " + pubPriv;
+          inherit (srv.params) href;
+          inherit (srv.params) icon;
+        };
+      }
+    ) services;
 }

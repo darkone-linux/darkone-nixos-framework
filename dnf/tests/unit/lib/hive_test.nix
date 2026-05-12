@@ -74,12 +74,13 @@ in
   };
   # extraArgs overrides base attrs (last-wins merge)
   testMkNodeArgsExtraOverridesNetwork = {
-    expr = (dnfLib.mkNodeArgs {
-      host = mockHostX86;
-      hosts = mockHosts;
-      network = mockNetwork;
-      extraArgs.network = "overridden";
-    }).network;
+    expr =
+      (dnfLib.mkNodeArgs {
+        host = mockHostX86;
+        hosts = mockHosts;
+        network = mockNetwork;
+        extraArgs.network = "overridden";
+      }).network;
     expected = "overridden";
   };
 }

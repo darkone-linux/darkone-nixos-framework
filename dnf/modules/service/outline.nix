@@ -14,9 +14,16 @@ let
   cfg = config.darkone.service.outline;
   srvPort = 3003;
   params = dnfLib.extractServiceParams host network "outline" { };
-  clientId = dnfLib.oauth2ClientName { name = "outline"; } params;
-  secret = "oidc-secret-${clientId}";
-  idmUrl = dnfLib.idmHref network hosts;
+  inherit
+    (dnfLib.mkOidcContext {
+      name = "outline";
+      inherit params network hosts;
+    })
+    clientId
+    secret
+    idmUrl
+    ;
+  oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
 in
 {
   options = {
@@ -48,18 +55,13 @@ in
     (lib.mkIf cfg.enable {
 
       # Darkone service: enable
-      darkone.system.services = {
-        enable = true;
-        service.outline.enable = true;
-      };
+      darkone.system.services = dnfLib.enableBlock "outline";
 
       #------------------------------------------------------------------------
       # Firewall
       #------------------------------------------------------------------------
 
-      networking.firewall = lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
-        allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [ srvPort ];
-      };
+      networking.firewall = dnfLib.mkInternalFirewall host zone [ srvPort ];
 
       #------------------------------------------------------------------------
       # outline Service
@@ -80,9 +82,7 @@ in
         forceHttps = false;
         storage.storageType = "local";
         oidcAuthentication = {
-          authUrl = "${idmUrl}/ui/oauth2";
-          tokenUrl = "${idmUrl}/oauth2/token";
-          userinfoUrl = "${idmUrl}/oauth2/openid/${clientId}/userinfo";
+          inherit (oidc) authUrl tokenUrl userinfoUrl;
           inherit clientId;
           clientSecretFile = config.sops.secrets."${secret}-service".path;
           displayName = "idm";
