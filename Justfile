@@ -101,7 +101,7 @@ check-statix:
 [group('check')]
 unit-tests:
 	just _log "Running unit tests..." "TESTS"
-	nix-unit --flake .#libTests
+	nix-unit --gc-roots-dir /tmp --flake .#libTests
 
 #==============================================================================
 # Development
