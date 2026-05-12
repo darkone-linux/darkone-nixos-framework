@@ -1,6 +1,6 @@
-# Loki + Promtail module.
+# Loki + Alloy, http stats with grafana.
 #
-# :::tip
+# :::note
 # Collecte centralisée des access logs Caddy, exploitée par Grafana via
 # une datasource Loki provisionnée et un dashboard dédié.
 #
@@ -15,9 +15,64 @@
 # `isClient` suit `services.caddy.enable` : l'installation est totalement
 # automatique dès que le monitoring et Caddy sont actifs.
 # :::
+#
+# :::tip Débogage & nettoyage manuel
+# Symptômes les plus courants après une (dés)activation de `loki` ou un
+# changement de format de log côté Caddy :
+#
+# **1. "NO DATA" sur le dashboard Caddy alors que des requêtes arrivent.**
+#    Vérifier la chaîne d'ingestion de bout en bout :
+#    ```sh
+#    # Sur l'hôte Caddy : Alloy tourne ? lit-il les fichiers ?
+#    sudo systemctl status alloy --no-pager
+#    sudo journalctl -u alloy -n 100 --no-pager | grep -iE 'error|permission'
+#    ls -la /var/log/caddy/access-*.log   # doit être caddy:caddy
+#
+#    # Sur l'hôte monitoring : Loki reçoit-il quelque chose ?
+#    # (remplacer <IP> par l'IP interne du host monitoring, Loki ne bind
+#    # PAS sur 127.0.0.1 — cf. http_listen_address = bindAddr)
+#    curl -s http://<IP>:3100/loki/api/v1/labels | jq
+#    curl -sG http://<IP>:3100/loki/api/v1/query \
+#         --data-urlencode 'query={job="caddy"}' | jq '.data.result | length'
+#    ```
+#
+# **2. `alloy.service: mkdir data-alloy/remotecfg: permission denied`.**
+#    Ownership orphelin de `/var/lib/alloy` hérité d'un ancien DynamicUser.
+#    L'`ExecStartPre` du service répare normalement tout seul, mais en cas
+#    de coincement (ex. unit en `start-limit-hit`) :
+#    ```sh
+#    sudo systemctl stop alloy
+#    sudo chown -R caddy:caddy /var/lib/alloy
+#    sudo systemctl reset-failed alloy
+#    sudo systemctl start alloy
+#    ```
+#
+# **3. Grafana refuse de démarrer : `Datasource provisioning error: data
+#    source not found`.** Conflit d'UID en base SQLite après changement de
+#    provision (typiquement passage d'un UID auto-généré à `uid = "loki"`).
+#    Le `deleteDatasources` du module gère ça en théorie ; sinon, purge
+#    manuelle :
+#    ```sh
+#    sudo systemctl stop grafana
+#    sudo sqlite3 /var/lib/grafana/grafana.db \
+#         "DELETE FROM data_source WHERE name='Loki';"
+#    sudo systemctl reset-failed grafana
+#    sudo systemctl start grafana
+#    ```
+#
+# **4. Fichiers de logs Caddy obsolètes** (ancien nommage avec `:` ou
+#    schéma, ex. `access-http:__nextcloud.log`). Inoffensifs mais polluent
+#    le tail d'Alloy. À nettoyer ponctuellement après une migration :
+#    ```sh
+#    sudo rm /var/log/caddy/access-{http,https}:__*.log
+#    sudo rm /var/log/caddy/access-:*.log     # variantes `:80`, `:443`
+#    sudo systemctl reload caddy              # facultatif
+#    ```
+# :::
 
 {
   lib,
+  pkgs,
   config,
   dnfLib,
   hosts,
@@ -92,7 +147,8 @@ in
           server = {
             http_listen_address = bindAddr;
             http_listen_port = port.loki;
-            grpc_listen_port = 0;
+            grpc_listen_address = bindAddr;
+            grpc_listen_port = 9096;
           };
 
           common = {
@@ -100,7 +156,7 @@ in
             replication_factor = 1;
             ring = {
               kvstore.store = "inmemory";
-              instance_addr = "127.0.0.1";
+              instance_addr = bindAddr;
             };
           };
 
@@ -142,13 +198,35 @@ in
         };
       };
 
-      # Datasource Loki + dashboard Caddy (mkMerge avec monitoring.nix)
-      services.grafana.provision = {
-        datasources.settings.datasources = [
+      services.grafana.provision.datasources.settings = {
+
+        # `deleteDatasources` purge l'éventuelle entrée "Loki" préexistante en
+        # base SQLite avant la ré-insertion : sans ça, le passage d'un UID
+        # auto-généré à un UID fixe ("loki") provoque "data source not found"
+        # au boot de Grafana (Grafana 11+ tente un update par UID et échoue).
+        # Opération idempotente : delete-then-insert à chaque restart.
+        deleteDatasources = [
+          {
+            name = "Loki";
+            orgId = 1;
+          }
+        ];
+
+        # Datasource Loki + dashboard Caddy (mkMerge avec monitoring.nix).
+        # `uid = "loki"` est explicite : le dashboard caddy-access référence
+        # la datasource par cet UID (cf. `"datasource": { "uid": "loki" }`
+        # dans le JSON). Sans cet UID figé, Grafana en génère un aléatoire et
+        # tous les panneaux affichent "datasource not found".
+        datasources = [
           {
             name = "Loki";
             type = "loki";
-            url = "http://127.0.0.1:${toString port.loki}";
+            uid = "loki";
+
+            # Loki bind sur `lokiAddr` (cf. http_listen_address ci-dessus), pas
+            # sur 127.0.0.1. Grafana tourne sur le même hôte mais doit donc
+            # cibler la même IP que celle utilisée pour le bind (ip interne de la zone).
+            url = "http://${lokiAddr}:${toString port.loki}";
             isDefault = false;
             editable = false;
           }
@@ -185,6 +263,10 @@ in
     (lib.mkIf cfg.isClient {
 
       services.alloy.enable = true;
+
+      # Désactive le rapport d'usage vers stats.grafana.org : sinon Alloy
+      # tente toutes les ~4h de POSTer un payload de télémétrie externe.
+      services.alloy.extraFlags = [ "--disable-reporting" ];
 
       environment.etc."alloy/config.alloy".text = ''
         local.file_match "caddy" {
@@ -237,9 +319,28 @@ in
         }
       '';
 
-      # Alloy tourne avec DynamicUser, on doit donc passer par les
-      # SupplementaryGroups systemd pour autoriser la lecture des logs Caddy.
-      systemd.services.alloy.serviceConfig.SupplementaryGroups = [ "caddy" ];
+      # On fait tourner Alloy directement en `caddy:caddy` (au lieu du
+      # DynamicUser par défaut). Raison : Caddy crée ses access logs en mode
+      # `0600` (valeur hardcodée dans son writer Go, sans surcharge possible
+      # depuis le Caddyfile), donc même en ajoutant Alloy au groupe `caddy`
+      # via SupplementaryGroups, le mode 0600 bloque toute lecture de groupe.
+      # En devenant propriétaire des fichiers, Alloy peut les tailer.
+      # `mkForce` est nécessaire pour écraser les défauts du module amont.
+      systemd.services.alloy.serviceConfig = {
+        DynamicUser = lib.mkForce false;
+        User = lib.mkForce "caddy";
+        Group = lib.mkForce "caddy";
+        SupplementaryGroups = lib.mkForce [ "systemd-journal" ];
+
+        # `ExecStartPre` (préfixe `+` ⇒ exécuté en root, indépendamment de `User=`)
+        # garantit que `/var/lib/alloy` et son contenu (notamment `data-alloy/`
+        # créé par Alloy lui-même) appartiennent bien à `caddy:caddy` à chaque
+        # démarrage. Sans ça, sur un hôte neuf ou un hôte migré depuis l'ancien
+        # DynamicUser, on tombe sur `mkdir data-alloy/remotecfg: permission
+        # denied` parce que le StateDirectory de systemd ne chown pas
+        # récursivement et que tmpfiles ne tourne qu'au boot (pas au switch).
+        ExecStartPre = [ "+${pkgs.coreutils}/bin/chown -R caddy:caddy /var/lib/alloy" ];
+      };
     })
   ];
 }

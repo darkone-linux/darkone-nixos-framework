@@ -30,6 +30,13 @@ const CATEGORIES: &[Category] = &[
         icon: "&#x1F4E6;",
     },
     Category {
+        title: "Service modules",
+        description: "**A service module** provides a ready-to-use service (daemon).",
+        relative_dir: "dnf/modules/service",
+        prefix: "darkone.service.",
+        icon: "&#x2728;",
+    },
+    Category {
         title: "System modules",
         description: "**A system module** manages common, important, and general configurations.",
         relative_dir: "dnf/modules/system",
