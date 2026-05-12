@@ -3,7 +3,6 @@
 > [!NOTE]
 > La [documentation technique](https://darkone-linux.github.io) en ligne.
 
-
 ## Présentation aux utilisateurs (non technique)
 
 ### De quoi s'agit-il ?
@@ -53,19 +52,19 @@ Chaque utilisateur est lié à un “profil” (au choix et interchangeable), qu
 | **Profil** | **Description** |
 |----|----|
 | ⚪&nbsp;minimal | Compte épuré avec le strict minimum de programmes. |
-| 🔵&nbsp;normal | Pour utilisateur bureautique non-informaticien, avec l'essentiel des programmes. |
-| 🟣&nbsp;avancé | Pour utilisateur informaticien, avec des outils avancés. |
+| 🔵&nbsp;normal | Pour un utilisateur bureautique non-informaticien, avec l'essentiel des programmes. |
+| 🟣&nbsp;avancé | Pour un utilisateur informaticien, avec des outils avancés. |
 | 🔴&nbsp;admin | Compte avancé pour administrer le réseau et les systèmes (expert Linux et Nix requis). |
-| 🎨&nbsp;créateur | Pour créateur multimédia, avec tout ce qu'il faut pour créer vidéo, musique, photo / image. |
+| 🎨&nbsp;créateur | Pour un créateur multimédia, avec tout ce qu'il faut pour créer vidéos, musique, photos / images. |
 | 📘&nbsp;étudiant | Des outils utiles d'organisation, prise de notes, entraînement pour les étudiants. |
-| 🎮&nbsp;Joueur | Un système épuré avec essentiellement des jeux (utilisé pour les LANs). |
+| 🎮&nbsp;joueur | Un système épuré avec essentiellement des jeux (utilisé pour les LANs). |
 | 🎒&nbsp;ado | Des programmes éducatifs et funs, jeux et services pour commencer avec internet. |
 | 🧩&nbsp;enfant | Logiciels éducatifs pour apprendre, jeux pour entraîner son cerveau, pas d'accès internet. |
 | 🧸&nbsp;baby | Logiciels limités pour apprendre à utiliser la souris, jouer avec les nombres, formes, etc. |
 
 ### Types d'ordinateurs
 
-Notre réseau local est une bulle sécurisée composé de "noeuds" (ordinateurs) qui peuvent être :
+Notre réseau local est une bulle sécurisée composée de "nœuds" (ordinateurs) qui peuvent être :
 
 | Type | Utilité |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------ |
@@ -84,7 +83,7 @@ Notre réseau local est une bulle sécurisée composé de "noeuds" (ordinateurs)
 - 🚀 [Modules](https://darkone-linux.github.io/ref/modules/) prêts à l’emploi.
 - ❄️ [Configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml) simple.
 - 🧩 [Organisation](https://darkone-linux.github.io/doc/introduction/#structure) cohérente.
-- 🌎 Un [réseau complet](#one-configuration-a-full-network).
+- 🌎 Un [réseau complet](#une-configuration-pour-un-réseau-complet).
 
 Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé des prochaines versions stables, merci de me le faire savoir sur [GitHub](https://github.com/darkone-linux/darkone-nixos-framework) ou en vous abonnant à ma [chaîne YouTube](https://www.youtube.com/@DarkoneLinux) (FR). Merci !
 
@@ -130,13 +129,14 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 | Vaultwarden | ✅ | ✅ | ✅ | ✅ | ✅ | Fonctionne parfaitement |
 | Matrix Synapse | ✅ | ✅ | ✅ | ✅ | ✅ | Marche bien (+Element +Coturn) |
 | Open WebUI | ✅ | ✅ | ✅ | ✅ | ✅ | Marche bien (+Ollama) |
+| Grafana | ✅ | ✅ |  ✅ |  ✅ |  ✅ | Marche bien |
 | Immich | ✅ | ✅ | ✅ | ⚠️ | ✅ | Configuration manuelle |
 | Forgejo | ✅ | ✅ | ✅ | ❌ | ✅ | Configuration manuelle |
 | Nextcloud | ✅ | ❌ | ❌ | ❌ | ✅ | Plugin + configuration manuelle |
 | Oauth2 Proxy | ✅ | ✅ | ✅ | ✅ | ⚠️ | Gestion multi-service problématique |
 | Jellyfin | ✅ | ❌ | ❔ | ❔ | ❔ | En cours |
 | AdGuardHome | ❌ | ❌ | ❌ | ❌ | ❔ | Via Oauth2 Proxy |
-| ~~Mattermost~~ | ❌ | ❌ | ❌ | ❌ | ❌ | Plus de Oauth2 pour l'édition TEAM |
+| ~~Mattermost~~ | ❌ | ❌ | ❌ | ❌ | ❌ | Plus de OAuth2 pour l'édition TEAM |
 
 ## Page d'accueil dynamique
 
@@ -148,7 +148,7 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 
 ## Organisation
 
-A la racine :
+À la racine :
 
 - `dnf` -> modules, users, hosts (framework)
 - `usr` -> Projet local (en écriture)
