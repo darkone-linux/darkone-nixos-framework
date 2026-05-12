@@ -4,6 +4,12 @@
 
 - [x] Correction des déclarations de partitions disko (swap trop petit + améliorations). (en test)
 - [ ] Stratégie de test globale en 3 niveaux : tests unitaires, tests simulés (VMs légères), lab de staging complet (tests + introspection manuelle).
+  - [x] Cahier des charges.
+  - [x] Tests unitaires (lib).
+  - [x] Migration vers [nix-unit](https://nix-community.github.io/nix-unit/).
+  - [ ] Déplacement dans lib/ de tout algorithme un peu complexe ou comportant de possibles effets de bords, sous forme de fonctions durcies et testées, simplifiant le code utile des modules.
+  - [ ] Tests simulés (pkgs.testers.runNixOSTest).
+  - [ ] Lab de staging (microvm.nix)
 - [ ] Linux durci selon les [recommandations ANSSI](https://messervices.cyber.gouv.fr/guides/recommandations-de-securite-relatives-un-systeme-gnulinux).
   - [x] [Architecture modulaire](https://darkone-linux.github.io/en/ref/modules/#security-modules) pour l'activation et le paramétrage des règles.
   - [ ] Gestion de noyaux durcis avec paramètres statiques durcis (profils, mise en cache)
@@ -12,6 +18,7 @@
 - [ ] SSO avec [Kanidm](https://kanidm.com/) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.idm))
   - [x] Implémentation du module IDM.
   - [x] Configuration paramétrable pour chaque service (config inconditionnelle) et instance de service (config conditionnelle).
+  - [x] Brancher Grafana.
   - [ ] Réplicats de zone.
 - [ ] Ponts Mautrix pour Matrix (whatsapp, telegram, messenger, discord).
   - [x] POC -> implémentation locale.
@@ -27,8 +34,6 @@
   - [ ] Corrections et optimisations à l'utilisation.
 - [ ] Tests unitaires + tests de recette.
   - [x] TU pour tout ce qui est dans lib/.
-  - [x] Migration vers [nix-unit](https://nix-community.github.io/nix-unit/).
-  - [ ] Déplacement dans lib/ de tout algorithme un peu complexe ou comportant de possibles effets de bords, sous forme de fonctions durcies et testées, simplifiant le code utile des modules.
 - [ ] Module LaSuite Docs
   - [x] Implémentation de base. 
   - [ ] Tests et stabilisation.
