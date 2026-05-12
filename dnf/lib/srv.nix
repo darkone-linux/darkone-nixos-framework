@@ -11,7 +11,17 @@
   constants,
 }:
 let
-  inherit (lib) hasAttr hasAttrByPath findFirst;
+  inherit (lib)
+    hasAttr
+    hasAttrByPath
+    findFirst
+    hasInfix
+    ;
+
+  # Prefix `path` with `href` unless it is already an absolute URI (eg.
+  # mobile-app schemes such as `app.immich:///oauth-callback`). Private
+  # helper consumed by `mkOauth2Clients`.
+  fullUrl = href: path: if hasInfix "://" path then path else "${href}${path}";
 in
 rec {
 
@@ -291,6 +301,53 @@ rec {
       secret = "oidc-secret-${clientId}";
       idmUrl = idmHref network hosts;
     };
+
+  # Group "raw" OAuth2 pairs by `clientId` and produce one provisioning
+  # entry per logical client. Multi-instance services (eg. `monitoring`
+  # deployed on several zones) share the same Kanidm client but contribute
+  # distinct redirect URIs; this helper concatenates and deduplicates them.
+  #
+  # Input: a list of raw pairs in the shape
+  #   { clientId; tpl; params; secret; }
+  # where `tpl` must expose `redirectPaths` and `landingPath`, and `params`
+  # must expose `href`. Typically built by expanding `network.services`
+  # against the registered OAuth2 templates (see `idm.nix`).
+  #
+  # Output: a list of merged clients
+  #   { clientId; tpl; secret; originUrls; originLanding; instances; }
+  # with:
+  #   - `originUrls`   : union of `${href}${path}` across all instances,
+  #                      passing absolute URIs through unchanged,
+  #   - `originLanding`: landing of the FIRST instance, because Kanidm's
+  #                      `originLanding` is a single string (the portal
+  #                      cannot offer several "landing" URLs for one app),
+  #   - `instances`    : the raw pairs that fed this client, useful for
+  #                      assertions and diagnostics.
+  #
+  # `tpl` and `secret` are taken from the first instance: all instances of
+  # the same `clientId` share the same Kanidm template (the option is keyed
+  # by service name in `idm.nix`) and the same secret name (derived from
+  # `clientId`), so the choice is invariant.
+  mkOauth2Clients =
+    rawPairs:
+    let
+      groups = builtins.groupBy (p: p.clientId) rawPairs;
+    in
+    lib.mapAttrsToList (
+      clientId: pairs:
+      let
+        head = lib.head pairs;
+        originUrls = lib.unique (
+          lib.concatMap (p: map (path: fullUrl p.params.href path) p.tpl.redirectPaths) pairs
+        );
+        originLanding = fullUrl head.params.href head.tpl.landingPath;
+      in
+      {
+        inherit clientId originUrls originLanding;
+        inherit (head) tpl secret;
+        instances = pairs;
+      }
+    ) groups;
 
   # Kanidm OAuth2/OIDC endpoint URLs for a given client. Centralises the
   # protocol-level routes so consumer modules don't hard-code them (and so

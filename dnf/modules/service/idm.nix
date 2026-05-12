@@ -42,10 +42,12 @@ let
   params = dnfLib.extractServiceParams host network "idm" defaultParams;
 
   # OAuth2 client expansion: cross-product of registered templates with the
-  # service instances declared in `network.services`. Each pair becomes one
-  # provisioned kanidm client and one sops secret.
+  # service instances declared in `network.services`. Each raw pair captures
+  # ONE (template, instance) tuple; they are then grouped by `clientId` to
+  # produce one provisioned kanidm client per logical service (multi-zone
+  # services share a single client with a merged `originUrl` list).
   oauth2Templates = config.darkone.service.idm.oauth2;
-  oauth2Pairs = concatMap (
+  rawPairs = concatMap (
     svc:
     let
       tpl = oauth2Templates.${svc.name} or null;
@@ -72,9 +74,11 @@ let
       ]
   ) network.services;
 
-  # Prefix path templates with the resolved service href, but pass through
-  # absolute URLs (eg. mobile-app schemes like `app.immich:///oauth-callback`).
-  fullUrl = href: p: if hasInfix "://" p then p else "${href}${p}";
+  # Logical OAuth2 clients to provision. Each entry merges all raw pairs
+  # sharing the same `clientId`: `originUrls` is the union of redirect URIs
+  # (typed as a list by kanidm-provision), `originLanding` is the landing of
+  # the first instance (typed as a scalar). See `dnfLib.mkOauth2Clients`.
+  oauth2Clients = dnfLib.mkOauth2Clients rawPairs;
 in
 {
   options = {
@@ -207,7 +211,7 @@ in
       #========================================================================
 
       # Kanidm internal secrets + OAuth2 client secrets (one per provisioned
-      # client, generated from `oauth2Pairs`). The `oidc-secret-internal`
+      # client, generated from `oauth2Clients`). The `oidc-secret-internal`
       # entry is consumed by oauth2-proxy (in `system/services.nix`), not by
       # kanidm provisioning, hence its presence in the static list.
       sops.secrets = mkMerge [
@@ -229,15 +233,24 @@ in
             ]
         ))
         (listToAttrs (
-          map (p: {
-            name = p.secret;
+          map (c: {
+            name = c.secret;
             value = {
               mode = "0400";
               owner = "kanidm";
             };
-          }) oauth2Pairs
+          }) oauth2Clients
         ))
       ];
+
+      # Invariant : toutes les instances d'un même clientId pointent vers le
+      # même nom de secret (dérivé du clientId par construction). Le bloc
+      # ci-dessous documente cet invariant et lèverait une erreur claire si
+      # `mkOauth2Clients` venait à changer de stratégie.
+      assertions = map (c: {
+        assertion = lib.unique (map (i: i.secret) c.instances) == [ c.secret ];
+        message = "OAuth2 client '${c.clientId}': secret divergence across instances";
+      }) oauth2Clients;
 
       #========================================================================
       # Kanidm service
@@ -370,29 +383,32 @@ in
           #
           # Each entry below comes from a `darkone.service.idm.oauth2.<name>`
           # template contributed by a service module, expanded against the
-          # matching `network.services` instances. See the `oauth2Pairs`
-          # let-binding above for the full computation, and the OAuth2
-          # template in `service/forgejo.nix` for the canonical example.
+          # matching `network.services` instances and merged by `clientId`.
+          # See the `rawPairs` / `oauth2Clients` let-bindings above and the
+          # OAuth2 template in `service/forgejo.nix` for the canonical
+          # example. Multi-instance services (eg. `monitoring` per zone)
+          # produce a single Kanidm client whose `originUrl` lists every
+          # zone's redirect URI.
           # -> https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
 
           systems.oauth2 = listToAttrs (
-            map (p: {
-              name = p.clientId;
+            map (c: {
+              name = c.clientId;
               value = {
-                inherit (p.tpl)
+                inherit (c.tpl)
                   displayName
                   imageFile
                   enableLegacyCrypto
                   allowInsecureClientDisablePkce
                   ;
-                originUrl = map (path: fullUrl p.params.href path) p.tpl.redirectPaths;
-                originLanding = fullUrl p.params.href p.tpl.landingPath;
-                basicSecretFile = config.sops.secrets.${p.secret}.path;
+                originUrl = c.originUrls;
+                inherit (c) originLanding;
+                basicSecretFile = config.sops.secrets.${c.secret}.path;
                 inherit scopeMaps;
               }
-              // optionalAttrs (p.tpl.preferShortUsername != null) { inherit (p.tpl) preferShortUsername; }
-              // p.tpl.extra;
-            }) oauth2Pairs
+              // optionalAttrs (c.tpl.preferShortUsername != null) { inherit (c.tpl) preferShortUsername; }
+              // c.tpl.extra;
+            }) oauth2Clients
           );
 
           #----------------------------------------------------------------------

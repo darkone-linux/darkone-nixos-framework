@@ -34,6 +34,7 @@ in
     preferredIp
     mkInternalFirewall
     mkOidcContext
+    mkOauth2Clients
     mkKanidmEndpoints
     enableBlock
     mkHomepageSection

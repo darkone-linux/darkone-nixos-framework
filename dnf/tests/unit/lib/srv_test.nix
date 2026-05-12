@@ -496,6 +496,97 @@ in
     expected = null;
   };
 
+  # ----- mkOauth2Clients -----
+  # Multi-instance (cas monitoring) : deux entrées partageant le même
+  # clientId doivent fusionner en UN seul client avec les deux redirect
+  # URIs distincts.
+  testMkOauth2ClientsMergeMultiZone =
+    let
+      mkPair = href: {
+        clientId = "monitoring";
+        secret = "oidc-secret-monitoring";
+        tpl = {
+          redirectPaths = [ "/login/generic_oauth" ];
+          landingPath = "/";
+        };
+        params = { inherit href; };
+      };
+      result = dnfLib.mkOauth2Clients [
+        (mkPair "https://monitoring.ag.example.com")
+        (mkPair "https://monitoring.cp.example.com")
+      ];
+      one = builtins.head result;
+    in
+    {
+      expr = {
+        count = builtins.length result;
+        inherit (one) clientId originUrls originLanding;
+      };
+      expected = {
+        count = 1;
+        clientId = "monitoring";
+        originUrls = [
+          "https://monitoring.ag.example.com/login/generic_oauth"
+          "https://monitoring.cp.example.com/login/generic_oauth"
+        ];
+        originLanding = "https://monitoring.ag.example.com/";
+      };
+    };
+
+  # ClientIds distincts (sous-domaines différents) restent séparés : pas
+  # de fusion intempestive entre services indépendants.
+  testMkOauth2ClientsDistinctClientsStayApart = {
+    expr = builtins.length (
+      dnfLib.mkOauth2Clients [
+        {
+          clientId = "outline-notes";
+          secret = "oidc-secret-outline-notes";
+          tpl = {
+            redirectPaths = [ "/auth/cb" ];
+            landingPath = "/";
+          };
+          params.href = "https://notes.example.com";
+        }
+        {
+          clientId = "outline-kb";
+          secret = "oidc-secret-outline-kb";
+          tpl = {
+            redirectPaths = [ "/auth/cb" ];
+            landingPath = "/";
+          };
+          params.href = "https://kb.example.com";
+        }
+      ]
+    );
+    expected = 2;
+  };
+
+  # Les URIs déjà absolues (schémas mobiles ex. app.immich:///) doivent
+  # être passées telles quelles, sans préfixage par href.
+  testMkOauth2ClientsAbsoluteUriPassthrough = {
+    expr =
+      (builtins.head (
+        dnfLib.mkOauth2Clients [
+          {
+            clientId = "immich";
+            secret = "oidc-secret-immich";
+            tpl = {
+              redirectPaths = [
+                "/auth"
+                "app.immich:///oauth-callback"
+              ];
+              landingPath = "/";
+            };
+            params.href = "https://photos.example.com";
+          }
+        ]
+      )).originUrls;
+    expected = [
+      "https://photos.example.com/auth"
+      "app.immich:///oauth-callback"
+    ];
+  };
+
   # ----- mkKanidmEndpoints -----
   testMkKanidmEndpoints = {
     expr = dnfLib.mkKanidmEndpoints "https://idm.example.com" "outline";
