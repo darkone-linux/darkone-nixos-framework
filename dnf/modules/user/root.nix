@@ -54,7 +54,7 @@ in
       ];
     };
 
-    # Contenu du .bashrc de root, version simple
+    # Root .bashrc content, simple version
     environment.etc."root-bashrc".text = ''
       PS1="\[\e[1;41m\] ROOT \[\e[0m\] \[\e[1;34m\]\w\[\e[0m\] # "
 
@@ -77,7 +77,7 @@ in
       fi
     '';
 
-    # On installe ce .bashrc dans /root à chaque rebuild
+    # Install this .bashrc into /root on every rebuild
     system.activationScripts.setupRootBash = {
       text = ''
         install -m 600 /etc/root-bashrc /root/.bashrc

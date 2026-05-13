@@ -58,7 +58,7 @@ in
       # Security
       #--------------------------------------------------------------------------
 
-      # Données d'environnement critiques hébergée par sops
+      # Critical environment data hosted by sops
       # https://github.com/NixOS/nixpkgs/blob/a6531044f6d0bef691ea18d4d4ce44d0daa6e816/nixos/modules/services/security/vaultwarden/default.nix#L11
       sops.secrets."smtp/password" = { };
       sops.secrets.oidc-secret-vaultwarden = { };
@@ -114,8 +114,8 @@ in
 
           #----------------------------------------------------------------------------------------
           # SSO
-          # /!\ Le SSO n'empêche pas le mot de passe principal d'être saisi. /!\
-          # -> Ne sert finalement à rien sauf à compliquer les choses...
+          # /!\ SSO does not bypass the master password prompt. /!\
+          # -> Ultimately useless except to complicate things...
           #----------------------------------------------------------------------------------------
 
           # # Activate the SSO
@@ -124,8 +124,8 @@ in
           # # Client secret -> SOPS + Env
           # SSO_CLIENT_ID = "vaultwarden";
 
-          # # "Disable email+Master password authentication" -> faux, il faut mettre le MDP principal.
-          # # -> Activer ceci oblige d'être connecté au SSO pour se connecter à vaultwarden.
+          # # "Disable email+Master password authentication" -> false, the master password is still required.
+          # # -> Enabling this forces SSO login to access vaultwarden.
           # SSO_ONLY = false;
 
           # # On SSO Signup if a user with a matching email already exists make the association (default true)
@@ -133,9 +133,9 @@ in
 
           # # Allow unknown email verification status (default false).
           # # Allowing this with SSO_SIGNUPS_MATCH_EMAIL open potential account takeover.
-          # # -> Kanidm doit envoyer un "email_verified" pour que le SSO fonctionne.
-          # #    Eviter d'activer en même temps que SSO_SIGNUPS_MATCH_EMAIL.
-          # # -> Génère un problème quand
+          # # -> Kanidm must send an "email_verified" claim for SSO to work.
+          # #    Avoid enabling alongside SSO_SIGNUPS_MATCH_EMAIL.
+          # # -> Causes a problem when
           # SSO_ALLOW_UNKNOWN_EMAIL_VERIFICATION = true;
 
           # # The OpenID Connect Discovery endpoint without /.well-known/openid-configuration
@@ -150,7 +150,7 @@ in
           # # Enable to use SSO only for authentication not session lifecycle
           # SSO_AUTH_ONLY_NOT_SESSION = true;
 
-          # # Appels de cache vers le point de terminaison de découverte
+          # # Cache calls to the discovery endpoint
           # SSO_CLIENT_CACHE_EXPIRATION = 60; # Seconds
         };
 

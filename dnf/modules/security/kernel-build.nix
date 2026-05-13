@@ -1,24 +1,24 @@
-# Configuration statique du noyau — recompilation requise (R15–R27). (wip)
+# Static kernel configuration — requires recompilation (R15–R27). (wip)
 #
-# Ces règles nécessitent un noyau personnalisé via `boot.kernelPackages`.
-# NixOS le permet avec `structuredExtraConfig`. Toutes ces règles portent le
-# tag `kernel-recompile` : elles sont ignorées si ce tag figure dans `excludes`.
+# These rules require a custom kernel via `boot.kernelPackages`.
+# NixOS allows this through `structuredExtraConfig`. All these rules carry
+# the `kernel-recompile` tag: they are skipped if that tag is in `excludes`.
 #
 # :::caution[Activation]
-# L'option `enable` suit `darkone.system.security.enable` par défaut.
-# Les règles (Rxx/Cxx) s'activent selon le niveau, la catégorie et les
-# excludes définis dans `darkone.system.security` (via `isActive`).
+# The `enable` option follows `darkone.system.security.enable` by default.
+# Rules (Rxx/Cxx) are activated based on level, category, and excludes
+# defined in `darkone.system.security` (via `isActive`).
 # :::
 #
-# :::danger[Pas de cache binaire NixOS]
-# L'activation de ces règles implique la recompilation locale du noyau
-# (~30–60 min par mise à jour selon CPU). Aucun cache binaire public ne
-# couvre un noyau custom. Réserver aux parcs avec MCO outillé.
+# :::danger[No NixOS binary cache]
+# Enabling these rules implies a local kernel recompilation
+# (~30–60 min per update depending on CPU). No public binary cache covers
+# a custom kernel. Reserve for fleets with proper MCO tooling.
 # :::
 #
-# :::caution[Modules out-of-tree]
-# R18 (modules signés) rend obligatoire la signature de tout module externe
-# (NVIDIA, ZFS, VirtualBox, v4l2loopback…) via le pipeline Nix.
+# :::caution[Out-of-tree modules]
+# R18 (signed modules) makes signing any external module mandatory
+# (NVIDIA, ZFS, VirtualBox, v4l2loopback…) via the Nix pipeline.
 # :::
 
 {
@@ -33,15 +33,15 @@ let
   cfg = config.darkone.security.kernel-build;
   isActive = dnfLib.mkIsActive (mainSecurityCfg // { inherit (cfg) enable; });
 
-  # Tag commun à toutes les règles de ce groupe
+  # Common tag for all rules in this group
   kernelTag = [ "kernel-recompile" ];
 
-  # Config noyau accumulée par les règles actives
-  # Chaque règle contribue à structuredExtraConfig via lib.mkMerge
+  # Kernel config accumulated by active rules
+  # Each rule contributes to structuredExtraConfig via lib.mkMerge
   kernelConfig = lib.mkMerge [
 
-    # R15 — Options de compilation gestion mémoire (high)
-    # sideEffects: REFCOUNT_FULL ~1% CPU, HARDENED_USERCOPY casse vieux drivers binaires
+    # R15 — Memory management compile options (high)
+    # sideEffects: REFCOUNT_FULL ~1% CPU, HARDENED_USERCOPY breaks old binary drivers
     (lib.optionalAttrs (isActive "R15" "high" "base" kernelTag) {
       STRICT_KERNEL_RWX = lib.kernel.yes;
       DEBUG_WX = lib.kernel.yes;
@@ -60,8 +60,8 @@ let
       REFCOUNT_FULL = lib.kernel.yes;
     })
 
-    # R16 — Structures de données (high)
-    # sideEffects: ~2-5% CPU syscall-intensive, kernel panic sur corruption (ECC obligatoire)
+    # R16 — Data structures (high)
+    # sideEffects: ~2-5% CPU on syscall-intensive workloads, kernel panic on corruption (ECC required)
     (lib.optionalAttrs (isActive "R16" "high" "base" kernelTag) {
       DEBUG_CREDENTIALS = lib.kernel.yes;
       DEBUG_NOTIFIERS = lib.kernel.yes;
@@ -70,8 +70,8 @@ let
       BUG_ON_DATA_CORRUPTION = lib.kernel.yes;
     })
 
-    # R17 — Allocateur mémoire (high)
-    # sideEffects: PAGE_POISONING ~3-5% CPU allocations massives
+    # R17 — Memory allocator (high)
+    # sideEffects: PAGE_POISONING ~3-5% CPU on heavy allocations
     (lib.optionalAttrs (isActive "R17" "high" "base" kernelTag) {
       SLAB_FREELIST_RANDOM = lib.kernel.yes;
       SLUB = lib.kernel.yes;
@@ -84,28 +84,28 @@ let
       COMPAT_BRK = lib.kernel.no;
     })
 
-    # R18 — Modules signés (high)
-    # sideEffects: tout module OOT doit être signé, clé privée à protéger
+    # R18 — Signed modules (high)
+    # sideEffects: every OOT module must be signed, private key must be protected
     (lib.optionalAttrs (isActive "R18" "high" "base" kernelTag) {
       MODULES = lib.kernel.yes;
       MODULE_SIG = lib.kernel.yes;
       MODULE_SIG_FORCE = lib.kernel.yes;
       MODULE_SIG_ALL = lib.kernel.yes;
       MODULE_SIG_SHA512 = lib.kernel.yes;
-      # MODULE_SIG_KEY gérée via sops-nix : "/var/lib/anssi-mod-signing.pem"
-      # TODO: wirer avec darkone.system.sops pour la clé de signature
+      # MODULE_SIG_KEY managed via sops-nix: "/var/lib/anssi-mod-signing.pem"
+      # TODO: wire with darkone.system.sops for the signing key
     })
 
-    # R19 — Réactions aux évènements anormaux (high)
-    # sideEffects: PANIC_TIMEOUT=-1 : machine inopérante après oops sans watchdog
+    # R19 — Reactions to abnormal events (high)
+    # sideEffects: PANIC_TIMEOUT=-1: machine unresponsive after oops without a watchdog
     (lib.optionalAttrs (isActive "R19" "high" "base" kernelTag) {
       BUG = lib.kernel.yes;
       PANIC_ON_OOPS = lib.kernel.yes;
       PANIC_TIMEOUT = lib.kernel.freeform "-1";
     })
 
-    # R20 — Primitives LSM (high)
-    # sideEffects: Lockdown interdit /dev/mem, kexec, MSR write, flashrom
+    # R20 — LSM primitives (high)
+    # sideEffects: Lockdown forbids /dev/mem, kexec, MSR write, flashrom
     (lib.optionalAttrs (isActive "R20" "high" "base" kernelTag) {
       SECCOMP = lib.kernel.yes;
       SECCOMP_FILTER = lib.kernel.yes;
@@ -117,9 +117,9 @@ let
       SECURITY_WRITABLE_HOOKS = lib.kernel.no;
     })
 
-    # R21 — Plugins GCC (high)
-    # sideEffects: RANDSTRUCT impose de recompiler tous les modules avec la même graine
-    # Non applicable sur Clang (marqué automatiquement)
+    # R21 — GCC plugins (high)
+    # sideEffects: RANDSTRUCT requires recompiling all modules with the same seed
+    # Not applicable on Clang (automatically marked)
     (lib.optionalAttrs (isActive "R21" "high" "base" kernelTag && !pkgs.stdenv.cc.isClang) {
       GCC_PLUGINS = lib.kernel.yes;
       GCC_PLUGIN_LATENT_ENTROPY = lib.kernel.yes;
@@ -129,8 +129,8 @@ let
       GCC_PLUGIN_RANDSTRUCT = lib.kernel.yes;
     })
 
-    # R22 — Pile réseau (high)
-    # sideEffects: voir R13 pour IPv6
+    # R22 — Network stack (high)
+    # sideEffects: see R13 for IPv6
     (
       lib.optionalAttrs (isActive "R22" "high" "base" kernelTag) { SYN_COOKIES = lib.kernel.yes; }
       // lib.optionalAttrs (
@@ -145,8 +145,8 @@ let
           }
     )
 
-    # R23 — Comportements divers du noyau (high)
-    # sideEffects: KEXEC=n → kdump impossible ; HIBERNATION=n → pas de suspend-to-disk
+    # R23 — Miscellaneous kernel behaviors (high)
+    # sideEffects: KEXEC=n → kdump impossible; HIBERNATION=n → no suspend-to-disk
     (lib.optionalAttrs (isActive "R23" "high" "base" kernelTag) (
       {
         LEGACY_PTYS = lib.kernel.no;
@@ -161,7 +161,7 @@ let
       }
     ))
 
-    # R24 — Spécificités x86 32 bits (high, architectures: i686)
+    # R24 — x86 32-bit specifics (high, architectures: i686)
     (lib.optionalAttrs
       (isActive "R24" "high" "base" kernelTag && pkgs.stdenv.hostPlatform.linuxArch == "i686")
       {
@@ -172,8 +172,8 @@ let
       }
     )
 
-    # R25 — Spécificités x86_64 (high, architectures: x86_64)
-    # sideEffects: IA32_EMULATION=n casse les binaires 32 bits (Steam, vieux jeux)
+    # R25 — x86_64 specifics (high, architectures: x86_64)
+    # sideEffects: IA32_EMULATION=n breaks 32-bit binaries (Steam, old games)
     (lib.optionalAttrs (isActive "R25" "high" "base" kernelTag && pkgs.stdenv.hostPlatform.isx86_64) {
       DEFAULT_MMAP_MIN_ADDR = lib.kernel.freeform "65536";
       RANDOMIZE_BASE = lib.kernel.yes;
@@ -183,8 +183,8 @@ let
       MODIFY_LDT_SYSCALL = lib.kernel.no;
     })
 
-    # R26 — ARM 32 bits (high, architectures: arm)
-    # sideEffects: OABI_COMPAT=n casse les vieux binaires ARM ABI v3
+    # R26 — ARM 32-bit (high, architectures: arm)
+    # sideEffects: OABI_COMPAT=n breaks old ARM ABI v3 binaries
     (lib.optionalAttrs (isActive "R26" "high" "base" kernelTag && pkgs.stdenv.hostPlatform.isAarch32) {
       DEFAULT_MMAP_MIN_ADDR = lib.kernel.freeform "32768";
       VMSPLIT_3G = lib.kernel.yes;
@@ -194,7 +194,7 @@ let
     })
 
     # R27 — ARM64 (high, architectures: aarch64)
-    # sideEffects: PTR_AUTH/BTI requièrent ARMv8.3+/8.5+
+    # sideEffects: PTR_AUTH/BTI require ARMv8.3+/8.5+
     (lib.optionalAttrs (isActive "R27" "high" "base" kernelTag && pkgs.stdenv.hostPlatform.isAarch64) {
       DEFAULT_MMAP_MIN_ADDR = lib.kernel.freeform "32768";
       RANDOMIZE_BASE = lib.kernel.yes;
@@ -205,7 +205,7 @@ let
     })
   ];
 
-  # Détermine si au moins une règle de recompilation est active
+  # Determines whether at least one recompilation rule is active
   needsCustomKernel =
     isActive "R15" "high" "base" kernelTag
     || isActive "R16" "high" "base" kernelTag
@@ -220,7 +220,7 @@ let
 in
 {
   options = {
-    darkone.security.kernel-build.enable = lib.mkEnableOption "Active le module de recompilation noyau ANSSI (R15–R27).";
+    darkone.security.kernel-build.enable = lib.mkEnableOption "Enable the ANSSI kernel recompilation module (R15–R27).";
   };
 
   config = lib.mkMerge [
@@ -230,15 +230,15 @@ in
       boot.kernelPackages =
         if mainSecurityCfg.useHardenedKernel then
 
-          # C1 : linux_hardened avec les patches Grsecurity-lite (Annexe A)
+          # C1: linux_hardened with Grsecurity-lite patches (Annex A)
           pkgs.linuxPackages_hardened
         else
 
-          # Noyau custom avec les options R15-R27 seulement
+          # Custom kernel with R15-R27 options only
           pkgs.linuxPackagesFor (pkgs.linux.override { structuredExtraConfig = kernelConfig; });
 
-      # Assertion : noyau custom incompatible avec le cache binaire NixOS
-      # TODO: ajouter un warning visible à l'évaluation (lib.warn)
+      # Assertion: custom kernel incompatible with the NixOS binary cache
+      # TODO: add a warning visible at evaluation time (lib.warn)
     })
   ];
 }

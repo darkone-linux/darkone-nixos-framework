@@ -108,7 +108,7 @@ in
     # Enable networking with networkmanager
     networking.networkmanager.enable = true;
 
-    # Suppression des paquets gnome inutiles
+    # Remove unused gnome packages
     environment.gnome.excludePackages = with pkgs; [
       atomix
       dialect
@@ -211,10 +211,10 @@ in
                 gtk-theme = "Adw-dark"; # not Adwaita-dark
                 color-scheme = "prefer-dark";
                 monospace-font-name = "JetBrainsMono Nerd Font Mono 16";
-                enable-hot-corners = false; # Suppression des actions quand le curseur arrive dans un coin
+                enable-hot-corners = false; # Disable hot-corner actions when the cursor reaches a screen corner
               };
               "org/gnome/desktop/background" = {
-                # Référence à un fichier dans le store :
+                # Reference to a file in the store:
                 # https://github.com/NixOS/nixpkgs/blob/18bcb1ef6e5397826e4bfae8ae95f1f88bf59f4f/nixos/modules/services/x11/desktop-managers/gnome.nix#L36
                 picture-uri-dark = "${pkgs.nixos-artwork.wallpapers.simple-blue.gnomeFilePath}";
               };

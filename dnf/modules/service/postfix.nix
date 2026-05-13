@@ -11,7 +11,7 @@ let
   cfg = config.darkone.service.postfix;
   inherit (network) smtp;
 
-  # Match les adresses sans point dans le domaine (ex: user@host) -> noreply@domain.tld
+  # Match addresses without a dot in the domain (e.g. user@host) -> noreply@domain.tld
   senderCanonicalFile = pkgs.writeText "postfix-sender-canonical" ''
     /^[^@]+@[^.]+$/ noreply@${network.domain}
   '';
@@ -46,7 +46,7 @@ in
       # main.cf
       settings.main = {
 
-        # Paramètres du relai
+        # Relay settings
         relayhost = [ "[${smtp.server}]:${toString smtp.port}" ];
         relay_domains = [ network.domain ];
         inet_protocols = "ipv4";
@@ -69,7 +69,7 @@ in
         smtp_sasl_security_options = "noanonymous";
         smtp_sasl_password_maps = "texthash:${config.sops.templates.postfix-sasl-password.path}";
 
-        # Paramètres de sécurité additionnels
+        # Additional security settings
         smtputf8_enable = "no";
       };
     };

@@ -22,7 +22,7 @@ let
   localMatrixServer = "https://matrix.${network.domain}";
   idmUri = "https://idm.${network.domain}";
 
-  # Homepage (TODO: simplifier la recherche de la page d'accueil de la zone)
+  # Homepage (TODO: simplify lookup of the zone homepage)
   homeService = findFirst (s: s.name == "homepage" && s.zone == zone.name) null network.services;
   homeDomain = optionalString (homeService != null) (
     if (hasAttr "domain" homeService) then homeService.domain else homeService.name
@@ -73,16 +73,16 @@ let
       Locked = true;
     };
 
-    # Search : affiche ou masque la barre de recherche sur la page d’accueil Firefox (Nouvel onglet).
-    # TopSites : active ou désactive l’affichage des sites les plus visités sur la page Nouvel onglet.
-    # SponsoredTopSites : autorise ou bloque l’affichage de sites sponsorisés parmi les Top Sites.
-    # Highlights : affiche ou masque les éléments récents (pages visitées, téléchargements, favoris).
-    # Pocket : affiche ou masque les recommandations Pocket sur la page Nouvel onglet.
-    # Stories : active ou désactive le flux d’articles recommandés (Pocket/Discover).
-    # SponsoredPocket : autorise ou bloque les contenus sponsorisés dans les recommandations Pocket.
-    # SponsoredStories : autorise ou bloque les articles sponsorisés dans le flux Discover.
-    # Snippets : affiche ou masque les messages informatifs ou promotionnels de Mozilla sur la page d’accueil.
-    # Locked : empêche l’utilisateur de modifier ces paramètres depuis l’interface Firefox.
+    # Search: show/hide the search bar on the Firefox New Tab page.
+    # TopSites: enable/disable showing most-visited sites on the New Tab page.
+    # SponsoredTopSites: allow/block sponsored sites among the Top Sites.
+    # Highlights: show/hide recent items (visited pages, downloads, bookmarks).
+    # Pocket: show/hide Pocket recommendations on the New Tab page.
+    # Stories: enable/disable the recommended articles feed (Pocket/Discover).
+    # SponsoredPocket: allow/block sponsored content in Pocket recommendations.
+    # SponsoredStories: allow/block sponsored articles in the Discover feed.
+    # Snippets: show/hide Mozilla informational or promotional messages on the home page.
+    # Locked: prevent the user from changing these settings from the Firefox UI.
     FirefoxHome = {
       Search = true;
       TopSites = true;
@@ -291,7 +291,7 @@ in
     # Matrix element desktop
     #--------------------------------------------------------------------------
 
-    # TODO: compléter, factoriser avec element.nix
+    # TODO: complete, factorize with element.nix
     programs.element-desktop = mkIf hasMatrixClient {
       enable = true;
       settings = {
@@ -320,7 +320,7 @@ in
       };
     };
 
-    # Lancement automatique
+    # Auto-start
     systemd.user.services.element-desktop = mkIf hasMatrixClient {
       Unit = {
         Description = "Element Desktop (autostart)";

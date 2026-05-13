@@ -98,9 +98,9 @@ in
             bind_hosts = [ "0.0.0.0" ];
 
             # DOMAIN ROUTING
-            # 1. Noms simples → dnsmasq
-            # 2. Domaines locaux → dnsmasq
-            # 3. Tout le reste → dns de ADH
+            # 1. Simple names → dnsmasq
+            # 2. Local domains → dnsmasq
+            # 3. Everything else → ADH DNS
             upstream_dns = [
 
               # Unqualified names (hosts, services)
@@ -144,7 +144,7 @@ in
               "1.1.1.1"
             ];
 
-            # N'ajoute pas de suffixe à mes noms locaux
+            # Do not append a suffix to local names
             local_domain_name = "";
 
             # dnsmasq is an upstream dns for reverse DNS

@@ -111,7 +111,7 @@ in
 
           engines = lib.mapAttrsToList (name: value: { inherit name; } // value) {
 
-            # Fonctionnels et à peu près performants...
+            # Functional and reasonably performant...
             "wikipedia" = {
               disabled = false;
               weight = 99;
@@ -125,7 +125,7 @@ in
               weight = 97;
             };
 
-            # Blacklistés ou ne répondent pas...
+            # Blacklisted or unresponsive...
             # "google ${zone.lang}" = {
             #   engine = "google";
             #   language = zone.lang;
@@ -137,7 +137,7 @@ in
               weight = 100;
             };
 
-            # Désactivation (ou non) pour y gagner en perfs
+            # Disable (or not) to improve performance
             "1x".disabled = true;
             "artic".disabled = true;
             "bing images".disabled = false;

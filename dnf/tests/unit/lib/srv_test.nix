@@ -80,6 +80,7 @@ let
   ];
 in
 {
+
   # ----- isVpnClient -----
   testIsVpnClientTrue = {
     expr = dnfLib.isVpnClient { vpnIp = "100.64.1.1"; };
@@ -151,7 +152,8 @@ in
     expr = dnfLib.getInternalInterfaceFwPath (mockHost // { hostname = "otherhost"; }) mockZone;
     expected = [ ];
   };
-  # Régression : vpnIp vide ne doit pas être classé comme client VPN
+
+  # Regression: empty vpnIp should not be classified as VPN client
   testFwPathVpnEmptyIp = {
     expr = dnfLib.getInternalInterfaceFwPath (
       mockHost
@@ -183,7 +185,7 @@ in
     expected = null;
   };
 
-  # ----- buildServiceParams : service local, defaults complets -----
+  # ----- buildServiceParams: local service, full defaults -----
   testBuildServiceParamsLocal = {
     expr =
       let
@@ -211,7 +213,7 @@ in
     };
   };
 
-  # ----- buildServiceParams : cascade vers defaults -----
+  # ----- buildServiceParams: cascade to defaults -----
   testBuildServiceParamsCascadeDefaults = {
     expr =
       let
@@ -231,7 +233,7 @@ in
     };
   };
 
-  # ----- buildServiceParams : service global utilise networkDomain -----
+  # ----- buildServiceParams: global service uses networkDomain -----
   testBuildServiceParamsGlobalFqdn = {
     expr =
       let
@@ -250,26 +252,26 @@ in
     };
   };
 
-  # ----- buildServiceParams : HCS résout sur loopback -----
+  # ----- buildServiceParams: HCS resolves to loopback -----
   testBuildServiceParamsHcsLoopback = {
     expr = (dnfLib.buildServiceParams hcsHost mockNetworkHcs { name = "auth"; } { }).ip;
     expected = "127.0.0.1";
   };
 
-  # ----- buildServiceParams : client VPN avec vpnIp -----
+  # ----- buildServiceParams: VPN client with vpnIp -----
   testBuildServiceParamsVpnIp = {
     expr = (dnfLib.buildServiceParams vpnHost mockNetworkHcs { name = "remote"; } { }).ip;
     expected = "100.64.1.5";
   };
 
-  # ----- buildServiceParams : vpnIp vide retombe sur host.ip -----
+  # ----- buildServiceParams: empty vpnIp falls back to host.ip -----
   testBuildServiceParamsEmptyVpnIp = {
     expr =
       (dnfLib.buildServiceParams (mockHost // { vpnIp = ""; }) mockNetworkPlain { name = "svc"; } { }).ip;
     expected = "192.168.1.10";
   };
 
-  # ----- extractServiceParams : service trouvé -----
+  # ----- extractServiceParams: service found -----
   testExtractServiceParamsFound = {
     expr =
       let
@@ -288,7 +290,7 @@ in
     };
   };
 
-  # ----- extractServiceParams : service inexistant retombe sur defaults -----
+  # ----- extractServiceParams: missing service falls back to defaults -----
   testExtractServiceParamsMissing = {
     expr =
       let
@@ -322,7 +324,8 @@ in
     } { domain = "matrix"; };
     expected = "matrix-synapse";
   };
-  # clientName explicitement null → règle par défaut
+
+  # clientName explicitly null → default rule
   testOauth2NameNullOverride = {
     expr = dnfLib.oauth2ClientName {
       name = "mealie";
@@ -379,7 +382,7 @@ in
   };
 
   # ----- mkInternalFirewall -----
-  # Hôte non-gateway, non-VPN : path racine, ports actifs (mkIf true)
+  # Non-gateway, non-VPN host: root path, active ports (mkIf true)
   testMkInternalFirewallRegular = {
     expr =
       let
@@ -395,8 +398,9 @@ in
       content = [ 3000 ];
     };
   };
-  # Gateway : path = [interfaces lan0], ports désactivés (mkIf false)
-  # On introspecte la structure `mkIf` produite sans dépendre de `lib`.
+
+  # Gateway: path = [interfaces lan0], disabled ports (mkIf false)
+  # Inspect the produced `mkIf` structure without relying on `lib`.
   testMkInternalFirewallGateway = {
     expr =
       let
@@ -412,7 +416,8 @@ in
       content = [ 3000 ];
     };
   };
-  # Client VPN : path = [interfaces tailscale0]
+
+  # VPN client: path = [interfaces tailscale0]
   testMkInternalFirewallVpn = {
     expr =
       let
@@ -497,9 +502,8 @@ in
   };
 
   # ----- mkOauth2Clients -----
-  # Multi-instance (cas monitoring) : deux entrées partageant le même
-  # clientId doivent fusionner en UN seul client avec les deux redirect
-  # URIs distincts.
+  # Multi-instance (monitoring case): two entries sharing the same
+  # clientId must merge into ONE client with both distinct redirect URIs.
   testMkOauth2ClientsMergeMultiZone =
     let
       mkPair = href: {
@@ -533,8 +537,8 @@ in
       };
     };
 
-  # ClientIds distincts (sous-domaines différents) restent séparés : pas
-  # de fusion intempestive entre services indépendants.
+  # Distinct clientIds (different subdomains) stay separate: no
+  # accidental merging between independent services.
   testMkOauth2ClientsDistinctClientsStayApart = {
     expr = builtins.length (
       dnfLib.mkOauth2Clients [
@@ -561,8 +565,8 @@ in
     expected = 2;
   };
 
-  # Les URIs déjà absolues (schémas mobiles ex. app.immich:///) doivent
-  # être passées telles quelles, sans préfixage par href.
+  # Already absolute URIs (mobile schemes e.g. app.immich:///) must be
+  # passed through as-is, without href prefixing.
   testMkOauth2ClientsAbsoluteUriPassthrough = {
     expr =
       (builtins.head (
@@ -610,7 +614,7 @@ in
   };
 
   # ----- mkHomepageSection -----
-  # Service global dans la zone www → vert
+  # Global service in the www zone → green
   testMkHomepageSectionPublicGlobal = {
     expr =
       let
@@ -631,7 +635,8 @@ in
       builtins.match ".*🟢.*" out.Site.content.description != null;
     expected = true;
   };
-  # Service global hors zone www → jaune
+
+  # Global service outside www zone → yellow
   testMkHomepageSectionPublicNonGlobal = {
     expr =
       let
@@ -652,7 +657,8 @@ in
       builtins.match ".*🟡.*" out.Site.content.description != null;
     expected = true;
   };
-  # Service privé local → bleu
+
+  # Local private service → blue
   testMkHomepageSectionPrivateLocal = {
     expr =
       let
@@ -673,7 +679,8 @@ in
       builtins.match ".*🔵.*" out.Wiki.content.description != null;
     expected = true;
   };
-  # Service privé distant → orange
+
+  # Remote private service → orange
   testMkHomepageSectionPrivateRemote = {
     expr =
       let
@@ -694,7 +701,8 @@ in
       builtins.match ".*🟠.*" out.Wiki.content.description != null;
     expected = true;
   };
-  # Mention "(zone:host)" injectée
+
+  # "(zone:host)" mention injected
   testMkHomepageSectionMention = {
     expr =
       let

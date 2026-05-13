@@ -1,15 +1,15 @@
-# NSS — Bases utilisateur distantes (R69–R70). (wip)
+# NSS — Remote user databases (R69–R70). (wip)
 #
-# Règles applicables uniquement si un NSS externe est actif (SSSD, nslcd).
-# Pour le moment, pas pertinent pour DNF, voir ce qu'on peut faire avec Kanidm + PAM.
+# Rules applicable only if an external NSS is active (SSSD, nslcd).
+# Not currently relevant for DNF; see what can be done with Kanidm + PAM.
 #
-# Couvre la sécurisation des bases distantes (R69 : TLS obligatoire) et la
-# séparation des comptes système et annuaire (R70).
+# Covers hardening of remote databases (R69: TLS mandatory) and
+# separation of system and directory accounts (R70).
 #
 # :::caution[Activation]
-# L'option `enable` suit `darkone.system.security.enable` par défaut.
-# Les règles (Rxx/Cxx) s'activent selon le niveau, la catégorie et les
-# excludes définis dans `darkone.system.security` (via `isActive`).
+# The `enable` option follows `darkone.system.security.enable` by default.
+# Rules (Rxx/Cxx) are activated based on level, category, and excludes
+# defined in `darkone.system.security` (via `isActive`).
 # :::
 
 {
@@ -26,7 +26,7 @@ let
 in
 {
   options = {
-    darkone.security.nss.enable = lib.mkEnableOption "Active la sécurisation NSS ANSSI (R69–R70).";
+    darkone.security.nss.enable = lib.mkEnableOption "Enable ANSSI NSS hardening (R69–R70).";
   };
 
   config = lib.mkMerge [
@@ -35,33 +35,33 @@ in
     (lib.mkIf cfg.enable (
       lib.mkMerge [
 
-        # R69 — Bases utilisateur distantes sécurisées (intermediary, base)
-        # Condition : NSS actif (SSSD ou nslcd)
-        # sideEffects: besoin d'une PKI fiable côté annuaire
+        # R69 — Secure remote user databases (intermediary, base)
+        # Condition: NSS active (SSSD or nslcd)
+        # sideEffects: requires a trustworthy PKI on the directory side
         (lib.mkIf (isActive "R69" "intermediary" "base" [ ] && hasNss) {
 
-          # SSSD avec TLS
+          # SSSD with TLS
           services.sssd = lib.mkIf config.services.sssd.enable {
 
-            # TODO: configurer sssd.conf avec tls_reqcert=demand et tls_cacertfile
-            # La config SSSD est gérée via services.sssd.config (texte brut)
+            # TODO: configure sssd.conf with tls_reqcert=demand and tls_cacertfile
+            # SSSD config is managed via services.sssd.config (raw text)
           };
 
-          # Interdire LDAP en clair (port 389 sans STARTTLS)
+          # Forbid LDAP in cleartext (port 389 without STARTTLS)
           assertions = [
             {
-              assertion = true; # TODO: vérifier la config nslcd/sssd pour ssl=on
-              message = "R69: LDAP doit utiliser TLS (ssl=on, tls_reqcert=demand).";
+              assertion = true; # TODO: verify the nslcd/sssd config for ssl=on
+              message = "R69: LDAP must use TLS (ssl=on, tls_reqcert=demand).";
             }
           ];
         })
 
-        # R70 — Comptes système ≠ comptes annuaire (intermediary, base)
-        # sideEffects: migration nécessaire si l'annuaire est mal segmenté
+        # R70 — System accounts ≠ directory accounts (intermediary, base)
+        # sideEffects: migration required if the directory is poorly segmented
         (lib.mkIf (isActive "R70" "intermediary" "base" [ ] && hasNss) {
 
-          # TODO: assertion sur le DN de bind SSSD/nslcd (lecture seule, non admin)
-          # Vérifier que services.sssd config ne contient pas un compte admin ldap
+          # TODO: assertion on the SSSD/nslcd bind DN (read-only, non-admin)
+          # Verify that services.sssd config does not contain an admin ldap account
         })
       ]
     ))

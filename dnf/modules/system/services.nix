@@ -48,7 +48,7 @@ let
   # Need Oauth2 proxy if has protected service
   hasProtectedServices = any (s: s.proxy.isProtected) services;
 
-  # Forward auth : vérifie l'auth à chaque requête
+  # Forward auth: checks auth on every request
   protectedServiceForwardSection = ''
     forward_auth http://127.0.0.1:4180 {
       uri /oauth2/auth
@@ -154,13 +154,12 @@ let
 
   mkHomeSection = dnfLib.mkHomepageSection zone.name;
 
-  # Access logs Caddy en JSON pour ingestion par Alloy/Loki.
+  # Caddy access logs in JSON for Alloy/Loki ingestion.
   #
-  # Le module NixOS Caddy expose une option `logFormat` par vhost qui pose
-  # par défaut `output file /var/log/caddy/access-<hostName>.log` au format
-  # texte. Quand Loki est actif, on la surcharge pour produire du JSON +
-  # rotation. Sinon on laisse le défaut intact (un seul bloc `log` est alors
-  # généré, en texte).
+  # The NixOS Caddy module exposes a `logFormat` option per vhost that defaults
+  # to `output file /var/log/caddy/access-<hostName>.log` in text format.
+  # When Loki is active, we override it to produce JSON + rotation.
+  # Otherwise we leave the default intact (a single `log` block is generated, in text).
   accessLogEnabled = config.darkone.service.loki.isClient or false;
   mkLogFormat = hostName: ''
     output file /var/log/caddy/access-${hostName}.log {
@@ -390,8 +389,8 @@ in
               matrixWellKnown = optionalString hasMatrix matrixWellKnownSection;
               mainAction =
 
-                # S'il existe des fichiers statiques dans usr/www/public, alors
-                # on sert ces fichiers situés dans le store. Sinon on redirige vers l'IDM.
+                # If static files exist in usr/www/public, serve them from the store.
+                # Otherwise redirect to IDM.
                 if staticDirExists then
                   ''
                     handle {
@@ -400,8 +399,8 @@ in
                     }
                   ''
 
-                # On encapsule dans un "handle" pour que le challenge fonctionne, sinon
-                # le handle automatique pour let's encrypt ne fonctionne pas.
+                # Wrap in a "handle" block so the challenge works, otherwise
+                # the automatic let's encrypt handle does not work.
                 else if hasIdmClient then
                   ''
                     handle {
@@ -473,7 +472,7 @@ in
         ) localZoneServices
 
         # Global (public) services access on HCS
-        # TODO: Accès privé / réservé pour idm.domain.tld
+        # TODO: Private / restricted access for idm.domain.tld
         ++ map (
           srv:
           let
@@ -534,24 +533,24 @@ in
 
     services.oauth2-proxy = mkIf hasProtectedServices {
       enable = true;
-      httpAddress = "127.0.0.1:4180"; # Écoute locale seulement
+      httpAddress = "127.0.0.1:4180"; # Local listen only
       provider = "oidc";
       oidcIssuerUrl = "https://idm.${network.domain}/oauth2/openid/internal-service";
       clientID = "internal-service";
       keyFile = config.sops.templates.postfix-sasl-password.path;
-      redirectURL = "https://auth.${network.domain}/oauth2/callback"; # Doit matcher Kanidm
+      redirectURL = "https://auth.${network.domain}/oauth2/callback"; # Must match Kanidm
       scope = "openid email";
       cookie = {
         #secretFile = config.sops.secrets.oauth2-proxy-cookie-internal-service.path;
-        #domain = ".${network.domain}"; # Pour partager le cookie entre sous-domaines
+        #domain = ".${network.domain}"; # Share cookie across subdomains
         secure = true;
       };
 
-      setXauthrequest = true; # Envoie X-Auth-Request-User, X-Auth-Request-Email, X-Auth-Request-Groups
-      passAccessToken = false; # Optionnel : passe le token aux upstreams
-      reverseProxy = true; # Important pour forward_auth
+      setXauthrequest = true; # Forwards X-Auth-Request-User, X-Auth-Request-Email, X-Auth-Request-Groups
+      passAccessToken = false; # Optional: pass token to upstreams
+      reverseProxy = true; # Important for forward_auth
 
-      upstream = [ "static://200" ]; # Répond 200 OK après auth (mode forward_auth)
+      upstream = [ "static://200" ]; # Reply 200 OK after auth (forward_auth mode)
       extraConfig = {
         allowed-group = [ "admins" ];
         client-secret-file = config.sops.secrets.oidc-secret-internal-service.path;
@@ -608,4 +607,4 @@ in
   };
 }
 
-# TODO: Voir quel reverse proxy a besoin de ça : {header_up Host {upstream_hostport}}
+# TODO: See which reverse proxy needs this: {header_up Host {upstream_hostport}}

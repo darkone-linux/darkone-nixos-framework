@@ -83,7 +83,7 @@ in
     #--------------------------------------------------------------------------
 
     # Unlock STK
-    # Exécuté après l'écriture des fichiers de conf par HM (writeBoundary)
+    # Runs after HM writes config files (writeBoundary)
     home.activation = lib.mkIf stk {
       unlockSupertuxkart = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         configPath="${config.home.homeDirectory}/.config/supertuxkart/config-0.10"

@@ -224,7 +224,7 @@ in
         ensureUsers = [ { name = "matrix-synapse"; } ];
       };
 
-      # Sauvegarde postgresql (par défaut toutes les bases)
+      # PostgreSQL backup (all databases by default)
       services.postgresqlBackup.enable = true;
 
       #------------------------------------------------------------------------
@@ -237,7 +237,7 @@ in
         environmentFile = config.sops.templates.mautrix-meta-env.path;
         settings = mautrixCommonSettings // {
           network.mode = "messenger";
-          network.chat_sync_max_age = "168h"; # ne sync que les convos actives dans les 7 derniers jours
+          network.chat_sync_max_age = "168h"; # only sync active conversations from the last 7 days
           appservice = {
             id = "messenger";
             as_token = "$MAUTRIX_META_APPSERVICE_AS_TOKEN";
@@ -327,7 +327,7 @@ in
         # https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html
         settings = {
 
-          # Généralités
+          # General settings
           #server_name = params.fqdn;
           server_name = network.domain;
           public_baseurl = params.href + "/";
@@ -335,44 +335,44 @@ in
           # Default client location
           web_client_location = "https://element.${network.domain}/"; # TODO: autodetect
 
-          # Délègue l'url suivante à synapse si celui-ci est bindé sur le domaine du network uniquement
-          # et non un sous domaine (matrix.mondomaine.tld).
+          # Delegates the following url to synapse only if bound to the network domain
+          # and not a subdomain (matrix.mydomain.tld).
           # -> https://<server_name>/.well-known/matrix/server
           serve_server_wellknown = false;
 
-          # Etre authentifié pour trouver mes users.
+          # Require authentication to find users.
           require_auth_for_profile_requests = true;
 
-          # Rendre mes users confidentiels depuis la fédération.
-          # -> Ne pas permettre de découvrir mes users depuis la fédération.
+          # Keep users private from federation.
+          # -> Do not allow user discovery from federation.
           allow_profile_lookup_over_federation = false;
 
-          # Ne pas permettre la découverte des devices depuis la fédération.
+          # Do not allow device discovery from federation.
           allow_device_name_lookup_over_federation = false;
 
-          # Il n'y a pas besoin de partager un salon commun pour trouver un profil.
+          # No need to share a common room to find a profile.
           limit_profile_requests_to_users_who_share_rooms = false;
 
-          # Il faut être authentifié pour se connecter aux salons publics. (default false)
+          # Must be authenticated to connect to public rooms. (default false)
           allow_public_rooms_without_auth = false;
 
-          # Ne pas exposer mes salons publics à la fédération. (default false)
+          # Do not expose public rooms to federation. (default false)
           allow_public_rooms_over_federation = false;
 
-          # Permet la publication des rooms dans le répertoire de salons publics
+          # Allow room publication in the public room directory
           # https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#room_list_publication_rules
           room_list_publication_rules = [ { action = "allow"; } ];
 
           # Federation restrictions
-          #federation_domain_whitelist = []; # Liste blanche des serveurs autorisés (default: tout)
-          #federation_whitelist_endpoint_enabled = true; # Exposer cette liste (default: false)
+          #federation_domain_whitelist = []; # Whitelist of allowed servers (default: all)
+          #federation_whitelist_endpoint_enabled = true; # Expose this list (default: false)
 
-          # Laisser ces valeurs par défaut: ne pas autoriser synapse a faire des requêtes sortantes
-          # vers mes réseaux privés -> https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#ip_range_blacklist
+          # Keep default values: do not allow synapse to make outbound requests
+          # to private networks -> https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#ip_range_blacklist
           #ip_range_blacklist
           #ip_range_whitelist
 
-          # Requêtes à écouter
+          # Listeners
           listeners = [
             {
               port = synapsePort;
@@ -397,16 +397,16 @@ in
 
           # Homeserver specific settings
           admin_contact = "admin@${network.domain}";
-          hs_disabled = false; # Désactivation du serveur...
+          hs_disabled = false; # Server disable flag...
           hs_disabled_message = "Maintenance...";
           #limit_remote_rooms # TODO if perf. problems
           max_avatar_size = "1M";
-          #retention # Politique de rétention de message si nécessaire (default false)
+          #retention # Message retention policy if needed (default false)
 
           # Media store
           max_upload_size = "100M";
           max_image_pixels = "50M";
-          dynamic_thumbnails = false; # Resize en fonction des clients, voir si c'est utile...
+          dynamic_thumbnails = false; # Resize based on clients, see if useful...
           #media_retention # https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#media_retention
 
           # Rooms
@@ -453,22 +453,22 @@ in
           # Coturn (visio)
           turn_uris = lib.optionals hasTurn [
 
-            # STUN -> Beaucoup de clients WebRTC (surtout mobiles) essaient d’abord STUN avant de tomber sur TURN.
+            # STUN -> Many WebRTC clients (especially mobile) try STUN first before falling back to TURN.
             "stun:turn.${network.domain}:${toString coturn.listening-port}"
 
-            # TURN classique (UDP prioritaire)
+            # Standard TURN (UDP preferred)
             "turn:turn.${network.domain}:${toString coturn.listening-port}?transport=udp"
             "turn:turn.${network.domain}:${toString coturn.listening-port}?transport=tcp"
 
-            # TURN sécurisé (TLS, TCP)
+            # Secure TURN (TLS, TCP)
             "turns:turn.${network.domain}:${toString coturn.tls-listening-port}?transport=tcp"
 
-            # UDP n'existe pas vraiment → on garde uniquement TCP pour le TLS
+            # UDP does not really exist, keep only TCP for TLS
             # "turns:turn.${network.domain}:${toString coturn.tls-listening-port}?transport=udp"
           ];
           turn_shared_secret_path = lib.mkIf hasTurn config.sops.secrets.turn-secret-matrix.path;
           turn_user_lifetime = lib.mkIf hasTurn "24h";
-          turn_allow_guests = true; # Default... voir si false serait pas mieux.
+          turn_allow_guests = true; # Default... see if false would be better.
 
           # TODO: https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#registration
         };

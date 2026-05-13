@@ -59,7 +59,7 @@ in
     #  options = "terminate:ctrl_alt_bksp"
     #};
 
-    # Fix gnome apps deadkeys for french keyboard (êâë...)
+    # Fix gnome apps deadkeys for French keyboard (êâë...)
     i18n.inputMethod = {
       enable = true;
       type = "ibus";

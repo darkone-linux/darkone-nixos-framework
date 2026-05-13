@@ -1,13 +1,13 @@
-# Messagerie locale (R74–R75). (wip)
+# Local mail handling (R74–R75). (wip)
 #
-# Couvre le MTA local durci en loopback-only (R74) et les alias de messagerie
-# vers l'adresse de l'administrateur (R75). Ces règles ne s'appliquent que si
-# un service MTA est actif (Postfix ou OpenSMTPD).
+# Covers the local MTA hardened to loopback-only (R74) and mail aliases
+# routed to the administrator's address (R75). These rules only apply if
+# an MTA service is active (Postfix or OpenSMTPD).
 #
 # :::caution[Activation]
-# L'option `enable` suit `darkone.system.security.enable` par défaut.
-# Les règles (Rxx/Cxx) s'activent selon le niveau, la catégorie et les
-# excludes définis dans `darkone.system.security` (via `isActive`).
+# The `enable` option follows `darkone.system.security.enable` by default.
+# Rules (Rxx/Cxx) are activated based on level, category, and excludes
+# defined in `darkone.system.security` (via `isActive`).
 # :::
 
 {
@@ -26,7 +26,7 @@ let
 in
 {
   options = {
-    darkone.security.mta.enable = lib.mkEnableOption "Active la sécurisation MTA ANSSI (R74–R75).";
+    darkone.security.mta.enable = lib.mkEnableOption "Enable ANSSI MTA hardening (R74–R75).";
   };
 
   config = lib.mkMerge [
@@ -35,9 +35,9 @@ in
     (lib.mkIf cfg.enable (
       lib.mkMerge [
 
-        # R74 — Messagerie locale durcie (intermediary, base)
-        # Condition : MTA actif
-        # sideEffects: loopback-only interdit la réception de mails externes
+        # R74 — Hardened local mail (intermediary, base)
+        # Condition: MTA active
+        # sideEffects: loopback-only forbids receiving external mail
         (lib.mkIf (isActive "R74" "intermediary" "base" [ ] && hasMta) {
           services.postfix = lib.mkIf config.services.postfix.enable {
             config = {
@@ -45,19 +45,19 @@ in
               mydestination = "$myhostname, localhost";
               smtpd_relay_restrictions = "reject_unauth_destination";
 
-              # TLS sortant obligatoire
+              # Outbound TLS mandatory
               smtp_tls_security_level = "encrypt";
               smtp_tls_loglevel = "1";
             };
           };
-          # TODO: config équivalente pour OpenSMTPD
+          # TODO: equivalent config for OpenSMTPD
         })
 
-        # R75 — Alias de messagerie (intermediary, base)
-        # sideEffects: nul si la passerelle SMTP sortante est fiable
+        # R75 — Mail aliases (intermediary, base)
+        # sideEffects: none if the outbound SMTP gateway is trustworthy
         (lib.mkIf (isActive "R75" "intermediary" "base" [ ] && hasMta && adminMail != "") {
 
-          # Générer les alias pour tous les comptes système vers adminMailbox
+          # Generate aliases for all system accounts toward adminMailbox
           services.postfix.extraAliases = lib.mkIf config.services.postfix.enable (
             lib.concatStringsSep "\n" (
               lib.mapAttrsToList (
@@ -67,7 +67,7 @@ in
             )
           );
 
-          # TODO: alias pour root
+          # TODO: alias for root
         })
       ]
     ))

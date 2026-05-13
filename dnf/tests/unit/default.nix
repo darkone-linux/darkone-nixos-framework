@@ -1,6 +1,6 @@
-# Agrégateur des suites de tests unitaires DNF (dnf/lib/)
-# Exposé dans flake.nix sous .#libTests
-# Lancer avec : nix-unit --flake .#libTests
+# Aggregator for DNF unit test suites (dnf/lib/)
+# Exposed in flake.nix as .#libTests
+# Run with: nix-unit --flake .#libTests
 { lib }:
 let
   dnfLib = import ../../lib { inherit lib; };

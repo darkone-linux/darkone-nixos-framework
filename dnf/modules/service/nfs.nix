@@ -25,7 +25,7 @@
 }:
 let
 
-  # TODO: clients dont les serveurs ne sont pas dans la même zone (host.features.nfs-client -> zone externe)
+  # TODO: clients whose servers are not in the same zone (host.features.nfs-client -> external zone)
   cfg = config.darkone.service.nfs;
   nfsServerCount = lib.count (s: s.name == "nfs" && s.zone == zone.name) network.services;
   nfsServer = (lib.findFirst (s: s.name == "nfs" && s.zone == zone.name) "" network.services).host;
@@ -99,7 +99,7 @@ assert
       #--------------------------------------------------------------------------
 
       # Server
-      # TODO: voir si on peut pas faire fonctionne all_squash en modifiant la config de idmapd:
+      # TODO: see if all_squash can work by tweaking idmapd config:
       # https://search.nixos.org/options?channel=unstable&show=services.nfs.idmapd.settings&query=idmapd
       services.nfs.server = lib.mkIf isServer {
         enable = true;

@@ -1,6 +1,6 @@
 # A full-configured headscale service for HCS.
 
-# TODO: ça marche mais on peut simplifier / optimiser.
+# TODO: works but can be simplified / optimized.
 {
   lib,
   dnfLib,
@@ -114,28 +114,28 @@ in
         enable = true;
         settings = {
 
-          # URL publique du serveur Headscale
+          # Public Headscale server URL
           server_url = "https://${params.fqdn}:443";
 
           # Configuration DNS
           dns = {
 
-            # MagicDNS activé (default)
+            # MagicDNS enabled (default)
             magic_dns = true;
 
-            # Domaine de base pour MagicDNS
-            # -> Mettre un domaine interne ici pour éviter que les noms qui y sont attachés
-            #    fuitent sur internet / les DNS externes. Mettre un nom du genre vpn.mondomaine.tld
-            #    n'est pas une bonne idée !
+            # Base domain for MagicDNS
+            # -> Use an internal domain here to prevent names from
+            #    leaking to the internet / external DNS. A name like vpn.mydomain.tld
+            #    is not a good idea!
             base_domain = "tailnet.internal";
 
-            # Forcer l'utilisation de la conf DNS de headscale sur celle des noeuds
+            # Force headscale DNS config over node local DNS
             override_local_dns = false;
 
             # ACLs (TODO)
             #acl_policy_path = "/var/lib/headscale/acls.json";
 
-            # OIDC (pour intégration future avec Authelia)
+            # OIDC (for future integration with Authelia)
             # https://github.com/juanfont/headscale/blob/9c4c017eac2e81908d2ae7d8d777e143a13a1772/config-example.yaml#L329
             # oidc = {
             #   issuer = "https://auth.mydomain.tld";
@@ -143,8 +143,8 @@ in
             #   client_secret_path = "/var/lib/headscale/oidc_secret";
             # };
 
-            # Serveurs DNS pour les clients (fallback uniquement...)
-            # -> On ne résoud pas de NDD externes sur headscale pour le moment.
+            # DNS servers for clients (fallback only...)
+            # -> We do not resolve external domains on headscale for now.
             nameservers = {
               global = [
                 hcsTailnetIpv4
@@ -154,23 +154,23 @@ in
                 # "2606:4700:4700::1001"
               ];
 
-              # Les clients tailscale s'adressent à 100.100.100.100.
-              # -> Tout ce qui est en poncon.fr doit être pris en charge par le DNS unbound du HCS.
+              # Tailscale clients address 100.100.100.100.
+              # -> Everything under the network domain must be handled by HCS unbound DNS.
               split.${network.domain} = [ hcsTailnetIpv4 ];
 
-              # A chaque suffixe de zone son serveur DNS...
+              # Each zone suffix gets its own DNS server...
               # { "zone.domain.tld" = [ "100.64.x.x" ]; (...) };
-              # NOTE : le split-DNS de Headscale sert uniquement à dire aux clients quel DNS interroger
-              #        pour quelle zone, pas à résoudre ni à chaîner les DNS eux-mêmes.
-              #        Désormais c'est unbound qui sert de serveur DNS pivot pour les zones.
-              #        Via le split précédent on délègue le traitement DNS du domaine principal à Unbound.
+              # NOTE: Headscale split-DNS only tells clients which DNS to query
+              #        for which zone, it does not resolve or chain DNS itself.
+              #        Unbound now serves as the pivot DNS server for zones.
+              #        The previous split delegates main domain DNS handling to Unbound.
               # split = lib.concatMapAttrs (_: z: { "${z.domain}" = [ "${z.gateway.vpn.ipv4}" ]; }) (
               #   lib.filterAttrs (_: z: lib.hasAttrByPath [ "gateway" "vpn" "ipv4" ] z) network.zones
               # );
             };
 
-            # Domaines de recherche
-            # -> Pas de recherche via headscale pour le moment.
+            # Search domains
+            # -> No search through headscale for now.
             # zone1.domain.tld, zone2.domain.tld, etc.
             # With MagicDNS enabled, your tailnet base_domain is always the first search domain.
             # search_domains = [
@@ -180,8 +180,8 @@ in
             #search_domains = lib.attrsets.mapAttrsToList (_: z: z.domain) hcsClientZones;
             search_domains = [ "tailnet.internal" ];
 
-            # Voir si on ne met pas ici les services globaux (MARCHE PAS - AUCUN EFFET)
-            # A utiliser pour les global services ?
+            # See if we should put global services here (DOES NOT WORK - NO EFFECT)
+            # To use for global services?
             # https://github.com/juanfont/headscale/blob/9c4c017eac2e81908d2ae7d8d777e143a13a1772/config-example.yaml#L312
             # extra_records = lib.attrsets.mapAttrsToList (_: z: {
             #   name = "${z.gateway.hostname}.${z.domain}";

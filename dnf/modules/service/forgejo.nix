@@ -133,7 +133,7 @@ in
             ENABLE_OPENID_SIGNUP = true;
           };
 
-          # TODO: lien déclaratif vers l'idm (pour l'instant obligé de faire ça dans l'interface)
+          # TODO: declarative link to idm (currently must be done in the UI)
           oauth2_client = {
             ENABLE_AUTO_REGISTRATION = true;
           };

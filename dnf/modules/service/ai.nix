@@ -125,7 +125,7 @@ in
       };
       users.groups.open-webui = { };
 
-      # On limite le nombre de file descriptors car ce service est très gourmand
+      # Limit file descriptors as this service is very resource-intensive
       systemd.services.open-webui.serviceConfig = {
         LimitNOFILE = 65536;
       };
@@ -160,13 +160,13 @@ in
           DEFAULT_USER_ROLE = "user"; # Not pending
           WEBUI_SESSION_COOKIE_SAME_SITE = "lax"; # https://docs.openwebui.com/reference/env-configuration#webui_session_cookie_same_site
 
-          # A activer pour le paramétrage... TODO: automatique, déclaratif
-          # Paramétrer ce que voient les utilisateurs par défaut dans groups -> autorisations : modèles, etc.
-          # Puis pour chaque modèle, rendre "public" ceux pour lesquels les users ont accès
+          # Enable for setup... TODO: automatic, declarative
+          # Configure what users see by default in groups -> permissions: models, etc.
+          # Then for each model, make "public" those users have access to
           ENABLE_LOGIN_FORM = "True";
           ENABLE_PASSWORD_AUTH = "True";
 
-          # Autorisations
+          # Permissions
           USER_PERMISSIONS_WORKSPACE_MODELS_ACCESS = "True";
 
           # Optional but recommended

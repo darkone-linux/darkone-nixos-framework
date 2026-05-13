@@ -1,23 +1,23 @@
-# Intégrité du système de fichiers — HIDS (R76–R77). (wip)
+# Filesystem integrity — HIDS (R76–R77). (wip)
 #
-# Couvre le scellement et la vérification d'intégrité via AIDE (R76) et la
-# protection de la base scellée par signature GPG avec copie distante (R77).
+# Covers sealing and integrity verification via AIDE (R76) and protection
+# of the sealed database with GPG signature plus remote copy (R77).
 #
 # :::caution[Activation]
-# L'option `enable` suit `darkone.system.security.enable` par défaut.
-# Les règles (Rxx/Cxx) s'activent selon le niveau, la catégorie et les
-# excludes définis dans `darkone.system.security` (via `isActive`).
+# The `enable` option follows `darkone.system.security.enable` by default.
+# Rules (Rxx/Cxx) are activated based on level, category, and excludes
+# defined in `darkone.system.security` (via `isActive`).
 # :::
 #
 # :::caution[R76 — AIDE]
-# Le scan complet peut durer 15–60 min selon la taille du FS et le CPU.
-# Planifier en heures creuses. Faux-positifs fréquents sur /etc/resolv.conf,
-# /var/lib, /var/cache — ajouter dans les exclusions.
+# A full scan can take 15–60 min depending on FS size and CPU.
+# Schedule during off-peak hours. Frequent false positives on /etc/resolv.conf,
+# /var/lib, /var/cache — add them to exclusions.
 # :::
 #
-# :::caution[R77 — Base signée]
-# La base AIDE doit être re-signée à chaque mise à jour majeure NixOS
-# (le store change). Prévoir une procédure de mise à jour de la baseline.
+# :::caution[R77 — Signed database]
+# The AIDE database must be re-signed at every major NixOS update
+# (the store changes). Plan a baseline update procedure.
 # :::
 
 {
@@ -34,7 +34,7 @@ let
 in
 {
   options = {
-    darkone.security.integrity.enable = lib.mkEnableOption "Active l'intégrité HIDS ANSSI — AIDE (R76–R77).";
+    darkone.security.integrity.enable = lib.mkEnableOption "Enable ANSSI HIDS integrity — AIDE (R76–R77).";
 
     darkone.security.integrity.aideRemoteCopy = lib.mkOption {
       type = lib.types.nullOr (
@@ -42,17 +42,17 @@ in
           options = {
             host = lib.mkOption {
               type = lib.types.str;
-              description = "Hôte distant pour la copie de la base AIDE.";
+              description = "Remote host for the AIDE database copy.";
             };
             sshKeyFile = lib.mkOption {
               type = lib.types.path;
-              description = "Chemin vers la clé SSH privée pour la copie distante.";
+              description = "Path to the private SSH key for the remote copy.";
             };
           };
         }
       );
       default = null;
-      description = "Copie distante de la base AIDE signée GPG (R77). null = désactivé.";
+      description = "Remote copy of the GPG-signed AIDE database (R77). null = disabled.";
     };
   };
 
@@ -62,26 +62,26 @@ in
     (lib.mkIf cfg.enable (
       lib.mkMerge [
 
-        # R76 — Sceller / vérifier l'intégrité (high, base, tag: no-sealing)
-        # sideEffects: scan long (15-60 min), I/O lourd, faux-positifs sur /etc/resolv.conf
+        # R76 — Seal / verify integrity (high, base, tag: no-sealing)
+        # sideEffects: long scan (15-60 min), heavy I/O, false positives on /etc/resolv.conf
         (lib.mkIf (isActive "R76" "high" "base" [ "no-sealing" ]) {
 
-          # TODO : ce service n'existe pas, soit le créer, soit installer AIDE et définir la conf...
+          # TODO: this service does not exist — either create it, or install AIDE and define the config...
           # services.aide = {
           #   enable = true;
 
-          #   # Configuration AIDE : surveiller les chemins critiques
-          #   # En NixOS : /run/current-system/sw plutôt que /usr (lien vers store immuable)
+          #   # AIDE configuration: monitor critical paths
+          #   # On NixOS: /run/current-system/sw rather than /usr (link to immutable store)
           #   settings = ''
-          #     # Politique par défaut
+          #     # Default policy
           #     ALLXTRAHASHES = sha512+rmd160+sha256
 
-          #     # Chemins à surveiller
+          #     # Paths to monitor
           #     /etc          ALLXTRAHASHES
           #     /boot         ALLXTRAHASHES
           #     /run/current-system/sw ALLXTRAHASHES
 
-          #     # Exclusions NixOS
+          #     # NixOS exclusions
           #     !/var/log
           #     !/var/lib
           #     !/var/cache
@@ -93,41 +93,41 @@ in
           #   '';
           # };
 
-          # Timer quotidien de vérification
+          # Daily verification timer
           systemd.timers.aide-check = {
             wantedBy = [ "timers.target" ];
             timerConfig = {
               OnCalendar = "daily";
-              RandomizedDelaySec = "1h"; # Décalage aléatoire pour éviter la charge simultanée
+              RandomizedDelaySec = "1h"; # Random offset to avoid simultaneous load
               Persistent = true;
             };
           };
           systemd.services.aide-check = {
-            description = "ANSSI R76 : vérification d'intégrité AIDE";
+            description = "ANSSI R76: AIDE integrity check";
             serviceConfig = {
               Type = "oneshot";
               ExecStart = "${pkgs.aide}/bin/aide --config=/etc/aide/aide.conf --check";
 
-              # Exécution en heures creuses (2h-4h du matin)
+              # Run during off-peak hours (2-4am)
               IOSchedulingClass = "idle";
               CPUSchedulingPolicy = "idle";
             };
           };
         })
 
-        # R77 — Protection de la base scellée (high, base)
-        # sideEffects: procédure de signature obligatoire à chaque mise à jour
+        # R77 — Protect the sealed database (high, base)
+        # sideEffects: signature procedure required at every update
         (lib.mkIf (isActive "R77" "high" "base" [ "no-sealing" ]) {
 
-          # Permissions restrictives sur la base AIDE
+          # Restrictive permissions on the AIDE database
           systemd.tmpfiles.rules = [
             "d /var/lib/aide 0700 root root -"
             "z /var/lib/aide/aide.db.gz 0600 root root -"
           ];
 
-          # Copie distante de la base si configurée
+          # Remote copy of the database if configured
           systemd.services.aide-remote-backup = lib.mkIf (cfg.aideRemoteCopy != null) {
-            description = "ANSSI R77 : copie distante de la base AIDE";
+            description = "ANSSI R77: remote copy of the AIDE database";
             after = [ "aide-check.service" ];
             serviceConfig = {
               Type = "oneshot";
@@ -139,7 +139,7 @@ in
             };
           };
 
-          # TODO: signature GPG de la base (clé hors-ligne recommandée)
+          # TODO: GPG signature of the database (offline key recommended)
         })
       ]
     ))

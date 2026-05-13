@@ -1,17 +1,17 @@
-# PAM — Authentification et stockage des mots de passe (R67–R68). (wip)
+# PAM — Authentication and password storage (R67–R68). (wip)
 #
-# Couvre les authentifications PAM distantes sécurisées (R67 : SSSD, Kerberos,
-# pam_faillock) et le stockage chiffré des mots de passe (R68 : yescrypt).
+# Covers secure remote PAM authentication (R67: SSSD, Kerberos, pam_faillock)
+# and encrypted password storage (R68: yescrypt).
 #
 # :::caution[Activation]
-# L'option `enable` suit `darkone.system.security.enable` par défaut.
-# Les règles (Rxx/Cxx) s'activent selon le niveau, la catégorie et les
-# excludes définis dans `darkone.system.security` (via `isActive`).
+# The `enable` option follows `darkone.system.security.enable` by default.
+# Rules (Rxx/Cxx) are activated based on level, category, and excludes
+# defined in `darkone.system.security` (via `isActive`).
 # :::
 #
-# :::note[Compléments]
-# pam_faillock (anti brute-force) est configuré ici pour R67 et dans
-# complement.nix (C10). La politique de complexité (R31) est dans users.nix.
+# :::note[Complements]
+# pam_faillock (anti brute-force) is configured here for R67 and in
+# complement.nix (C10). The complexity policy (R31) is in users.nix.
 # :::
 
 {
@@ -28,7 +28,7 @@ let
 in
 {
   options = {
-    darkone.security.pam.enable = lib.mkEnableOption "Active le module PAM ANSSI — authentification et mots de passe (R67–R68).";
+    darkone.security.pam.enable = lib.mkEnableOption "Enable ANSSI PAM module — authentication and passwords (R67–R68).";
   };
 
   config = lib.mkMerge [
@@ -37,12 +37,12 @@ in
     (lib.mkIf cfg.enable (
       lib.mkMerge [
 
-        # R67 — Authentifications PAM distantes sécurisées (intermediary, base)
-        # sideEffects: SSSD requiert un service supplémentaire et un cache local
+        # R67 — Secure remote PAM authentication (intermediary, base)
+        # sideEffects: SSSD requires an additional service and a local cache
         (lib.mkIf (isActive "R67" "intermediary" "base" [ ]) {
 
-          # pam_faillock : verrouillage anti brute-force
-          # deny=3 : 3 tentatives max, unlock_time=900 : 15 min de verrouillage
+          # pam_faillock: anti brute-force locking
+          # deny=3: 3 attempts max, unlock_time=900: 15 min lockout
           security.pam.services.login.rules.auth.faillock = {
             control = "required";
             modulePath = "${pkgs.pam}/lib/security/pam_faillock.so";
@@ -50,16 +50,16 @@ in
               preauth = true;
               deny = 3;
               unlock_time = 900;
-              even_deny_root = false; # Ne pas bloquer root (risque de lock-out)
+              even_deny_root = false; # Do not block root (lock-out risk)
             };
           };
 
-          # Assertion : pam_ldap doit utiliser TLS si présent
-          # TODO: vérifier la config nslcd/sssd si services.sssd.enable ou services.nslcd.enable
+          # Assertion: pam_ldap must use TLS if present
+          # TODO: verify the nslcd/sssd config if services.sssd.enable or services.nslcd.enable
         })
 
-        # R68 — Stockage chiffré des mots de passe (minimal, base)
-        # sideEffects: incompatible avec les systèmes sans support yescrypt (noyaux < 5.14)
+        # R68 — Encrypted password storage (minimal, base)
+        # sideEffects: incompatible with systems lacking yescrypt support (kernels < 5.14)
         (lib.mkIf (isActive "R68" "minimal" "base" [ ]) {
           security.pam.services.passwd.rules.password.unix = {
             control = "sufficient";
@@ -71,7 +71,7 @@ in
             };
           };
 
-          # login.defs : forcer yescrypt
+          # login.defs: force yescrypt
           environment.etc."login.defs".text = lib.mkAfter ''
             ENCRYPT_METHOD YESCRYPT
             YESCRYPT_COST_FACTOR 11

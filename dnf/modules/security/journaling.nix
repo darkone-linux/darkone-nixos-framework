@@ -1,22 +1,22 @@
-# Journalisation et auditd (R71–R73). (wip)
+# Logging and auditd (R71–R73). (wip)
 #
-# Couvre le système de journalisation persistant avec forwarding TLS (R71),
-# les journaux dédiés par service (R72) et auditd avec les règles ANSSI (R73).
+# Covers persistent logging with TLS forwarding (R71),
+# per-service dedicated journals (R72), and auditd with ANSSI rules (R73).
 #
 # :::caution[Activation]
-# L'option `enable` suit `darkone.system.security.enable` par défaut.
-# Les règles (Rxx/Cxx) s'activent selon le niveau, la catégorie et les
-# excludes définis dans `darkone.system.security` (via `isActive`).
+# The `enable` option follows `darkone.system.security.enable` by default.
+# Rules (Rxx/Cxx) are activated based on level, category, and excludes
+# defined in `darkone.system.security` (via `isActive`).
 # :::
 #
 # :::caution[R71 — Seal=yes]
-# `Seal=yes` requiert `journalctl --setup-keys` (clé d'audit hors-bande).
-# Sans cette clé, l'intégrité des journaux ne peut pas être vérifiée.
+# `Seal=yes` requires `journalctl --setup-keys` (out-of-band audit key).
+# Without this key, journal integrity cannot be verified.
 # :::
 #
-# :::caution[R73 — auditd immuable]
-# La configuration `audit.rules = [ "-e 2" ]` rend auditd immuable : tout
-# changement de règle nécessite un reboot. Tester en staging avant déploiement.
+# :::caution[R73 — immutable auditd]
+# The configuration `audit.rules = [ "-e 2" ]` makes auditd immutable: any
+# rule change requires a reboot. Test in staging before deployment.
 # :::
 
 {
@@ -32,7 +32,7 @@ let
 in
 {
   options = {
-    darkone.security.journaling.enable = lib.mkEnableOption "Active la journalisation et auditd ANSSI (R71–R73).";
+    darkone.security.journaling.enable = lib.mkEnableOption "Enable ANSSI logging and auditd (R71–R73).";
   };
 
   config = lib.mkMerge [
@@ -41,8 +41,8 @@ in
     (lib.mkIf cfg.enable (
       lib.mkMerge [
 
-        # R71 — Système de journalisation persistant (reinforced, base)
-        # sideEffects: Seal=yes requiert setup-keys hors-bande
+        # R71 — Persistent logging system (reinforced, base)
+        # sideEffects: Seal=yes requires out-of-band setup-keys
         (lib.mkIf (isActive "R71" "reinforced" "base" [ ]) {
           services.journald.extraConfig = ''
             Storage=persistent
@@ -57,17 +57,17 @@ in
             SystemKeepFree=1G
           '';
 
-          # Forwarder TLS vers collecteur central
-          # Préférer omrelp (RELP avec ack applicatif) à TCP simple
-          # TODO: configurer services.rsyslogd avec destination TLS (option à ajouter)
+          # TLS forwarder to central collector
+          # Prefer omrelp (RELP with application-level ack) over plain TCP
+          # TODO: configure services.rsyslogd with TLS destination (option to be added)
           # services.rsyslogd.enable = true;
         })
 
-        # R72 — Journaux dédiés par service (reinforced, base)
-        # sideEffects: multiplication des fichiers ; rotation logrotate nécessaire
+        # R72 — Per-service dedicated journals (reinforced, base)
+        # sideEffects: more files; logrotate rotation required
         (lib.mkIf (isActive "R72" "reinforced" "base" [ ]) {
 
-          # TODO: générer les règles rsyslogd par service DNF enregistré
+          # TODO: generate rsyslogd rules per registered DNF service
           # services.rsyslogd.extraConfig = ''
           #   if $programname == 'nginx'  then -/var/log/nginx.log
           #   if $programname == 'sshd'   then -/var/log/sshd.log
@@ -80,25 +80,25 @@ in
         })
 
         # R73 — auditd (reinforced, base, tag: no-auditd)
-        # sideEffects: I/O significatif (1-10% CPU sur workloads syscall-heavy)
+        # sideEffects: significant I/O (1-10% CPU on syscall-heavy workloads)
         (lib.mkIf (isActive "R73" "reinforced" "base" [ "no-auditd" ]) {
           security.audit.enable = true;
           security.audit.rules = [
 
-            # Appels système critiques
+            # Critical syscalls
             "-a exit,always -F arch=b64 -S execve,execveat"
             "-a exit,always -F arch=b64 -S clock_settime -S settimeofday -S adjtimex"
             "-a exit,always -F arch=b64 -S sethostname -S setdomainname"
             "-a exit,always -F arch=b64 -S kexec_load -S kexec_file_load"
 
-            # Fichiers sensibles
+            # Sensitive files
             "-w /etc/sudoers      -p wa"
             "-w /etc/sudoers.d/   -p wa"
             "-w /etc/passwd       -p wa"
             "-w /etc/shadow       -p wa"
             "-w /var/log/auth.log -p wa"
 
-            # Rendre la configuration immuable (reboot requis pour changer les règles)
+            # Make the configuration immutable (reboot required to change rules)
             "-e 2"
           ];
         })

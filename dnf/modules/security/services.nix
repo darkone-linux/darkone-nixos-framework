@@ -1,24 +1,23 @@
-# Durcissement des services systemd (R62–R66). (wip)
+# Hardening of systemd services (R62–R66). (wip)
 #
-# Couvre la désactivation des services inutiles (R62), la réduction des
-# fonctionnalités via les options de sécurité systemd (R63), la restriction
-# des privilèges (R64), le cloisonnement (R65) et le durcissement des
-# composants de conteneurisation (R66).
+# Covers disabling unnecessary services (R62), reducing functionality via
+# systemd security options (R63), privilege restriction (R64),
+# isolation (R65), and hardening of containerization components (R66).
 #
 # :::caution[Activation]
-# L'option `enable` suit `darkone.system.security.enable` par défaut.
-# Les règles (Rxx/Cxx) s'activent selon le niveau, la catégorie et les
-# excludes définis dans `darkone.system.security` (via `isActive`).
+# The `enable` option follows `darkone.system.security.enable` by default.
+# Rules (Rxx/Cxx) are activated based on level, category, and excludes
+# defined in `darkone.system.security` (via `isActive`).
 # :::
 #
 # :::caution[R63 — MemoryDenyWriteExecute]
-# Casse les runtimes JIT (Java, V8, .NET, LuaJIT, Wasm). Utiliser le tag
-# `needs-jit` dans `excludes` ou exclure le service individuellement.
+# Breaks JIT runtimes (Java, V8, .NET, LuaJIT, Wasm). Use the
+# `needs-jit` tag in `excludes` or exclude the service individually.
 # :::
 #
-# :::caution[R66 — userns-remap Docker]
-# Casse les bind-mounts d'hôte vers conteneur (décalage UID). Migration des
-# volumes existants nécessaire avant activation.
+# :::caution[R66 — Docker userns-remap]
+# Breaks host-to-container bind-mounts (UID shift). Migration of existing
+# volumes required before enabling.
 # :::
 
 {
@@ -32,10 +31,10 @@ let
   cfg = config.darkone.security.services;
   isActive = dnfLib.mkIsActive (mainSecurityCfg // { inherit (cfg) enable; });
 
-  # Helper : produit les options systemd de durcissement de service (R63, R65)
-  # À appliquer via `systemd.services.<name>.serviceConfig`
+  # Helper: produces systemd hardening options for a service (R63, R65)
+  # To be applied via `systemd.services.<name>.serviceConfig`
 
-  # Liste des services à désactiver en catégorie server (R62)
+  # List of services to disable in the server category (R62)
   serverDisabledServices = [
     "cups"
     "avahi-daemon"
@@ -46,7 +45,7 @@ let
     "geoclue"
   ];
 
-  # Services toujours désactivés (protocoles obsolètes)
+  # Services always disabled (obsolete protocols)
   alwaysDisabledServices = [
     "telnet"
     "rsh"
@@ -57,19 +56,19 @@ let
 in
 {
   options = {
-    darkone.security.services.enable = lib.mkEnableOption "Active le durcissement des services systemd ANSSI (R62–R66).";
+    darkone.security.services.enable = lib.mkEnableOption "Enable ANSSI hardening of systemd services (R62–R66).";
 
     darkone.security.services.rootServicesAllowed = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
-      description = "Services systemd autorisés à tourner en root sans CapabilityBoundingSet (R64).";
+      description = "systemd services allowed to run as root without CapabilityBoundingSet (R64).";
     };
   };
 
-  # Exposer mkHardenedServiceConfig pour les autres modules DNF
-  # DÉCISION ARCHITECTURALE : pour partager ce helper avec les modules de service DNF,
-  # on pourrait l'ajouter à dnfLib. Pour l'instant, il reste local à security.
-  # TODO: migrer vers dnfLib.mkHardenedServiceConfig si adoption large
+  # Expose mkHardenedServiceConfig to other DNF modules.
+  # ARCHITECTURAL DECISION: to share this helper with DNF service modules,
+  # we could add it to dnfLib. For now, it stays local to security.
+  # TODO: migrate to dnfLib.mkHardenedServiceConfig if adoption is broad
 
   config = lib.mkMerge [
     { darkone.security.services.enable = lib.mkDefault mainSecurityCfg.enable; }
@@ -77,17 +76,17 @@ in
     (lib.mkIf cfg.enable (
       lib.mkMerge [
 
-        # R62 — Désactiver les services non nécessaires (minimal, base)
-        # sideEffects: couper avahi casse découverte imprimantes, bluetooth casse claviers BT
+        # R62 — Disable unnecessary services (minimal, base)
+        # sideEffects: disabling avahi breaks printer discovery, bluetooth breaks BT keyboards
         (lib.mkIf (isActive "R62" "minimal" "base" [ ]) {
           systemd.services = lib.mkMerge [
 
-            # Services toujours désactivés (protocoles obsolètes)
+            # Always-disabled services (obsolete protocols)
             (lib.genAttrs alwaysDisabledServices (_: {
               enable = false;
             }))
 
-            # Services désactivés en mode server uniquement
+            # Services disabled in server mode only
             (lib.optionalAttrs (mainSecurityCfg.category == "server") (
               lib.genAttrs serverDisabledServices (_: {
                 enable = false;
@@ -96,19 +95,19 @@ in
           ];
         })
 
-        # R63 — Réduire les fonctionnalités des services (intermediary, base)
-        # sideEffects: MemoryDenyWriteExecute casse JIT (compilation à la volée), ProtectSystem=strict impose ReadWritePaths
+        # R63 — Reduce service functionality (intermediary, base)
+        # sideEffects: MemoryDenyWriteExecute breaks JIT (just-in-time compilation), ProtectSystem=strict enforces ReadWritePaths
         (lib.mkIf (isActive "R63" "intermediary" "base" [ ]) {
 
-          # TODO: appliquer mkHardenedServiceConfig aux services DNF enregistrés
-          # via darkone.system.services.service.<name> (intégration services.nix)
-          # Pour l'instant : les services individuels appliquent le helper manuellement.
-          # Exemple :
-          # systemd.services.monservice.serviceConfig = mkHardenedServiceConfig { };
+          # TODO: apply mkHardenedServiceConfig to registered DNF services
+          # via darkone.system.services.service.<name> (services.nix integration)
+          # For now: individual services apply the helper manually.
+          # Example:
+          # systemd.services.myservice.serviceConfig = mkHardenedServiceConfig { };
         })
 
-        # R64 — Privilèges des services (reinforced, base)
-        # sideEffects: audit lourd sur les services hérités
+        # R64 — Service privileges (reinforced, base)
+        # sideEffects: heavy audit on legacy services
         (lib.mkIf (isActive "R64" "reinforced" "base" [ ]) {
           assertions = [
             {
@@ -122,22 +121,22 @@ in
                 user != "root" || caps != null || lib.elem name cfg.rootServicesAllowed
               ) (lib.attrNames config.systemd.services);
               message =
-                "R64: Tout service root doit déclarer CapabilityBoundingSet ou être "
-                + "listé dans darkone.security.services.rootServicesAllowed.";
+                "R64: Every root service must declare CapabilityBoundingSet or be "
+                + "listed in darkone.security.services.rootServicesAllowed.";
             }
           ];
         })
 
-        # R65 — Cloisonner les services (reinforced, base)
-        # sideEffects: PrivateNetwork=yes interdit l'IPC réseau (inadapté aux daemons réseau)
+        # R65 — Isolate services (reinforced, base)
+        # sideEffects: PrivateNetwork=yes forbids network IPC (unsuitable for network daemons)
         (lib.mkIf (isActive "R65" "reinforced" "base" [ ]) {
 
-          # TODO: appliquer PrivateNetwork=yes et PrivateUsers=yes aux services
-          # qui n'ont pas besoin du réseau (via une option par service DNF)
+          # TODO: apply PrivateNetwork=yes and PrivateUsers=yes to services
+          # that do not need the network (via a per-DNF-service option)
         })
 
-        # R66 — Durcir les composants de cloisonnement (high, base)
-        # sideEffects: userns-remap Docker casse les bind-mounts, migration volumes nécessaire
+        # R66 — Harden isolation components (high, base)
+        # sideEffects: Docker userns-remap breaks bind-mounts, volume migration required
         (lib.mkIf (isActive "R66" "high" "base" [ ]) {
 
           # Docker

@@ -1,29 +1,29 @@
-# Contrôle d'accès obligatoire — MAC (R37, R45–R49). (wip)
+# Mandatory Access Control — MAC (R37, R45–R49). (wip)
 #
-# R37 est une règle méta : valide si au moins R45 (AppArmor) ou R46 (SELinux)
-# est active. SELinux (R46–R49) n'est pas supporté sur NixOS et est exclu par
-# défaut via `exceptions`. AppArmor (R45) est partiellement supporté.
+# R37 is a meta rule: valid if at least R45 (AppArmor) or R46 (SELinux)
+# is active. SELinux (R46–R49) is not supported on NixOS and is excluded
+# by default via `exceptions`. AppArmor (R45) is partially supported.
 #
 # :::tip[Sandboxing]
-# A défaut, NixOS exploite souvent les options de systemd (systemd sandboxing)
-# pour isoler les services.
+# When MAC is unavailable, NixOS often relies on systemd options
+# (systemd sandboxing) to isolate services.
 # :::
 #
-# :::note[NixOS et MAC]
-# SELinux est structurellement non supporté sur NixOS (R46–R49 en exception par
-# défaut). AppArmor est disponible mais avec peu de profils prêts à l'emploi.
-# L'absence de profil pour un service exposé est un faux sentiment de sécurité.
+# :::note[NixOS and MAC]
+# SELinux is structurally unsupported on NixOS (R46–R49 are exceptions by
+# default). AppArmor is available but with few ready-to-use profiles.
+# The absence of a profile for an exposed service is a false sense of security.
 # :::
 #
 # :::caution[Activation]
-# L'option `enable` suit `darkone.system.security.enable` par défaut.
-# Les règles (Rxx/Cxx) s'activent selon le niveau, la catégorie et les
-# excludes définis dans `darkone.system.security` (via `isActive`).
+# The `enable` option follows `darkone.system.security.enable` by default.
+# Rules (Rxx/Cxx) are activated based on level, category, and excludes
+# defined in `darkone.system.security` (via `isActive`).
 # :::
 #
 # :::caution[Tag no-mac]
-# Utiliser le tag `no-mac` dans `excludes` pour désactiver R37 et R45 avec une
-# justification explicite dans `exceptions.R37.rationale`.
+# Use the `no-mac` tag in `excludes` to disable R37 and R45 with an explicit
+# justification in `exceptions.R37.rationale`.
 # :::
 
 {
@@ -39,7 +39,7 @@ let
 in
 {
   options = {
-    darkone.security.mac.enable = lib.mkEnableOption "Active le module MAC ANSSI — AppArmor/SELinux (R37, R45–R49).";
+    darkone.security.mac.enable = lib.mkEnableOption "Enable ANSSI MAC module — AppArmor/SELinux (R37, R45–R49).";
   };
 
   config = lib.mkMerge [
@@ -48,36 +48,36 @@ in
     (lib.mkIf cfg.enable (
       lib.mkMerge [
 
-        # R37 — Utiliser un MAC (reinforced, base, tag: no-mac)
-        # Règle méta : valide ssi R45 OU R46 est actif.
-        # Sur NixOS : R46 est en exception → R37 valide seulement si R45 actif.
+        # R37 — Use a MAC (reinforced, base, tag: no-mac)
+        # Meta rule: valid iff R45 OR R46 is active.
+        # On NixOS: R46 is an exception → R37 valid only if R45 is active.
         (lib.mkIf (isActive "R37" "reinforced" "base" [ "no-mac" ]) {
-          # Assertion : au moins un MAC actif
+          # Assertion: at least one MAC active
           assertions = [
             {
               assertion =
                 config.security.apparmor.enable
 
-                # SELinux non supporté : pas de vérification
+                # SELinux unsupported: no check
                 || lib.hasAttr "R37" mainSecurityCfg.exceptions;
               message =
-                "R37: Au moins un MAC (AppArmor) doit être actif au niveau 'reinforced'. "
-                + "Utiliser exceptions.R37.rationale pour documenter l'absence de MAC.";
+                "R37: At least one MAC (AppArmor) must be active at the 'reinforced' level. "
+                + "Use exceptions.R37.rationale to document the absence of MAC.";
             }
           ];
         })
 
         # R45 — AppArmor (reinforced, base, tag: no-mac)
-        # sideEffects: peu de profils NixOS prêts à l'emploi ; profils maison à maintenir
+        # sideEffects: few ready-to-use NixOS profiles; custom profiles to maintain
         (lib.mkIf (isActive "R45" "reinforced" "base" [ "no-mac" ]) {
           security.apparmor = {
             enable = true;
 
-            # Profils en mode enforce (pas learn/complain)
-            # TODO: ajouter les profils DNF maison pour les services enregistrés
-            packages = [ ]; # ex: pkgs.apparmor-profiles
+            # Profiles in enforce mode (not learn/complain)
+            # TODO: add DNF in-house profiles for registered services
+            packages = [ ]; # e.g. pkgs.apparmor-profiles
             policies = {
-              # Exemple de profil inline :
+              # Example inline profile:
               # "dnf-nginx".profile = ''
               #   /usr/sbin/nginx {
               #     ...
@@ -87,12 +87,12 @@ in
           };
         })
 
-        # R46 — SELinux targeted enforcing (high, base) → exception NixOS par défaut
-        # R47 — Confiner les utilisateurs interactifs (high) → idem
-        # R48 — Variables booléennes SELinux (high) → idem
-        # R49 — Désinstaller les outils debug SELinux (high) → idem
-        # Ces règles sont dans mainSecurityCfg.exceptions par défaut (voir security.nix).
-        # En l'absence de SELinux : le checkScript retournerait code 2 (indéterminé).
+        # R46 — SELinux targeted enforcing (high, base) → NixOS exception by default
+        # R47 — Confine interactive users (high) → same
+        # R48 — SELinux boolean variables (high) → same
+        # R49 — Uninstall SELinux debug tools (high) → same
+        # These rules are in mainSecurityCfg.exceptions by default (see security.nix).
+        # Without SELinux: the checkScript would return code 2 (undetermined).
 
       ]
     ))

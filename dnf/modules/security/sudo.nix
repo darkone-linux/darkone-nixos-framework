@@ -1,24 +1,24 @@
-# Durcissement sudo (R38–R44). (wip)
+# sudo hardening (R38–R44). (wip)
 #
-# Couvre le groupe dédié sudo (R38), les directives sudo durcies (R39),
-# la restriction des cibles non-root (R40), la limitation NOEXEC (R41),
-# l'interdiction des négations (R42), la spécification des arguments (R43)
-# et l'usage de sudoedit (R44).
+# Covers the dedicated sudo group (R38), hardened sudo directives (R39),
+# restriction of non-root targets (R40), NOEXEC limitation (R41),
+# forbidding negations (R42), explicit argument specification (R43),
+# and use of sudoedit (R44).
 #
 # :::caution[Activation]
-# L'option `enable` suit `darkone.system.security.enable` par défaut.
-# Les règles (Rxx/Cxx) s'activent selon le niveau, la catégorie et les
-# excludes définis dans `darkone.system.security` (via `isActive`).
+# The `enable` option follows `darkone.system.security.enable` by default.
+# Rules (Rxx/Cxx) are activated based on level, category, and excludes
+# defined in `darkone.system.security` (via `isActive`).
 # :::
 #
 # :::caution[R39 — requiretty]
-# `requiretty` fait échouer `ssh user@host sudo cmd` sans TTY alloué.
-# L'option `-t` SSH est requise : `ssh -t user@host sudo cmd`.
+# `requiretty` makes `ssh user@host sudo cmd` fail without an allocated TTY.
+# The SSH `-t` option is required: `ssh -t user@host sudo cmd`.
 # :::
 #
 # :::caution[R39 — rootpw]
-# `rootpw` impose un mot de passe root partagé entre les admins.
-# Préférer `targetpw` ou `runaspw` selon la politique d'équipe.
+# `rootpw` forces a root password shared between admins.
+# Prefer `targetpw` or `runaspw` based on team policy.
 # :::
 
 {
@@ -36,12 +36,12 @@ let
 in
 {
   options = {
-    darkone.security.sudo.enable = lib.mkEnableOption "Active le durcissement sudo ANSSI (R38–R44).";
+    darkone.security.sudo.enable = lib.mkEnableOption "Enable ANSSI sudo hardening (R38–R44).";
 
     darkone.security.sudo.allowedRootRules = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
-      description = "Règles sudo autorisées à cibler root (R40). Les autres doivent viser un compte de service.";
+      description = "sudo rules allowed to target root (R40). Others must target a service account.";
     };
   };
 
@@ -51,17 +51,17 @@ in
     (lib.mkIf cfg.enable (
       lib.mkMerge [
 
-        # R38 — Groupe dédié sudo (reinforced, base)
+        # R38 — Dedicated sudo group (reinforced, base)
         (lib.mkIf (isActive "R38" "reinforced" "base" [ ]) {
 
-          # execWheelOnly : sudo réservé aux membres du groupe wheel
+          # execWheelOnly: sudo restricted to members of the wheel group
           security.sudo.execWheelOnly = true;
 
-          # TODO: option pour créer un groupe sudoers distinct de wheel
+          # TODO: option to create a sudoers group distinct from wheel
           # users.groups.sudoers = { };
         })
 
-        # R39 — Directives sudo durcies (intermediary, base)
+        # R39 — Hardened sudo directives (intermediary, base)
         (lib.mkIf (isActive "R39" "intermediary" "base" [ ]) {
           security.sudo.extraConfig = ''
             Defaults  noexec, requiretty, use_pty, umask=0027
@@ -73,64 +73,63 @@ in
             ) "Defaults  mailto=\"${adminMail}\", mail_badpass, mail_no_user"}
           '';
 
-          # Répertoire pour les journaux sudo I/O
+          # Directory for sudo I/O logs
           systemd.tmpfiles.rules = [ "d /var/log/sudo-io 0750 root adm -" ];
         })
 
-        # R40 — Cibles non-root pour sudo (intermediary, base)
-        # sideEffects: oblige la création de comptes de service intermédiaires
+        # R40 — Non-root targets for sudo (intermediary, base)
+        # sideEffects: requires creating intermediate service accounts
         (lib.mkIf (isActive "R40" "intermediary" "base" [ ]) {
           assertions = [
             {
-              # Vérifier qu'aucune règle extraRules ne cible root sauf sudo.allowedRootRules
+              # Ensure no extraRules targets root except sudo.allowedRootRules
               assertion = lib.all (
                 rule:
                 rule.runAs or "" != "root"
                 || lib.elem (lib.concatStringsSep "," (rule.commands or [ ])) cfg.allowedRootRules
               ) (config.security.sudo.extraRules or [ ]);
               message =
-                "R40: Les règles sudo ciblant root doivent être listées dans "
-                + "darkone.security.sudo.allowedRootRules.";
+                "R40: sudo rules targeting root must be listed in " + "darkone.security.sudo.allowedRootRules.";
             }
           ];
         })
 
-        # R41 — Limiter NOEXEC override (reinforced, base)
-        # sideEffects: empêche sudo -E env avec variables dynamiques
+        # R41 — Limit NOEXEC override (reinforced, base)
+        # sideEffects: prevents sudo -E env with dynamic variables
         (lib.mkIf (isActive "R41" "reinforced" "base" [ ]) {
           assertions = [
             {
-              # Vérifier l'absence de EXEC: sans liste de commandes
-              # TODO: parser security.sudo.extraConfig pour détecter "EXEC:" nu
+              # Ensure no bare EXEC: without a command list
+              # TODO: parse security.sudo.extraConfig to detect bare "EXEC:"
               assertion = true;
-              message = "R41: EXEC: sans liste de commandes explicite est interdit dans sudoers.";
+              message = "R41: bare EXEC: without an explicit command list is forbidden in sudoers.";
             }
           ];
         })
 
-        # R42 — Bannir les négations (intermediary, base)
+        # R42 — Forbid negations (intermediary, base)
         (lib.mkIf (isActive "R42" "intermediary" "base" [ ]) {
           assertions = [
             {
-              # TODO: vérifier l'absence de `!` dans security.sudo.extraRules et extraConfig
+              # TODO: ensure no `!` in security.sudo.extraRules and extraConfig
               assertion = true;
-              message = "R42: Les négations (!) sont interdites dans les règles sudo.";
+              message = "R42: Negations (!) are forbidden in sudo rules.";
             }
           ];
         })
 
-        # R43 — Préciser les arguments (intermediary, base)
-        # sideEffects: nombreuses règles à écrire pour les commandes complexes
-        # Validation : cvtsudoers -f json + Rust check (phase ultérieure)
+        # R43 — Specify arguments (intermediary, base)
+        # sideEffects: many rules to write for complex commands
+        # Validation: cvtsudoers -f json + Rust check (later phase)
 
         # R44 — sudoedit (intermediary, base)
-        # sideEffects: sudoedit impose EDITOR cohérent dans l'environnement
+        # sideEffects: sudoedit requires a consistent EDITOR in the environment
         (lib.mkIf (isActive "R44" "intermediary" "base" [ ]) {
           assertions = [
             {
-              # TODO: vérifier que vi/vim/nano/emacs ne sont pas ciblés directement dans sudoers
+              # TODO: ensure vi/vim/nano/emacs are not targeted directly in sudoers
               assertion = true;
-              message = "R44: Utiliser sudoedit au lieu d'appeler vi/vim/nano/emacs via sudo.";
+              message = "R44: Use sudoedit instead of calling vi/vim/nano/emacs via sudo.";
             }
           ];
         })

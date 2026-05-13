@@ -110,14 +110,14 @@ in
       # https://github.com/NixOS/nixpkgs/blob/a6531044f6d0bef691ea18d4d4ce44d0daa6e816/nixos/modules/services/web-apps/immich.nix#L362C68-L362C71
       networking.firewall = dnfLib.mkInternalFirewall host zone [ srv.port ];
 
-      # Medias pour bibliothèques externes
+      # Media for external libraries
       darkone.system.srv-dirs.enableMedias = true;
 
       #------------------------------------------------------------------------
       # Related services
       #------------------------------------------------------------------------
 
-      # Sauvegarde postgresql (par défaut toutes les bases)
+      # PostgreSQL backup (all databases by default)
       services.postgresqlBackup.enable = true;
 
       #------------------------------------------------------------------------
@@ -177,8 +177,8 @@ in
         redis
       ];
 
-      # Permet l'accès à /home (si les images sont dans des homes directories)
-      # Et UMask pour écriture par groupe common-files
+      # Allow access to /home (if images are in home directories)
+      # And UMask for write access by common-files group
       systemd.services = {
         immich-server.serviceConfig = {
           ProtectHome = lib.mkForce false;

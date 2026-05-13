@@ -7,12 +7,12 @@
 # :::
 
 # TODO:
-# - Configuration mime idéale pour chaque type de fichiers (logiciels rapides et fiables)
-# - Gnome text editor lit des choses que Zed ne lit pas (adoc) et est rapide, voir si on peut le personnaliser dans nix
+# - Ideal mime configuration for each file type (fast and reliable apps)
+# - Gnome text editor reads things Zed does not (adoc) and is fast — check if it can be customized in nix
 # - adoc (text/plain) -> gnome text (vs zed)
-# - image -> geeqie (vs navigateur)
+# - image -> geeqie (vs browser)
 # - sh -> zed
-# - mp4, mkv & vidéos -> Gnome vidéo ; vlc ; mpv (vs handbrake)
+# - mp4, mkv & videos -> Gnome video ; vlc ; mpv (vs handbrake)
 # - svg : geeqie ; inkscape ; krita (vs gimp)
 
 { lib, config, ... }:

@@ -44,7 +44,7 @@
     };
   };
 
-  # Avec maxUploadSize : le bloc `request_body` est inséré
+  # With maxUploadSize: the `request_body` block is inserted
   testCaddyHeadersWithUpload = {
     expr =
       let
@@ -60,7 +60,7 @@
     };
   };
 
-  # extraHeaders est injecté dans le bloc `header { ... }`
+  # extraHeaders is injected into the `header { ... }` block
   testCaddyHeadersExtraHeaders = {
     expr =
       let

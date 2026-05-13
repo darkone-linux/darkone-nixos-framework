@@ -1,36 +1,36 @@
-# Mesures complémentaires transverses — Annexe A (C1–C12). (wip)
+# Cross-cutting complementary measures — Annex A (C1–C12). (wip)
 #
-# Ces mesures n'ont pas de numéro ANSSI mais sont indispensables à l'esprit du
-# guide. Couvre les patches linux-hardened (C1), Lockdown LSM (C2), USBGuard (C3),
-# nftables deny-by-default (C4), SSH durci (C5), LUKS2 (C6), NTP/NTS (C7),
-# DNS sécurisé (C8), core dumps désactivés (C9), anti brute-force PAM (C10),
-# bannières légales (C11) et restriction cron/at (C12).
+# These measures have no ANSSI number but are essential to the guide's spirit.
+# Covers linux-hardened patches (C1), Lockdown LSM (C2), USBGuard (C3),
+# nftables deny-by-default (C4), hardened SSH (C5), LUKS2 (C6), NTP/NTS (C7),
+# secure DNS (C8), disabled core dumps (C9), PAM anti brute-force (C10),
+# legal banners (C11), and cron/at restriction (C12).
 #
 # :::caution[Activation]
-# L'option `enable` suit `darkone.system.security.enable` par défaut.
-# Les règles (Rxx/Cxx) s'activent selon le niveau, la catégorie et les
-# excludes définis dans `darkone.system.security` (via `isActive`).
+# The `enable` option follows `darkone.system.security.enable` by default.
+# Rules (Rxx/Cxx) are activated based on level, category, and excludes
+# defined in `darkone.system.security` (via `isActive`).
 # :::
 #
-# :::note[Niveau Lockdown LSM (C2)]
-# - `none` : pas de Lockdown.
-# - `integrity` : interdit les modifications noyau via userspace.
-# - `confidentiality` : idem + interdit la lecture de secrets noyau.
+# :::note[Lockdown LSM level (C2)]
+# - `none`: no Lockdown.
+# - `integrity`: forbids kernel modifications via userspace.
+# - `confidentiality`: same + forbids reading kernel secrets.
 # :::
 #
 # :::caution[C2 — Lockdown LSM]
-# `lockdown=confidentiality` interdit kexec, écriture /dev/mem, MSR, hibernation.
-# Casse `dmidecode` sur certaines zones, `flashrom`, `i2c-tools`.
+# `lockdown=confidentiality` forbids kexec, /dev/mem writes, MSR, hibernation.
+# Breaks `dmidecode` on some zones, `flashrom`, `i2c-tools`.
 # :::
 #
 # :::caution[C4 — Egress filtering]
-# La politique deny-by-default en sortie casse les outils qui joignent des CDN
-# (curl, téléchargements noyau). Requis : un proxy HTTP(S) sortant maîtrisé.
+# The egress deny-by-default policy breaks tools that reach CDNs (curl,
+# kernel downloads). Required: a controlled outbound HTTP(S) proxy.
 # :::
 #
-# :::caution[C5 — SSH durci]
-# Tunnels SSH, agent forwarding et X11 désactivés. Adapter les workflows admin
-# vers ProxyJump (`ssh -J`). Ce module surcharge `core.nix` pour SSH.
+# :::caution[C5 — Hardened SSH]
+# SSH tunnels, agent forwarding, and X11 disabled. Adapt admin workflows
+# to ProxyJump (`ssh -J`). This module overrides `core.nix` for SSH.
 # :::
 
 {
@@ -46,7 +46,7 @@ let
 in
 {
   options = {
-    darkone.security.complement.enable = lib.mkEnableOption "Active les mesures ANSSI complémentaires (C1–C12).";
+    darkone.security.complement.enable = lib.mkEnableOption "Enable complementary ANSSI measures (C1–C12).";
 
     darkone.security.complement.lockdownLevel = lib.mkOption {
       type = lib.types.enum [
@@ -55,7 +55,7 @@ in
         "confidentiality"
       ];
       default = "integrity";
-      description = "Niveau Lockdown LSM (C2)";
+      description = "Lockdown LSM level (C2)";
     };
 
     darkone.security.complement.lsmStack = lib.mkOption {
@@ -66,40 +66,40 @@ in
         "bpf"
         "landlock"
       ];
-      description = "Ordre de la pile LSM (C2, R11, R20). Modifie boot.kernelParams lsm=...";
+      description = "LSM stack order (C2, R11, R20). Modifies boot.kernelParams lsm=...";
     };
 
     darkone.security.complement.ntpServers = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ "time.cloudflare.com" ];
-      description = "Serveurs NTP/NTS (C7).";
+      description = "NTP/NTS servers (C7).";
     };
 
     darkone.security.complement.useNts = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Active NTS (Network Time Security) pour l'authentification NTP (C7).";
+      description = "Enable NTS (Network Time Security) for NTP authentication (C7).";
     };
 
     darkone.security.complement.sshBanner = lib.mkOption {
       type = lib.types.str;
       default = ''
-        *** Accès réservé aux personnes autorisées ***
-        Toute connexion est journalisée et peut faire l'objet de poursuites.
+        *** Access restricted to authorized personnel ***
+        All connections are logged and may be subject to prosecution.
       '';
-      description = "Bannière SSH affichée avant l'authentification (C11).";
+      description = "SSH banner displayed before authentication (C11).";
     };
 
     darkone.security.complement.cronAllowedUsers = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ "root" ];
-      description = "Utilisateurs autorisés à planifier des tâches cron (C12).";
+      description = "Users allowed to schedule cron jobs (C12).";
     };
 
     darkone.security.complement.egressAllowlist = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
-      description = "IP/CIDR autorisés en sortie pour le filtrage egress nftables strict (C4).";
+      description = "IP/CIDR allowed outbound for strict nftables egress filtering (C4).";
     };
   };
 
@@ -109,27 +109,27 @@ in
     (lib.mkIf cfg.enable (
       lib.mkMerge [
 
-        # C1 — Patches linux-hardened (high, tag: kernel-recompile)
-        # Géré par kernel-build.nix via mainSecurityCfg.useHardenedKernel = true
-        # Sysctls spécifiques linux-hardened
+        # C1 — linux-hardened patches (high, tag: kernel-recompile)
+        # Handled by kernel-build.nix via mainSecurityCfg.useHardenedKernel = true
+        # linux-hardened specific sysctls
         (lib.mkIf (isActive "C1" "high" "base" [ "kernel-recompile" ] && mainSecurityCfg.useHardenedKernel)
           {
             boot.kernelParams = [ "extra_latent_entropy" ];
             boot.kernel.sysctl = {
-              "kernel.tiocsti_restrict" = 1; # Restreint l'injection artificielle de caractères dans le terminal.
-              "kernel.device_sidechannel_restrict" = 1; # Restreint les accès non privilégiés aux infos périphériques / perfs.
-              "kernel.perf_event_paranoid" = 3; # Sémantique étendue en linux-hardened - contrôle l'accès à perf.
+              "kernel.tiocsti_restrict" = 1; # Restricts artificial character injection in the terminal.
+              "kernel.device_sidechannel_restrict" = 1; # Restricts unprivileged access to device / perf info.
+              "kernel.perf_event_paranoid" = 3; # Extended semantics in linux-hardened — controls access to perf.
             }
             // lib.optionalAttrs (!lib.elem "needs-usb-hotplug" mainSecurityCfg.excludes) {
 
-              # Empêche l’ajout de nouveaux périphériques USB après le boot ou après activation du paramètre
+              # Prevents adding new USB devices after boot or after the parameter is enabled
               "kernel.deny_new_usb" = lib.mkIf (mainSecurityCfg.category == "client") 1;
             };
           }
         )
 
         # C2 — Lockdown LSM - Linux Security Module (high)
-        # sideEffects: interdit kexec, /dev/mem, MSR, hibernation, certaines lectures noyau
+        # sideEffects: forbids kexec, /dev/mem, MSR, hibernation, some kernel reads
         (lib.mkIf (isActive "C2" "high" "base" [ ]) {
           boot.kernelParams = [
             "lsm=${lib.concatStringsSep "," cfg.lsmStack}"
@@ -137,40 +137,40 @@ in
           ++ lib.optional (cfg.lockdownLevel != "none") "lockdown=${cfg.lockdownLevel}";
         })
 
-        # C3 — USBGuard (reinforced, client + server recommandé, tag: needs-usb-hotplug)
-        # sideEffects: tout nouveau périphérique USB bloqué sans whitelist préalable
+        # C3 — USBGuard (reinforced, client + server recommended, tag: needs-usb-hotplug)
+        # sideEffects: any new USB device blocked without prior whitelist
         (lib.mkIf (isActive "C3" "reinforced" "client" [ "needs-usb-hotplug" ]) {
           services.usbguard = {
             enable = true;
 
-            # Politique implicite : bloquer tout périphérique non déclaré
+            # Implicit policy: block any undeclared device
             implicitPolicyTarget = "block";
 
-            # TODO: générer le ruleset depuis les périphériques validés à l'installation
+            # TODO: generate ruleset from devices validated at installation time
             # rules = '' allow id ... '' ;
           };
         })
 
-        # C4 — nftables avec politique deny-by-default (minimal → reinforced)
-        # sideEffects: egress filtering casse curl/téléchargements si pas de proxy sortant
+        # C4 — nftables with deny-by-default policy (minimal → reinforced)
+        # sideEffects: egress filtering breaks curl/downloads without an outbound proxy
         (lib.mkIf (isActive "C4" "minimal" "base" [ ]) {
           networking.nftables.enable = true;
           networking.firewall.enable = true;
 
-          # Politique deny-by-default : aucun port ouvert sauf déclaration explicite
+          # Deny-by-default policy: no port open unless explicitly declared
           networking.firewall.allowedTCPPorts = lib.mkDefault [ 22 ];
 
-          # Egress filtering (niveau reinforced seulement)
-          # TODO: chaîne output deny + allowlist via cfg.egressAllowlist
+          # Egress filtering (reinforced level only)
+          # TODO: output deny chain + allowlist via cfg.egressAllowlist
         })
 
-        # C5 — Durcissement OpenSSH (intermediary, base)
-        # sideEffects: tunnels, agent forwarding et X11 désactivés
-        # NOTE : surcharge la config SSH de core.nix (ce module est obligatoire selon Q3)
+        # C5 — OpenSSH hardening (intermediary, base)
+        # sideEffects: tunnels, agent forwarding, and X11 disabled
+        # NOTE: overrides core.nix SSH config (this module is mandatory per Q3)
         (lib.mkIf (isActive "C5" "intermediary" "base" [ ]) {
           services.openssh = {
 
-            # Ne pas désactiver SSH ici — core.nix l'active, on durcit seulement
+            # Do not disable SSH here — core.nix enables it, we only harden
             settings = {
               PermitRootLogin = lib.mkForce "no";
               PasswordAuthentication = lib.mkForce false;
@@ -186,7 +186,7 @@ in
               ClientAliveInterval = lib.mkDefault 300;
               ClientAliveCountMax = lib.mkDefault 2;
 
-              # Algorithmes conformes ANSSI-NT-007
+              # ANSSI-NT-007 compliant algorithms
               KexAlgorithms = [
                 "sntrup761x25519-sha512@openssh.com"
                 "curve25519-sha256"
@@ -210,12 +210,12 @@ in
           };
         })
 
-        # C6 — Chiffrement disque LUKS2 (intermediary laptop, reinforced serveur)
-        # sideEffects: performances disque -5-15%, impossible d'extraire sans clé
+        # C6 — LUKS2 disk encryption (intermediary laptop, reinforced server)
+        # sideEffects: disk performance -5-15%, cannot extract without the key
         (lib.mkIf (isActive "C6" "intermediary" "base" [ ]) {
 
-          # La configuration LUKS est déclarée dans disko.nix (hors périmètre de ce module)
-          # Ce module vérifie uniquement que le swap est chiffré si présent
+          # LUKS configuration is declared in disko.nix (out of scope for this module)
+          # This module only ensures swap is encrypted if present
           swapDevices = lib.mkIf (config.swapDevices != [ ]) (
             map (
               swap:
@@ -224,11 +224,11 @@ in
             ) config.swapDevices
           );
 
-          # TODO: assertion vérifiant que / ou /home est sur LUKS (via blkid dans checkScript)
+          # TODO: assertion verifying / or /home is on LUKS (via blkid in checkScript)
         })
 
-        # C7 — Synchronisation horaire NTS (intermediary, base)
-        # sideEffects: NTS requiert serveurs compatibles, trafic UDP/123 + TCP/4460
+        # C7 — NTS time synchronization (intermediary, base)
+        # sideEffects: NTS requires compatible servers, UDP/123 + TCP/4460 traffic
         (lib.mkIf (isActive "C7" "intermediary" "base" [ ]) {
           services.chrony = {
             enable = true;
@@ -239,18 +239,18 @@ in
           };
         })
 
-        # C8 — Résolveur DNS sécurisé DNSSEC + DoT (intermediary, base)
-        # sideEffects: zones internes non-DNSSEC nécessitent Domains=~example.internal
+        # C8 — Secure DNS resolver DNSSEC + DoT (intermediary, base)
+        # sideEffects: non-DNSSEC internal zones need Domains=~example.internal
         (lib.mkIf (isActive "C8" "intermediary" "base" [ ]) {
           services.resolved = {
             dnssec = "true";
             dnsovertls = "true";
-            fallbackDns = [ ]; # Pas de fallback DNS en clair
+            fallbackDns = [ ]; # No cleartext DNS fallback
           };
         })
 
-        # C9 — Désactivation des core dumps (reinforced, base)
-        # sideEffects: analyse post-mortem impossible sans environnement dédié
+        # C9 — Disable core dumps (reinforced, base)
+        # sideEffects: post-mortem analysis impossible without dedicated environment
         (lib.mkIf (isActive "C9" "reinforced" "base" [ ]) {
           systemd.coredump.enable = false;
           security.pam.loginLimits = [
@@ -264,8 +264,8 @@ in
           boot.kernel.sysctl."kernel.core_pattern" = "|/bin/false";
         })
 
-        # C10 — Anti brute-force et limites session (intermediary, base)
-        # sideEffects: attaquant peut déclencher lock-out volontaire (DoS compte)
+        # C10 — Anti brute-force and session limits (intermediary, base)
+        # sideEffects: attacker can trigger intentional lock-out (account DoS)
         (lib.mkIf (isActive "C10" "intermediary" "base" [ ]) {
           security.pam.loginLimits = [
             {
@@ -289,24 +289,24 @@ in
           ];
         })
 
-        # C11 — Bannières et messages légaux (minimal, base)
-        # sideEffects: aucun
+        # C11 — Banners and legal messages (minimal, base)
+        # sideEffects: none
         (lib.mkIf (isActive "C11" "minimal" "base" [ ]) {
           environment.etc."issue".text = cfg.sshBanner;
           environment.etc."issue.net".text = cfg.sshBanner;
         })
 
-        # C12 — Restriction cron/at (minimal, base)
-        # sideEffects: utilisateurs non listés ne peuvent plus planifier de tâches
+        # C12 — cron/at restriction (minimal, base)
+        # sideEffects: unlisted users can no longer schedule jobs
         (lib.mkIf (isActive "C12" "minimal" "base" [ ]) {
 
-          # Liste blanche cron
+          # cron allowlist
           environment.etc."cron.allow".text = lib.concatStringsSep "\n" cfg.cronAllowedUsers + "\n";
 
-          # Bloquer tous les autres
+          # Block everyone else
           environment.etc."cron.deny".text = "ALL\n";
 
-          # TODO: at.allow via services.atd si activé
+          # TODO: at.allow via services.atd if enabled
         })
       ]
     ))

@@ -51,9 +51,9 @@ in
         };
         proxy.servicePort = port;
 
-        # X-Content-Type-Options: nosniff -> Interdit au navigateur d’essayer de deviner le type MIME d’une ressource.
-        # Referrer-Policy: no-referrer-when-downgrade -> Ne pas envoyer le referer dans le cas HTTPS → HTTP
-        # (X-Frame-Options / X-Robots-Tag / Strict-Transport-Security viennent du helper.)
+        # X-Content-Type-Options: nosniff -> Prevents the browser from guessing the MIME type.
+        # Referrer-Policy: no-referrer-when-downgrade -> Do not send the Referer header when downgrading from HTTPS -> HTTP
+        # (X-Frame-Options / X-Robots-Tag / Strict-Transport-Security come from the helper.)
         proxy.extraConfig = dnfLib.mkCaddySecurityHeaders {
           maxUploadSize = "200MB";
           extraHeaders = ''
@@ -145,7 +145,7 @@ in
           dbtype = "pgsql";
         };
 
-        # Base de données PostgreSQL
+        # PostgreSQL database
         database.createLocally = true;
 
         # Configuration PHP et cache
@@ -160,10 +160,10 @@ in
         # Cache Redis
         configureRedis = true;
 
-        # Déverrouillage du app store
+        # Disable app store
         appstoreEnable = false;
 
-        # Applications par défaut
+        # Default applications
         extraApps = with config.services.nextcloud.package.packages.apps; {
 
           # List of apps we want to install and are already packaged in
@@ -188,10 +188,10 @@ in
         autoUpdateApps.enable = true;
 
         # Client Push
-        # TODO: service à part, accessible en HTTPS
+        # TODO: separate service, accessible via HTTPS
         #notify_push.enable = true;
 
-        # Paramètres supplémentaires
+        # Additional settings
         settings = {
           overwriteprotocol = "https";
           trusted_domains = [
@@ -208,7 +208,7 @@ in
           default_phone_region = lib.toUpper (builtins.substring 3 2 zone.locale);
 
           # SMTP params
-          # Ne fonctionne que si l'adresse email de l'administrateur est renseignée dans son compte !
+          # Only works if the admin email address is set in their account!
           mail_domain = network.domain;
           mail_smtpmode = "smtp";
           mail_sendmailmode = "smtp";
@@ -223,17 +223,17 @@ in
           # user_oidc = {
           #   "httpclient.allowselfsigned" = true;
           #   "default_token_endpoint_auth_method" = "client_secret_post";
-          #   "login_label" = "Se connecter avec l'IDM";
+          #   "login_label" = "Login with IDM";
           # };
         };
       };
 
-      # Assurer que PostgreSQL et Redis sont activés
-      # TODO: activer services.postgresqlBackup
+      # Ensure PostgreSQL and Redis are enabled
+      # TODO: enable services.postgresqlBackup
       services.postgresql.enable = lib.mkDefault true;
       services.redis.servers.nextcloud.enable = lib.mkDefault true;
 
-      # Sauvegarde postgresql (par défaut toutes les bases)
+      # PostgreSQL backup (all databases by default)
       services.postgresqlBackup.enable = true;
     })
   ];

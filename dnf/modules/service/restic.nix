@@ -20,7 +20,7 @@
 # / -> /mnt/backup/restic/[host]/system
 # ```
 
-# TODO: sauvegarde via rest + voir si sauvegarde tout /var ou /var/lib plutôt que des petites parties...
+# TODO: backup via rest + consider backing up all of /var or /var/lib instead of small parts...
 {
   config,
   lib,
@@ -91,13 +91,13 @@ let
 
     # https://restic.readthedocs.io/en/stable/060_forget.html#removing-snapshots-according-to-a-policy
     pruneOpts = [
-      # On conserve...
-      "--keep-last 24" # Les 24 derniers snapshots
-      "--keep-hourly 24" # Un par heure pendant 24 heures (le plus récent de chaque heure)
-      "--keep-daily 7" # Un par jour pendant 7 jours
-      "--keep-weekly 8" # Un par semaine pendant 8 semaines
-      "--keep-monthly 24" # Un par mois pendant 24 mois
-      "--keep-yearly 75" # Un par an pendant 75 ans
+      # We keep...
+      "--keep-last 24" # Last 24 snapshots
+      "--keep-hourly 24" # One per hour for 24 hours (most recent of each hour)
+      "--keep-daily 7" # One per day for 7 days
+      "--keep-weekly 8" # One per week for 8 weeks
+      "--keep-monthly 24" # One per month for 24 months
+      "--keep-yearly 75" # One per year for 75 years
     ];
   };
 

@@ -12,14 +12,14 @@ in
 {
   inherit levelMapping;
 
-  # Prédicat d'activation d'une règle ANSSI.
+  # Activation predicate for an ANSSI rule.
   #
-  # Une règle est active ssi :
-  #   - le module security est activé ;
-  #   - le niveau courant >= sévérité de la règle ;
-  #   - la catégorie est compatible (base = universel) ;
-  #   - aucun tag de la règle n'est dans `excludes` ;
-  #   - il n'existe pas d'exception explicite pour cet identifiant.
+  # A rule is active iff:
+  #   - the security module is enabled;
+  #   - current level >= rule severity;
+  #   - the category is compatible (base = universal);
+  #   - none of the rule tags is in `excludes`;
+  #   - no explicit exception exists for this identifier.
   mkIsActive =
     cfg: ruleId: severity: category: tags:
     cfg.enable

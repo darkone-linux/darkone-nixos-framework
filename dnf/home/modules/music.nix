@@ -62,7 +62,7 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # TODO audacious: écrire dans .config/audacious/config s'il n'existe pas :
+    # TODO audacious: write to .config/audacious/config if it does not exist:
     # [audqt]
     # theme=dark
 

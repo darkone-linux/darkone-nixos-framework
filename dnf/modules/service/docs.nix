@@ -75,9 +75,9 @@ in
       darkone.service.idm.oauth2.docs = {
         displayName = "LaSuite Docs";
         imageFile = ./../../assets/app-icons/docs-collaboration.svg;
-        # mozilla-django-oidc callback, monté sous le prefix API de LaSuite Docs.
-        # À ajuster si Kanidm rejette avec `redirect_uri mismatch` (path exact à
-        # vérifier dans le backend `impress` / `core` URL conf).
+        # mozilla-django-oidc callback, mounted under the LaSuite Docs API prefix.
+        # Adjust if Kanidm rejects with `redirect_uri mismatch` (exact path to
+        # check in the `impress` / `core` backend URL conf).
         redirectPaths = [ "/api/v1.0/authenticate/" ];
         landingPath = "/";
         preferShortUsername = false;
@@ -93,13 +93,13 @@ in
       # Secrets
       #------------------------------------------------------------------------
 
-      # OIDC client secret + credentials S3 (locaux uniquement) injectés via le
-      # même template pour ne charger qu'un seul EnvironmentFile côté systemd.
-      # Le template est root-owned : systemd lit `EnvironmentFile=` avant le
-      # drop de privilèges, donc le user dynamique (DynamicUser=true côté
-      # upstream) n'a pas besoin d'accès direct.
-      # En cas de backend S3 distant, le module ne tente pas d'injecter de
-      # creds (à fournir via une surcharge dans `usr/`).
+      # OIDC client secret + S3 credentials (local only) injected via the
+      # same template to load a single EnvironmentFile on the systemd side.
+      # The template is root-owned: systemd reads `EnvironmentFile=` before
+      # privilege drop, so the dynamic user (DynamicUser=true upstream)
+      # does not need direct access.
+      # For remote S3 backends, the module does not attempt to inject
+      # credentials (provide via override in `usr/`).
       sops.secrets.${secret} = { };
       sops.templates.docs-env = {
         content = ''
@@ -123,12 +123,12 @@ in
       # Nginx LaSuite Docs virtualhost
       # Caddy reverse proxy -> LaSuite Docs Nginx virtualhost -> LaSuite Docs service
       #
-      # Le module upstream `services.lasuite-docs` déclare le vhost
-      # `${cfg.domain}` sans `listen` ; sans override, nginx bind 0.0.0.0:80 et
-      # entre en conflit avec Caddy. On surcharge donc explicitement le `listen`
-      # du seul vhost docs, sans toucher au `defaultListen` global (qui resterait
-      # à `0.0.0.0:80` pour tout autre vhost — à régler module par module si un
-      # autre service nginx est ajouté plus tard sur le même hôte).
+      # The upstream `services.lasuite-docs` module declares the vhost
+      # `${cfg.domain}` without `listen`; without an override, nginx binds 0.0.0.0:80
+      # and conflicts with Caddy. We explicitly override the `listen` of the
+      # docs vhost only, without touching the global `defaultListen` (which would
+      # remain at `0.0.0.0:80` for any other vhost — to be fixed per module if
+      # another nginx service is added later on the same host).
       services.nginx = {
         recommendedProxySettings = true;
         virtualHosts.${params.fqdn}.listen = [
@@ -162,8 +162,8 @@ in
         settings = {
           LANGUAGE_CODE = zone.lang;
 
-          # OIDC (mozilla-django-oidc). Endpoints alignés sur l'API Kanidm ;
-          # secret + scope/algo signés ES256.
+          # OIDC (mozilla-django-oidc). Endpoints aligned on the Kanidm API;
+          # secret + scope/algo signed with ES256.
           OIDC_OP_AUTHORIZATION_ENDPOINT = oidc.authUrl;
           OIDC_OP_TOKEN_ENDPOINT = oidc.tokenUrl;
           OIDC_OP_USER_ENDPOINT = oidc.userinfoUrl;
@@ -177,9 +177,9 @@ in
           LOGIN_REDIRECT_URL_FAILURE = "${params.href}?login_failed=1";
           LOGOUT_REDIRECT_URL = params.href;
 
-          # Credentials S3 : ACCESS_KEY/SECRET sont injectés via
-          # `sops.templates.docs-env` (cf. plus haut). Endpoint et bucket sont
-          # statiques côté Nix.
+          # S3 credentials: ACCESS_KEY/SECRET are injected via
+          # `sops.templates.docs-env` (see above). Endpoint and bucket are
+          # static on the Nix side.
           AWS_S3_ENDPOINT_URL = "http://${cfg.s3Host}:${toString cfg.s3Port}";
           AWS_STORAGE_BUCKET_NAME = cfg.s3Bucket;
           AWS_S3_REGION_NAME = "us-east-1";

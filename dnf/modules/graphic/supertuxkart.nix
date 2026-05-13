@@ -26,7 +26,7 @@ in
   options = {
     darkone.graphic.supertuxkart.enable = lib.mkEnableOption "SuperTuxKart + firewall config + tracks share";
 
-    # TODO: imposer que ce soit le serveur nfs central qui partage
+    # TODO: force the central NFS server to be the one sharing
     darkone.graphic.supertuxkart.isNfsServer = lib.mkOption {
       type = lib.types.bool;
       default = isMainNfsServer;
@@ -82,15 +82,15 @@ in
 
       # Accept STK broadcasts
       extraCommands = ''
-        # Autoriser broadcast entrant sur le port 2757
+        # Allow inbound broadcast on port 2757
         iptables -A INPUT -d 10.1.255.255 -p udp --dport 2757 -j ACCEPT
         iptables -A INPUT -d 10.1.2.255 -p udp --dport 2757 -j ACCEPT
 
-        # Autoriser broadcast sortant
+        # Allow outbound broadcast
         iptables -A OUTPUT -d 10.1.255.255 -p udp --dport 2757 -j ACCEPT
         iptables -A OUTPUT -d 10.1.2.255 -p udp --dport 2757 -j ACCEPT
 
-        # Autorise les réponses aux broadcasts
+        # Allow replies to broadcasts
         iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
       '';
     };

@@ -2,7 +2,7 @@
 # Run with: nix-unit --flake .#libTests
 { dnfLib }:
 let
-  # cfg de base : module activé, niveau minimal, catégorie base, pas d'exclusion ni d'exception
+  # base cfg: module enabled, minimal level, base category, no exclusions or exceptions
   baseCfg = {
     enable = true;
     level = "minimal";
@@ -13,7 +13,7 @@ let
   isActive = dnfLib.mkIsActive;
 in
 {
-  # Module désactivé → jamais actif
+  # Disabled module → never active
   testDisabledModule = {
     expr = isActive (baseCfg // { enable = false; }) "R1" "minimal" "base" [ ];
     expected = false;
@@ -35,13 +35,13 @@ in
     expected = false;
   };
 
-  # Catégorie base = universel
+  # Base category = universal
   testCategoryBaseUniversal = {
     expr = isActive (baseCfg // { category = "server"; }) "R1" "minimal" "base" [ ];
     expected = true;
   };
 
-  # Catégorie spécifique : correspondance exacte requise
+  # Specific category: exact match required
   testCategoryMatch = {
     expr = isActive (baseCfg // { category = "server"; }) "R1" "minimal" "server" [ ];
     expected = true;

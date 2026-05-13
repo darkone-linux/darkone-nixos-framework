@@ -60,7 +60,7 @@ in
       #------------------------------------------------------------------------
       # TLS (ACME DNS)
       #------------------------------------------------------------------------
-      # TODO: service ACME indépendant
+      # TODO: standalone ACME service
 
       # Dossier challenge caddy + acme
       systemd.tmpfiles.rules = [ "d /var/lib/acme/acme-challenge 0770 acme caddy -" ];
@@ -71,20 +71,20 @@ in
 
         certs."${turnDomain}" = {
 
-          # Groupe propriétaire du certificat
+          # Certificate owner group
           # All certs are readable by the configured group.
           group = "caddy";
 
           # Si on utilise Caddy ou Nginx pour le port 80,
-          # ACME peut utiliser un dossier partagé pour le challenge
+          # ACME can use a shared folder for the challenge
           webroot = "/var/lib/acme/acme-challenge";
 
-          # On demande à Coturn de recharger les certs quand ils sont renouvelés
+          # Ask Coturn to reload certs when renewed
           postRun = "systemctl restart coturn.service";
         };
       };
 
-      # Caddy intercepte les requêtes de validation de Let's Encrypt pour notre domaine turn.
+      # Caddy intercepts Let's Encrypt validation requests for our turn domain.
       services.caddy = {
         enable = true;
         virtualHosts."${turnDomain}" = {
@@ -96,7 +96,7 @@ in
               file_server
             }
 
-            # Reste des requêtes -> 200 OK
+            # Remaining requests -> 200 OK
             handle {
               abort
             }
@@ -104,7 +104,7 @@ in
         };
       };
 
-      # Accès au certificat par coturn
+      # Certificate access for coturn
       users.users.turnserver.extraGroups = [
         "acme"
         "caddy"
@@ -142,22 +142,22 @@ in
           no-multicast-peers
 
           total-quota=500
-          user-quota=12 # max 12 allocations par utilisateur (suffisant pour 2-3 appels)
+          user-quota=12 # max 12 allocations per user (enough for 2-3 calls)
           max-allocate-timeout=3600
 
           external-ip=${host.ip}
           no-cli
 
-          # on force l'usage de UDP quand possible (plus rapide...)
+          # force UDP usage when possible (faster...)
           no-tcp-relay
 
-          # utile pour les clients mobiles qui changent de réseau (dégrade la connexion)
+          # useful for mobile clients switching networks (degrades connection)
           mobility
 
-          # recommandé pour WebRTC
+          # recommended for WebRTC
           fingerprint
 
-          # Blocage des réseaux privés non pertinents...
+          # Block irrelevant private networks...
           denied-peer-ip=0.0.0.0-0.255.255.255
           denied-peer-ip=127.0.0.0-127.255.255.255
           denied-peer-ip=172.16.0.0-172.31.255.255
@@ -165,12 +165,12 @@ in
           denied-peer-ip=100.64.0.0-100.127.255.255
           denied-peer-ip=10.0.0.0-10.255.255.255
 
-          # Autorisation de l'ip publique et des réseaux privés réels
+          # Authorize public IP and actual private networks
           allowed-peer-ip=${host.ip}
           #allowed-peer-ip=100.64.0.0-100.127.255.255
           #allowed-peer-ip=10.0.0.0-10.255.255.255
 
-          # On force des ciphers modernes (TLS)
+          # Force modern ciphers (TLS)
           cipher-list="ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305"
         ''; # OR external-ip=${host.ip}/${host.vpnIp} -> NOT WORKING
       };

@@ -1,11 +1,11 @@
-# Image iso DNF pour installations rapides de postes.
+# DNF ISO image for fast workstation installs.
 #
-# -> Pour générer l'image :
+# -> Build the image:
 # nix build .#nixosConfigurations.iso-x86_64-linux.config.system.build.isoImage
 #
-# -> Pour installer avec l'image :
-# ping dnf-install # pour repérer l'adresse ip
-# just full-install mon-poste nixos 10.1.3.211 # Installation de "mon-poste"
+# -> Install with the image:
+# ping dnf-install # locate the IP address
+# just full-install my-host nixos 10.1.3.211 # Install "my-host"
 
 {
   modulesPath,
@@ -24,12 +24,12 @@
     boot.loader.systemd-boot.editor = false;
     hardware.enableAllFirmware = true;
 
-    # Ceci va envoyer la clé dans /etc/ssh/authorized_keys.d/nixos, mais avec nixos-anywhere c'est
-    # problématique car ce dernier vérifie s'il y a une clé dans /home/nixos/.ssh/authorized_keys
+    # This sends the key to /etc/ssh/authorized_keys.d/nixos, but with nixos-anywhere
+    # it is problematic because nixos-anywhere checks for a key in /home/nixos/.ssh/authorized_keys.
     users.users.nixos.openssh.authorizedKeys.keyFiles = lib.mkForce [ ./../../usr/secrets/nix.pub ];
 
-    # Alors on le trompe avec ce script qui copie la clé dans /home/nixos/.ssh/authorized_keys
-    # Le "chown" ne fonctionne pas, .ssh et son contenu sont root:root, mais avec nixos-anywhere ça marche
+    # So we trick it with this script that copies the key to /home/nixos/.ssh/authorized_keys.
+    # The "chown" does not work — .ssh and its contents stay root:root — but it works with nixos-anywhere.
     system.activationScripts.nixosAuthorizedKeys = ''
       mkdir -p /home/nixos/.ssh
       cp /etc/ssh/authorized_keys.d/nixos /home/nixos/.ssh/authorized_keys

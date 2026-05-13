@@ -243,10 +243,10 @@ in
         ))
       ];
 
-      # Invariant : toutes les instances d'un même clientId pointent vers le
-      # même nom de secret (dérivé du clientId par construction). Le bloc
-      # ci-dessous documente cet invariant et lèverait une erreur claire si
-      # `mkOauth2Clients` venait à changer de stratégie.
+      # Invariant: all instances of the same clientId point to the
+      # same secret name (derived from clientId by construction). The block
+      # below documents this invariant and would raise a clear error if
+      # `mkOauth2Clients` were to change strategy.
       assertions = map (c: {
         assertion = lib.unique (map (i: i.secret) c.instances) == [ c.secret ];
         message = "OAuth2 client '${c.clientId}': secret divergence across instances";
@@ -258,7 +258,7 @@ in
 
       systemd.services.kanidmd.serviceConfig = mkIf (!isHcs) {
 
-        # On autorise l'accès en lecture aux chemins système vitaux
+        # Allow read access to vital system paths
         # -> https://github.com/kanidm/kanidm/blob/392a10afbc19759d1431025a2daee0dd903b2733/examples/unixd#L77
         ReadOnlyPaths = [
           "/run/current-system/sw/bin"
@@ -285,7 +285,7 @@ in
         # SERVER
         #----------------------------------------------------------------------
 
-        # Gère la BD (Argon2id) et expose des interfaces API, Web + pont LDAP en lecture.
+        # Manages the DB (Argon2id) and exposes API, Web + LDAP bridge interfaces (read-only).
         # -> https://github.com/kanidm/kanidm/blob/master/examples/server.toml
         server = {
           enable = true;
@@ -303,7 +303,7 @@ in
             ldapbindaddress = mkIf isMainReplica "${host.vpnIp}:636";
 
             # The role of this server. This affects the replication relationship and thereby available features.
-            # -> N'existe pas dans la conf kanidm...
+            # -> Does not exist in kanidm config...
             role = if isMainReplica then "WriteReplica" else "WriteReplicaNoUI";
 
             # Internal TLS Certificates
@@ -333,7 +333,7 @@ in
         # UNIXD / PAM / NSS (WIP)
         #----------------------------------------------------------------------
 
-        # Configuration du démon Unix pour PAM/NSS (remplace SSSD)
+        # Unix daemon configuration for PAM/NSS (replaces SSSD)
         unix = {
           enable = !isHcs;
           settings = {

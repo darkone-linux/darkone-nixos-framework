@@ -1,24 +1,24 @@
-# Services réseau — cloisonnement et supervision (R78–R80). (wip)
+# Network services — isolation and supervision (R78–R80). (wip)
 #
-# Couvre le cloisonnement des services réseau (R78 : catégorie server),
-# le durcissement et la surveillance des services exposés (R79 : fail2ban,
-# headers HTTP, TLS ANSSI) et la réduction de la surface réseau (R80).
+# Covers isolation of network services (R78: server category),
+# hardening and monitoring of exposed services (R79: fail2ban,
+# HTTP headers, ANSSI TLS) and reduction of the network surface (R80).
 #
 # :::caution[Activation]
-# L'option `enable` suit `darkone.system.security.enable` par défaut.
-# Les règles (Rxx/Cxx) s'activent selon le niveau, la catégorie et les
-# excludes définis dans `darkone.system.security` (via `isActive`).
+# The `enable` option follows `darkone.system.security.enable` by default.
+# Rules (Rxx/Cxx) are activated based on level, category, and excludes
+# defined in `darkone.system.security` (via `isActive`).
 # :::
 #
-# :::caution[R79 — CSP stricte]
-# `Content-Security-Policy: default-src 'self'` casse les outils sans nonces
-# (dashboards avec CDN, widgets tiers). HSTS preload est irréversible — ne
-# poser qu'en domaine pleinement maîtrisé.
+# :::caution[R79 — Strict CSP]
+# `Content-Security-Policy: default-src 'self'` breaks tools without nonces
+# (dashboards with CDN, third-party widgets). HSTS preload is irreversible —
+# only set on a fully controlled domain.
 # :::
 #
-# :::caution[R80 — Filtrage des listeners]
-# Certains services (KDE Connect, mDNS) écoutent par défaut sur toutes les
-# interfaces. Les déclarer dans `network.publicListeners` ou les reconfigurer.
+# :::caution[R80 — Listener filtering]
+# Some services (KDE Connect, mDNS) listen by default on all interfaces.
+# Declare them in `network.publicListeners` or reconfigure them.
 # :::
 
 {
@@ -35,7 +35,7 @@ let
 in
 {
   options = {
-    darkone.security.network.enable = lib.mkEnableOption "Active la sécurisation réseau ANSSI (R78–R80).";
+    darkone.security.network.enable = lib.mkEnableOption "Enable ANSSI network hardening (R78–R80).";
 
     darkone.security.network.exposedServices = lib.mkOption {
       type = lib.types.listOf lib.types.str;
@@ -44,19 +44,19 @@ in
         "nginx"
         "gitea"
       ];
-      description = "Services publics pour lesquels fail2ban et la supervision seront activés (R79).";
+      description = "Public services for which fail2ban and supervision will be enabled (R79).";
     };
 
     darkone.security.network.publicListeners = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
-      description = "Services autorisés à écouter sur 0.0.0.0 / :: (R80).";
+      description = "Services allowed to listen on 0.0.0.0 / :: (R80).";
     };
 
     darkone.security.network.httpsHeaders = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Ajoute les headers de sécurité HTTP ANSSI dans Nginx/Caddy (R79).";
+      description = "Adds ANSSI HTTP security headers in Nginx/Caddy (R79).";
     };
 
     darkone.security.network.tlsCiphers = lib.mkOption {
@@ -67,7 +67,7 @@ in
         "ECDHE-ECDSA-CHACHA20-POLY1305"
         "ECDHE-RSA-CHACHA20-POLY1305"
       ];
-      description = "Suite de chiffrement TLS ANSSI pour Nginx (R79).";
+      description = "ANSSI TLS cipher suite for Nginx (R79).";
     };
   };
 
@@ -77,20 +77,20 @@ in
     (lib.mkIf cfg.enable (
       lib.mkMerge [
 
-        # R78 — Cloisonner les services réseau (reinforced, server)
-        # sideEffects: effort de packaging non négligeable pour les containers
+        # R78 — Isolate network services (reinforced, server)
+        # sideEffects: significant packaging effort for containers
         (lib.mkIf (isActive "R78" "reinforced" "server" [ ]) {
 
           # PrivateNetwork=yes + IPAddressAllow/Deny via mkHardenedServiceConfig (cf. R63)
-          # La politique nftables deny-by-default est dans complement.nix (C4)
-          # TODO: appliquer IPAddressDeny=any + IPAddressAllow aux services réseau isolés
+          # The nftables deny-by-default policy is in complement.nix (C4)
+          # TODO: apply IPAddressDeny=any + IPAddressAllow to isolated network services
         })
 
-        # R79 — Durcir et surveiller les services exposés (intermediary, server)
-        # sideEffects: CSP stricte casse les outils sans nonces, HSTS preload irréversible
+        # R79 — Harden and monitor exposed services (intermediary, server)
+        # sideEffects: strict CSP breaks tools without nonces, HSTS preload is irreversible
         (lib.mkIf (isActive "R79" "intermediary" "server" [ ]) {
 
-          # fail2ban pour les services exposés déclarés
+          # fail2ban for declared exposed services
           services.fail2ban = lib.mkIf (cfg.exposedServices != [ ]) {
             enable = true;
             jails = lib.genAttrs cfg.exposedServices (svc: {
@@ -104,7 +104,7 @@ in
             });
           };
 
-          # Headers de sécurité HTTP ANSSI dans Nginx
+          # ANSSI HTTP security headers in Nginx
           services.nginx = lib.mkIf (config.services.nginx.enable && cfg.httpsHeaders) {
             commonHttpConfig = ''
               add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
@@ -118,16 +118,16 @@ in
             '';
           };
 
-          # TODO: config équivalente pour Caddy (déjà en partie géré par services.nix)
+          # TODO: equivalent config for Caddy (already partially handled by services.nix)
         })
 
-        # R80 — Surface réseau réduite (minimal, base)
-        # sideEffects: certains services (mDNS, KDE Connect) écoutent sur toutes interfaces
+        # R80 — Reduced network surface (minimal, base)
+        # sideEffects: some services (mDNS, KDE Connect) listen on all interfaces
         (lib.mkIf (isActive "R80" "minimal" "base" [ ]) {
 
-          # Timer de détection des listeners non déclarés sur 0.0.0.0/::
+          # Detection timer for undeclared listeners on 0.0.0.0/::
           systemd.services.anssi-listeners-check = {
-            description = "ANSSI R80 : vérification des listeners réseau";
+            description = "ANSSI R80: check for network listeners";
             serviceConfig = {
               Type = "oneshot";
               ExecStart = pkgs.writeShellScript "anssi-listeners-check" ''
@@ -138,7 +138,7 @@ in
                   found=0
                   for svc in $ALLOWED; do echo "$proc" | grep -q "$svc" && found=1; done
                   [ $found -eq 0 ] && \
-                    echo "WARNING: listener non déclaré sur 0.0.0.0:$port ($proc)" | \
+                    echo "WARNING: undeclared listener on 0.0.0.0:$port ($proc)" | \
                     logger -t anssi-r80 -p security.warning
                 done
               '';

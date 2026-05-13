@@ -479,7 +479,7 @@ in
     # VIM
     #============================================================================
 
-    # Conf complète : https://github.com/jagajaga/my_configs/blob/master/.nixpkgs/vimrc.nix
+    # Full config: https://github.com/jagajaga/my_configs/blob/master/.nixpkgs/vimrc.nix
     programs.vim = {
       enable = true;
       defaultEditor = true; # Define EDITOR envvar
@@ -633,7 +633,7 @@ in
         nmap <silent> gi <Plug>(coc-implementation)
         nmap <silent> gr <Plug>(coc-references)
 
-        " Auto-completion with Tab (TODO: voir comment améliorer)
+        " Auto-completion with Tab (TODO: see how to improve)
         "inoremap <silent><expr> <TAB>
         "  \ pumvisible() ? "\<C-n>" :
         "  \ <SID>check_back_space() ? "\<TAB>" :

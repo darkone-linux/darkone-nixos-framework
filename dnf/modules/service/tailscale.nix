@@ -38,7 +38,7 @@ in
     # Security
     #--------------------------------------------------------------------------
 
-    # Clé d'authentification hébergée par sops
+    # Auth key hosted by sops
     sops.secrets = lib.mkIf hasHeadscale {
       "tailscale/authKey" = {
         mode = "0400";
@@ -61,12 +61,12 @@ in
       # both -> client + server
       useRoutingFeatures = if (cfg.isExitNode || cfg.isGateway) then "both" else "client";
 
-      # Clé du serveur préalablement enregistrée
+      # Previously registered server key
       authKeyFile = config.sops.secrets."tailscale/authKey".path;
 
-      # Enregistrement des adresses du réseau de zone et connexion au serveur
-      # TODO: faire en sorte que ces paramètres soient fixés au démarrage de tailscaled,
-      #       pour le moment il faut manuellement passer par "set" pour effectuer les réglages.
+      # Register zone network addresses and connect to server
+      # TODO: make these parameters set at tailscaled startup,
+      #       for now must manually use "set" to apply settings.
       extraUpFlags = [
         "--login-server"
         "https://${hcsFqdn}"
@@ -74,9 +74,9 @@ in
         "--accept-routes"
         "--accept-dns"
 
-        # NOTE: pour le moment on peut laisser false mais on a plus MagicDNS, c'est
-        # dnsmasq qui gère le DNS derrière AGH. Mais c'est compliqué et pas très propre.
-        # Solution à étudier : tailscale gère le DNS avec AGH en intermédiaire.
+        # NOTE: for now we can leave false but we no longer have MagicDNS, it is
+        # dnsmasq that manages DNS behind AGH. But this is complicated and not very clean.
+        # Solution to investigate: tailscale manages DNS with AGH as intermediary.
         (lib.mkIf cfg.isGateway "false")
         "--ssh" # Usefull to sync TLS certificates with HCS caddy.
         "--reset" # Reload.
@@ -93,7 +93,7 @@ in
     # Networking
     #--------------------------------------------------------------------------
 
-    # Autorisations réseau
+    # Network permissions
     networking.firewall = lib.mkIf isHcsSubnetGateway {
       trustedInterfaces = [ "tailscale0" ];
       checkReversePath = "loose"; # subnet routing
@@ -103,7 +103,7 @@ in
     #--------------------------------------------------------------------------
     # Certificat sync
     #--------------------------------------------------------------------------
-    # TODO: remontée d'info sur le bon fonctionnement de la synchro.
+    # TODO: feedback on sync health status.
 
     # We need rsync
     environment.systemPackages = with pkgs; [
