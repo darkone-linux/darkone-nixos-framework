@@ -63,6 +63,7 @@ This project is constantly evolving according to my needs. If you'd like to be i
 | Matrix Synapse | ✅ |  ✅ |  ✅ |  ✅ |  ✅ | Works fine (+Element +Coturn) |
 | Open WebUI | ✅ |  ✅ |  ✅ |  ✅ |  ✅ | Works fine (+Ollama) |
 | Grafana | ✅ | ✅ |  ✅ |  ✅ |  ✅ | Works fine |
+| LaSuite Docs | ✅ | ✅ | ⚠️ | ✅ | ✅ | Well, PKCE Challenge not found |
 | Immich | ✅ | ✅ | ✅ | ⚠️ | ✅ | Non-declarative configuration |
 | Forgejo | ✅ | ✅ | ✅ | ❌ | ✅ | Non-declarative configuration |
 | Nextcloud | ✅ | ❌ | ❌ | ❌ | ✅ | Requires a plugin, non-declarative |

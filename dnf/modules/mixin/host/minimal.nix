@@ -80,6 +80,11 @@ in
       default = builtins.hasAttr "docs" host.services;
       description = "Enable LaSuite Docs service";
     };
+    darkone.host.minimal.enableGarage = lib.mkOption {
+      type = lib.types.bool;
+      default = builtins.hasAttr "garage" host.services;
+      description = "Enable Garage S3 service (backend for docs and other S3 consumers)";
+    };
     darkone.host.minimal.enableMealie = lib.mkOption {
       type = lib.types.bool;
       default = builtins.hasAttr "mealie" host.services;
@@ -157,6 +162,13 @@ in
       docs.enable = cfg.enableDocs;
       element.enable = cfg.enableElement;
       forgejo.enable = cfg.enableForgejo;
+
+      # `mkIf` (not direct assignment) because consumer modules can also
+      # auto-enable garage when they use a localhost S3 backend; merging
+      # a host-level `false` with a consumer-level `true` on a bool option
+      # would fail.
+      garage.enable = mkIf cfg.enableGarage true;
+
       homepage.enable = cfg.enableHomepage;
       immich.enable = cfg.enableImmich;
       jellyfin.enable = cfg.enableJellyfin;

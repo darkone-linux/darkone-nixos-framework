@@ -130,6 +130,7 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 | Matrix Synapse | ✅ | ✅ | ✅ | ✅ | ✅ | Marche bien (+Element +Coturn) |
 | Open WebUI | ✅ | ✅ | ✅ | ✅ | ✅ | Marche bien (+Ollama) |
 | Grafana | ✅ | ✅ |  ✅ |  ✅ |  ✅ | Marche bien |
+| LaSuite Docs | ✅ | ✅ | ⚠️ | ✅ | ✅ | Bien, PKCE Challenge introuvable |
 | Immich | ✅ | ✅ | ✅ | ⚠️ | ✅ | Configuration manuelle |
 | Forgejo | ✅ | ✅ | ✅ | ❌ | ✅ | Configuration manuelle |
 | Nextcloud | ✅ | ❌ | ❌ | ❌ | ✅ | Plugin + configuration manuelle |

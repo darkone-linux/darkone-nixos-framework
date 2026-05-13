@@ -32,7 +32,7 @@ let
     idmUrl
     ;
   oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
-  usesLocalMinio = cfg.s3Host == "127.0.0.1" || cfg.s3Host == "localhost";
+  usesLocalGarage = cfg.s3Host == "127.0.0.1" || cfg.s3Host == "localhost";
   s3Url = "http://${cfg.s3Host}:${toString cfg.s3Port}/${cfg.s3Bucket}";
 in
 {
@@ -46,7 +46,7 @@ in
       };
       s3Port = lib.mkOption {
         type = lib.types.port;
-        default = 9000;
+        default = 3900;
         description = "S3 backend port";
       };
       s3Bucket = lib.mkOption {
@@ -75,12 +75,20 @@ in
       darkone.service.idm.oauth2.docs = {
         displayName = "LaSuite Docs";
         imageFile = ./../../assets/app-icons/docs-collaboration.svg;
-        # mozilla-django-oidc callback, mounted under the LaSuite Docs API prefix.
-        # Adjust if Kanidm rejects with `redirect_uri mismatch` (exact path to
-        # check in the `impress` / `core` backend URL conf).
-        redirectPaths = [ "/api/v1.0/authenticate/" ];
+
+        # mozilla-django-oidc callback, mounted under the LaSuite Docs
+        # API prefix by `impress` / `core` URL conf. Kanidm enforces an
+        # exact match against this list.
+        redirectPaths = [ "/api/v1.0/callback/" ];
         landingPath = "/";
         preferShortUsername = false;
+
+        # impress v4.x ships mozilla-django-oidc 4.0.1 (which can do
+        # PKCE) but does not set `OIDC_USE_PKCE = True` and does not
+        # expose the toggle as a django-configurations env value, so we
+        # cannot opt-in without patching. Disable PKCE enforcement on
+        # this client until upstream wires it up.
+        allowInsecureClientDisablePkce = true;
       };
     }
 
@@ -100,14 +108,20 @@ in
       # does not need direct access.
       # For remote S3 backends, the module does not attempt to inject
       # credentials (provide via override in `usr/`).
-      sops.secrets.${secret} = { };
+      sops.secrets = {
+        ${secret} = { };
+      }
+      // lib.optionalAttrs usesLocalGarage {
+        garage-docs-key-id = { };
+        garage-docs-key-secret = { };
+      };
       sops.templates.docs-env = {
         content = ''
           OIDC_RP_CLIENT_SECRET=${config.sops.placeholder.${secret}}
         ''
-        + lib.optionalString usesLocalMinio ''
-          AWS_S3_ACCESS_KEY_ID=${config.sops.placeholder.minio-root-user}
-          AWS_S3_SECRET_ACCESS_KEY=${config.sops.placeholder.minio-root-password}
+        + lib.optionalString usesLocalGarage ''
+          AWS_S3_ACCESS_KEY_ID=${config.sops.placeholder.garage-docs-key-id}
+          AWS_S3_SECRET_ACCESS_KEY=${config.sops.placeholder.garage-docs-key-secret}
         '';
         mode = "0400";
         restartUnits = [
@@ -131,25 +145,99 @@ in
       # another nginx service is added later on the same host).
       services.nginx = {
         recommendedProxySettings = true;
-        virtualHosts.${params.fqdn}.listen = [
-          {
-            addr = params.ip;
-            port = srvPort;
-            ssl = false;
+
+        # Compute the "real" scheme seen by the outermost proxy (Caddy).
+        # When Caddy is in front it sets `X-Forwarded-Proto: https`; when
+        # the vhost is reached directly (debug, healthcheck) the header
+        # is empty and we fall back to nginx's own $scheme.
+        commonHttpConfig = ''
+          map $http_x_forwarded_proto $lasuite_docs_proto {
+            default $http_x_forwarded_proto;
+            ""      $scheme;
           }
-        ];
+        '';
+
+        virtualHosts.${params.fqdn} = {
+          listen = [
+            {
+              addr = params.ip;
+              port = srvPort;
+              ssl = false;
+            }
+          ];
+
+          # Each Django/backend-facing location below disables the
+          # upstream `recommendedProxySettings = true` (set by the
+          # lasuite-docs module) and re-declares the full set of proxy
+          # headers manually. The reason: nginx does not deduplicate
+          # `proxy_set_header` by name — appending an override after
+          # the recommended-headers include would send two
+          # `X-Forwarded-Proto` headers and Django would pick the wrong
+          # one, looping on a 301 to HTTPS (`ERR_TOO_MANY_REDIRECTS`).
+          locations =
+            let
+              proxyHeaders = ''
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $lasuite_docs_proto;
+                proxy_set_header X-Forwarded-Host $host;
+                proxy_set_header X-Forwarded-Server $host;
+              '';
+              overrideHeaders = {
+                recommendedProxySettings = lib.mkForce false;
+                extraConfig = proxyHeaders;
+              };
+            in
+            {
+              "/api" = overrideHeaders;
+              "/admin" = overrideHeaders;
+              "/collaboration/api/" = overrideHeaders;
+              "/collaboration/ws/" = overrideHeaders;
+              "/media-auth" = overrideHeaders;
+            };
+        };
       };
 
-      # Require local MinIO when using localhost S3 backend
-      darkone.service.minio.enable = lib.mkIf usesLocalMinio true;
+      # Require local Garage when using localhost S3 backend
+      darkone.service.garage.enable = lib.mkIf usesLocalGarage true;
 
-      # Create the S3 bucket after MinIO starts (local only)
-      systemd.services.minio.postStart = lib.mkIf usesLocalMinio ''
-        ${pkgs.mc}/bin/mc alias set docs-local http://${cfg.s3Host}:${toString cfg.s3Port} \
-          "$(cat ${config.sops.secrets.minio-root-user.path})" \
-          "$(cat ${config.sops.secrets.minio-root-password.path})" && \
-        ${pkgs.mc}/bin/mc mb --ignore-existing docs-local/${cfg.s3Bucket}
-      '';
+      # Provision the Garage access key and bucket for docs.
+      # Runs after `garage-init.service` (layout assigned) so bucket and
+      # key operations always have a ready cluster. Idempotent: safe to
+      # re-run on every boot or after config changes.
+      systemd.services.garage-docs-init = lib.mkIf usesLocalGarage {
+        description = "Provision Garage bucket and key for LaSuite Docs";
+        after = [ "garage-init.service" ];
+        requires = [ "garage-init.service" ];
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+
+          # Provides GARAGE_RPC_SECRET for the CLI to reach the daemon.
+          EnvironmentFile = config.sops.templates.garage-env.path;
+        };
+        script = ''
+          set -eu
+
+          key_id=$(${pkgs.coreutils}/bin/cat ${config.sops.secrets.garage-docs-key-id.path})
+          key_secret=$(${pkgs.coreutils}/bin/cat ${config.sops.secrets.garage-docs-key-secret.path})
+
+          # Import the access key under the stable name "docs" if absent.
+          if ! ${pkgs.garage}/bin/garage key info docs >/dev/null 2>&1; then
+            ${pkgs.garage}/bin/garage key import --yes -n docs "$key_id" "$key_secret"
+          fi
+
+          # Create the bucket if absent (silence the "already exists" error).
+          if ! ${pkgs.garage}/bin/garage bucket info ${cfg.s3Bucket} >/dev/null 2>&1; then
+            ${pkgs.garage}/bin/garage bucket create ${cfg.s3Bucket}
+          fi
+
+          # Re-applying the same grant is a no-op.
+          ${pkgs.garage}/bin/garage bucket allow --read --write ${cfg.s3Bucket} --key docs
+        '';
+      };
 
       # Main service
       services.lasuite-docs = {
@@ -182,7 +270,11 @@ in
           # static on the Nix side.
           AWS_S3_ENDPOINT_URL = "http://${cfg.s3Host}:${toString cfg.s3Port}";
           AWS_STORAGE_BUCKET_NAME = cfg.s3Bucket;
-          AWS_S3_REGION_NAME = "us-east-1";
+
+          # Must match Garage's `s3_api.s3_region`. For remote backends,
+          # this default is overridable from `usr/`.
+          AWS_S3_REGION_NAME =
+            if usesLocalGarage then config.darkone.service.garage.s3Region else "us-east-1";
         };
         environmentFile = config.sops.templates.docs-env.path;
       };

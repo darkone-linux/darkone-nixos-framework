@@ -43,6 +43,7 @@
     ./service/element.nix
     ./service/fail2ban.nix
     ./service/forgejo.nix
+    ./service/garage.nix
     ./service/headscale.nix
     ./service/home-assistant.nix
     ./service/homepage.nix

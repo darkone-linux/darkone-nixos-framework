@@ -117,6 +117,7 @@ yaml file so that the service is visible across the entire network!**
 * **enableJellyfin** `bool` Enable Jellyfin server
 * **enableOutline** `bool` Enable Outline WIKI service
 * **enableDocs** `bool` Enable LaSuite Docs service
+* **enableGarage** `bool` Enable Garage S3 service (backend for docs and other S3 consumers)
 * **enableMealie** `bool` Enable Mealie service
 * **enableSearx** `bool` Enable Searx service
 * **enableMatrix** `bool` Enable a matrix server
@@ -140,6 +141,7 @@ darkone.host.minimal = {
   enableJellyfin = builtins.hasAttr "jellyfin" host.services;
   enableOutline = builtins.hasAttr "outline" host.services;
   enableDocs = builtins.hasAttr "docs" host.services;
+  enableGarage = builtins.hasAttr "garage" host.services;
   enableMealie = builtins.hasAttr "mealie" host.services;
   enableSearx = builtins.hasAttr "searx" host.services;
   enableMatrix = attrsets.hasAttrByPath [ "services" "matrix" ] host;
@@ -298,7 +300,7 @@ A full-configured LaSuite Docs module. (wip)
 darkone.service.docs = {
   enable = false;
   s3Host = "127.0.0.1";
-  s3Port = 9000;
+  s3Port = 3900;
   s3Bucket = "docs";
 };
 ```
@@ -337,6 +339,51 @@ A full-configured forgejo git forge.
 
 ```nix
 darkone.service.forgejo.enable = false;
+```
+
+<hr/>
+
+### &#x2728; darkone.service.garage
+
+A full-configured local Garage S3 service. (wip)
+
+Provides an internal S3-compatible object storage backend accessible
+only on 127.0.0.1:3900.
+
+:::note[Manual buckets creation]
+Buckets are NOT created automatically by this module.
+Each consumer service provisions its own bucket and access key via a
+dedicated systemd oneshot unit ordered After= `garage-init.service`.
+Per-consumer credentials are stored in sops as `garage-<consumer>-key-id`
+and `garage-<consumer>-key-secret`, imported into Garage on first boot.
+:::
+
+:::tip[Multi-node cluster migration]
+Single-node, replication_factor = 1. To grow into a multi-node cluster,
+bump `replication_factor`, expose `rpc_public_addr` on the mesh, and
+extend `garage-init` to drive a multi-node layout.
+:::
+
+:::caution[Cluster layout initialization]
+If it fails, wait until the garage service is fully operational, then
+restart it.
+:::
+
+* **enable** `bool` Enable local Garage S3 service
+* **srvPort** `port` S3 API port exposed on the internal IP
+* **s3Region** `str` S3 region name (must match consumer config)
+* **capacity** `str` Node storage capacity hint passed to `garage layout assign`.
+Used only at first boot for layout initialization; does not act
+as a hard quota on the underlying filesystem.
+Supported suffixes: B, KB, MB, GB, TB, PB.
+
+```nix
+darkone.service.garage = {
+  enable = false;
+  srvPort = srvPort;
+  s3Region = s3Region;
+  capacity = "500GB";
+};
 ```
 
 <hr/>

@@ -32,8 +32,6 @@
 - [x] Remplacer le générateur PHP par un générateur Rust + parseur nix complet.
   - [x] Implémentation + tests.
   - [ ] Corrections et optimisations à l'utilisation.
-- [ ] Tests unitaires + tests de recette.
-  - [x] TU pour tout ce qui est dans lib/.
 - [ ] Module LaSuite Docs
   - [x] Implémentation de base.
   - [ ] Tests et stabilisation.
