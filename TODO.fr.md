@@ -67,10 +67,19 @@
 - [ ] Isolation des services : étudier la pertinence d'une isolation et le meilleur moyen d'isoler les services des serveurs (systemd-nspawn containers.xxx, Docker / Podman, systemd sandboxing...)
 - [ ] SSO / Kanidm -> PAM
 - [ ] Services isolés dans des conteneurs légers `systemd-nspawn` (optimal pour NixOS).
-- [ ] Voir si [Zabbix](https://www.zabbix.com/fr) ne serait pas une bonne alternative / complément à Prometheus / Grafana.
+- [ ] Stratégie de [dev IA](https://github.com/steipete/agent-scripts) inspirée du workflow de [Peter Steinberger](https://github.com/steipete) pour [OpenClaw](https://github.com/openclaw/openclaw) ; avec [LangChain](https://github.com/langchain-ai) / [LangGraph](https://github.com/langchain-ai/langgraph) ?.
+  - [ ] AGENTS infos, skills, artefacts, commands, etc.
+  - [ ] Workflow complet de développement agentique (supervision, stabilisation, mises à jour, etc.) sur des parties "framework" et "outils" (non critiques).
+  - [ ] Intégration de ce workflow à github, gestion automatisée des PRs externes (contrôle, tests, scans de sécurité, auto-validations...).
+  - [ ] Documentation optimisée pour l'IA (ex. [openclaw](https://docs.openclaw.ai/fr/help/)), fortement fragmentée et spécialisée (optimisation du contexte).
+  - [ ] Automatisation des processus de [tests](https://docs.openclaw.ai/fr/help/testing), stratégie multi-niveaux, contrôle de couverture.
+  - [ ] Agents de gestion d'une instance en production, stricte cloisement des accès "administration technique" vs "données sensibles" (utilisateurs, clés).
+  - [ ] Automatiser tout ce qui est automatisable -> git, recherches & veille, maj, red / blue teams, tests...
+  - [ ] Stratégie de partage / distribution des tâches aux modèles d'IA en fonction de leurs caractéristiques, coûts, etc.
 
 ### A voir
 
+- [ ] Voir si [Zabbix](https://www.zabbix.com/fr) ne serait pas une bonne alternative / complément à Prometheus / Grafana.
 - [ ] Intégration de [nixvim](https://nix-community.github.io/nixvim/).
 - [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
 - [ ] Serveur de mails.
@@ -84,13 +93,6 @@
   - [ ] Instanciations pilotées par un orchestrateur type [k8s](https://github.com/kubernetes/kubernetes).
   - [ ] Stratégies de sauvegarde, sécurité, performances.
 - [ ] Instance publique basée sur le ndd darkone.yt. (cf. scalabilité horizontale ci-dessus)
-- [ ] Stratégie de [développement IA](https://github.com/steipete/agent-scripts) inspirée du workflow mis en place par [Peter Steinberger](https://github.com/steipete) pour [OpenClaw](https://github.com/openclaw/openclaw).
-  - [ ] Workflow complet de développement agentique (supervision, stabilisation, mises à jour, etc.) sur des parties "framework" et "outils" (non critiques).
-  - [ ] Intégration de ce workflow à github, gestion automatisée des PRs externes (contrôle, tests, scans de sécurité, auto-validations...).
-  - [ ] Documentation optimisée pour l'IA (ex. [openclaw](https://docs.openclaw.ai/fr/help/)), fortement fragmentée et spécialisée (optimisation du contexte).
-  - [ ] Automatisation des processus de [tests](https://docs.openclaw.ai/fr/help/testing), stratégie multi-niveaux, contrôle de couverture.
-  - [ ] Agents de gestion d'une instance en production, stricte cloisement des accès "administration technique" vs "données sensibles" (utilisateurs, clés).
-  - [ ] Automatiser tout ce qui est automatisable -> git, recherches & veille, maj, red / blue teams, tests...
 
 ### Fait
 
