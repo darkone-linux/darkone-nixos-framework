@@ -57,20 +57,20 @@ This project is constantly evolving according to my needs. If you'd like to be i
 
 | Application | OAuth2 | Native | PKCE | Declarative | OK | Comments |
 | --- | --- | --- | --- | --- | --- | --- |
-| Outline | ✅ | ✅ | ✅ | ✅ | ✅ | Works perfectly |
-| Mealie | ✅ | ✅ | ✅ | ✅ | ✅ | Works perfectly |
-| Vaultwarden | ✅ | ✅ | ✅ | ✅ | ✅ | Fill the right e-mail first |
-| Matrix Synapse | ✅ |  ✅ |  ✅ |  ✅ |  ✅ | Works fine (+Element +Coturn) |
-| Open WebUI | ✅ |  ✅ |  ✅ |  ✅ |  ✅ | Works fine (+Ollama) |
-| Grafana | ✅ | ✅ |  ✅ |  ✅ |  ✅ | Works fine |
-| LaSuite Docs | ✅ | ✅ | ⚠️ | ✅ | ✅ | Well, PKCE Challenge not found |
-| Immich | ✅ | ✅ | ✅ | ⚠️ | ✅ | Non-declarative configuration |
-| Forgejo | ✅ | ✅ | ✅ | ❌ | ✅ | Non-declarative configuration |
-| Nextcloud | ✅ | ❌ | ❌ | ❌ | ✅ | Requires a plugin, non-declarative |
-| OAuth2 Proxy | ✅ | ✅ | ✅ | ✅ | ⚠️ | Multiple backends to resolve |
-| Jellyfin | ✅ | ❌ | ❔ | ❔ | ❔ | Coming soon |
-| AdGuard Home | ❌ | ❌ | ❌ | ❌ | ❔ | Via OAuth2 Proxy |
-| ~~Mattermost~~ | ❌ | ❌ | ❌ | ❌ | ❌ | No more OAuth2 for the TEAM edition |
+| [Outline](https://www.getoutline.com) | ✅ | ✅ | ✅ | ✅ | ✅ | Works perfectly |
+| [Mealie](https://mealie.io) | ✅ | ✅ | ✅ | ✅ | ✅ | Works perfectly |
+| [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | ✅ | ✅ | ✅ | ✅ | ✅ | Fill the right e-mail first |
+| [Matrix Synapse](https://matrix.org) | ✅ |  ✅ |  ✅ |  ✅ |  ✅ | Works fine (+Element +Coturn) |
+| [Open WebUI](https://openwebui.com) | ✅ |  ✅ |  ✅ |  ✅ |  ✅ | Works fine (+Ollama) |
+| [Grafana](https://grafana.com) | ✅ | ✅ |  ✅ |  ✅ |  ✅ | Works fine |
+| [LaSuite Docs](https://lasuite.numerique.gouv.fr) | ✅ | ✅ | ⚠️ | ✅ | ✅ | Well, PKCE Challenge not found |
+| [Immich](https://immich.app) | ✅ | ✅ | ✅ | ⚠️ | ✅ | Non-declarative configuration |
+| [Forgejo](https://forgejo.org) | ✅ | ✅ | ✅ | ❌ | ✅ | Non-declarative configuration |
+| [Nextcloud](https://nextcloud.com) | ✅ | ❌ | ❌ | ❌ | ✅ | Requires a plugin, non-declarative |
+| [OAuth2 Proxy](https://oauth2-proxy.github.io/oauth2-proxy/) | ✅ | ✅ | ✅ | ✅ | ⚠️ | Multiple backends to resolve |
+| [Jellyfin](https://jellyfin.org) | ✅ | ❌ | ❔ | ❔ | ❔ | Coming soon |
+| [AdGuard Home](https://adguard.com/en/adguard-home/overview.html) | ❌ | ❌ | ❌ | ❌ | ❔ | Via OAuth2 Proxy |
+| [~~Mattermost~~](https://mattermost.com) | ❌ | ❌ | ❌ | ❌ | ❌ | No more OAuth2 for the TEAM edition |
 
 ## Homepage screenshot
 
