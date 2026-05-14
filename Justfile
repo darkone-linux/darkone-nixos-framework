@@ -85,10 +85,14 @@ check:
 	just _log "Full checking..." "DEADNIX"
 	find . -name "*.nix" -exec deadnix -eq {} \;
 
-# Check the main flake
+# Check the main flake. Filter benign "unknown flake output" warnings for the
+# DNF non-standard outputs (colmena, colmenaHive, homeManagerModules,
+# libTests); any *other* unknown output stays visible. sed (vs. grep -v)
+# always exits 0, which keeps pipefail honest about nix's real exit status.
 [group('check')]
 check-flake:
-	{{nix}} flake check --all-systems --quiet
+	{{nix}} flake check --all-systems --quiet 2>&1 \
+	  | sed -E "/^warning: unknown flake output '(colmena|colmenaHive|homeManagerModules|libTests)'\$/d"
 
 # Check with statix
 [group('check')]

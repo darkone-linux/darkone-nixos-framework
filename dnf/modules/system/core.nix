@@ -74,21 +74,30 @@ in
   config = lib.mkIf cfg.enable {
 
     # Bootloader (enabled by default, but not with RPI dependencies)
-    boot = lib.mkIf cfg.enableSystemdBoot {
+    boot = lib.mkMerge [
+      (lib.mkIf cfg.enableSystemdBoot {
 
-      # Linux kernel (LTS by default)
-      kernelPackages = pkgs.linuxPackages;
+        # Linux kernel (LTS by default)
+        kernelPackages = pkgs.linuxPackages;
 
-      loader = {
-        timeout = lib.mkDefault 3;
-        systemd-boot = {
-          enable = true;
-          editor = false;
-          configurationLimit = lib.mkOverride 1337 10; # Less than mkDefault
+        loader = {
+          timeout = lib.mkDefault 3;
+          systemd-boot = {
+            enable = true;
+            editor = false;
+            configurationLimit = lib.mkOverride 1337 10; # Less than mkDefault
+          };
+          efi.canTouchEfiVariables = true;
         };
-        efi.canTouchEfiVariables = true;
-      };
-    };
+      })
+
+      {
+        # Align with the 26.11 default. We don't use ZFS; setting this only
+        # silences the upstream warning and has no effect unless the zfs
+        # module is later activated.
+        zfs.forceImportRoot = false;
+      }
+    ];
 
     # Global networking
     networking = {

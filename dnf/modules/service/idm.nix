@@ -279,7 +279,7 @@ in
 
       # Kanidm main instance
       services.kanidm = {
-        package = pkgs.kanidm_1_9.withSecretProvisioning;
+        package = pkgs.kanidm_1_10.withSecretProvisioning;
 
         #----------------------------------------------------------------------
         # SERVER

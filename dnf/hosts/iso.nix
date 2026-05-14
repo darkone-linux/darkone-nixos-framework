@@ -22,6 +22,10 @@
     boot.loader.systemd-boot.enable = true;
     boot.loader.efi.canTouchEfiVariables = false;
     boot.loader.systemd-boot.editor = false;
+
+    # Align with the 26.11 default — silences the upstream warning. No ZFS
+    # is used in the ISO; same rationale as in dnf/modules/system/core.nix.
+    boot.zfs.forceImportRoot = false;
     hardware.enableAllFirmware = true;
 
     # This sends the key to /etc/ssh/authorized_keys.d/nixos, but with nixos-anywhere
