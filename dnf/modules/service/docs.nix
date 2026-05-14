@@ -1,4 +1,4 @@
-# A full-configured LaSuite Docs module. (wip)
+# A full-configured LaSuite Docs module.
 
 {
   lib,

@@ -1,4 +1,4 @@
-# A full-configured local Garage S3 service. (wip)
+# A full-configured local Garage S3 service.
 #
 # Provides an internal S3-compatible object storage backend accessible
 # only on 127.0.0.1:3900.

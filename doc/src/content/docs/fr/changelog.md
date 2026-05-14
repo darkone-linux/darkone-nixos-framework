@@ -6,6 +6,6 @@ lang: fr
 ---
 
 :::note[Pre-alpha release]
-Cette version du framework DNF est fonctionnelle mais peut évoluer. 
+Cette version du framework DNF est fonctionnelle mais peut évoluer.
 Une version stable "Alpha" sera disponible bientôt.
 :::

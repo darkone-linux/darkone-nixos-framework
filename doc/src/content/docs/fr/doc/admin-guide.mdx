@@ -26,7 +26,7 @@ on va pouvoir mettre à jour et faire évoluer tout le réseau et ses machines.
 ## Installation initiale
 
 :::caution[En cours d'optimisation]
-Les étapes d'installation initiales sont en cours de simplification. En attendant, la [méthode manuelle](/en/doc/admin-guide/#manual-installation) est disponible dans la 
+Les étapes d'installation initiales sont en cours de simplification. En attendant, la [méthode manuelle](/en/doc/admin-guide/#manual-installation) est disponible dans la
 version anglaise de ce site.
 :::
 
@@ -36,7 +36,7 @@ Une zone (sous-réseau) est composée au minimum d'une passerelle, derrière laq
 
 ### La passerelle
 
-Un mini-ordinateur toujours allumé, avec au moins 2 interfaces réseau (une éthernet branchée à la box et les autres qui font partie du sous-réseau - ethernet et wifi). 
+Un mini-ordinateur toujours allumé, avec au moins 2 interfaces réseau (une éthernet branchée à la box et les autres qui font partie du sous-réseau - ethernet et wifi).
 
 :::note[Quel matériel pour ma passerelle ?]
 Un modèle [protectli](https://eu.protectli.com/) ou équivalent est idéal. [Celui-ci](https://eu.protectli.com/product/v1210/) est suffisant avec :
@@ -88,13 +88,13 @@ Chaque utilisateur aura :
 
 * Le mot de passe principal de [vaultwarden](https://vaultwarden.poncon.fr/), pour ouvrir son coffre.
 * La clé d'authentification [IDM](https://idm.poncon.fr/) pour accéder à tous les services.
-* Un mot de passe supplémentaire dans [IDM](https://idm.poncon.fr/) en cas de perte de la clé. 
+* Un mot de passe supplémentaire dans [IDM](https://idm.poncon.fr/) en cas de perte de la clé.
 
 ### Étapes de création du compte
 
 :::note[Ce que devra faire le nouvel utilisateur]
 * Choisir un mot de passe principal via l'invitation vaultwarden (par e-mail).
-* Créer une "clé d'authentification" et un mot de passe de récupération (IDM). 
+* Créer une "clé d'authentification" et un mot de passe de récupération (IDM).
 * Installer Bitwarden sur ses périphériques et le paramétrer.
 * Applications : les installer et configurer au besoin.
 :::
@@ -102,14 +102,14 @@ Chaque utilisateur aura :
 <Steps>
 
 1. **Créer le compte système**
-    
+
     :::caution[Compte POSIX (facultatif)]
     Cette étape crée un compte POSIX qui sera disponibles sur les postes Linux (serveurs, stations, etc.) désignés par la configuration.
     Il est possible de créer des utilisateurs non-posix (non déclaratifs) directement dans Vaultwarden et Kanidm.
     :::
 
     Un utilisateur doit avoir :
-    
+
     - un identifiant (prénom en minuscules)
     - une adresse email (en domaine.tld de préférence)
 
@@ -129,7 +129,7 @@ Chaque utilisateur aura :
 2. **Compte vaultwarden**
 
     Dans l'interface d'administration Vaultwarden, l'utilisateur précédent doit être présent (sinon le créer).
-    
+
     1. Administrateur : lancer une invitation.
     2. Utilisateur : reçoit un e-mail pour saisir son mot de passe principal.
     3. Administrateur : confirmer l'utilisateur dans l'interface.<br />&nbsp;
@@ -201,7 +201,7 @@ just full-install bob-laptop nix 10.1.2.34
 ```
 
 :::tip[Installation complète]
-En quelques minutes, la commande `just full-install` va installer le système complet avec les programmes, configurations et utilisateurs. 
+En quelques minutes, la commande `just full-install` va installer le système complet avec les programmes, configurations et utilisateurs.
 Si l'opération échoue, il est possible de reprendre les étapes consultables dans le fichier `Justfile`.
 :::
 
@@ -219,7 +219,7 @@ L'intervention de l'administrateur est requise pour cette configuration.
 just enter hcs
 
 # Méthode 1 : créer une clé d'authentification temporaire sur le user 1 (nix)
-#             puis connecter le client avec cette clé. Cette méthode permet 
+#             puis connecter le client avec cette clé. Cette méthode permet
 #             d'accepter plusieurs clients d'un coup (reusable).
 sudo headscale preauthkeys create --reusable --expiration 1h --user 1
 

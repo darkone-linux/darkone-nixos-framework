@@ -4,7 +4,7 @@
 
 - [x] Correction des déclarations de partitions disko (swap trop petit + améliorations). (en test)
 - [ ] Stratégie de test globale en 3 niveaux : tests unitaires, tests simulés (VMs légères), lab de staging complet (tests + introspection manuelle).
-  - [x] Cahier des charges.
+  - [x] [Cahier des charges](.specs/FULL-TEST-STRATEGY.fr.md).
   - [x] Tests unitaires (lib).
   - [x] Migration vers [nix-unit](https://nix-community.github.io/nix-unit/).
   - [ ] Déplacement dans lib/ de tout algorithme un peu complexe ou comportant de possibles effets de bords, sous forme de fonctions durcies et testées, simplifiant le code utile des modules.
@@ -23,7 +23,7 @@
 - [ ] Ponts Mautrix pour Matrix (whatsapp, telegram, messenger, discord).
   - [x] POC -> implémentation locale.
   - [ ] Généralisation -> implémentation paramétrable pour chaque user.
-- [ ] IA générative self-hosted + agents.
+- [ ] Module d'IA générative self-hosted + agents.
   - [x] Interface Open WebUI + Ollama + Modèles locaux.
   - [x] Comptes OIDC, cloisonnés pour chaque utilisateur.
   - [ ] Agents MCP personnels.
@@ -42,7 +42,7 @@
 ### Planifié
 
 - [ ] Services -> réorganiser la manière dont on les déclare -> services uniques + avec sous-domaine fixe, sous-domaines interdits déclarables, services multiples avec OIDC.
-- [ ] Séparer en plusieurs projets
+- [ ] Séparer en plusieurs projets ([specs](.specs/SPLIT-PROJECT.fr.md))
   - [ ] Projet 1 : framework (code commun à toutes les instances, `dnf/`)
   - [ ] Projet 2 : boilerplate pour implémentation locale qui étend le framework (input flake + override-input en dev, `usr/`)
   - [ ] Projet 3 : Générateur Rust séparé (`src/generator`).
@@ -52,6 +52,11 @@
 - [ ] Corriger l'arbre de démarrage des services, un redémarrage de passerelle ou du HCS laisse certains services (kanidm, prometheus-node-exporter, mnt-nfs-homes) en berne.
 - [ ] Suite de tests de recette complète, intégrée à une stratégie d'intégration continue déclarative et utilisable par chaque instance DNF.
 - [ ] Gestion optimale des traductions FR <-> EN avec fichiers MO + agent IA dédié.
+- [ ] Officialiser le projet auprès du public.
+  - [ ] Politique de versionning, packaging, changelog, diffusion.
+  - [ ] "Getting Started" très simple, rapide et efficace.
+  - [ ] ISO NixOS + DNF facile à installer.
+  - [ ] Documentation user-friendly.
 
 ### Axes d'amélioration
 
@@ -62,6 +67,7 @@
 - [ ] Isolation des services : étudier la pertinence d'une isolation et le meilleur moyen d'isoler les services des serveurs (systemd-nspawn containers.xxx, Docker / Podman, systemd sandboxing...)
 - [ ] SSO / Kanidm -> PAM
 - [ ] Services isolés dans des conteneurs légers `systemd-nspawn` (optimal pour NixOS).
+- [ ] Voir si [Zabbix](https://www.zabbix.com/fr) ne serait pas une bonne alternative / complément à Prometheus / Grafana.
 
 ### A voir
 
@@ -73,6 +79,18 @@
 - [ ] Synchro NTP locales, en particulier en cas d'isolation (coupure internet longue)
   - [ ] Serveur NTP authentifié sur chaque passerelle, pour synchro locale des horloges.
   - [ ] Synchronisation NTP des passerelles de zone avec GPS ou Galiléo.
+- [ ] Stratégie de scalabilité horizontale.
+  - [ ] Fragmentation et isolation des services et des données utilisateur.
+  - [ ] Instanciations pilotées par un orchestrateur type [k8s](https://github.com/kubernetes/kubernetes).
+  - [ ] Stratégies de sauvegarde, sécurité, performances.
+- [ ] Instance publique basée sur le ndd darkone.yt. (cf. scalabilité horizontale ci-dessus)
+- [ ] Stratégie de [développement IA](https://github.com/steipete/agent-scripts) inspirée du workflow mis en place par [Peter Steinberger](https://github.com/steipete) pour [OpenClaw](https://github.com/openclaw/openclaw).
+  - [ ] Workflow complet de développement agentique (supervision, stabilisation, mises à jour, etc.) sur des parties "framework" et "outils" (non critiques).
+  - [ ] Intégration de ce workflow à github, gestion automatisée des PRs externes (contrôle, tests, scans de sécurité, auto-validations...).
+  - [ ] Documentation optimisée pour l'IA (ex. [openclaw](https://docs.openclaw.ai/fr/help/)), fortement fragmentée et spécialisée (optimisation du contexte).
+  - [ ] Automatisation des processus de [tests](https://docs.openclaw.ai/fr/help/testing), stratégie multi-niveaux, contrôle de couverture.
+  - [ ] Agents de gestion d'une instance en production, stricte cloisement des accès "administration technique" vs "données sensibles" (utilisateurs, clés).
+  - [ ] Automatiser tout ce qui est automatisable -> git, recherches & veille, maj, red / blue teams, tests...
 
 ### Fait
 
@@ -121,75 +139,3 @@
 ### Annulé
 
 - [x] ~~Permettre de croiser les profils home manager + supprimer la hiérarchie des profils.~~
-
-### TODO extraits du code source
-
-- [ ] dnf/home/modules/advanced.nix:76 vscode a besoin d'un module home-manager
-- [ ] dnf/home/modules/advanced.nix:103 hugo est deprecated, à remplacer par la version standard
-- [ ] dnf/modules/standard/system/core.nix:186 Mettre en oeuvre wakeonlan à partir du mode veille
-- [ ] dnf/home/modules/office.nix:25 Simplifier la recherche de la page d'accueil de la zone DNS
-- [ ] dnf/home/modules/office.nix:145 Ajouter le support pour les profils enfants
-- [ ] dnf/home/modules/office.nix:217 Détection automatique de la langue du navigateur
-- [ ] dnf/home/modules/office.nix:294 Compléter et factoriser avec element.nix
-- [ ] dnf/modules/standard/service/docs.nix:109 Configurer le stockage S3 pour les documents
-- [ ] dnf/modules/standard/service/turn.nix:44 Activer TLS avec le service ACME pour le certificat turn
-- [ ] dnf/modules/standard/service/turn.nix:65 Configurer un service ACME indépendant pour turn
-- [ ] dnf/modules/standard/service/idm.nix:244 Affiner les paramètres openid connect
-- [ ] dnf/modules/standard/service/idm.nix:374 Implémenter le service interne
-- [ ] dnf/modules/standard/service/matrix.nix:3 Intégrer LiveKit pour les appels vidéo
-- [ ] dnf/modules/standard/service/matrix.nix:4 Implémenter Synapse Admin avec Caddy
-- [ ] dnf/modules/standard/service/matrix.nix:42 Configurer les permissions automatiques Mautrix
-- [ ] dnf/modules/standard/service/matrix.nix:214 Optimiser la configuration Facebook Messenger
-- [ ] dnf/modules/standard/service/matrix.nix:233 Ajouter le support Mautrix Discord
-- [ ] dnf/modules/standard/service/matrix.nix:300 Évaluer l'utilité de la manhole pour l'administration
-- [ ] dnf/modules/standard/service/matrix.nix:316 Détection automatique de web_client_location
-- [ ] dnf/modules/standard/service/matrix.nix:382 Configurer limit_remote_rooms en cas de problèmes de performance
-- [ ] dnf/modules/standard/service/matrix.nix:406 Configurer auto_join_rooms
-- [ ] dnf/modules/standard/service/matrix.nix:453 Configurer l'inscription via email
-- [ ] dnf/modules/standard/service/ai.nix:150 Ajouter le paramétrage automatique des modèles
-- [ ] dnf/home/modules/music.nix:36 Implémenter le support audio
-- [ ] dnf/home/modules/music.nix:50 Écrire la configuration Audacious dans .config/audacious/config
-- [ ] dnf/home/modules/music.nix:139 Ajouter les utilisateurs au groupe audio
-- [ ] dnf/home/modules/audio.nix:19 Compléter le module audio
-- [ ] dnf/modules/standard/service/nextcloud.nix:101 Automatiser le serveur Whiteboard
-- [ ] dnf/modules/standard/service/nextcloud.nix:132 Utiliser les secrets pour nextcloud
-- [ ] dnf/modules/standard/service/nextcloud.nix:185 Rendre le service accessible en HTTPS
-- [ ] dnf/modules/standard/service/nextcloud.nix:226 Activer la sauvegarde PostgreSQL
-- [ ] dnf/modules/standard/system/services.nix:153 Factoriser avec tailscale.nix
-- [ ] dnf/modules/standard/system/services.nix:385 Configurer les virtual hosts en HTTPS avec redirection permanente
-- [ ] dnf/modules/standard/system/services.nix:428 Implémenter le proxy zonable
-- [ ] dnf/modules/standard/system/services.nix:478 Configurer l'accès privé pour idm.domain.tld
-- [ ] dnf/modules/standard/system/services.nix:515 Implémenter le proxy zonable
-- [ ] dnf/modules/standard/system/services.nix:570 Intégrer les paramètres des widgets dans les paramètres du service
-- [ ] dnf/modules/standard/service/homepage.nix:29 Implémenter l'internationalisation
-- [ ] dnf/modules/standard/service/homepage.nix:64 Générer automatiquement les widgets selon les services actifs
-- [ ] dnf/modules/standard/service/nfs.nix:28 Gérer les clients NFS de zones externes
-- [ ] dnf/modules/standard/service/nfs.nix:105 Configurer all_squash avec idmapd
-- [ ] dnf/modules/standard/service/nfs.nix:142 Implémenter l'automontage pour les ordinateurs portables
-- [ ] dnf/modules/standard/service/searx.nix:103 Générer automatiquement les moteurs de recherche
-- [ ] dnf/modules/standard/service/vaultwarden.nix:160 Définir une stratégie de sauvegarde locale
-- [ ] dnf/modules/standard/service/headscale.nix:3 Simplifier et optimiser la configuration headscale
-- [ ] dnf/modules/standard/service/headscale.nix:115 Configurer Derp relay, ACLs et OIDC
-- [ ] dnf/modules/standard/service/headscale.nix:138 Configurer les ACLs headscale
-- [ ] dnf/modules/standard/service/headscale.nix:196 Configurer OIDC pour headscale
-- [ ] dnf/modules/standard/service/adguardhome.nix:68 Mettre à jour les clients depuis config.yaml
-- [ ] dnf/modules/standard/service/tailscale.nix:24 Factoriser avec services.nix
-- [ ] dnf/modules/standard/service/tailscale.nix:67 Configurer les paramètres au démarrage de tailscaled
-- [ ] dnf/modules/standard/service/tailscale.nix:105 Implémenter la remontée d'information sur la synchro
-- [ ] dnf/modules/standard/service/dnsmasq.nix:185 Nettoyer les adresses internes obsolètes
-- [ ] dnf/modules/standard/service/dnsmasq.nix:236 Gérer les noms simples des autres zones
-- [ ] dnf/modules/standard/service/restic.nix:23 Implémenter la sauvegarde avec restic
-- [ ] dnf/modules/standard/system/i18n.nix:45 Détecter automatiquement le modèle de clavier
-- [ ] dnf/modules/standard/system/i18n.nix:46 Détecter automatiquement la variante de clavier
-- [ ] dnf/modules/mixin/host/portable.nix:12 Configurer les options de boot spécifiques pour les clés USB
-- [ ] dnf/modules/mixin/profile/advanced.nix:8 Implémenter un module home-manager
-- [ ] dnf/modules/standard/service/home-assistant.nix:15 Compléter la configuration Home Assistant
-- [ ] dnf/modules/standard/service/home-assistant.nix:30 Ajouter les dépendances pour une configuration de base
-- [ ] dnf/modules/standard/service/audio.nix:26 Activer le support JACK si nécessaire
-- [ ] dnf/modules/mixin/host/server.nix:43 Activer cette fonctionnalité si utile
-- [ ] dnf/hosts/templates/install.nix:5 Détecter automatiquement la disposition du clavier
-- [ ] dnf/home/modules/mime.nix:9 Ajouter le support MIME
-- [ ] dnf/home/modules/mime.nix:70 Définir les applications par défaut
-- [ ] dnf/modules/standard/service/monitoring.nix:14 Implémenter oauth2-proxy
-- [ ] dnf/modules/standard/service/monitoring.nix:63 Implémenter l'accès par mot de passe
-- [ ] dnf/modules/standard/service/monitoring.nix:85 Activer oauth2-proxy
