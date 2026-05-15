@@ -76,6 +76,8 @@
   - [ ] Agents de gestion d'une instance en production, stricte cloisement des accès "administration technique" vs "données sensibles" (utilisateurs, clés).
   - [ ] Automatiser tout ce qui est automatisable -> git, recherches & veille, maj, red / blue teams, tests...
   - [ ] Stratégie de partage / distribution des tâches aux modèles d'IA en fonction de leurs caractéristiques, coûts, etc.
+- [ ] Stratégie CD par palier + remontées d'info -> environnements de... development, staging, canary, unstable, stable
+- [ ] Sécurité : [canary tokens](https://canarytokens.org/).
 
 ### A voir
 
