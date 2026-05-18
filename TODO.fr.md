@@ -78,6 +78,7 @@
   - [ ] Stratégie de partage / distribution des tâches aux modèles d'IA en fonction de leurs caractéristiques, coûts, etc.
 - [ ] Stratégie CD par palier + remontées d'info -> environnements de... development, staging, canary, unstable, stable
 - [ ] Sécurité : [canary tokens](https://canarytokens.org/).
+- [ ] Mise à l'échelle : remplacer colmena par Salt-like ou Ansible-like + LDAP...
 
 ### A voir
 
@@ -86,7 +87,6 @@
 - [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
 - [ ] Serveur de mails.
 - [ ] Interface [headplane](https://github.com/tale/headplane) pour headscale.
-- [ ] Ajout de Grafana Loki sur les logs Caddy pour avoir des stats de fréquentation.
 - [ ] Synchro NTP locales, en particulier en cas d'isolation (coupure internet longue)
   - [ ] Serveur NTP authentifié sur chaque passerelle, pour synchro locale des horloges.
   - [ ] Synchronisation NTP des passerelles de zone avec GPS ou Galiléo.
@@ -98,6 +98,7 @@
 
 ### Fait
 
+- [x] Ajout de Grafana Loki sur les logs Caddy pour avoir des stats de fréquentation.
 - [x] ~~Supprimer~~ Réorganiser les fichiers NixOS dans les espaces home manager.
 - [x] Réseaux sociaux : ~~mattermost~~, [matrix](https://nixos.wiki/wiki/Matrix).
 - [x] Partages Samba pour windows + linux (par machine).
