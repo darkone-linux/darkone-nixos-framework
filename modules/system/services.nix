@@ -17,6 +17,7 @@
   zone,
   network,
   dnfLib,
+  workDir,
   ...
 }:
 with lib;
@@ -384,7 +385,7 @@ in
         optional isHcs {
           ${network.domain} =
             let
-              localPath = ./../../../usr/www/public;
+              localPath = workDir + "/usr/www/public";
               staticDirExists = builtins.pathExists localPath;
               matrixWellKnown = optionalString hasMatrix matrixWellKnownSection;
               mainAction =

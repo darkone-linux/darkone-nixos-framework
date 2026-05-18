@@ -94,9 +94,11 @@ let
 
   userNixosProfiles = nixpkgs.lib.mapAttrs (_login: user: resolveNixosProfile user.profile) users;
 
-  # Common args injected as specialArgs / extraSpecialArgs
+  # Common args injected as specialArgs / extraSpecialArgs.
+  # `workDir` lets framework modules reference consumer-side files
+  # (`usr/secrets/...`, `usr/www/...`) without baking relative paths.
   mkCommonNodeArgs = system: {
-    inherit network users userNixosProfiles;
+    inherit network users userNixosProfiles workDir;
     pkgs-stable = nixpkgsStableFor.${system};
     dnfLib = mkDnfLib system;
   };
@@ -218,12 +220,14 @@ let
         ]
       );
 
-  # Framework-owned ISO images. Independent of workDir, always available.
+  # ISO images. `workDir` is forwarded so iso.nix injects the consumer's
+  # `usr/secrets/nix.pub` for nixos-anywhere.
   isoNixosConfigurations = builtins.listToAttrs (
     map (system: {
       name = "iso-${system}";
       value = nixpkgs.lib.nixosSystem {
         specialArgs = {
+          inherit workDir;
           imgFormat = nixpkgs.lib.mkDefault "iso";
           host = {
             hostname = "new-dnf-host";

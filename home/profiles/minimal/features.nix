@@ -39,7 +39,7 @@ in
     plugins = [
       {
         name = "powerlevel10k-config";
-        src = ./../../../dotfiles;
+        src = ./../../../assets;
         file = "p10k.zsh";
       }
       {

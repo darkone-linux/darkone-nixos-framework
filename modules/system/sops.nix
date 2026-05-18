@@ -17,6 +17,7 @@
   lib,
   config,
   host,
+  workDir,
   ...
 }:
 let
@@ -35,7 +36,7 @@ in
     sops = {
 
       # Sops configuration
-      defaultSopsFile = ./../../../usr/secrets/secrets.yaml;
+      defaultSopsFile = workDir + "/usr/secrets/secrets.yaml";
       age = {
         sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
         keyFile = "/etc/sops/age/infra.key";

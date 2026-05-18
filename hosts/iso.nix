@@ -12,6 +12,7 @@
   stdenv,
   lib,
   pkgs,
+  workDir ? null,
   ...
 }:
 {
@@ -28,9 +29,12 @@
     boot.zfs.forceImportRoot = false;
     hardware.enableAllFirmware = true;
 
-    # This sends the key to /etc/ssh/authorized_keys.d/nixos, but with nixos-anywhere
-    # it is problematic because nixos-anywhere checks for a key in /home/nixos/.ssh/authorized_keys.
-    users.users.nixos.openssh.authorizedKeys.keyFiles = lib.mkForce [ ./../../usr/secrets/nix.pub ];
+    # Consumer-provided admin pubkey (nixos-anywhere expects it in
+    # /home/nixos/.ssh/authorized_keys, hence the activation script below).
+    # The framework standalone ISO has no key by default; consumers ship
+    # their own via `mkConfigurations` (`workDir/usr/secrets/nix.pub`).
+    users.users.nixos.openssh.authorizedKeys.keyFiles =
+      lib.mkIf (workDir != null) (lib.mkForce [ (workDir + "/usr/secrets/nix.pub") ]);
 
     # So we trick it with this script that copies the key to /home/nixos/.ssh/authorized_keys.
     # The "chown" does not work — .ssh and its contents stay root:root — but it works with nixos-anywhere.

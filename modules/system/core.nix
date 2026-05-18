@@ -22,6 +22,7 @@
   config,
   host,
   pkgs,
+  workDir,
   ...
 }:
 let
@@ -116,7 +117,7 @@ in
     users.mutableUsers = false;
 
     # The specific user "nix" is declared in config.yaml and have this key on each host
-    users.users.nix.openssh.authorizedKeys.keyFiles = [ ./../../../usr/secrets/nix.pub ];
+    users.users.nix.openssh.authorizedKeys.keyFiles = [ (workDir + "/usr/secrets/nix.pub") ];
 
     # Nix store optimize and GC
     nix.optimise.automatic = true;
