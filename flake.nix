@@ -1,5 +1,5 @@
 {
-  description = "NixOS Darkone Framework";
+  description = "Darkone NixOS Framework — declarative, reproducible multi-host NixOS for self-hosted networks.";
 
   #----------------------------------------------------------------------------
   # CACHING
@@ -53,271 +53,119 @@
     inputs@{
       self,
       nixpkgs,
-      nixpkgs-stable,
-      home-manager,
-      nixos-hardware,
-      sops-nix,
-      disko,
       ...
     }:
     let
 
-      #------------------------------------------------------------------------
-      # OUTPUT LET
-      #------------------------------------------------------------------------
+      # `mkConfigurations` is the public entry point consumed by consumer
+      # flakes (arthur-network, dnf-boilerplate). It closes over the framework
+      # `inputs` declared above and only requires the consumer's `workDir`.
+      mkConfigurations = import ./lib/mkConfigurations.nix { inherit inputs; };
 
-      # Unstable state version for new hosts / homes installations
-      unstableStateVersion = "26.05";
-
-      # DNF local library
-
-      # Support for multiple architectures
+      # Build the framework's own "self" configuration (used by the framework's
+      # standalone outputs: ISO images, libTests, devShell). It points at the
+      # framework dir itself; consumer-side paths (`workDir/usr`,
+      # `workDir/var/generated`) are NOT touched here — the standalone flake
+      # only exposes framework-owned outputs.
       supportedSystems = [
         "x86_64-linux"
         "aarch64-linux"
       ];
 
-      # Pure hive helpers (imported directly — arch-independent, needed before mkDnfLib)
-      hiveLib = import ./dnf/lib/hive.nix { inherit (nixpkgs) lib; };
-      inherit (hiveLib) getHostArch mkNodeArgs;
-
-      # Per-system initialization of pkgs
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      nixpkgsFor = forAllSystems (
-        system:
-        import nixpkgs {
-          inherit system;
-          config.allowUnfree = true;
-          #config.allowUnfreePredicate = _: true;
-          #overlays = [ ];
-        }
-      );
-
-      nixpkgsStableFor = forAllSystems (
-        system:
-        import nixpkgs-stable {
-          inherit system;
-          config.allowUnfree = true;
-        }
-      );
-
-      # Generated files (with just generate)
-      hosts = import ./var/generated/hosts.nix;
-      users = import ./var/generated/users.nix;
-      network = import ./var/generated/network.nix;
-
-      # Home manager context creations
-      mkHome = login: {
-        name = login;
-        value = {
-          imports = [
-            ./dnf/home
-            ./usr/home
-            ./usr/users/${login}
-            (import ./${users.${login}.profile})
-          ];
-          home = {
-            username = login;
-            homeDirectory = nixpkgs.lib.mkDefault "/home/${login}";
-            stateVersion = nixpkgs.lib.mkDefault "${unstableStateVersion}";
-          };
-        };
-      };
-
-      # Generate common args for each architecture
-      mkCommonNodeArgs = system: {
-        inherit network users;
-        pkgs-stable = nixpkgsStableFor.${system};
-        dnfLib = mkDnfLib system;
-      };
-
-      mkNodeSpecialArgs = host: {
-        name = host.hostname;
-        value = mkNodeArgs {
-          inherit host hosts network;
-          extraArgs = mkCommonNodeArgs (getHostArch host);
-        };
-      };
-      nodeSpecialArgs = builtins.listToAttrs (map mkNodeSpecialArgs hosts);
-
-      # Host creation
-      mkHost = host: {
-        name = host.hostname;
-        value = host.colmena // {
-          nixpkgs.hostPlatform.system = getHostArch host;
-          imports = [
-            ./dnf/modules
-            ./usr/modules
-            "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
-            sops-nix.nixosModules.sops
-            disko.nixosModules.disko
-            home-manager.nixosModules.home-manager
-            {
-              home-manager = {
-
-                # Use global packages from nixpkgs
-                useGlobalPkgs = true;
-
-                # Install in /etc/profiles instead of ~/nix-profiles.
-                useUserPackages = true;
-
-                # Avoid error on replacing a file (.zshrc for example)
-                # LIMITATION: if bkp file already exists -> fail
-                backupFileExtension = "bkp";
-
-                # Load users profiles
-                users = builtins.listToAttrs (map mkHome host.users);
-
-                extraSpecialArgs = mkNodeArgs {
-                  inherit host hosts network;
-                  extraArgs = mkCommonNodeArgs (getHostArch host) // {
-                    inherit inputs;
-                  };
-                };
-              };
-            }
-          ]
-          ++ nixpkgs.lib.optional (
-            getHostArch host == "aarch64-linux"
-          ) nixos-hardware.nixosModules.raspberry-pi-5
-          ++ nixpkgs.lib.optional (builtins.pathExists ./usr/machines/${host.hostname}) ./usr/machines/${host.hostname};
-        };
-      };
-
-      # Multi-arch devshells
-      mkDevShell =
-        system:
-        let
-          pkgs = nixpkgsFor.${system};
-          inherit (inputs.colmena.packages.${system}) colmena;
-        in
-        pkgs.mkShell {
-          packages = with pkgs; [
-            age
-            cargo
-            colmena
-            deadnix
-            git
-            just
-            mkpasswd
-            moreutils # sponge
-            nix-unit
-            nixfmt
-            rustc
-            sops
-            ssh-to-age
-            statix
-            yq
-            zsh
-          ];
-          shellHook = "exec zsh";
-        };
-
-      # DNF tools
-      mkDnfLib =
-        system:
-        let
-          pkgs = nixpkgsFor.${system};
-        in
-        import ./dnf/lib { inherit (pkgs) lib; };
 
     in
     {
-      #------------------------------------------------------------------------
-      # HOSTS MANAGEMENT WITH COLMENA
-      #------------------------------------------------------------------------
-
-      colmenaHive = inputs.colmena.lib.makeHive self.outputs.colmena;
-      colmena = {
-        meta = {
-          description = "Darkone Framework Network";
-          nixpkgs = nixpkgsFor.x86_64-linux; # default system
-          inherit nodeSpecialArgs;
-        };
-
-        # Default deployment settings
-        defaults.deployment = {
-          buildOnTarget = nixpkgs.lib.mkDefault false;
-          allowLocalDeployment = nixpkgs.lib.mkDefault true;
-          replaceUnknownProfiles = true;
-          targetUser = "nix";
-        };
-      }
-      // builtins.listToAttrs (map mkHost hosts);
 
       #------------------------------------------------------------------------
-      # ISO IMAGE
+      # PUBLIC API FOR CONSUMERS
       #------------------------------------------------------------------------
 
-      # Iso image for first install DNF system
-      # nix build .#nixosConfigurations.iso-x86_64-linux.config.system.build.isoImage
-      nixosConfigurations =
-        (builtins.listToAttrs (
-          map (system: {
-            name = "iso-${system}";
-            value = nixpkgs.lib.nixosSystem {
-              #inherit system;
-              specialArgs = {
-                imgFormat = nixpkgs.lib.mkDefault "iso";
-                host = {
-                  hostname = "new-dnf-host";
-                  name = "New Darkone NixOS Framework";
-                  profile = "minimal";
-                  users = [ ];
-                  groups = [ ];
-                  arch = system;
-                };
-              };
-              modules = [
-                { nixpkgs.pkgs = nixpkgsFor.${system}; }
-                ./dnf/hosts/iso.nix
-              ];
-            };
-          }) supportedSystems
-        ))
-        //
-          builtins.mapAttrs
-            (
-              name: node:
-              (nixpkgs.lib.nixosSystem {
-                inherit (node.nixpkgs.hostPlatform) system;
-                specialArgs = nodeSpecialArgs.${name};
-                modules = node.imports;
-              })
-            )
-            (
-              removeAttrs self.colmena [
-                "meta"
-                "defaults"
-              ]
-            );
+      # Consumers call `inputs.dnf.lib.mkConfigurations ./.` from their flake.
+      lib.mkConfigurations = mkConfigurations;
 
       #------------------------------------------------------------------------
-      # DEV SHELL
+      # FRAMEWORK-OWNED OUTPUTS (no consumer workDir required)
       #------------------------------------------------------------------------
 
-      # Dev env for all supported architectures
-      devShells = forAllSystems (system: {
-        default = mkDevShell system;
-      });
-
-      #------------------------------------------------------------------------
-      # DNF USEFUL OUTPUTS
-      #------------------------------------------------------------------------
-
-      # Darkone modules
+      # NixOS modules exposed for consumers that want to opt-in piecewise.
       nixosModules = {
-        darkone = ./dnf/modules;
+        darkone = ./modules;
         default = self.nixosModules.darkone;
       };
+
       homeManagerModules = {
-        darkone = ./dnf/home/modules;
+        darkone = ./home/modules;
       };
 
-      # DNF library for leaf flakes
-      lib = forAllSystems mkDnfLib;
+      # ISO images — buildable standalone from the framework flake.
+      # `nix build .#nixosConfigurations.iso-x86_64-linux.config.system.build.isoImage`
+      nixosConfigurations = builtins.listToAttrs (
+        map (system: {
+          name = "iso-${system}";
+          value = nixpkgs.lib.nixosSystem {
+            specialArgs = {
+              imgFormat = nixpkgs.lib.mkDefault "iso";
+              host = {
+                hostname = "new-dnf-host";
+                name = "New Darkone NixOS Framework";
+                profile = "minimal";
+                users = [ ];
+                groups = [ ];
+                arch = system;
+              };
+            };
+            modules = [
+              {
+                nixpkgs.pkgs = import nixpkgs {
+                  inherit system;
+                  config.allowUnfree = true;
+                };
+              }
+              ./hosts/iso.nix
+            ];
+          };
+        }) supportedSystems
+      );
 
       # Unit tests — run with: nix-unit --flake .#libTests
-      libTests = import ./dnf/tests/unit { inherit (nixpkgs) lib; };
+      libTests = import ./tests/unit { inherit (nixpkgs) lib; };
+
+      # Dev shell for framework hacking (cargo / nix-unit / sops / ...).
+      # Identical to the one consumers get via mkConfigurations.
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
+          inherit (inputs.colmena.packages.${system}) colmena;
+        in
+        {
+          default = pkgs.mkShell {
+            packages = with pkgs; [
+              age
+              cargo
+              colmena
+              deadnix
+              git
+              just
+              mkpasswd
+              moreutils
+              nix-unit
+              nixfmt
+              rustc
+              sops
+              ssh-to-age
+              statix
+              yq
+              zsh
+            ];
+            shellHook = "exec zsh";
+          };
+        }
+      );
+
     }; # outputs
 }
