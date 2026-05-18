@@ -39,6 +39,17 @@ let
   hiveLib = import ./hive.nix { inherit (nixpkgs) lib; };
   inherit (hiveLib) getHostArch mkNodeArgs;
 
+  # Path-resolution helpers (unit-tested in `tests/unit/lib/paths_test.nix`)
+  pathsLib = import ./paths.nix { inherit (nixpkgs) lib; };
+  resolveProfile = pathsLib.resolveProfile {
+    frameworkRoot = ./..;
+    inherit workDir;
+  };
+  resolveNixosProfile = pathsLib.resolveNixosProfile {
+    frameworkRoot = ./..;
+    inherit workDir;
+  };
+
   # Per-system nixpkgs instances
   nixpkgsFor = forAllSystems (
     system:
@@ -69,29 +80,8 @@ let
   users = import (workDir + "/var/generated/users.nix");
   network = import (workDir + "/var/generated/network.nix");
 
-  # Profile paths in `users.nix` can target either the framework
-  # (legacy `dnf/...` prefix from the generator) or the consumer's workDir
-  # (e.g. `usr/home/profiles/...`). Resolve both transparently.
-  resolveProfile =
-    profilePath:
-    if nixpkgs.lib.hasPrefix "dnf/" profilePath then
-      ./.. + "/${nixpkgs.lib.removePrefix "dnf/" profilePath}"
-    else
-      workDir + "/${profilePath}";
-
-  # Each user profile has a companion NixOS module (e.g.
-  # `home/nixos/<name>.nix`) defining its `users.users.<login>` overrides.
-  # Pre-resolve those paths so `modules/user/build.nix` is layout-agnostic.
-  resolveNixosProfile =
-    profilePath:
-    let
-      name = baseNameOf profilePath;
-    in
-    if nixpkgs.lib.hasPrefix "dnf/" profilePath then
-      ./../home/nixos + "/${name}.nix"
-    else
-      workDir + "/usr/home/nixos/${name}.nix";
-
+  # Pre-resolve NixOS-side profile module paths so `modules/user/build.nix`
+  # stays agnostic to the framework/consumer layout.
   userNixosProfiles = nixpkgs.lib.mapAttrs (_login: user: resolveNixosProfile user.profile) users;
 
   # Common args injected as specialArgs / extraSpecialArgs.

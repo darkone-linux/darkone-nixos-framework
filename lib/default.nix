@@ -13,12 +13,14 @@ let
   srv = import ./srv.nix { inherit lib strings constants; };
   security = import ./security.nix { inherit lib; };
   hive = import ./hive.nix { inherit lib; };
+  paths = import ./paths.nix { inherit lib; };
 in
 {
   inherit constants;
   inherit (strings) ucFirst cleanString mkCaddySecurityHeaders;
   inherit (security) mkIsActive levelMapping;
   inherit (hive) getHostArch mkNodeArgs;
+  inherit (paths) resolveProfile resolveNixosProfile;
   inherit (srv)
     findHost
     findService

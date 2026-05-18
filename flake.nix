@@ -56,7 +56,7 @@
       # `mkConfigurations` is the public entry point consumed by consumer
       # flakes (arthur-network, dnf-boilerplate). It closes over the framework
       # `inputs` declared above and only requires the consumer's `workDir`.
-      mkConfigurations = import ./lib/mkConfigurations.nix { inherit inputs; };
+      mkConfigurations = import ./lib/mk-configuration.nix { inherit inputs; };
 
       # Build the framework's own "self" configuration (used by the framework's
       # standalone outputs: ISO images, libTests, devShell). It points at the
