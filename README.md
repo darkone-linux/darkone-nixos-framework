@@ -14,7 +14,7 @@
 
 - 🔥 [Declarative, reproducible, immutable](https://nixos.org/).
 - 🚀 Ready-to-use [modules](https://darkone-linux.github.io/en/ref/modules/).
-- ❄️ Simple [main configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml).
+- ❄️ Simple [main configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/etc/config.yaml).
 - 🧩 Consistent [structure](https://darkone-linux.github.io/en/doc/introduction/#structure).
 - 🌎 A [full network](#one-configuration-for-a-full-network).
 

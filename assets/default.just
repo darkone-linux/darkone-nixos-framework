@@ -180,7 +180,10 @@ _gen-default dir:
 _gen what:
 	#!/usr/bin/env bash
 	just _log "{{what}} file(s)..." "GENERATOR"
-	cd src/generator && cargo run --quiet -- {{what}} > /dev/null
+
+	# Keep CWD on the workspace root so the generator's default `--workdir`
+	# resolves to `{{workDir}}` (and reads `etc/config.yaml` there).
+	cargo run --quiet --manifest-path src/generator/Cargo.toml -- {{what}} > /dev/null
 
 # Launch a "nix develop" with zsh (dev env)
 [group('dev')]
@@ -353,7 +356,7 @@ install host user='nix' ip='auto' do='install':
 	if [ ! -f "./usr/machines/{{host}}/default.nix" ]; then
 		just _log "[ERR] Host installation script not found." >&2
 		just _log "[ERR] Are you sure the host {{host}} exists" >&2
-		just _log "[ERR] and have a disko config in usr/config.yaml?" >&2
+		just _log "[ERR] and have a disko config in etc/config.yaml?" >&2
 		exit 1
 	fi
 	echo "{ }" > ./usr/machines/{{host}}/hardware-configuration.nix
@@ -390,7 +393,7 @@ install-key host:
 	if [ ! -f "./usr/machines/{{host}}/default.nix" ]; then
 		just _log "[ERR] Host configuration not found." >&2
 		just _log "[ERR] Are you sure the host {{host}} exists" >&2
-		just _log "[ERR] and have a disko config in usr/config.yaml?" >&2
+		just _log "[ERR] and have a disko config in etc/config.yaml?" >&2
 		exit 1
 	fi
 	sudo mkdir -p {{dnfInstallDir}}
@@ -413,7 +416,7 @@ install-key host:
 
 # Get a mac address
 _info host:
-	@just _log "You can register the mac address in usr/config.yaml:"
+	@just _log "You can register the mac address in etc/config.yaml:"
 	ssh nix@{{host}} "ip -o link show up | grep -v 'lo:' | head -n 1 | sed 's/^.* \([0-9a-f:]*\) brd .*$/\1/'"
 
 # New host: ssh cp id, extr. hw, clean, commit, apply
@@ -448,7 +451,7 @@ full-install host user='nix' ip='auto':
 	just _log "Last reboot..."
 	colmena exec --on "{{host}}" "nohup bash -c 'sleep 1; systemctl reboot' >/dev/null 2>&1 &"
 	just _done
-	just _log "Don't forget to comment or remove disko config in usr/config.yaml."
+	just _log "Don't forget to comment or remove disko config in etc/config.yaml."
 
 # Update the default DNF password
 [group('install')]

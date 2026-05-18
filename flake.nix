@@ -50,11 +50,7 @@
   #----------------------------------------------------------------------------
 
   outputs =
-    inputs@{
-      self,
-      nixpkgs,
-      ...
-    }:
+    inputs@{ self, nixpkgs, ... }:
     let
 
       # `mkConfigurations` is the public entry point consumed by consumer

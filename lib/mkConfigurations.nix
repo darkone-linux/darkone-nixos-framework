@@ -98,7 +98,12 @@ let
   # `workDir` lets framework modules reference consumer-side files
   # (`usr/secrets/...`, `usr/www/...`) without baking relative paths.
   mkCommonNodeArgs = system: {
-    inherit network users userNixosProfiles workDir;
+    inherit
+      network
+      users
+      userNixosProfiles
+      workDir
+      ;
     pkgs-stable = nixpkgsStableFor.${system};
     dnfLib = mkDnfLib system;
   };
@@ -179,9 +184,9 @@ let
       ++ nixpkgs.lib.optional (
         getHostArch host == "aarch64-linux"
       ) nixos-hardware.nixosModules.raspberry-pi-5
-      ++ nixpkgs.lib.optional (
-        builtins.pathExists (workDir + "/usr/machines/${host.hostname}")
-      ) (workDir + "/usr/machines/${host.hostname}");
+      ++ nixpkgs.lib.optional (builtins.pathExists (workDir + "/usr/machines/${host.hostname}")) (
+        workDir + "/usr/machines/${host.hostname}"
+      );
     };
   };
 

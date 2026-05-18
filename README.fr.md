@@ -81,7 +81,7 @@ Notre réseau local est une bulle sécurisée composée de "nœuds" (ordinateurs
 
 - 🔥 [Déclaratif, reproductible, immuable](https://nixos.org/).
 - 🚀 [Modules](https://darkone-linux.github.io/ref/modules/) prêts à l’emploi.
-- ❄️ [Configuration](https://github.com/darkone-linux/darkone-nixos-framework/blob/main/usr/config.yaml) simple.
+- ❄️ **Configuration** (link todo) simple.
 - 🧩 [Organisation](https://darkone-linux.github.io/doc/introduction/#structure) cohérente.
 - 🌎 Un [réseau complet](#une-configuration-pour-un-réseau-complet).
 
@@ -175,11 +175,11 @@ just clean
 
 ![Darkone NixOS Framework Generator](doc/src/assets/arch.webp)
 
-Son rôle est de générer une configuration statique pure à partir d'une définition de machines (hosts), utilisateurs et groupes en provenance de diverses sources (déclarations statiques, ldap, etc. configurées dans `usr/config.yaml`). La configuration nix générée est intégrée au dépôt afin d'être fixée et utilisée par le flake.
+Son rôle est de générer une configuration statique pure à partir d'une définition de machines (hosts), utilisateurs et groupes en provenance de diverses sources (déclarations statiques, ldap, etc. configurées dans `etc/config.yaml`). La configuration nix générée est intégrée au dépôt afin d'être fixée et utilisée par le flake.
 
 ## Exemples
 
-Un poste "administrateur pour ordinateur portable" complet déclaré dans `usr/config.yaml` :
+Un poste "administrateur pour ordinateur portable" complet déclaré dans `etc/config.yaml` :
 
 ```yaml
 hosts:

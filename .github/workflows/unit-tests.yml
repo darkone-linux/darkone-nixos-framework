@@ -4,12 +4,12 @@ on:
   push:
     branches: [main]
     paths:
-      - "dnf/lib/**"
-      - "dnf/tests/unit/**"
+      - "lib/**"
+      - "tests/unit/**"
   pull_request:
     paths:
-      - "dnf/lib/**"
-      - "dnf/tests/unit/**"
+      - "lib/**"
+      - "tests/unit/**"
 
 jobs:
   unit-tests:
