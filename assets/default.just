@@ -831,10 +831,30 @@ git-status on="all":
 git-diff on="all":
 	just git "diff" {{on}} "Diff of"
 
-# Git push for one or all projects
+# Git push for one or all projects — check ahead before pushing
 [group('dev')]
 git-push on="all":
-	just git "push" {{on}} "Pushing"
+	#!/usr/bin/env bash
+	set -euo pipefail
+
+	if [ "{{on}}" == "all" ]; then
+		while IFS= read -r repo; do
+			[ -z "$repo" ] && continue
+			just git-push "$repo"
+		done <<< "{{repos}}"
+	else
+		if [ ! -d "{{on}}/.git" ]; then
+			just _fail "Project '{{on}}' do not exists!";
+		fi
+		if ! upstream=$(git -C {{on}} rev-parse --abbrev-ref @{u} 2>/dev/null); then
+			just _info "No upstream branch — set one with 'git push -u origin HEAD'" "GIT"
+		elif [ "$(git -C {{on}} rev-list --count @{u}..HEAD 2>/dev/null || echo 0)" -eq 0 ]; then
+			just _info "Nothing to push on {{on}}/" "GIT"
+		else
+			just _log "Pushing {{on}}/" "GIT"
+			git -C {{on}} push
+		fi
+	fi
 
 # Git pull for one or all projects
 [group('dev')]
