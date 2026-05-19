@@ -323,9 +323,12 @@ copy-id host:
 enter on:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just enter "{{on}}"
 	just _log "Entering {{on}}..." "SSH"
-	ssh nix@{{on}}
+	if [ "${USER:-}" = "nix" ]; then
+		sudo -i -u nix ssh nix@{{on}}
+	else
+		ssh nix@{{on}}
+	fi
 
 # Confirmation prompt is inlined (rather than via the `[confirm]` attribute)
 # so it fires only once, after the sudo re-exec (stdin is preserved by sudo).
