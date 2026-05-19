@@ -229,7 +229,7 @@ _gen-default dir:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	if [ ! -d "{{dir}}" ] ;then
-		just _log "Skipping unknown directory {{dir}}..."
+		just _info "Skipping unknown directory {{dir}}..."
 	else
 		just _log "{{dir}} ➜ default.nix..." "GENERATOR"
 		cd {{dir}}
@@ -280,6 +280,7 @@ update-dnf:
 	# Release mode (no dnf/ checkout): framework pinned to a remote rev, nothing
 	# local to track — leave the lock untouched.
 	if [ ! -d "{{workDir}}/dnf/.git" ]; then
+		just _info "No dnf/ checkout — leaving lock untouched." "FLAKE"
 		exit 0
 	fi
 	cd {{workDir}}
@@ -291,7 +292,7 @@ update-dnf:
 		just _warn "dnf/ has uncommitted changes — commit them before apply to deploy them."
 	fi
 	if [ "$locked" = "$head" ]; then
-		just _log "dnf lock already up to date." "FLAKE"
+		just _info "dnf lock already up to date." "FLAKE"
 	else
 		just _log "Refreshing dnf lock..." "FLAKE"
 		{{nix}} flake update dnf
@@ -394,21 +395,15 @@ configure-admin-host:
 		just _log "Creating nix keys..." "SSH"
 		ssh-keygen -t ed25519 -N ""
 	else
-		just _log "Maintenance key already exists." "SSH"
+		just _info "Maintenance key already exists." "SSH"
 	fi
-	# usr/secrets/ must exist before anything else: _sops_before_edit is a
-	# no-op while the dir is missing, and the rest of the recipe writes
-	# into it (cp nix.pub, age-keygen, sops.yaml...). sudo lets nix
-	# traverse usr/ (darkone-owned on a fresh checkout); we hand the new
-	# dir to nix immediately so subsequent writes don't need sudo.
-	# _fix_fs_permissions (end of recipe) restores ownership.
 	if [ ! -f {{secretsGitIgnore}} ] ;then
 		just _log "Creating usr/secrets directory + gitignore..." "SOPS"
 		sudo mkdir -p {{secretsDir}}
 		sudo chown nix {{secretsDir}}
 		echo '*.key' > {{secretsGitIgnore}}
 	else
-		just _log "usr/secrets/.gitignore file already exists." "SOPS"
+		just _info "usr/secrets/.gitignore file already exists." "SOPS"
 	fi
 	just _sops_before_edit
 	if [ ! -f "{{secretsDir}}/nix.pub" ] ;then
@@ -418,24 +413,21 @@ configure-admin-host:
 			cp "$HOME/.ssh/id_ed25519.pub" "{{secretsDir}}/nix.pub"
 		fi
 	else
-		just _log "Public key {{secretsDir}}/nix.pub already exists." "SSH"
+		just _info "Public key {{secretsDir}}/nix.pub already exists." "SSH"
 	fi
-	# -s (et pas -f) : si le fichier existe mais est vide, on retente. C'est
-	# le piège du run précédent où la redirection `> file` truncate avant
-	# que ssh-to-age tourne ; si ssh-to-age échoue, le fichier reste à 0
-	# octets et le check -f le considère "déjà là".
 	if [ ! -s {{sopsAdminKeyFile}} ] ;then
+		just _log "Admin key do not exists or is empty." "SOPS"
 		just _log "Admin key file creation from ssh private key..." "SOPS"
 		mkdir -p {{sopsAdminKeyDir}}
 		ssh-to-age -private-key -i "$HOME/.ssh/id_ed25519" -o {{sopsAdminKeyFile}}
 	else
-		just _log "Admin key file already exists." "SOPS"
+		just _info "Admin key file already exists." "SOPS"
 	fi
 	if [ ! -f {{sopsInfraKeyFile}} ] ;then
 		just _log "Infra private key file generation..." "SOPS"
 		age-keygen -o {{sopsInfraKeyFile}}
 	else
-		just _log "Infra key file already exists." "SOPS"
+		just _info "Infra key file already exists." "SOPS"
 	fi
 	if [ ! -f {{sopsYamlFile}} ] ;then
 		just _log "[SOPS] .sops.yaml file generation..."
@@ -457,14 +449,14 @@ configure-admin-host:
 		echo "      - *nix" >> {{sopsYamlFile}}
 		echo "      - *infra" >> {{sopsYamlFile}}
 	else
-		just _log ".sops.yaml file already exists." "SOPS"
+		just _info ".sops.yaml file already exists." "SOPS"
 	fi
 	if [ ! -f {{sopsSecretsFile}} ] ;then
 		just _log "We need a default password..." "SOPS"
 		just passwd-default
 		just push-key localhost
 	else
-		just _log "Default secret file already exists." "SOPS"
+		just _info "Default secret file already exists." "SOPS"
 	fi
 	just _fix_fs_permissions
 	just _done
