@@ -110,6 +110,20 @@ unit-tests:
 	just _log "Running unit tests..." "TESTS"
 	nix-unit --gc-roots-dir /tmp --flake .#libTests
 
+# Run L2 simulation tests (NixOS Test Driver).
+# With no argument: runs all scenarios via `nix flake check`.
+# With an argument: runs a single named scenario (e.g. `just simulate console-git`).
+[group('check')]
+simulate what="":
+	#!/usr/bin/env bash
+	just _log "Running simulation tests..." "SIMULATE"
+	if [ -z "{{what}}" ]; then
+		{{nix}} flake check --quiet
+	else
+		system=$({{nix}} eval --raw --impure --expr 'builtins.currentSystem')
+		{{nix}} build ".#checks.${system}.{{what}}" --no-link
+	fi
+
 #==============================================================================
 # Development
 #==============================================================================

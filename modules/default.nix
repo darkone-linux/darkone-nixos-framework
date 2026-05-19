@@ -75,6 +75,7 @@
     ./system/services.nix
     ./system/sops.nix
     ./system/srv-dirs.nix
+    ./system/testing.nix
     ./user/build.nix
     ./user/root.nix
   ];
