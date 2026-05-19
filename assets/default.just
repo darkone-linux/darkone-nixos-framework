@@ -196,6 +196,12 @@ cat host='':
 	set -euo pipefail
 	just clean
 	just amend
+
+	# Refresh the dnf lock to the freshly amended framework HEAD, then fold the
+	# updated flake.lock into the arthur-network commit so the deployed tree
+	# stays clean and reproducible.
+	just update-dnf
+	just amend
 	if [ "{{host}}" == "" ] ;then
 		just apply-local test
 	else
@@ -264,6 +270,32 @@ _gen what:
 develop:
 	@just _log "Launching nix develop with zsh..."
 	{{nix}} develop -c zsh
+
+# Refresh flake.lock's dnf input to the framework's HEAD (co-dev)
+[group('dev')]
+update-dnf:
+	#!/usr/bin/env bash
+	set -euo pipefail
+
+	# Release mode (no dnf/ checkout): framework pinned to a remote rev, nothing
+	# local to track — leave the lock untouched.
+	if [ ! -d "{{workDir}}/dnf/.git" ]; then
+		exit 0
+	fi
+	cd {{workDir}}
+	head=$(git -C dnf rev-parse HEAD)
+	locked=$({{nix}} eval --raw --impure --expr '(builtins.fromJSON (builtins.readFile "{{workDir}}/flake.lock")).nodes.dnf.locked.rev or ""' 2>/dev/null || echo "")
+
+	# git+file: only deploys committed state; warn so dirty edits aren't silently skipped.
+	if ! git -C dnf diff --quiet || ! git -C dnf diff --cached --quiet; then
+		just _warn "dnf/ has uncommitted changes — commit them before apply to deploy them."
+	fi
+	if [ "$locked" = "$head" ]; then
+		just _log "dnf lock already up to date." "FLAKE"
+	else
+		just _log "Refreshing dnf lock..." "FLAKE"
+		{{nix}} flake update dnf
+	fi
 
 # Copy pub key to the node (nix user must exist)
 [group('install')]
@@ -697,6 +729,9 @@ sops:
 apply on what='switch':
 	#!/usr/bin/env bash
 	set -euo pipefail
+
+	# Co-dev: pick up committed framework changes before building.
+	just update-dnf
 	just _log "Applying nix configuration on {{on}} ({{what}})..."
 	sudo -u nix colmena apply --build-on-target --on "{{on}}" {{what}}
 
@@ -705,6 +740,10 @@ apply on what='switch':
 apply-verbose on what='switch':
 	#!/usr/bin/env bash
 	set -euo pipefail
+
+	# Refresh as the original caller so flake.lock stays workspace-owned;
+	# the post-sudo re-run is a no-op since the lock then matches HEAD.
+	just update-dnf
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just apply-verbose "{{on}}" "{{what}}"
 	just _log "Applying (verbose) nix configuration on {{on}} ({{what}})..."
 	colmena apply --build-on-target --verbose --show-trace --on "{{on}}" {{what}}
@@ -714,6 +753,9 @@ apply-verbose on what='switch':
 apply-local what='switch':
 	#!/usr/bin/env bash
 	set -euo pipefail
+
+	# Co-dev: pick up committed framework changes before building.
+	just update-dnf
 	just _log "Applying locally ({{what}})..."
 	colmena apply-local --sudo {{what}}
 
