@@ -196,13 +196,25 @@ _gen-default dir:
 	fi
 
 # Generate var/generated/*.nix files
+#
+# Two execution paths, picked at runtime:
+#  - Co-dev (sources on disk + cargo available): `cargo run` keeps the fast
+#    incremental compile loop used while hacking on the generator.
+#  - Release (no local checkout): fall back to the `dnf-generator` binary
+#    provided by the framework devShell (`nix develop github:.../#default`).
 _gen what:
 	#!/usr/bin/env bash
 	just _log "{{what}} file(s)..." "GENERATOR"
 
 	# Keep CWD on the workspace root so the generator's default `--workdir`
 	# resolves to `{{workDir}}` (and reads `etc/config.yaml` there).
-	cargo run --quiet --manifest-path src/generator/Cargo.toml -- {{what}} > /dev/null
+	if [ -f src/generator/Cargo.toml ] && command -v cargo >/dev/null 2>&1; then
+		cargo run --quiet --manifest-path src/generator/Cargo.toml -- {{what}} > /dev/null
+	elif command -v dnf-generator >/dev/null 2>&1; then
+		dnf-generator {{what}} > /dev/null
+	else
+		just _fail "Generator unavailable: enter 'nix develop github:darkone-linux/darkone-nixos-framework' or provide src/generator/"
+	fi
 
 # Launch a "nix develop" with zsh (dev env)
 [group('dev')]

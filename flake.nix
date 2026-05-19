@@ -43,6 +43,13 @@
     };
 
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
+
+    # Rust generator (`dnf-generator`). Default points at the public release
+    # repo; consumers in co-dev (arthur-network) can override with a path or
+    # `git+file://` URL to pick up local changes:
+    #   --override-input dnf/dnf-generator path:./src/generator
+    dnf-generator.url = "github:darkone-linux/dnf-generator";
+    dnf-generator.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   #----------------------------------------------------------------------------
@@ -124,6 +131,66 @@
         }) supportedSystems
       );
 
+      #------------------------------------------------------------------------
+      # PACKAGES
+      #------------------------------------------------------------------------
+      #
+      # Surface artefacts consumers fetch without a local checkout of the
+      # framework. `dnf-generator` re-exposes the Rust binary built by the
+      # `dnf-generator` flake input. `assets` packages the shared Justfile
+      # recipes (`assets/default.just`) so a consumer can symlink them into
+      # `.dnf/` via `nix run .#init` and then `import? '.dnf/default.just'`
+      # from its own Justfile.
+
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
+        in
+        {
+          dnf-generator = inputs.dnf-generator.packages.${system}.default;
+
+          assets = pkgs.runCommand "dnf-assets" { } ''
+            mkdir -p $out
+            cp -r ${./assets}/. $out/
+          '';
+        }
+      );
+
+      #------------------------------------------------------------------------
+      # APPS
+      #------------------------------------------------------------------------
+      #
+      # `init` materialises the `assets` derivation as a `.dnf/` symlink in
+      # the consumer's workspace. Required because `just` resolves `import`
+      # paths statically at parse time — there is no shell substitution that
+      # could fetch the store path on the fly.
+      #
+      # Usage from a consumer project:
+      #   nix run github:darkone-linux/darkone-nixos-framework#init
+
+      apps = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          init = {
+            type = "app";
+            program = toString (
+              pkgs.writeShellScript "dnf-init" ''
+                set -euo pipefail
+                ln -sfn ${self.packages.${system}.assets} .dnf
+                echo "Linked .dnf -> $(readlink .dnf)"
+              ''
+            );
+          };
+        }
+      );
+
       # Unit tests — run with: nix-unit --flake .#libTests
       libTests = import ./tests/unit { inherit (nixpkgs) lib; };
 
@@ -162,7 +229,10 @@
         in
         {
           default = pkgs.mkShell {
-            packages = with pkgs; [
+            packages = [
+              self.packages.${system}.dnf-generator
+            ]
+            ++ (with pkgs; [
               age
               cargo
               colmena
@@ -179,7 +249,7 @@
               statix
               yq
               zsh
-            ];
+            ]);
             shellHook = "exec zsh";
           };
         }
