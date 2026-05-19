@@ -7,6 +7,8 @@
 # — i.e. the consumer's workspace when imported, or `dnf/` when invoked
 # standalone for framework-only checks (unit-tests, check-flake, ...).
 
+# TODO: Edge case à surveiller : install et install-key appellent en interne just clean qui édite des fichiers du repo. Comme l'appel se fait après le sudo, clean tourne sous nix → si tes fichiers sont owned-dev sans group-write, ça échouera. Si tu vois ce cas, soit retirer just clean de ces recettes (le dev clean avant), soit assouplir les permissions du repo. Je n'ai pas touché à ça pour rester minimaliste.
+
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 workDir := justfile_directory()
@@ -64,13 +66,12 @@ _fail msg:
 	@just _err "{{msg}}"
 	@exit 1
 
-# Check if we are an infra admin host
+# Check that the infra age key is present on this host. Called by admin
+# recipes that have already auto-switched to the `nix` user, so the
+# previous `USER == nix` guard is now redundant (only the file check remains).
 _check_infra_admin:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	if [ "${USER:-}" != "nix" ] ;then
-		just _fail "Please execute this command with the 'nix' user."
-	fi
 	if [ ! -f {{sopsInfraKeyFile}} ] ;then
 		just _err "Infra private key not found, you must do that from the admin host."
 		just _fail "If you are on the admin host, type 'just install-admin-host' before."
@@ -191,10 +192,12 @@ develop:
 	@just _log "Launching nix develop with zsh..."
 	{{nix}} develop -c zsh
 
-# Copy pub key to the node (nix user must exists)
+# Copy pub key to the node (nix user must exist)
 [group('install')]
 copy-id host:
 	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just copy-id "{{host}}"
 	just _log "Copying id to {{host}}..." "SSH"
 	ssh-keygen -R {{host}}
 	ssh-copy-id -o StrictHostKeyChecking=no -f nix@{{host}}
@@ -205,43 +208,71 @@ copy-id host:
 #==============================================================================
 # Maintenance
 #==============================================================================
+#
+# Same auto-switch pattern as the apply group: each recipe re-execs itself
+# under the `nix` user when the caller is somebody else.
 
 # Interactive shell to the host
 [group('manage')]
 enter on:
-	@just _log "Entering {{on}}..." "SSH"
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just enter "{{on}}"
+	just _log "Entering {{on}}..." "SSH"
 	ssh nix@{{on}}
 
+# Confirmation prompt is inlined (rather than via the `[confirm]` attribute)
+# so it fires only once, after the sudo re-exec (stdin is preserved by sudo).
+#
 # Multi-reboot (using colmena)
 [group('manage')]
-[confirm]
 reboot on:
-	@just _log "Rebooting {{on}}..."
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just reboot "{{on}}"
+	read -p "Are you sure to reboot {{on}}? (y/N) " ans
+	[ "$ans" = "y" ] || { just _log "Aborted." "REBOOT"; exit 1; }
+	just _log "Rebooting {{on}}..."
 	colmena exec --on "{{on}}" "nohup bash -c 'sleep 1; sudo systemctl reboot -i' >/dev/null 2>&1 &"
 
-# Multi-alt (using colmena)
+# Same single-prompt pattern as `reboot`.
+#
+# Multi-halt (using colmena)
 [group('manage')]
-[confirm]
 halt on:
-	@just _log "Halting {{on}}..."
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just halt "{{on}}"
+	read -p "Are you sure to halt {{on}}? (y/N) " ans
+	[ "$ans" = "y" ] || { just _log "Aborted." "HALT"; exit 1; }
+	just _log "Halting {{on}}..."
 	colmena exec --on "{{on}}" "nohup bash -c 'sleep 1; sudo systemctl poweroff -i' >/dev/null 2>&1 &"
 
 # Remove zshrc bkp to avoid error when replacing zshrc
 [group('manage')]
 fix-zsh on:
-	@just _log "Fixing ZSH on {{on}}..."
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just fix-zsh "{{on}}"
+	just _log "Fixing ZSH on {{on}}..."
 	colmena exec --on "{{on}}" "rm -f .zshrc.bkp"
 
 # Multi garbage collector (using colmena)
 [group('manage')]
 gc on:
-	@just _log "Garbage collecting on {{on}}..."
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just gc "{{on}}"
+	just _log "Garbage collecting on {{on}}..."
 	colmena exec --on "{{on}}" "sudo nix-collect-garbage -d && sudo /run/current-system/bin/switch-to-configuration boot"
 
 # Multi-reinstall bootloader (using colmena)
 [group('manage')]
 fix-boot on:
-	@just _log "Fixing boot of {{on}}..."
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just fix-boot "{{on}}"
+	just _log "Fixing boot of {{on}}..."
 	colmena exec --on "{{on}}" "sudo NIXOS_INSTALL_BOOTLOADER=1 /nix/var/nix/profiles/system/bin/switch-to-configuration boot"
 
 #==============================================================================
@@ -253,9 +284,7 @@ fix-boot on:
 configure-admin-host:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	if [ "${USER:-}" != "nix" ]; then
-		just _fail "Only nix user can install and manage DNF configuration."
-	fi
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just configure-admin-host
 	if [ ! -f "$HOME/.ssh/id_ed25519" ] ;then
 		just _log "Creating nix keys..." "SSH"
 		ssh-keygen -t ed25519 -N ""
@@ -327,6 +356,8 @@ configure-admin-host:
 [group('install')]
 copy-hw host:
 	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just copy-hw "{{host}}"
 	just _log "Extracting hardware information..."
 	mkdir -p usr/machines/{{host}}
 	ssh nix@{{host}} "sudo nixos-generate-config --no-filesystems --show-hardware-config" > usr/machines/{{host}}/hardware-configuration.nix
@@ -336,6 +367,7 @@ copy-hw host:
 push-key host:
 	#!/usr/bin/env bash
 	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just push-key "{{host}}"
 	just _check_infra_admin
 	just _log "Pushing infra key file..." "SOPS"
 	ssh nix@{{host}} 'sudo mkdir -p {{sopsInfraTargetDir}}'
@@ -344,12 +376,17 @@ push-key host:
 	ssh nix@{{host}} 'sudo chown -R root {{sopsInfraTargetDir}}'
 	ssh nix@{{host}} 'sudo chmod 600 {{sopsInfraTargetFile}}'
 
+# Confirmation prompt is inlined (instead of using the `[confirm]` attribute)
+# so it fires only once, after the sudo re-exec.
+#
 # New host: format with nixos-everywhere + disko
 [group('install')]
-[confirm('Are you sure to format disks and install a new system? (y/N)')]
 install host user='nix' ip='auto' do='install':
 	#!/usr/bin/env bash
 	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just install "{{host}}" "{{user}}" "{{ip}}" "{{do}}"
+	read -p "Are you sure to format disks and install a new system? (y/N) " ans
+	[ "$ans" = "y" ] || { just _log "Aborted." "INSTALL"; exit 1; }
 	just _check_infra_admin
 	just clean
 	just _log "Preparation..."
@@ -382,12 +419,16 @@ install host user='nix' ip='auto' do='install':
 	fi;
 	just _log "Now you can test nix@{{host}} and run 'just configure {{host}}'"
 
-# New host: format with nixos-everywhere + disko
+# Inlined confirmation, same rationale as `install`.
+#
+# Format a USB key (or local device) with disko and install NixOS on it
 [group('install')]
-[confirm('Are you sure to format the device and install a new system? (y/N)')]
 install-key host:
 	#!/usr/bin/env bash
 	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just install-key "{{host}}"
+	read -p "Are you sure to format the device and install a new system? (y/N) " ans
+	[ "$ans" = "y" ] || { just _log "Aborted." "INSTALL-KEY"; exit 1; }
 	just _check_infra_admin
 	just _log "Preparation..."
 	if [ ! -f "./usr/machines/{{host}}/default.nix" ]; then
@@ -419,24 +460,31 @@ _info host:
 	@just _log "You can register the mac address in etc/config.yaml:"
 	ssh nix@{{host}} "ip -o link show up | grep -v 'lo:' | head -n 1 | sed 's/^.* \([0-9a-f:]*\) brd .*$/\1/'"
 
-# New host: ssh cp id, extr. hw, clean, commit, apply
+# Auto-switching here means the chained `copy-id` / `copy-hw` / `push-key`
+# already inherit the nix user — their own guards short-circuit cleanly.
+#
+# New host: ssh cp id, extr. hw, push infra key, clean, info
 [group('install')]
 configure host:
-	@just _check_infra_admin
-	@just copy-id {{host}}
-	@just copy-hw {{host}}
-	@just push-key {{host}}
-	@just clean
-	@just _log "If not error occurs, do not forget to commit and apply:"
-	@just _log "git add . && git commit -m 'Installing new host {{host}}'"
-	@just _log "just apply-verbose {{host}}"
-	@just _info {{host}}
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just configure "{{host}}"
+	just _check_infra_admin
+	just copy-id "{{host}}"
+	just copy-hw "{{host}}"
+	just push-key "{{host}}"
+	just clean
+	just _log "If no error occurs, do not forget to commit and apply:"
+	just _log "git add . && git commit -m 'Installing new host {{host}}'"
+	just _log "just apply-verbose {{host}}"
+	just _info "{{host}}"
 
 # New host: full installation (install, configure, apply)
 [group('install')]
 full-install host user='nix' ip='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just full-install "{{host}}" "{{user}}" "{{ip}}"
 	just install {{host}} {{user}} {{ip}}
 	just _log "Waiting for reboot..."
 	until ping -c1 -W1 {{host}} >/dev/null 2>&1; do sleep 1; done; echo "Oh, {{host}} is up, waiting 2s and continue... :)"
@@ -458,6 +506,7 @@ full-install host user='nix' ip='auto':
 passwd-default:
 	#!/usr/bin/env bash
 	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd-default
 	cd {{secretsDir}}
 	echo -n "New default DNF password: "
 	read -s PASSWORD
@@ -489,6 +538,7 @@ passwd-default:
 passwd user:
 	#!/usr/bin/env bash
 	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd "{{user}}"
 	if [ ! -f {{sopsSecretsFile}} ] ;then
 		echo "No secrets sops file found, run 'just install-admin-host' before."
 		exit 1
@@ -520,24 +570,37 @@ build-iso arch="x86_64-linux":
 #==============================================================================
 # Apply (colmena)
 #==============================================================================
+#
+# Admin recipes auto-switch to the `nix` user (which owns the SSH keys and
+# SOPS infra key) via `exec sudo -u nix just <recipe>`. The guard short-
+# circuits the original shell so the body never runs under the caller's
+# user when it isn't nix.
+#
 # TODO: Binary cache keys + remove --build-on-target -> https://nixos.wiki/wiki/Binary_Cache
 
 # Apply configuration using colmena
 [group('apply')]
 apply on what='switch':
-	@just _log "Applying nix configuration on {{on}} ({{what}})..."
-	colmena apply --build-on-target --on "{{on}}" {{what}}
+	#!/usr/bin/env bash
+	set -euo pipefail
+	just _log "Applying nix configuration on {{on}} ({{what}})..."
+	sudo -u nix colmena apply --build-on-target --on "{{on}}" {{what}}
 
 # Apply force with verbose options
 [group('apply')]
 apply-verbose on what='switch':
-	@just _log "Applying (verbose) nix configuration on {{on}} ({{what}})..."
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just apply-verbose "{{on}}" "{{what}}"
+	just _log "Applying (verbose) nix configuration on {{on}} ({{what}})..."
 	colmena apply --build-on-target --verbose --show-trace --on "{{on}}" {{what}}
 
 # Apply the local host configuration
 [group('apply')]
 apply-local what='switch':
-	@just _log "Applying locally ({{what}})..."
+	#!/usr/bin/env bash
+	set -euo pipefail
+	just _log "Applying locally ({{what}})..."
 	colmena apply-local --sudo {{what}}
 
 #==============================================================================
