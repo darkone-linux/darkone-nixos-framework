@@ -360,6 +360,20 @@ configure-admin-host:
 	else
 		just _log "Maintenance key already exists." "SSH"
 	fi
+	# usr/secrets/ must exist before anything else: _sops_before_edit is a
+	# no-op while the dir is missing, and the rest of the recipe writes
+	# into it (cp nix.pub, age-keygen, sops.yaml...). sudo lets nix
+	# traverse usr/ (darkone-owned on a fresh checkout); we hand the new
+	# dir to nix immediately so subsequent writes don't need sudo.
+	# _fix_fs_permissions (end of recipe) restores ownership.
+	if [ ! -f {{secretsGitIgnore}} ] ;then
+		just _log "Creating usr/secrets directory + gitignore..." "SOPS"
+		sudo mkdir -p {{secretsDir}}
+		sudo chown nix {{secretsDir}}
+		echo '*.key' > {{secretsGitIgnore}}
+	else
+		just _log "usr/secrets/.gitignore file already exists." "SOPS"
+	fi
 	just _sops_before_edit
 	if [ ! -f "{{secretsDir}}/nix.pub" ] ;then
 		if [ ! -f "$HOME/.ssh/id_ed25519.pub" ] ;then
@@ -369,13 +383,6 @@ configure-admin-host:
 		fi
 	else
 		just _log "Public key {{secretsDir}}/nix.pub already exists." "SSH"
-	fi
-	if [ ! -f {{secretsGitIgnore}} ] ;then
-		just _log "Creating usr/secrets directory + gitignore..." "SOPS"
-		mkdir -p {{secretsDir}}
-		echo '*.key' > {{secretsGitIgnore}}
-	else
-		just _log "usr/secrets/.gitignore file already exists." "SOPS"
 	fi
 	if [ ! -f {{sopsAdminKeyFile}} ] ;then
 		just _log "Admin key file creation from ssh private key..." "SOPS"
@@ -588,16 +595,23 @@ passwd-default:
 	else
 		echo "{}" >> {{sopsSecretsFile}}
 	fi
-	just _log "2..." "SOPS"
 	yq -y --arg pw "$PASSWORD" '."default-password" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
 	BCRYPT_HASH=$(mkpasswd --method=bcrypt --rounds=12 "$PASSWORD")
 	yq -y --arg pw "$BCRYPT_HASH" '."default-password-hash" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
-	just _log "3..." "SOPS"
 	sops -e -i {{sopsSecretsFile}}
+
+	# var/generated/ is owned by the workspace user (generator output, committed
+	# to git). sponge does an atomic rename and needs write access on the parent
+	# dir, not just on the file. Hand both to nix for the duration of the write;
+	# _fix_fs_permissions (below) restores ownership via --reference=. at the end.
+	sudo mkdir -p "$(dirname {{generatedConfigFile}})"
+	sudo chown nix "$(dirname {{generatedConfigFile}})"
+	if [ -f {{generatedConfigFile}} ] ;then
+		sudo chown nix {{generatedConfigFile}}
+	fi
 	if [ ! -f {{generatedConfigFile}} ] ;then
 		echo "{}" >> {{generatedConfigFile}}
 	fi
-	just _log "4..." "SOPS"
 	yq -y --arg pw "$BCRYPT_HASH" '.network.default."password-hash" = $pw' {{generatedConfigFile}} | sponge {{generatedConfigFile}}
 	just _fix_fs_permissions
 	just _log "Password updated, don't forget to deploy" "SOPS"
@@ -622,11 +636,20 @@ passwd user:
 	if [ "$PASSWORD" != "$PASSWORD_CONFIRM" ]; then
 		just _fail "Error: not corresponding."
 	fi
+
+	# sops -i and sponge both do an atomic rename inside usr/secrets/, which
+	# is darkone-owned in the default state. _sops_before_edit chowns it to
+	# nix for the duration of the edit; _fix_fs_permissions restores at the
+	# end. Same export as passwd-default so sops can decrypt without relying
+	# on the ambient ~/.config/sops/age key.
+	just _sops_before_edit
+	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
 	just _log "Updating {{user}} password..." "SOPS"
 	HASH=$(mkpasswd -m sha-512 "$PASSWORD")
 	sops -d -i {{sopsSecretsFile}}
 	yq -y --arg pw "$HASH" '.user."{{user}}"."password-hash" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
 	sops -e -i {{sopsSecretsFile}}
+	just _fix_fs_permissions
 	just _log "OK, password updated for {{user}}" "SOPS"
 	just _log "Now deploy with 'just apply @user-{{user}}'" "SOPS"
 
