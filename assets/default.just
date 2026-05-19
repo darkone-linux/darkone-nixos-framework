@@ -90,6 +90,27 @@ _check_infra_admin:
 		just _fail "If you are on the admin host, type 'just install-admin-host' before."
 	fi
 
+_fix_fs_permissions:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	just _log "Fixing filesystem permissions..." "FS"
+	sudo chown -R --reference=. .
+	if [ -d {{secretsDir}} ] ;then
+		sudo chown nix {{secretsDir}}/*.key
+		sudo chmod 600 {{secretsDir}}/*.key
+	fi
+
+_sops_before_edit:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	just _log "Switch permissions for secrets..." "SOPS"
+	if [ -d {{secretsDir}} ] ;then
+		sudo chown -R nix {{secretsDir}}
+	fi
+	if [ -f {{sopsSecretsFile}} ] ;then
+		sudo chmod 600 {{sopsSecretsFile}}
+	fi
+
 #==============================================================================
 # Check
 #==============================================================================
@@ -146,7 +167,7 @@ simulate what="":
 
 # format: fix + check + generate + format
 [group('dev')]
-clean: fix check generate format
+clean: fix check generate format _fix_fs_permissions
 
 # Recursive nixfmt on all nix files
 [group('dev')]
@@ -339,6 +360,7 @@ configure-admin-host:
 	else
 		just _log "Maintenance key already exists." "SSH"
 	fi
+	just _sops_before_edit
 	if [ ! -f "{{secretsDir}}/nix.pub" ] ;then
 		if [ ! -f "$HOME/.ssh/id_ed25519.pub" ] ;then
 			just _fail "Nix user public key not found!" "SSH"
@@ -392,6 +414,7 @@ configure-admin-host:
 	else
 		just _log "Default secret file already exists." "SOPS"
 	fi
+	just _fix_fs_permissions
 	just _done
 
 # Extract hardware config from host
@@ -403,6 +426,7 @@ copy-hw host:
 	just _log "Extracting hardware information..."
 	mkdir -p usr/machines/{{host}}
 	ssh nix@{{host}} "sudo nixos-generate-config --no-filesystems --show-hardware-config" > usr/machines/{{host}}/hardware-configuration.nix
+	just _fix_fs_permissions
 
 # Push the infrastructure key to the host
 [group('install')]
@@ -441,6 +465,7 @@ install host user='nix' ip='auto' do='install':
 	else
 		TARGET_HOST="{{ip}}"
 	fi
+	just _fix_fs_permissions
 	just _log "We need to add, commit and build..."
 	git add . && (git diff --cached --quiet || git commit -m "New host {{host}} dnf installation") && git reset
 	just _log "Launching installation ({{do}})..."
@@ -478,6 +503,7 @@ install-key host:
 	just _log "Hardware configuration for usb key..."
 	echo "_:{imports=[./../../../dnf/hosts/templates/hardware-usb-key.nix];}" > ./usr/machines/{{host}}/hardware-configuration.nix
 	just clean
+	just _fix_fs_permissions
 	just _log "We need to add, commit and build..."
 	git add . && (git diff --cached --quiet || git commit -m "New host {{host}} dnf installation") && git reset
 	just _log "Launching format with disko..."
@@ -527,6 +553,7 @@ full-install host user='nix' ip='auto':
 	sleep 2
 	just configure {{host}}
 	just _log "Let's do that automatically..."
+	just _fix_fs_permissions
 	just _log "Adding and committing (amend)..." "GIT"
 	git add . && (git diff --cached --quiet || git commit --amend --no-edit --allow-empty) && git reset
 	just apply-verbose {{host}}
@@ -553,20 +580,26 @@ passwd-default:
 	if [ "$PASSWORD" != "$PASSWORD_CONFIRM" ]; then
 		just _fail "Error: not corresponding."
 	fi
+	just _sops_before_edit
+	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
 	just _log "Updating default password..." "SOPS"
 	if [ -f {{sopsSecretsFile}} ] ;then
 		sops -d -i {{sopsSecretsFile}}
 	else
 		echo "{}" >> {{sopsSecretsFile}}
 	fi
+	just _log "2..." "SOPS"
 	yq -y --arg pw "$PASSWORD" '."default-password" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
 	BCRYPT_HASH=$(mkpasswd --method=bcrypt --rounds=12 "$PASSWORD")
 	yq -y --arg pw "$BCRYPT_HASH" '."default-password-hash" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
+	just _log "3..." "SOPS"
 	sops -e -i {{sopsSecretsFile}}
 	if [ ! -f {{generatedConfigFile}} ] ;then
 		echo "{}" >> {{generatedConfigFile}}
 	fi
+	just _log "4..." "SOPS"
 	yq -y --arg pw "$BCRYPT_HASH" '.network.default."password-hash" = $pw' {{generatedConfigFile}} | sponge {{generatedConfigFile}}
+	just _fix_fs_permissions
 	just _log "Password updated, don't forget to deploy" "SOPS"
 
 # Update a user password
@@ -602,6 +635,15 @@ passwd user:
 build-iso arch="x86_64-linux":
 	@just _log "Building local DNF ISO image..."
 	{{nix}} build .#nixosConfigurations.iso-{{arch}}.config.system.build.isoImage
+
+# Edit sops secrets
+[group('install')]
+sops:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	just _sops_before_edit
+	sudo -i -u nix EDITOR=vim sops {{sopsSecretsFile}}
+	just _fix_fs_permissions
 
 #==============================================================================
 # Apply (colmena)
