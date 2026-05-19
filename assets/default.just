@@ -1,11 +1,11 @@
 # Darkone framework just file
 # darkone@darkone.yt
 #
-# This Justfile is also imported by the consumer root Justfile (e.g.
-# arthur-network) via `import 'dnf/Justfile'`. All path-derived variables use
-# `justfile_directory()` so they resolve to the *root* justfile's directory
-# — i.e. the consumer's workspace when imported, or `dnf/` when invoked
-# standalone for framework-only checks (unit-tests, check-flake, ...).
+# This Justfile is also imported by the consumer root Justfile. 
+# All path-derived variables use `justfile_directory()` so they resolve 
+# to the *root* justfile's directory — i.e. the consumer's workspace 
+# when imported, or `dnf/` when invoked standalone for framework-only 
+# checks (unit-tests, check-flake, ...).
 
 # TODO: Edge case à surveiller : install et install-key appellent en interne just clean qui édite des fichiers du repo. Comme l'appel se fait après le sudo, clean tourne sous nix → si tes fichiers sont owned-dev sans group-write, ça échouera. Si tu vois ce cas, soit retirer just clean de ces recettes (le dev clean avant), soit assouplir les permissions du repo. Je n'ai pas touché à ça pour rester minimaliste.
 
@@ -51,11 +51,15 @@ _log msg context="":
 
 # Error
 _err msg:
-	@echo "[ {{BOLD + CYAN}}DNF{{NORMAL}} ] {{BOLD + RED}}ERR{{NORMAL}} {{msg}}" >&2
+	@echo "[ {{BOLD + CYAN}}DNF{{NORMAL}} ] {{BOLD + RED}}ERR{{NORMAL}} • {{msg}}" >&2
 
 # Warn
 _warn msg:
-	@echo "[ {{BOLD + CYAN}}DNF{{NORMAL}} ] {{BOLD + YELLOW}}WRN{{NORMAL}} {{msg}}" >&2
+	@echo "[ {{BOLD + CYAN}}DNF{{NORMAL}} ] {{BOLD + YELLOW}}WRN{{NORMAL}} • {{msg}}" >&2
+
+# Info
+_info msg context="INF":
+	@echo "[ {{BOLD + CYAN}}DNF{{NORMAL}} ] {{BOLD + GREEN}}{{context}}{{NORMAL}} • {{msg}}" >&2
 
 # Done
 _done:
@@ -470,7 +474,7 @@ install-key host:
 	just _log "End of key installation"
 
 # Get a mac address
-_info host:
+_host-info host:
 	@just _log "You can register the mac address in etc/config.yaml:"
 	ssh nix@{{host}} "ip -o link show up | grep -v 'lo:' | head -n 1 | sed 's/^.* \([0-9a-f:]*\) brd .*$/\1/'"
 
@@ -491,7 +495,7 @@ configure host:
 	just _log "If no error occurs, do not forget to commit and apply:"
 	just _log "git add . && git commit -m 'Installing new host {{host}}'"
 	just _log "just apply-verbose {{host}}"
-	just _info "{{host}}"
+	just _host-info "{{host}}"
 
 # New host: full installation (install, configure, apply)
 [group('install')]
@@ -648,56 +652,60 @@ gen-test:
 # Dual-repo git helpers (arthur-network + framework)
 #==============================================================================
 
-# Add and commit changes in dnf/, src/generator/, doc/ and arthur-network with the same message
+# Add and commit changes in several projects with the same message
 [group('dev')]
-commit msg:
+commit msg on="all":
 	#!/usr/bin/env bash
 	set -euo pipefail
-	just _log "Committing in sub-repos + arthur-network..." "GIT"
 
-	# Sub-repos first so their HEADs already reflect the change
-	# before arthur-network records the new revs.
-	git -C dnf add -A
-	if ! git -C dnf diff --cached --quiet ;then
-		git -C dnf commit -m "{{msg}}"
+	# Commit all projects
+	if [ "{{on}}" == "all" ]; then
+
+		# Sub-repos first so their HEADs already reflect the change
+		# before arthur-network records the new revs.
+		just commit "{{msg}}" "dnf" 
+		just commit "{{msg}}" "doc"
+		just commit "{{msg}}" "src/generator"
+		just commit "{{msg}}" "."
 	else
-		just _log "dnf/ -> nothing to commit" "GIT"
+		if [ ! -d "{{on}}/.git" ]; then
+			just _fail "Project '{{on}}' do not exists!";
+		fi
+		git -C {{on}} add -A
+		if ! git -C {{on}} diff --cached --quiet ;then
+			just _log "Committing on {{on}}/" "GIT"
+			git -C {{on}} commit -m "{{msg}}" > /dev/null
+		else
+			just _info "Nothing to commit on {{on}}/" "GIT"
+		fi
 	fi
 
-	git -C src/generator add -A
-	if ! git -C src/generator diff --cached --quiet ;then
-		git -C src/generator commit -m "{{msg}}"
-	else
-		just _log "src/generator/ -> nothing to commit" "GIT"
-	fi
-
-	git -C doc add -A
-	if ! git -C doc diff --cached --quiet ;then
-		git -C doc commit -m "{{msg}}"
-	else
-		just _log "doc/ -> nothing to commit" "GIT"
-	fi
-
-	git add -A
-	if ! git diff --cached --quiet ;then
-		git commit -m "{{msg}}"
-	else
-		just _log "arthur-network: nothing to commit" "GIT"
-	fi
-
-# Amend last commit in dnf/, src/generator/, doc/ and arthur-network with current changes (--no-edit)
+# Amend last commit in several projects with current changes (--no-edit)
 [group('dev')]
-amend:
+amend on="all":
 	#!/usr/bin/env bash
 	set -euo pipefail
-	just _log "Amending sub-repos + arthur-network..." "GIT"
 
-	# `--allow-empty` keeps the recipe idempotent even when a tree is clean.
-	git -C dnf add -A
-	git -C dnf commit --amend --no-edit --allow-empty
-	git -C src/generator add -A
-	git -C src/generator commit --amend --no-edit --allow-empty
-	git -C doc add -A
-	git -C doc commit --amend --no-edit --allow-empty
-	git add -A
-	git commit --amend --no-edit --allow-empty
+	# Amend all projects
+	if [ "{{on}}" == "all" ]; then
+
+		# Sub-repos first so their HEADs already reflect the change
+		# before real project records the new revs.
+		just amend "dnf" 
+		just amend "doc"
+		just amend "src/generator"
+		just amend "."
+	else
+		if [ ! -d "{{on}}/.git" ]; then
+			just _fail "Project '{{on}}' do not exists!";
+		fi
+
+		# `--allow-empty` keeps the recipe idempotent even when a tree is clean.
+		git -C {{on}} add -A
+		if ! git -C {{on}} diff --cached --quiet ;then
+			just _log "Amending {{on}}/" "GIT"
+			git -C {{on}} commit --amend --no-edit --allow-empty > /dev/null
+		else
+			just _info "Nothing to amend on {{on}}/" "GIT"
+		fi
+	fi
