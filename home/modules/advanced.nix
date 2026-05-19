@@ -107,6 +107,7 @@ in
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nixfmt)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) rustc)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) sops)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) ssh-to-age)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) statix)
       (lib.mkIf cfg.enableAdmin bridge-utils)
       (lib.mkIf cfg.enableAdmin ccrypt)

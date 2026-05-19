@@ -384,10 +384,14 @@ configure-admin-host:
 	else
 		just _log "Public key {{secretsDir}}/nix.pub already exists." "SSH"
 	fi
-	if [ ! -f {{sopsAdminKeyFile}} ] ;then
+	# -s (et pas -f) : si le fichier existe mais est vide, on retente. C'est
+	# le piège du run précédent où la redirection `> file` truncate avant
+	# que ssh-to-age tourne ; si ssh-to-age échoue, le fichier reste à 0
+	# octets et le check -f le considère "déjà là".
+	if [ ! -s {{sopsAdminKeyFile}} ] ;then
 		just _log "Admin key file creation from ssh private key..." "SOPS"
 		mkdir -p {{sopsAdminKeyDir}}
-		ssh-to-age -private-key -i "$HOME/.ssh/id_ed25519" > {{sopsAdminKeyFile}}
+		ssh-to-age -private-key -i "$HOME/.ssh/id_ed25519" -o {{sopsAdminKeyFile}}
 	else
 		just _log "Admin key file already exists." "SOPS"
 	fi
@@ -400,7 +404,12 @@ configure-admin-host:
 	if [ ! -f {{sopsYamlFile}} ] ;then
 		just _log "[SOPS] .sops.yaml file generation..."
 		INF_PUB_KEY=$(age-keygen -y {{sopsInfraKeyFile}})
-		ADM_PUB_KEY=$(age-keygen -y {{sopsAdminKeyFile}})
+
+		# Dérivation directe depuis la pub SSH : ssh-to-age sur la pub key sort
+		# un age1... en une ligne, sans parser le fichier admin keys.txt (qui
+		# selon la version de ssh-to-age n'est pas toujours reconnu comme
+		# identité native AGE-SECRET-KEY-1... par age-keygen -y).
+		ADM_PUB_KEY=$(ssh-to-age -i "$HOME/.ssh/id_ed25519.pub")
 		[ -f {{sopsYamlFile}} ] || echo "{}" > {{sopsYamlFile}}
 		echo "keys:" > {{sopsYamlFile}}
 		echo "  - &nix ${ADM_PUB_KEY}" >> {{sopsYamlFile}}
