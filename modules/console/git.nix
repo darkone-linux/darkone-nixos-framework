@@ -69,6 +69,11 @@ in
             ];
           };
         };
+
+        # Allow nix/colmena (running as user `nix`) to open the NixOS repo
+        safe = {
+          directory = "/etc/nixos";
+        };
       };
     };
   };

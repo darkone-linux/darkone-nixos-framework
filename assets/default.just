@@ -99,6 +99,7 @@ _fix_fs_permissions:
 	set -euo pipefail
 	just _log "Fixing filesystem permissions..." "FS"
 	sudo chown -R --reference=. .
+	sudo chmod 644 {{sopsSecretsFile}}
 	if [ -d {{secretsDir}} ] ;then
 		sudo chown nix {{secretsDir}}/*.key
 		sudo chmod 600 {{secretsDir}}/*.key
@@ -724,11 +725,9 @@ sops:
 apply on what='switch':
 	#!/usr/bin/env bash
 	set -euo pipefail
-
-	# Co-dev: pick up committed framework changes before building.
 	just update-dnf
 	just _log "Applying nix configuration on {{on}} ({{what}})..."
-	sudo -u nix colmena apply --build-on-target --on "{{on}}" {{what}}
+	sudo -i -u nix colmena apply --config "{{workDir}}/flake.nix" --build-on-target --on "{{on}}" {{what}}
 
 # Apply force with verbose options
 [group('apply')]
