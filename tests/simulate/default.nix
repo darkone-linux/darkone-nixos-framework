@@ -13,7 +13,12 @@
 # 2. Register it in the attrset below with mkTest.
 # 3. Run `just simulate <category>-<name>` to validate.
 
-{ pkgs, dnfLib, dnfModules, extraModules }:
+{
+  pkgs,
+  dnfLib,
+  dnfModules,
+  extraModules,
+}:
 let
   fixtures = import ./fixtures { inherit pkgs dnfLib; };
 

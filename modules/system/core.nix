@@ -118,8 +118,9 @@ in
 
     # The specific user "nix" is declared in config.yaml and have this key on each host
     # Skipped in standalone test mode where the consumer workspace does not exist.
-    users.users.nix.openssh.authorizedKeys.keyFiles =
-      lib.mkIf (!config.darkone.test.standalone) [ (workDir + "/usr/secrets/nix.pub") ];
+    users.users.nix.openssh.authorizedKeys.keyFiles = lib.mkIf (!config.darkone.test.standalone) [
+      (workDir + "/usr/secrets/nix.pub")
+    ];
 
     # Nix store optimize and GC
     nix.optimise.automatic = true;

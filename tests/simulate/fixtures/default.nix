@@ -13,6 +13,7 @@
 let
 
   mockZone = {
+
     # name is the zone key from network.zones (referenced by supertuxkart.nix options)
     name = "sim";
     domain = "sim.local";

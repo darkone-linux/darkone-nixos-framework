@@ -648,20 +648,34 @@ gen-test:
 # Dual-repo git helpers (arthur-network + framework)
 #==============================================================================
 
-# Add and commit changes in both dnf/ and arthur-network with the same message
+# Add and commit changes in dnf/, src/generator/, doc/ and arthur-network with the same message
 [group('dev')]
 commit msg:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	just _log "Committing in framework + arthur-network..." "GIT"
+	just _log "Committing in sub-repos + arthur-network..." "GIT"
 
-	# Framework commit first so dnf/ HEAD already reflects the change
-	# before arthur-network records its own rev.
+	# Sub-repos first so their HEADs already reflect the change
+	# before arthur-network records the new revs.
 	git -C dnf add -A
 	if ! git -C dnf diff --cached --quiet ;then
 		git -C dnf commit -m "{{msg}}"
 	else
-		just _log "dnf/: nothing to commit" "GIT"
+		just _log "dnf/ -> nothing to commit" "GIT"
+	fi
+
+	git -C src/generator add -A
+	if ! git -C src/generator diff --cached --quiet ;then
+		git -C src/generator commit -m "{{msg}}"
+	else
+		just _log "src/generator/ -> nothing to commit" "GIT"
+	fi
+
+	git -C doc add -A
+	if ! git -C doc diff --cached --quiet ;then
+		git -C doc commit -m "{{msg}}"
+	else
+		just _log "doc/ -> nothing to commit" "GIT"
 	fi
 
 	git add -A
@@ -671,15 +685,19 @@ commit msg:
 		just _log "arthur-network: nothing to commit" "GIT"
 	fi
 
-# Amend last commit in both repos with current changes (--no-edit)
+# Amend last commit in dnf/, src/generator/, doc/ and arthur-network with current changes (--no-edit)
 [group('dev')]
 amend:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	just _log "Amending framework + arthur-network..." "GIT"
+	just _log "Amending sub-repos + arthur-network..." "GIT"
 
 	# `--allow-empty` keeps the recipe idempotent even when a tree is clean.
 	git -C dnf add -A
 	git -C dnf commit --amend --no-edit --allow-empty
+	git -C src/generator add -A
+	git -C src/generator commit --amend --no-edit --allow-empty
+	git -C doc add -A
+	git -C doc commit --amend --no-edit --allow-empty
 	git add -A
 	git commit --amend --no-edit --allow-empty

@@ -11,6 +11,5 @@
 
 { lib, ... }:
 {
-  options.darkone.test.standalone = lib.mkEnableOption
-    "Standalone test mode — disables workDir-dependent config (sops, nix.pub keys)";
+  options.darkone.test.standalone = lib.mkEnableOption "Standalone test mode — disables workDir-dependent config (sops, nix.pub keys)";
 }
