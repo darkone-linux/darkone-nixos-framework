@@ -9,6 +9,9 @@
 
 # TODO: Edge case à surveiller : install et install-key appellent en interne just clean qui édite des fichiers du repo. Comme l'appel se fait après le sudo, clean tourne sous nix → si tes fichiers sont owned-dev sans group-write, ça échouera. Si tu vois ce cas, soit retirer just clean de ces recettes (le dev clean avant), soit assouplir les permissions du repo. Je n'ai pas touché à ça pour rester minimaliste.
 
+# `set shell` applies per-line to non-shebang recipes (each line is a separate
+# `bash -euo pipefail -c "..."` invocation). Shebang recipes (`#!/usr/bin/env bash`)
+# bypass this entirely and run as plain scripts — they need their own `set -euo pipefail`.
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 workDir := justfile_directory()
@@ -30,12 +33,15 @@ dnfInstallDir := '/mnt/dnf-install'
 # Repos to iterate in git commands: dnf, doc, all src/* dirs, then .
 repos := `printf '%s\n' dnf doc; for d in src/*/; do [ -d "$d/.git" ] && echo "${d%/}"; done; echo .`
 
+alias a := apply
 alias c := clean
 alias d := develop
 alias e := enter
-alias a := apply
+alias g := git
 alias al := apply-local
 alias av := apply-verbose
+alias amend := git-amend
+alias commit := git-commit
 
 #==============================================================================
 # Functions
@@ -92,6 +98,7 @@ _check_infra_admin:
 [group('check')]
 check:
 	#!/usr/bin/env bash
+	set -euo pipefail
 	just _log "Full checking..." "DEADNIX"
 	find . -name "*.nix" -exec deadnix -eq {} \;
 
@@ -108,6 +115,7 @@ check-flake:
 [group('check')]
 check-statix:
 	#!/usr/bin/env bash
+	set -euo pipefail
 	just _log "Checking nix configuration..." "STATIX"
 	statix check .
 
@@ -123,6 +131,7 @@ unit-tests:
 [group('check')]
 simulate what="":
 	#!/usr/bin/env bash
+	set -euo pipefail
 	just _log "Running simulation tests..." "SIMULATE"
 	if [ -z "{{what}}" ]; then
 		{{nix}} flake check --quiet
@@ -143,6 +152,7 @@ clean: fix check generate format
 [group('dev')]
 format:
 	#!/usr/bin/env bash
+	set -euo pipefail
 	just _log "Full formatting..." "NIXFMT"
 	find . -name "*.nix" -exec nixfmt -s {} \;
 
@@ -150,6 +160,7 @@ format:
 [group('dev')]
 fix:
 	#!/usr/bin/env bash
+	set -euo pipefail
 	just _log "Full fixing..." "STATIX"
 	statix fix .
 
@@ -185,16 +196,19 @@ generate: \
 # Generator of default.nix files
 _gen-default dir:
 	#!/usr/bin/env bash
+	set -euo pipefail
 	if [ ! -d "{{dir}}" ] ;then
 		just _log "Skipping unknown directory {{dir}}..."
 	else
 		just _log "{{dir}} ➜ default.nix..." "GENERATOR"
 		cd {{dir}}
-		echo "# DO NOT EDIT, this is a generated file." > default.nix
-		echo >> default.nix
-		echo "{ imports = [" >> default.nix
-		find . -name "*.nix" | sort | grep -v default.nix >> default.nix
-		echo "];}" >> default.nix
+		{
+			echo "# DO NOT EDIT, this is a generated file."
+			echo
+			echo "{ imports = ["
+			find . -name "*.nix" | sort | grep -v default.nix || true
+			echo "];}"
+		} > default.nix
 		nixfmt -sv default.nix
 	fi
 
@@ -207,6 +221,7 @@ _gen-default dir:
 #    provided by the framework devShell (`nix develop github:.../#default`).
 _gen what:
 	#!/usr/bin/env bash
+	set -euo pipefail
 	just _log "{{what}} file(s)..." "GENERATOR"
 
 	# Keep CWD on the workspace root so the generator's default `--workdir`
@@ -333,12 +348,6 @@ configure-admin-host:
 	else
 		just _log "Public key {{secretsDir}}/nix.pub already exists." "SSH"
 	fi
-	if [ ! -d ./src/vendor ] ;then
-		just _log "Building generator..." "GEN"
-		cd ./src && composer install --no-dev && cd ..
-	else
-		just _log "Generator is ok." "GEN"
-	fi
 	if [ ! -f {{secretsGitIgnore}} ] ;then
 		just _log "Creating usr/secrets directory + gitignore..." "SOPS"
 		mkdir -p {{secretsDir}}
@@ -424,10 +433,7 @@ install host user='nix' ip='auto' do='install':
 	just clean
 	just _log "Preparation..."
 	if [ ! -f "./usr/machines/{{host}}/default.nix" ]; then
-		just _log "[ERR] Host installation script not found." >&2
-		just _log "[ERR] Are you sure the host {{host}} exists" >&2
-		just _log "[ERR] and have a disko config in etc/config.yaml?" >&2
-		exit 1
+		just _fail "Host '{{host}}' not found. Check it exists and has a disko config in etc/config.yaml."
 	fi
 	echo "{ }" > ./usr/machines/{{host}}/hardware-configuration.nix
 	if [ "{{ip}}" == "auto" ]; then
@@ -448,8 +454,8 @@ install host user='nix' ip='auto' do='install':
 			--generate-hardware-config nixos-generate-config ./usr/machines/{{host}}/hardware-configuration.nix \
 			--target-host {{user}}@$TARGET_HOST
 	else
-		echo 'ERR: unknown action "{{do}}"'
-	fi;
+		just _fail "Unknown action '{{do}}' — valid values: install, test"
+	fi
 	just _log "Now you can test nix@{{host}} and run 'just configure {{host}}'"
 
 # Inlined confirmation, same rationale as `install`.
@@ -465,13 +471,10 @@ install-key host:
 	just _check_infra_admin
 	just _log "Preparation..."
 	if [ ! -f "./usr/machines/{{host}}/default.nix" ]; then
-		just _log "[ERR] Host configuration not found." >&2
-		just _log "[ERR] Are you sure the host {{host}} exists" >&2
-		just _log "[ERR] and have a disko config in etc/config.yaml?" >&2
-		exit 1
+		just _fail "Host '{{host}}' not found. Check it exists and has a disko config in etc/config.yaml."
 	fi
 	sudo mkdir -p {{dnfInstallDir}}
-	sudo chown 750 {{dnfInstallDir}}
+	sudo chmod 750 {{dnfInstallDir}}
 	just _log "Hardware configuration for usb key..."
 	echo "_:{imports=[./../../../dnf/hosts/templates/hardware-usb-key.nix];}" > ./usr/machines/{{host}}/hardware-configuration.nix
 	just clean
