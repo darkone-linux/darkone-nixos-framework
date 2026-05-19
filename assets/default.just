@@ -31,7 +31,7 @@ logPrefix := '[ {{CYAN}}DNF{{NORMAL}} ] '
 dnfInstallDir := '/mnt/dnf-install'
 
 # Repos to iterate in git commands: dnf, doc, all src/* dirs, then .
-repos := `printf '%s\n' dnf doc; for d in src/*/; do [ -d "$d/.git" ] && echo "${d%/}"; done; echo .`
+repos := `for d in src/*/; do [ -d "$d/.git" ] && echo "${d%/}"; done; printf '%s\n' dnf doc .`
 
 alias a := apply
 alias c := clean
@@ -42,6 +42,10 @@ alias al := apply-local
 alias av := apply-verbose
 alias amend := git-amend
 alias commit := git-commit
+alias diff := git-diff
+alias status := git-status
+alias push := git-push
+alias pull := git-pull
 
 #==============================================================================
 # Functions
@@ -714,19 +718,6 @@ apply-local what='switch':
 	colmena apply-local --sudo {{what}}
 
 #==============================================================================
-# Info / Diagnostic
-#==============================================================================
-
-# Show git status and flake info
-[group('info')]
-status:
-	@just _log "Git status..." "INFO"
-	@git -C . status --short
-	@echo ""
-	@just _log "Flake inputs and hosts..." "INFO"
-	{{nix}} flake show
-
-#==============================================================================
 # Sub-projects
 #==============================================================================
 
@@ -796,11 +787,25 @@ git-amend on="all":
 		fi
 	fi
 
-# Run any git command on all (or a single) project
+# Git status for one or all projects
 [group('dev')]
 git-status on="all":
 	just git "status -s" {{on}} "Status of"
 
+# Git diff for one or all projects
+[group('dev')]
+git-diff on="all":
+	just git "diff" {{on}} "Diff of"
+
+# Git push for one or all projects
+[group('dev')]
+git-push on="all":
+	just git "push" {{on}} "Pushing"
+
+# Git pull for one or all projects
+[group('dev')]
+git-pull on="all":
+	just git "pull" {{on}} "Pulling"
 
 # Show last commit log of all projects with aligned formatting
 [group('dev')]
