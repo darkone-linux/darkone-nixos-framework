@@ -27,6 +27,9 @@ nix := 'nix --extra-experimental-features "nix-command flakes"'
 logPrefix := '[ {{CYAN}}DNF{{NORMAL}} ] '
 dnfInstallDir := '/mnt/dnf-install'
 
+# Repos to iterate in git commands: dnf, doc, all src/* dirs, then .
+repos := `printf '%s\n' dnf doc; for d in src/*/; do [ -d "$d/.git" ] && echo "${d%/}"; done; echo .`
+
 alias c := clean
 alias d := develop
 alias e := enter
@@ -666,19 +669,16 @@ gen-test:
 
 # Add and commit changes in several projects with the same message
 [group('dev')]
-commit msg on="all":
+git-commit msg on="all":
 	#!/usr/bin/env bash
 	set -euo pipefail
 
 	# Commit all projects
 	if [ "{{on}}" == "all" ]; then
-
-		# Sub-repos first so their HEADs already reflect the change
-		# before arthur-network records the new revs.
-		just commit "{{msg}}" "dnf" 
-		just commit "{{msg}}" "doc"
-		just commit "{{msg}}" "src/generator"
-		just commit "{{msg}}" "."
+		while IFS= read -r repo; do
+			[ -z "$repo" ] && continue
+			just git-commit "{{msg}}" "$repo"
+		done <<< "{{repos}}"
 	else
 		if [ ! -d "{{on}}/.git" ]; then
 			just _fail "Project '{{on}}' do not exists!";
@@ -694,19 +694,16 @@ commit msg on="all":
 
 # Amend last commit in several projects with current changes (--no-edit)
 [group('dev')]
-amend on="all":
+git-amend on="all":
 	#!/usr/bin/env bash
 	set -euo pipefail
 
 	# Amend all projects
 	if [ "{{on}}" == "all" ]; then
-
-		# Sub-repos first so their HEADs already reflect the change
-		# before real project records the new revs.
-		just amend "dnf" 
-		just amend "doc"
-		just amend "src/generator"
-		just amend "."
+		while IFS= read -r repo; do
+			[ -z "$repo" ] && continue
+			just git-amend "$repo"
+		done <<< "{{repos}}"
 	else
 		if [ ! -d "{{on}}/.git" ]; then
 			just _fail "Project '{{on}}' do not exists!";
@@ -721,3 +718,61 @@ amend on="all":
 			just _info "Nothing to amend on {{on}}/" "GIT"
 		fi
 	fi
+
+# Run any git command on all (or a single) project
+[group('dev')]
+git-status on="all":
+	just git "status -s" {{on}} "Status of"
+
+
+# Show last commit log of all projects with aligned formatting
+[group('dev')]
+git-last-log:
+	#!/usr/bin/env bash
+	set -euo pipefail
+
+	repos_list=()
+	max_len=0
+	while IFS= read -r repo; do
+		[ -z "$repo" ] && continue
+		repos_list+=("$repo")
+		len=${#repo}
+		[ "$len" -gt "$max_len" ] && max_len=$len
+	done <<< "{{repos}}"
+
+	for repo in "${repos_list[@]}"; do
+		msg=$(git -C "$repo" log -1 --pretty='%B' 2>/dev/null | head -n 1)
+		[ -z "$msg" ] && continue
+		dots=$((max_len - ${#repo} + 2))
+		pad=$(printf '%*s' "$dots" '' | tr ' ' '.')
+		just _log "Last log of $repo/$pad $msg" "GIT"
+	done
+
+# Run any git command on all (or a single) project
+[group('dev')]
+git cmd on="all" label="":
+	#!/usr/bin/env bash
+	set -euo pipefail
+
+	if [ "{{on}}" == "all" ]; then
+		while IFS= read -r repo; do
+			[ -z "$repo" ] && continue
+			just git "{{cmd}}" "$repo" "{{label}}"
+		done <<< "{{repos}}"
+	else
+		if [ ! -d "{{on}}/.git" ]; then
+			just _fail "Project '{{on}}' do not exists!";
+		fi
+		if [ -n "{{label}}" ]; then
+			LABEL="{{label}}"
+		else
+			LABEL="'git {{cmd}}' on"
+		fi
+		just _log "$LABEL {{on}}/" "GIT"
+		git -C {{on}} {{cmd}}
+	fi
+
+# Show repositories
+[group('dev')]
+git-show-repos:
+	@echo "{{repos}}"
