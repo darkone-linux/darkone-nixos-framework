@@ -1,9 +1,8 @@
-.vscode
-.idea
+.*
 result
-.network
-.Trash*
-.gitmodules
-.direnv
 target
 tmp
+!.gitignore
+!.ignore
+!.specs
+!.github

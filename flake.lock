@@ -45,6 +45,26 @@
         "type": "github"
       }
     },
+    "dnf-generator": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1779226588,
+        "narHash": "sha256-p8Q27uK9otmXtj9LGkbNd40rGM9xYteBw3ReodkWgYI=",
+        "owner": "darkone-linux",
+        "repo": "dnf-generator",
+        "rev": "2ff2aa0b4a42cc2c71c5c1f26e403f8474e2e61a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "darkone-linux",
+        "repo": "dnf-generator",
+        "type": "github"
+      }
+    },
     "firefox-addons": {
       "inputs": {
         "nixpkgs": [
@@ -191,6 +211,7 @@
       "inputs": {
         "colmena": "colmena",
         "disko": "disko",
+        "dnf-generator": "dnf-generator",
         "firefox-addons": "firefox-addons",
         "home-manager": "home-manager",
         "nixos-hardware": "nixos-hardware",

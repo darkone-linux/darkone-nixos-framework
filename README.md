@@ -1,9 +1,7 @@
 # Darkone NixOS Framework
 
 [![Nix Tests](https://github.com/darkone-linux/darkone-nixos-framework/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/darkone-linux/darkone-nixos-framework/actions/workflows/unit-tests.yml)
-[![Cargo Tests](https://github.com/darkone-linux/darkone-nixos-framework/actions/workflows/cargo-tests.yml/badge.svg)](https://github.com/darkone-linux/darkone-nixos-framework/actions/workflows/cargo-tests.yml)
 [![NixOS Unstable](https://img.shields.io/badge/NixOS-unstable-5277C3?logo=nixos&logoColor=white)](https://nixos.org/)
-[![Rust Edition 2021](https://img.shields.io/badge/Rust-edition%202021-CE412B?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 - Documentation: [Official EN](https://darkone-linux.github.io/en/) • [Official FR](https://darkone-linux.github.io/fr/) • [Readme FR](README.fr.md) • [To-Do FR](TODO.fr.md)
