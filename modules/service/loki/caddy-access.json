@@ -110,22 +110,23 @@
             "fillOpacity": 10,
             "gradientMode": "none",
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineInterpolation": "linear",
+            "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
             "scaleDistribution": { "type": "linear" },
             "showPoints": "never",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "normal" },
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
             "thresholdsStyle": { "mode": "off" }
           },
           "mappings": [],
-          "unit": "reqps"
+          "unit": "short"
         },
         "overrides": []
       },
       "gridPos": { "h": 12, "w": 12, "x": 12, "y": 0 },
       "id": 3,
+      "maxDataPoints": 30,
       "options": {
         "legend": { "calcs": [ "mean", "max" ], "displayMode": "table", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "multi", "sort": "desc" }
@@ -134,12 +135,12 @@
         {
           "datasource": { "type": "loki", "uid": "loki" },
           "editorMode": "code",
-          "expr": "sum by (vhost) (rate({job=\"caddy\", vhost=~\"$vhost\"} | json uri=\"request.uri\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` [$__interval]))",
+          "expr": "sum by (vhost) (count_over_time({job=\"caddy\", vhost=~\"$vhost\"} | json uri=\"request.uri\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` [$__interval]))",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Requêtes/s par vhost",
+      "title": "Requêtes par vhost",
       "type": "timeseries"
     },
     {
@@ -298,7 +299,7 @@
       "options": {
         "legend": { "displayMode": "list", "placement": "right", "showLegend": true, "values": [ "value", "percent" ] },
         "pieType": "pie",
-        "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false },
+        "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": true },
         "tooltip": { "mode": "single", "sort": "desc" }
       },
       "pluginVersion": "11.0.0",
@@ -311,7 +312,17 @@
           "refId": "A"
         }
       ],
-      "title": "Requêtes par vhost",
+      "title": "Répartition par vhost",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": { "Value": "Requêtes" },
+            "indexByName": {}
+          }
+        }
+      ],
       "type": "piechart"
     },
     {
@@ -329,12 +340,12 @@
             "fillOpacity": 10,
             "gradientMode": "none",
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineInterpolation": "linear",
+            "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
             "scaleDistribution": { "type": "linear" },
             "showPoints": "never",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": { "group": "A", "mode": "none" },
             "thresholdsStyle": { "mode": "off" }
           },
@@ -365,7 +376,20 @@
       "datasource": { "type": "loki", "uid": "loki" },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "continuous-GrYlRd" },
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineWidth": 1,
+            "scaleDistribution": { "type": "linear" },
+            "thresholdsStyle": { "mode": "off" }
+          },
           "mappings": [],
           "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] },
           "unit": "short"
@@ -375,26 +399,45 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 21 },
       "id": 9,
       "options": {
-        "displayMode": "gradient",
-        "minVizHeight": 10,
-        "minVizWidth": 0,
+        "barRadius": 0,
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
         "orientation": "horizontal",
-        "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false },
-        "showUnfilled": true,
-        "valueMode": "color"
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": { "mode": "single", "sort": "none" },
+        "xField": "uri",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
       },
       "pluginVersion": "11.0.0",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
           "editorMode": "code",
-          "expr": "topk(15, sum by (uri) (count_over_time({job=\"caddy\", vhost=~\"$vhost\"} | json uri=\"request.uri\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` | label_format uri=`{{ regexReplaceAllLiteral \"[?].*\" .uri \"\" }}` [$__range])))",
+          "expr": "topk(10, sum by (uri) (count_over_time({job=\"caddy\", vhost=~\"$vhost\"} | json uri=\"request.uri\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` | label_format uri=`{{ regexReplaceAllLiteral \"[?].*\" .uri \"\" }}` [$__range])))",
           "queryType": "instant",
           "refId": "A"
         }
       ],
       "title": "Top URIs (visuel)",
-      "type": "bargauge"
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": { "Value": "Requêtes" },
+            "indexByName": { "uri": 0, "Value": 1 }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": { "fields": {}, "sort": [ { "field": "Requêtes", "desc": true } ] }
+        }
+      ],
+      "type": "barchart"
     }
   ],
   "refresh": "1m",
