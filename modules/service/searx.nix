@@ -1,4 +1,4 @@
-# A full-configured searx git forge.
+# A full-configured hardened search engine.
 
 {
   lib,

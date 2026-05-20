@@ -16,7 +16,7 @@
 # once monitoring and Caddy are active.
 # :::
 #
-# :::tip Debugging & manual cleanup
+# :::tip[Debugging & manual cleanup]
 # Most common symptoms after a Loki (de)activation or Caddy log format change:
 #
 # **1. "NO DATA" on the Caddy dashboard despite incoming requests.**
