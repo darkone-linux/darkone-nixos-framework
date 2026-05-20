@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "Statistiques de fréquentation des services web exposés via Caddy. Logs JSON ingérés par Promtail puis Loki.",
+  "description": "Statistiques de fréquentation des services web exposés via Caddy. Logs JSON ingérés par Alloy puis Loki. Le filtre $url reconstruit https://{vhost}{uri} et matche en préfixe (services en https derrière Caddy).",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -46,7 +46,7 @@
         {
           "datasource": { "type": "loki", "uid": "loki" },
           "editorMode": "code",
-          "expr": "sum(count_over_time({job=\"caddy\", vhost=~\"$vhost\"}[$__range]))",
+          "expr": "sum(count_over_time({job=\"caddy\", vhost=~\"$vhost\"} | json uri=\"request.uri\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` [$__range]))",
           "queryType": "instant",
           "refId": "A"
         }
@@ -87,7 +87,7 @@
         {
           "datasource": { "type": "loki", "uid": "loki" },
           "editorMode": "code",
-          "expr": "100 * sum(count_over_time({job=\"caddy\", vhost=~\"$vhost\", status=~\"5..\"}[$__range])) / sum(count_over_time({job=\"caddy\", vhost=~\"$vhost\"}[$__range]))",
+          "expr": "100 * sum(count_over_time({job=\"caddy\", vhost=~\"$vhost\", status=~\"5..\"} | json uri=\"request.uri\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` [$__range])) / sum(count_over_time({job=\"caddy\", vhost=~\"$vhost\"} | json uri=\"request.uri\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` [$__range]))",
           "queryType": "instant",
           "refId": "A"
         }
@@ -124,7 +124,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "gridPos": { "h": 12, "w": 12, "x": 12, "y": 0 },
       "id": 3,
       "options": {
         "legend": { "calcs": [ "mean", "max" ], "displayMode": "table", "placement": "bottom", "showLegend": true },
@@ -134,7 +134,7 @@
         {
           "datasource": { "type": "loki", "uid": "loki" },
           "editorMode": "code",
-          "expr": "sum by (vhost) (rate({job=\"caddy\", vhost=~\"$vhost\"}[1m]))",
+          "expr": "sum by (vhost) (rate({job=\"caddy\", vhost=~\"$vhost\"} | json uri=\"request.uri\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` [$__interval]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -183,7 +183,7 @@
         {
           "datasource": { "type": "loki", "uid": "loki" },
           "editorMode": "code",
-          "expr": "sum by (status) (count_over_time({job=\"caddy\", vhost=~\"$vhost\"}[1m]))",
+          "expr": "sum by (status) (count_over_time({job=\"caddy\", vhost=~\"$vhost\"} | json uri=\"request.uri\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` [$__interval]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -206,7 +206,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 12 },
+      "gridPos": { "h": 9, "w": 10, "x": 0, "y": 12 },
       "id": 5,
       "options": {
         "cellHeight": "sm",
@@ -219,12 +219,22 @@
         {
           "datasource": { "type": "loki", "uid": "loki" },
           "editorMode": "code",
-          "expr": "topk(20, sum by (uri) (count_over_time({job=\"caddy\", vhost=~\"$vhost\"} | json uri=\"request.uri\" [$__range])))",
+          "expr": "topk(20, sum by (vhost, uri) (count_over_time({job=\"caddy\", vhost=~\"$vhost\"} | json uri=\"request.uri\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` | label_format uri=`{{ regexReplaceAllLiteral \"[?].*\" .uri \"\" }}` [$__range])))",
           "queryType": "instant",
           "refId": "A"
         }
       ],
       "title": "Top 20 URIs",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": { "Value": "count" },
+            "indexByName": { "vhost": 0, "uri": 1, "Value": 2 }
+          }
+        }
+      ],
       "type": "table"
     },
     {
@@ -242,7 +252,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 12 },
+      "gridPos": { "h": 9, "w": 7, "x": 10, "y": 12 },
       "id": 6,
       "options": {
         "cellHeight": "sm",
@@ -255,13 +265,54 @@
         {
           "datasource": { "type": "loki", "uid": "loki" },
           "editorMode": "code",
-          "expr": "topk(20, sum by (remote_ip) (count_over_time({job=\"caddy\", vhost=~\"$vhost\"} | json remote_ip=\"request.remote_ip\" [$__range])))",
+          "expr": "topk(20, sum by (remote_ip) (count_over_time({job=\"caddy\", vhost=~\"$vhost\"} | json uri=\"request.uri\", remote_ip=\"request.remote_ip\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` [$__range])))",
           "queryType": "instant",
           "refId": "A"
         }
       ],
       "title": "Top 20 IPs distantes",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": { "Value": "count" },
+            "indexByName": { "remote_ip": 0, "Value": 1 }
+          }
+        }
+      ],
       "type": "table"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "mappings": [],
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 7, "x": 17, "y": 12 },
+      "id": 8,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "right", "showLegend": true, "values": [ "value", "percent" ] },
+        "pieType": "pie",
+        "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false },
+        "tooltip": { "mode": "single", "sort": "desc" }
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "editorMode": "code",
+          "expr": "sum by (vhost) (count_over_time({job=\"caddy\", vhost=~\"$vhost\"} | json uri=\"request.uri\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` [$__range]))",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Requêtes par vhost",
+      "type": "piechart"
     },
     {
       "datasource": { "type": "loki", "uid": "loki" },
@@ -292,7 +343,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 21 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 21 },
       "id": 7,
       "options": {
         "legend": { "calcs": [ "mean", "max" ], "displayMode": "table", "placement": "bottom", "showLegend": true },
@@ -302,20 +353,65 @@
         {
           "datasource": { "type": "loki", "uid": "loki" },
           "editorMode": "code",
-          "expr": "quantile_over_time(0.95, {job=\"caddy\", vhost=~\"$vhost\"} | json duration=\"duration\" | unwrap duration [5m]) by (vhost)",
+          "expr": "quantile_over_time(0.95, {job=\"caddy\", vhost=~\"$vhost\"} | json duration=\"duration\", uri=\"request.uri\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` | unwrap duration [5m]) by (vhost)",
           "queryType": "range",
           "refId": "A"
         }
       ],
       "title": "Latence p95 par vhost",
       "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "continuous-GrYlRd" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 21 },
+      "id": 9,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "editorMode": "code",
+          "expr": "topk(15, sum by (uri) (count_over_time({job=\"caddy\", vhost=~\"$vhost\"} | json uri=\"request.uri\" | label_format target=`https://{{.vhost}}{{.uri}}` | target=~`${url:regex}.*` | label_format uri=`{{ regexReplaceAllLiteral \"[?].*\" .uri \"\" }}` [$__range])))",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Top URIs (visuel)",
+      "type": "bargauge"
     }
   ],
-  "refresh": "30s",
+  "refresh": "1m",
   "schemaVersion": 39,
   "tags": [ "caddy", "loki", "dnf" ],
   "templating": {
     "list": [
+      {
+        "current": { "selected": false, "text": "", "value": "" },
+        "hide": 0,
+        "label": "URL (préfixe)",
+        "name": "url",
+        "options": [ { "selected": true, "text": "", "value": "" } ],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
       {
         "current": { "selected": true, "text": "All", "value": ".+" },
         "datasource": { "type": "loki", "uid": "loki" },

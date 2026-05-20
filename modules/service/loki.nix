@@ -7,7 +7,7 @@
 # Dual pattern aligned with monitoring.nix:
 # - `enable`   : deploys the Loki server + Grafana datasource on the
 #   same host that runs the `monitoring` service (Grafana).
-# - `isClient` : deploys Promtail on each host running Caddy. Caddy
+# - `isClient` : deploys Alloy on each host running Caddy. Caddy
 #   logs are expected in JSON at `/var/log/caddy/access-*.log`
 #   (see `dnf/modules/system/services.nix`).
 #
@@ -107,7 +107,7 @@ in
     darkone.service.loki.isClient = lib.mkOption {
       type = lib.types.bool;
       default = config.services.caddy.enable;
-      description = "Deploys Promtail to collect local Caddy access logs.";
+      description = "Deploys Alloy to collect local Caddy access logs.";
     };
     darkone.service.loki.retentionTime = lib.mkOption {
       type = lib.types.str;
@@ -185,6 +185,12 @@ in
             reject_old_samples = true;
             reject_old_samples_max_age = "168h";
             allow_structured_metadata = true;
+
+            # Caddy dashboard groups by high-cardinality fields (uri, vhost) over
+            # long ranges; the default 500 ceiling triggers "maximum number of
+            # series reached" before topk can reduce the set. Lifted to keep the
+            # Top URIs/IPs panels working on 30-day windows.
+            max_query_series = 5000;
           };
 
           compactor = {
@@ -290,7 +296,7 @@ in
           stage.json {
             expressions = {
               ts       = "ts",
-              status   = "resp_status_code",
+              status   = "status",
               method   = "request.method",
               vhost    = "request.host",
               duration = "duration",
