@@ -713,11 +713,6 @@ sops:
 # Apply (colmena)
 #==============================================================================
 #
-# Admin recipes auto-switch to the `nix` user (which owns the SSH keys and
-# SOPS infra key) via `exec sudo -u nix just <recipe>`. The guard short-
-# circuits the original shell so the body never runs under the caller's
-# user when it isn't nix.
-#
 # TODO: Binary cache keys + remove --build-on-target -> https://nixos.wiki/wiki/Binary_Cache
 
 # Apply configuration using colmena
@@ -727,28 +722,30 @@ apply on what='switch':
 	set -euo pipefail
 	just update-dnf
 	just _log "Applying nix configuration on {{on}} ({{what}})..."
-	sudo -i -u nix colmena apply --config "{{workDir}}/flake.nix" --build-on-target --on "{{on}}" {{what}}
+	if [ "${USER:-}" = "nix" ] ;then
+		colmena apply --build-on-target --on "{{on}}" {{what}}
+	else
+		sudo -i -u nix colmena apply --config "{{workDir}}/flake.nix" --build-on-target --on "{{on}}" {{what}}
+	fi
 
 # Apply force with verbose options
 [group('apply')]
 apply-verbose on what='switch':
 	#!/usr/bin/env bash
 	set -euo pipefail
-
-	# Refresh as the original caller so flake.lock stays workspace-owned;
-	# the post-sudo re-run is a no-op since the lock then matches HEAD.
 	just update-dnf
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just apply-verbose "{{on}}" "{{what}}"
 	just _log "Applying (verbose) nix configuration on {{on}} ({{what}})..."
-	colmena apply --build-on-target --verbose --show-trace --on "{{on}}" {{what}}
+	if [ "${USER:-}" = "nix" ] ;then
+		colmena apply --build-on-target --verbose --show-trace --on "{{on}}" {{what}}
+	else
+		sudo -i -u nix colmena apply --config "{{workDir}}/flake.nix" --build-on-target --verbose --show-trace --on "{{on}}" {{what}}
+	fi
 
 # Apply the local host configuration
 [group('apply')]
 apply-local what='switch':
 	#!/usr/bin/env bash
 	set -euo pipefail
-
-	# Co-dev: pick up committed framework changes before building.
 	just update-dnf
 	just _log "Applying locally ({{what}})..."
 	colmena apply-local --sudo {{what}}
