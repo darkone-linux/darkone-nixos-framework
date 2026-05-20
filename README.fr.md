@@ -1,7 +1,7 @@
 # Darkone NixOS Framework
 
-> [!NOTE]
-> La [documentation technique](https://darkone-linux.github.io) en ligne.
+- Documentation: [Officielle FR](https://darkone-linux.github.io/fr/) • [Officielle EN](https://darkone-linux.github.io/en/) • [Readme EN](README.md) • [To-Do FR](TODO.fr.md)
+- Projets liés: [Boilerplate](https://github.com/darkone-linux/dnf-boilerplate) • [Exemple](https://github.com/darkone-linux/dnf-example) • [Générateur](https://github.com/darkone-linux/dnf-generator) • [Documentation](https://github.com/darkone-linux/dnf-doc)
 
 ## Présentation aux utilisateurs (non technique)
 
@@ -173,7 +173,7 @@ just generate
 just clean
 ```
 
-![Darkone NixOS Framework Generator](doc/src/assets/arch.webp)
+![Darkone NixOS Framework Generator](assets/images/arch.webp)
 
 Son rôle est de générer une configuration statique pure à partir d'une définition de machines (hosts), utilisateurs et groupes en provenance de diverses sources (déclarations statiques, ldap, etc. configurées dans `etc/config.yaml`). La configuration nix générée est intégrée au dépôt afin d'être fixée et utilisée par le flake.
 
@@ -206,16 +206,24 @@ hosts:
 > just apply darkone-laptop
 > ```
 
+## Accueil des services
+
+![Homepage screenshot](assets/images/homepage-screenshot.png)
+
+## Une configuration pour un réseau complet
+
+![New network architecture](assets/images/reseau-darkone-2.png)
+
 ## Administration simplifiée avec Just
 
-![Just DNF Command](doc/src/assets/just.png)
+![Just DNF Command](assets/images/just.png)
 
 ## Nettoyage & corrections automatiques simplifiées
 
-![Just DNF Command](doc/src/assets/just-clean.png)
+![Just DNF Command](assets/images/just-clean.png)
 
 ## Déploiement facile
 
 Déploiement d'une nouvelle génération sur plusieurs hosts à partir de la même configuration.
 
-![Just DNF Command](doc/src/assets/colmena.png)
+![Just DNF Command](assets/images/colmena.png)

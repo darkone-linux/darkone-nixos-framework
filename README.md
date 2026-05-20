@@ -6,9 +6,8 @@
 [![Rust Edition 2021](https://img.shields.io/badge/Rust-edition%202021-CE412B?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-- [The official documentation](https://darkone-linux.github.io)
-- [Ce README en français](README.fr.md)
-- [To-Do list (fr)](TODO.fr.md)
+- Documentation: [Official EN](https://darkone-linux.github.io/en/) • [Official FR](https://darkone-linux.github.io/fr/) • [Readme FR](README.fr.md) • [To-Do FR](TODO.fr.md)
+- Subprojects: [Boilerplate](https://github.com/darkone-linux/dnf-boilerplate) • [Example](https://github.com/darkone-linux/dnf-example) • [Generator](https://github.com/darkone-linux/dnf-generator) • [Documentation](https://github.com/darkone-linux/dnf-doc)
 
 ## A multi-user, multi-services & multi-host configuration
 
@@ -74,20 +73,20 @@ This project is constantly evolving according to my needs. If you'd like to be i
 
 ## Homepage screenshot
 
-![Homepage screenshot](doc/src/assets/homepage-screenshot.png)
+![Homepage screenshot](assets/images/homepage-screenshot.png)
 
 ## One configuration for a full network
 
-![New network architecture](doc/src/assets/reseau-darkone-2.png)
+![New network architecture](assets/images/reseau-darkone-2.png)
 
 ## Easy admin with Just
 
-![Just DNF Command](doc/src/assets/just.png)
+![Just DNF Command](assets/images/just.png)
 
 ## Easy Nix code clean, generation and fix
 
-![Just DNF Command](doc/src/assets/just-clean.png)
+![Just DNF Command](assets/images/just-clean.png)
 
 ## Easy multi-host deployment
 
-![Just DNF Command](doc/src/assets/colmena.png)
+![Just DNF Command](assets/images/colmena.png)
