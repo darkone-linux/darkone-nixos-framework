@@ -304,13 +304,16 @@ update-dnf:
 copy-id host:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just copy-id "{{host}}"
-	just _log "Copying id to {{host}}..." "SSH"
-	ssh-keygen -R {{host}}
-	ssh-copy-id -o StrictHostKeyChecking=no -f nix@{{host}}
+	if sudo -i -u nix ssh -o PreferredAuthentications=publickey -o PasswordAuthentication=no -o BatchMode=yes nix@{{host}} "true"; then
+		just _info "SSH key already exists for {{host}}, continue..." "SSH"
+	else
+		just _log "Copying id to {{host}}..." "SSH"
+		sudo -i -u nix ssh-keygen -R {{host}}
+		sudo -i -u nix ssh-copy-id -o StrictHostKeyChecking=no -f nix@{{host}}
+	fi
 	just _log "Cleaning authorized_keys..." "SSH"
-	ssh nix@{{host}} "sort -u -o ~/.ssh/authorized_keys ~/.ssh/authorized_keys"
-	ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@{{host}} 'echo "OK, it works!"'
+	sudo -i -u nix ssh nix@{{host}} "sort -u -o ~/.ssh/authorized_keys ~/.ssh/authorized_keys"
+	sudo -i -u nix ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@{{host}} 'echo "OK, it works!"'
 
 #==============================================================================
 # Maintenance
@@ -470,12 +473,10 @@ configure-admin-host:
 copy-hw host:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just copy-hw "{{host}}"
 	just _log "Extracting hardware information..."
 	mkdir -p usr/machines/{{host}}
-	sudo chown -R nix usr/machines/{{host}}
-	ssh nix@{{host}} "sudo nixos-generate-config --no-filesystems --show-hardware-config" > usr/machines/{{host}}/hardware-configuration.nix
-	just _fix_fs_permissions
+	sudo -i -u nix ssh nix@{{host}} "sudo nixos-generate-config --no-filesystems --show-hardware-config" > {{workDir}}/usr/machines/{{host}}/hardware-configuration.nix
+	nixfmt -s usr/machines/{{host}}/hardware-configuration.nix
 
 # Push the infrastructure key to the host
 [group('install')]
@@ -574,8 +575,10 @@ install-key host:
 
 # Get a mac address
 _host-info host:
-	@just _log "You can register the mac address in etc/config.yaml:"
-	ssh nix@{{host}} "ip -o link show up | grep -v 'lo:' | head -n 1 | sed 's/^.* \([0-9a-f:]*\) brd .*$/\1/'"
+	#!/usr/bin/env bash
+	set -euo pipefail
+	MAC_ADDR=`sudo -i -u nix ssh -o StrictHostKeyChecking=no -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@{{host}} "ip -o link show up | grep -v 'lo:' | head -n 1 | sed 's/^.* \([0-9a-f:]*\) brd .*$/\1/'"`
+	just _log "You can register the mac address in etc/config.yaml: {{GREEN}}$MAC_ADDR{{NORMAL}}"
 
 # Auto-switching here means the chained `copy-id` / `copy-hw` / `push-key`
 # already inherit the nix user — their own guards short-circuit cleanly.
@@ -589,7 +592,6 @@ configure host:
 	just copy-id "{{host}}"
 	just copy-hw "{{host}}"
 	just push-key "{{host}}"
-	just clean
 	just _log "If no error occurs, do not forget to commit and apply:"
 	just _log "git add . && git commit -m 'Installing new host {{host}}'"
 	just _log "just apply-verbose {{host}}"
@@ -597,7 +599,7 @@ configure host:
 
 # New host: full installation (install, configure, apply)
 [group('install')]
-full-install host user='nix' ip='auto':
+full-install host user='nixos' ip='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	just install {{host}} {{user}} {{ip}}
@@ -606,7 +608,7 @@ full-install host user='nix' ip='auto':
 	sleep 2
 	just configure {{host}}
 	just _log "Let's do that automatically..."
-	just _fix_fs_permissions
+	#just _fix_fs_permissions
 	just _log "Adding and committing (amend)..." "GIT"
 	git add . && (git diff --cached --quiet || git commit --amend --no-edit --allow-empty) && git reset
 	just apply-verbose {{host}}
@@ -703,7 +705,7 @@ passwd user:
 [group('install')]
 build-iso arch="x86_64-linux":
 	@just _log "Building local DNF ISO image..."
-	{{nix}} build .#nixosConfigurations.iso-{{arch}}.config.system.build.isoImage
+	sudo -i -u nix {{nix}} build .#nixosConfigurations.iso-{{arch}}.config.system.build.isoImage
 
 # Edit sops secrets
 [group('install')]
