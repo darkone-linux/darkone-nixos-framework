@@ -42,11 +42,6 @@
 ### Planifié
 
 - [ ] Services -> réorganiser la manière dont on les déclare -> services uniques + avec sous-domaine fixe, sous-domaines interdits déclarables, services multiples avec OIDC.
-- [ ] Séparer en plusieurs projets ([specs](.specs/SPLIT-PROJECT.fr.md))
-  - [ ] Projet 1 : framework (code commun à toutes les instances, `dnf/`)
-  - [ ] Projet 2 : boilerplate pour implémentation locale qui étend le framework (input flake + override-input en dev, `usr/`)
-  - [ ] Projet 3 : Générateur Rust séparé (`src/generator`).
-  - [ ] Projet 4 : Documentation (`doc/`)
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
 - [ ] Automatisation des secrets OIDC et similaires.
 - [ ] Corriger l'arbre de démarrage des services, un redémarrage de passerelle ou du HCS laisse certains services (kanidm, prometheus-node-exporter, mnt-nfs-homes) en berne.
@@ -79,6 +74,7 @@
 - [ ] Stratégie CD par palier + remontées d'info -> environnements de... development, staging, canary, unstable, stable
 - [ ] Sécurité : [canary tokens](https://canarytokens.org/).
 - [ ] Mise à l'échelle : remplacer colmena par Salt-like ou Ansible-like + LDAP...
+- [ ] CI avec [Hercule-CI](https://github.com/apps/hercules-ci) -> si le projet grossit.
 
 ### A voir
 
@@ -98,6 +94,11 @@
 
 ### Fait
 
+- [x] Séparer en plusieurs projets ([specs](.specs/SPLIT-PROJECT.fr.md))
+  - [x] Projet 1 : framework (code commun à toutes les instances, `dnf/`)
+  - [x] Projet 2 : boilerplate pour implémentation locale qui étend le framework (input flake + override-input en dev, `usr/`)
+  - [x] Projet 3 : Générateur Rust séparé (`src/generator`).
+  - [x] Projet 4 : Documentation (`doc/`)
 - [x] Ajout de Grafana Loki sur les logs Caddy pour avoir des stats de fréquentation.
 - [x] ~~Supprimer~~ Réorganiser les fichiers NixOS dans les espaces home manager.
 - [x] Réseaux sociaux : ~~mattermost~~, [matrix](https://nixos.wiki/wiki/Matrix).
