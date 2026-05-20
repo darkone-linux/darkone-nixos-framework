@@ -326,9 +326,9 @@ enter on:
 	set -euo pipefail
 	just _log "Entering {{on}}..." "SSH"
 	if [ "${USER:-}" = "nix" ]; then
-		sudo -i -u nix ssh nix@{{on}}
-	else
 		ssh nix@{{on}}
+	else
+		sudo -i -u nix ssh nix@{{on}}
 	fi
 
 # Confirmation prompt is inlined (rather than via the `[confirm]` attribute)
@@ -473,6 +473,7 @@ copy-hw host:
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just copy-hw "{{host}}"
 	just _log "Extracting hardware information..."
 	mkdir -p usr/machines/{{host}}
+	sudo chown -R nix usr/machines/{{host}}
 	ssh nix@{{host}} "sudo nixos-generate-config --no-filesystems --show-hardware-config" > usr/machines/{{host}}/hardware-configuration.nix
 	just _fix_fs_permissions
 
@@ -498,9 +499,10 @@ push-key host:
 install host user='nix' ip='auto' do='install':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just install "{{host}}" "{{user}}" "{{ip}}" "{{do}}"
+	[ "${USER:-}" != "nix" ] || just _fail "Do not full-install with nix user but with the owner of your code.";
 	read -p "Are you sure to format disks and install a new system? (y/N) " ans
 	[ "$ans" = "y" ] || { just _log "Aborted." "INSTALL"; exit 1; }
+	just _fix_fs_permissions
 	just _check_infra_admin
 	just clean
 	just _log "Preparation..."
@@ -520,12 +522,17 @@ install host user='nix' ip='auto' do='install':
 	if [ "{{do}}" == "test" ]; then
 		{{nix}} run github:nix-community/nixos-anywhere -- --flake .#{{host}} --vm-test
 	elif [ "{{do}}" == "install" ] ;then
-		{{nix}} run github:nix-community/nixos-anywhere -- \
+		NIX_HOME=$(getent passwd nix | cut -d: -f6)
+		mkdir -p {{workDir}}/usr/machines/{{host}}
+		sudo chown -R nix {{workDir}}/usr/machines/{{host}}
+		sudo chown -R nix /etc/nixos/.git
+		sudo -i -u nix {{nix}} run github:nix-community/nixos-anywhere -- \
 			--copy-host-keys \
-			--flake .#{{host}} \
-			-i "$HOME/.ssh/id_ed25519" \
-			--generate-hardware-config nixos-generate-config ./usr/machines/{{host}}/hardware-configuration.nix \
+			--flake "{{workDir}}#{{host}}" \
+			-i "${NIX_HOME}/.ssh/id_ed25519" \
+			--generate-hardware-config nixos-generate-config {{workDir}}/usr/machines/{{host}}/hardware-configuration.nix \
 			--target-host {{user}}@$TARGET_HOST
+		just _fix_fs_permissions
 	else
 		just _fail "Unknown action '{{do}}' — valid values: install, test"
 	fi
@@ -578,7 +585,6 @@ _host-info host:
 configure host:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just configure "{{host}}"
 	just _check_infra_admin
 	just copy-id "{{host}}"
 	just copy-hw "{{host}}"
@@ -594,7 +600,6 @@ configure host:
 full-install host user='nix' ip='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just full-install "{{host}}" "{{user}}" "{{ip}}"
 	just install {{host}} {{user}} {{ip}}
 	just _log "Waiting for reboot..."
 	until ping -c1 -W1 {{host}} >/dev/null 2>&1; do sleep 1; done; echo "Oh, {{host}} is up, waiting 2s and continue... :)"
@@ -608,7 +613,7 @@ full-install host user='nix' ip='auto':
 	just _log "Cleaning new system..."
 	just gc {{host}}
 	just _log "Last reboot..."
-	colmena exec --on "{{host}}" "nohup bash -c 'sleep 1; systemctl reboot' >/dev/null 2>&1 &"
+	sudo -i -u nix colmena exec --config "{{workDir}}/flake.nix" --on "{{host}}" "nohup bash -c 'sleep 1; systemctl reboot' >/dev/null 2>&1 &"
 	just _done
 	just _log "Don't forget to comment or remove disko config in etc/config.yaml."
 
