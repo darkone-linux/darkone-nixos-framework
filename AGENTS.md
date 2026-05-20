@@ -11,7 +11,7 @@ Skills own workflows; this file owns hard policy and routing.
   - `nixosModules.darkone`: opinionated NixOS modules
   - `homeManagerModules.darkone`: home-manager modules
   - `lib.mkConfigurations`: assembler consumed by consumer flakes
-    (arthur-network, dnf-boilerplate)
+    (root project, dnf-boilerplate, dnf-example)
   - ISO images for fast install (`nixosConfigurations.iso-*`)
   - `libTests`: unit tests for `lib/`
 
