@@ -197,12 +197,6 @@ cat host='':
 	set -euo pipefail
 	just clean
 	just amend
-
-	# Refresh the dnf lock to the freshly amended framework HEAD, then fold the
-	# updated flake.lock into the arthur-network commit so the deployed tree
-	# stays clean and reproducible.
-	just update-dnf
-	just amend
 	if [ "{{host}}" == "" ] ;then
 		just apply-local test
 	else
@@ -781,22 +775,40 @@ git-commit msg on="all":
 	#!/usr/bin/env bash
 	set -euo pipefail
 
-	# Commit all projects
+	# Commit all projects, but keep the root (.) for last: it must capture the
+	# refreshed dnf lock, so it is committed only after update-dnf below.
 	if [ "{{on}}" == "all" ]; then
 		while IFS= read -r repo; do
 			[ -z "$repo" ] && continue
+			[ "$repo" == "." ] && continue
 			just git-commit "{{msg}}" "$repo"
 		done <<< "{{repos}}"
+
+		# Dev mode only: sync the root flake.lock onto the freshly committed dnf
+		# HEAD so the upcoming root commit pins a coherent framework revision.
+		if [ -d "{{workDir}}/dnf/.git" ]; then
+			just update-dnf
+		fi
+		just git-commit "{{msg}}" "."
 	else
 		if [ ! -d "{{on}}/.git" ]; then
 			just _fail "Project '{{on}}' do not exists!";
 		fi
 		git -C {{on}} add -A
-		if ! git -C {{on}} diff --cached --quiet ;then
-			just _log "Committing on {{on}}/" "GIT"
-			git -C {{on}} commit -m "{{msg}}" > /dev/null
-		else
+		if git -C {{on}} diff --cached --quiet ;then
 			just _info "Nothing to commit on {{on}}/" "GIT"
+		else
+
+			# Re-committing with the previous message means amend, not a new
+			# commit (decided per-project, keeps the recipe idempotent).
+			last=$(git -C {{on}} log -1 --format=%s 2>/dev/null || echo "")
+			if [ "{{msg}}" == "$last" ]; then
+				just _log "Amending {{on}}/ (same message)" "GIT"
+				git -C {{on}} commit --amend --no-edit > /dev/null
+			else
+				just _log "Committing on {{on}}/" "GIT"
+				git -C {{on}} commit -m "{{msg}}" > /dev/null
+			fi
 		fi
 	fi
 
@@ -806,12 +818,37 @@ git-amend on="all":
 	#!/usr/bin/env bash
 	set -euo pipefail
 
-	# Amend all projects
+	# Amend all projects (root included): fold each tree's working changes into
+	# its last commit, keeping its message.
 	if [ "{{on}}" == "all" ]; then
 		while IFS= read -r repo; do
 			[ -z "$repo" ] && continue
 			just git-amend "$repo"
 		done <<< "{{repos}}"
+
+		# Dev mode only: refresh the root lock onto the amended dnf HEAD, then
+		# keep the root coherent with dnf. The pass above already committed the
+		# root's own changes, so only the flake.lock delta remains here.
+		if [ -d "{{workDir}}/dnf/.git" ]; then
+			just update-dnf
+			dnf_msg=$(git -C dnf log -1 --format=%s 2>/dev/null || echo "")
+			root_msg=$(git -C . log -1 --format=%s 2>/dev/null || echo "")
+
+			# Record the lock bump: nothing staged ⇒ already coherent; same
+			# message ⇒ fold into the shared commit; different message ⇒ a
+			# dedicated commit pins dnf so a root revert stays tied to a
+			# compatible framework revision.
+			git -C . add -A
+			if git -C . diff --cached --quiet ;then
+				just _info "Lock already coherent, nothing to align on ./" "GIT"
+			elif [ "$dnf_msg" == "$root_msg" ]; then
+				just _log "Folding dnf lock bump into ./ (aligned)" "GIT"
+				git -C . commit --amend --no-edit --allow-empty > /dev/null
+			else
+				just _log "New ./ commit to pin dnf: $dnf_msg" "GIT"
+				git -C . commit -m "$dnf_msg" > /dev/null
+			fi
+		fi
 	else
 		if [ ! -d "{{on}}/.git" ]; then
 			just _fail "Project '{{on}}' do not exists!";
