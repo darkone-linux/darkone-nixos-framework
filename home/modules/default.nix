@@ -3,6 +3,7 @@
 {
   imports = [
     ./advanced.nix
+    ./ai.nix
     ./audio.nix
     ./education.nix
     ./games.nix
