@@ -1,0 +1,9 @@
+- [ ] Stratégie de [dev IA](https://github.com/steipete/agent-scripts) inspirée du workflow de [Peter Steinberger](https://github.com/steipete) pour [OpenClaw](https://github.com/openclaw/openclaw) ; avec [LangChain](https://github.com/langchain-ai) / [LangGraph](https://github.com/langchain-ai/langgraph) ?.
+  - [ ] AGENTS infos, skills, artefacts, commands, etc.
+  - [ ] Workflow complet de développement agentique (supervision, stabilisation, mises à jour, etc.) sur des parties "framework" et "outils" (non critiques).
+  - [ ] Intégration de ce workflow à github, gestion automatisée des PRs externes (contrôle, tests, scans de sécurité, auto-validations...).
+  - [ ] Documentation optimisée pour l'IA (ex. [openclaw](https://docs.openclaw.ai/fr/help/)), fortement fragmentée et spécialisée (optimisation du contexte).
+  - [ ] Automatisation des processus de [tests](https://docs.openclaw.ai/fr/help/testing), stratégie multi-niveaux, contrôle de couverture.
+  - [ ] Agents de gestion d'une instance en production, stricte cloisement des accès "administration technique" vs "données sensibles" (utilisateurs, clés).
+  - [ ] Automatiser tout ce qui est automatisable -> git, recherches & veille, maj, red / blue teams, tests...
+  - [ ] Stratégie de partage / distribution des tâches aux modèles d'IA en fonction de leurs caractéristiques, coûts, etc.

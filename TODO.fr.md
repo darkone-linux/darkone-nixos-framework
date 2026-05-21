@@ -8,13 +8,12 @@
   - [x] Tests unitaires (lib).
   - [x] Migration vers [nix-unit](https://nix-community.github.io/nix-unit/).
   - [ ] Déplacement dans lib/ de tout algorithme un peu complexe ou comportant de possibles effets de bords, sous forme de fonctions durcies et testées, simplifiant le code utile des modules.
-  - [ ] Tests simulés (pkgs.testers.runNixOSTest).
-  - [ ] Lab de staging (microvm.nix)
+  - [ ] Tests simulés (pkgs.testers.runNixOSTest) -> peu viable...
+  - [ ] Lab de staging (microvm.nix ou nixos.vm)
 - [ ] Linux durci selon les [recommandations ANSSI](https://messervices.cyber.gouv.fr/guides/recommandations-de-securite-relatives-un-systeme-gnulinux).
   - [x] [Architecture modulaire](https://darkone-linux.github.io/en/ref/modules/#security-modules) pour l'activation et le paramétrage des règles.
   - [ ] Gestion de noyaux durcis avec paramètres statiques durcis (profils, mise en cache)
   - [ ] Implémentation des règles.
-- [ ] Optimisation des développements par l'IA ([cf. doc en ligne](https://darkone-linux.github.io/fr/doc/introduction/#utilisation-de-lia)).
 - [ ] SSO avec [Kanidm](https://kanidm.com/) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.idm))
   - [x] Implémentation du module IDM.
   - [x] Configuration paramétrable pour chaque service (config inconditionnelle) et instance de service (config conditionnelle).
@@ -32,12 +31,6 @@
 - [x] Remplacer le générateur PHP par un générateur Rust + parseur nix complet.
   - [x] Implémentation + tests.
   - [ ] Corrections et optimisations à l'utilisation.
-- [ ] Module LaSuite Docs
-  - [x] Implémentation de base.
-  - [ ] Tests et stabilisation.
-  - [ ] Module MinIO utile à LaSuite Docs.
-    - [x] Implémentation (version locale ou distante).
-    - [ ] Tests et stabilisation.
 
 ### Planifié
 
@@ -62,15 +55,6 @@
 - [ ] Isolation des services : étudier la pertinence d'une isolation et le meilleur moyen d'isoler les services des serveurs (systemd-nspawn containers.xxx, Docker / Podman, systemd sandboxing...)
 - [ ] SSO / Kanidm -> PAM
 - [ ] Services isolés dans des conteneurs légers `systemd-nspawn` (optimal pour NixOS).
-- [ ] Stratégie de [dev IA](https://github.com/steipete/agent-scripts) inspirée du workflow de [Peter Steinberger](https://github.com/steipete) pour [OpenClaw](https://github.com/openclaw/openclaw) ; avec [LangChain](https://github.com/langchain-ai) / [LangGraph](https://github.com/langchain-ai/langgraph) ?.
-  - [ ] AGENTS infos, skills, artefacts, commands, etc.
-  - [ ] Workflow complet de développement agentique (supervision, stabilisation, mises à jour, etc.) sur des parties "framework" et "outils" (non critiques).
-  - [ ] Intégration de ce workflow à github, gestion automatisée des PRs externes (contrôle, tests, scans de sécurité, auto-validations...).
-  - [ ] Documentation optimisée pour l'IA (ex. [openclaw](https://docs.openclaw.ai/fr/help/)), fortement fragmentée et spécialisée (optimisation du contexte).
-  - [ ] Automatisation des processus de [tests](https://docs.openclaw.ai/fr/help/testing), stratégie multi-niveaux, contrôle de couverture.
-  - [ ] Agents de gestion d'une instance en production, stricte cloisement des accès "administration technique" vs "données sensibles" (utilisateurs, clés).
-  - [ ] Automatiser tout ce qui est automatisable -> git, recherches & veille, maj, red / blue teams, tests...
-  - [ ] Stratégie de partage / distribution des tâches aux modèles d'IA en fonction de leurs caractéristiques, coûts, etc.
 - [ ] Stratégie CD par palier + remontées d'info -> environnements de... development, staging, canary, unstable, stable
 - [ ] Sécurité : [canary tokens](https://canarytokens.org/).
 - [ ] Mise à l'échelle : remplacer colmena par Salt-like ou Ansible-like + LDAP...
@@ -91,9 +75,17 @@
   - [ ] Instanciations pilotées par un orchestrateur type [k8s](https://github.com/kubernetes/kubernetes).
   - [ ] Stratégies de sauvegarde, sécurité, performances.
 - [ ] Instance publique basée sur le ndd darkone.yt. (cf. scalabilité horizontale ci-dessus)
+- [ ] Optimisation des développements par l'IA ([cf. doc en ligne](https://darkone-linux.github.io/fr/doc/introduction/#utilisation-de-lia)).
+- [ ] Module MinIO
+  - [x] Implémentation (version locale ou distante).
+  - [ ] Tests et stabilisation.
 
 ### Fait
 
+- [x] `just format`: nixfmt -> treefmt
+- [x] Module LaSuite Docs
+  - [x] Implémentation de base.
+  - [x] Tests et stabilisation.
 - [x] Séparer en plusieurs projets ([specs](.specs/SPLIT-PROJECT.fr.md))
   - [x] Projet 1 : framework (code commun à toutes les instances, `dnf/`)
   - [x] Projet 2 : boilerplate pour implémentation locale qui étend le framework (input flake + override-input en dev, `usr/`)
