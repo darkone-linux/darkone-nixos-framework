@@ -261,6 +261,7 @@ let
         nix-unit
         nixfmt
         rustc
+        treefmt
         sops
         ssh-to-age
         statix

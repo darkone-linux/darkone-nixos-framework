@@ -105,6 +105,7 @@ in
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) moreutils) # sponge
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nix-unit)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nixfmt)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) treefmt)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) rustc)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) sops)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) ssh-to-age)

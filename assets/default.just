@@ -15,7 +15,7 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 workDir := justfile_directory()
-dnfDir := home_directory() + '/dnf'
+dnfDir := source_directory() + '/..'
 secretsDir := workDir + '/usr/secrets'
 secretsGitIgnore := secretsDir + '/.gitignore'
 sopsSecretsFile := secretsDir + '/secrets.yaml'
@@ -174,13 +174,13 @@ simulate what="":
 [group('dev')]
 clean: fix check generate format _fix_fs_permissions
 
-# Recursive nixfmt on all nix files
+# treefmt orchestrates formatters in parallel (via treefmt.toml)
 [group('dev')]
 format:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	just _log "Full formatting..." "NIXFMT"
-	find . -name "*.nix" -exec nixfmt -s {} \;
+	just _log "Full formatting..." "TREEFMT"
+	treefmt --config-file {{dnfDir}}/assets/treefmt.toml --no-cache --quiet
 
 # Fix with statix
 [group('dev')]
