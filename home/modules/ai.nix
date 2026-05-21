@@ -1,11 +1,24 @@
-# AI coding tools: Claude Code, OpenCode, Codex, Aider, Goose.
+# AI coding tools and supporting utilities.
 #
-# Provides a Rust dev stack and code-quality utilities unconditionally,
-# then gates each AI agent behind its own `enableXxx` flag.
+# :::note[Flags]
+# - `darkone.home.ai.enable` master switch installs utility packages
+#   (aichat, llm, fabric-ai, gh, lazygit, direnv, code-quality tools, etc.)
+#   and enables the per-agent flag system below.
+# - `darkone.home.ai.enable{Claude,OpenCode,Codex,Aider,Goose}` each
+#   installs and configures a specific AI coding agent.
+# - `darkone.home.ai.preferLocal` when combined with a local `darkone.service.ai`
+#   ollama host, agents default to the local model instead of cloud APIs.
+# :::
+# 
+# :::tip[Per-host wiring]
+# This module reads `osConfig.darkone.service.ai.enable` to detect a
+# local ollama host.  On such hosts, `gollama`, the `ollama` CLI, and
+# local-model defaults for Aider / OpenCode are activated automatically.
 #
-# :::note
-# If `osConfig.darkone.service.ai.enable` is true (ollama running locally),
-# AI tools are configured to prefer the local endpoint over cloud APIs.
+# `programs.gh` is enabled with the `github-copilot-cli` extension.
+# OpenCode gets two MCP servers (filesystem, fetch) via `npx -y`.
+# Claude Code enforces an allow/ask/deny permission matrix and an RTK
+# governance hook on Bash calls.
 # :::
 
 {
@@ -28,15 +41,15 @@ let
   # Aider model: prefer Claude if enabled, fall back to local ollama.
   aiderModel =
     if cfg.enableClaude then
-      "anthropic/claude-sonnet-4-5-20250514"
+      "anthropic/claude-sonnet-4-6"
     else if hasLocalAI then
       ollamaBase
     else
-      "anthropic/claude-sonnet-4-5-20250514";
+      "anthropic/claude-sonnet-4-6";
 in
 {
   options = {
-    darkone.home.ai.enable = lib.mkEnableOption "Enable AI tools and Rust dev stack";
+    darkone.home.ai.enable = lib.mkEnableOption "Enable AI tools and supporting utilities";
     darkone.home.ai.enableClaude = lib.mkEnableOption "Claude Code CLI";
     darkone.home.ai.enableOpenCode = lib.mkEnableOption "OpenCode terminal AI agent";
     darkone.home.ai.enableCodex = lib.mkEnableOption "OpenAI Codex CLI";
@@ -73,12 +86,27 @@ in
       llm
 
       # Pattern-based AI prompting framework with hundreds of built-in recipes.
-      fabric
+      fabric-ai
 
-      # Code-quality tools useful independently of AI.
-      ast-grep # AST-aware search/replace for precise refactoring
+      # Code-quality and file-inspection tools — must stay in sync with the Claude Code allow list.
+      ast-grep # AST-aware search/replace
+      bat # syntax-highlighted cat
+      deadnix # remove unused Nix bindings
+      fd # user-friendly find
+      ripgrep # fast grep (rg)
       shellcheck
       shfmt
+      statix # Nix linter
+      tokei # code statistics
+
+      # Git workflow — review AI-generated diffs before committing.
+      delta # syntax-highlighted pager for git diff/show
+      lazygit # TUI client for staged review
+
+      # Dev workflow — environment isolation and reactive loops.
+      direnv # per-project .envrc; isolates API keys and project-scoped env vars
+      fzf # fuzzy finder for interactive agentic navigation
+      watchexec # file-event trigger for automated dev loops
 
       # GitHub CLI — required for agentic PR/issue workflows.
       gh
@@ -129,6 +157,7 @@ in
 
           # Policy: allow = read-only/idempotent, ask = writes/destructive.
           allow = [
+            
             # File inspection
             "Bash(awk:*)"
             "Bash(bat:*)"
@@ -195,10 +224,16 @@ in
 
             # Claude Code native tools
             "Edit"
+            "Read"
             "WebFetch"
+            "WebSearch"
           ];
 
           ask = [
+            
+            # Claude Code native tools — create/overwrite files.
+            "Write"
+
             # Git — state-modifying
             "Bash(git add:*)"
             "Bash(git checkout:*)"
@@ -247,8 +282,35 @@ in
         # Prefer local ollama when available to avoid cloud API costs.
         model = if (hasLocalAI && cfg.preferLocal) then ollamaBase else "opencode/big-pickle";
         autoshare = false;
-        autoupdate = true;
+
+        # NixOS manages upgrades declaratively; runtime auto-update breaks reproducibility.
+        autoupdate = false;
+
+        # MCP servers — require Node.js (npx) at runtime.
+        mcpServers = {
+          filesystem = {
+            command = "npx";
+            args = [
+              "-y"
+              "@modelcontextprotocol/server-filesystem"
+              config.home.homeDirectory
+            ];
+          };
+          fetch = {
+            command = "npx";
+            args = [ "-y" "@modelcontextprotocol/server-fetch" ];
+          };
+        };
       };
+    };
+
+    #==========================================================================
+    # GITHUB CLI EXTENSIONS
+    #==========================================================================
+
+    programs.gh = {
+      enable = true;
+      extensions = [ pkgs.github-copilot-cli ];
     };
 
     #==========================================================================
