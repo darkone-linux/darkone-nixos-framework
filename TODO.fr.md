@@ -27,7 +27,7 @@
   - [x] Comptes OIDC, cloisonnés pour chaque utilisateur.
   - [ ] Agents MCP personnels.
   - [ ] Générateur d'images et de médias.
-  - [ ] Conf OpenCode / Claude Code optimisée pour les développeurs.
+  - [x] Conf OpenCode / Claude Code optimisée pour les développeurs.
 - [x] Remplacer le générateur PHP par un générateur Rust + parseur nix complet.
   - [x] Implémentation + tests.
   - [ ] Corrections et optimisations à l'utilisation.
