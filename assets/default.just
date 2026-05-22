@@ -459,6 +459,31 @@ configure-admin-host:
 	else
 		just _info "Default secret file already exists." "SOPS"
 	fi
+
+	# Harmonia binary-cache signing key: when the public key is missing,
+	# (re)generate the keypair, store the private key in sops and keep the
+	# public key committed (read by ncps to trust harmonia-signed paths).
+	if [ ! -f "{{secretsDir}}/harmonia.pub" ] ;then
+		just _log "Generating Harmonia binary-cache signing key..." "SOPS"
+		DOMAIN=$(yq -r '.network.domain // "harmonia"' {{workDir}}/etc/config.yaml 2>/dev/null || echo "harmonia")
+		KEY_NAME="cache.${DOMAIN}-1"
+		TMP_DIR=$(mktemp -d)
+		nix-store --generate-binary-cache-key "$KEY_NAME" "$TMP_DIR/harmonia.key" "{{secretsDir}}/harmonia.pub"
+		just _sops_before_edit
+		export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
+		just _log "Injecting Harmonia private key into sops..." "SOPS"
+		if [ -f {{sopsSecretsFile}} ] ;then
+			sops -d -i {{sopsSecretsFile}}
+		else
+			echo "{}" >> {{sopsSecretsFile}}
+		fi
+		HARMONIA_KEY=$(cat "$TMP_DIR/harmonia.key")
+		yq -y --arg key "$HARMONIA_KEY" '."harmonia-secret-key" = $key' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
+		sops -e -i {{sopsSecretsFile}}
+		rm -rf "$TMP_DIR"
+	else
+		just _info "Harmonia public key already exists." "SOPS"
+	fi
 	just _fix_fs_permissions
 	just _done
 

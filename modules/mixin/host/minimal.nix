@@ -115,6 +115,11 @@ in
       default = attrsets.hasAttrByPath [ "services" "ai" ] host;
       description = "Enable AI environment (ollama, open-webui, llms...)";
     };
+    darkone.host.minimal.enableHarmonia = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "harmonia" ] host;
+      description = "Enable a local Harmonia Nix binary cache server";
+    };
 
     # Deactivated
     # darkone.host.minimal.enableMattermost = mkOption {
@@ -162,6 +167,7 @@ in
       docs.enable = cfg.enableDocs;
       element.enable = cfg.enableElement;
       forgejo.enable = cfg.enableForgejo;
+      harmonia.enable = cfg.enableHarmonia;
 
       # `mkIf` (not direct assignment) because consumer modules can also
       # auto-enable garage when they use a localhost S3 backend; merging

@@ -17,10 +17,14 @@
   network,
   pkgs,
   host,
+  hosts,
   zone,
+  dnfLib,
+  workDir,
   ...
 }:
 let
+  inherit (dnfLib) findHost preferredIp;
   cfg = config.darkone.service.ncps;
   hostIsLocal = host.zone != "www";
   serverName =
@@ -29,6 +33,29 @@ let
   isServer = hostIsLocal && host.hostname == serverName;
   isClient = hostIsLocal && hasServer;
   ncpsPort = 8501;
+  harmoniaPort = 5000;
+
+  # Harmonia upstreams in scope for this zone's ncps: same-zone instances
+  # (highest priority, reached over the LAN) first, then any global harmonia
+  # (reached cross-zone over the tailnet). Other zones' non-global harmonia are
+  # never used.
+  harmoniaInZone = lib.filter (s: s.name == "harmonia" && s.zone == zone.name) network.services;
+  harmoniaGlobal = lib.filter (
+    s: s.name == "harmonia" && (s.global or false) && s.zone != zone.name
+  ) network.services;
+  harmoniaUrls =
+    (map (s: "http://${(findHost s.host s.zone hosts).ip}:${toString harmoniaPort}") harmoniaInZone)
+    ++ (map (
+      s: "http://${preferredIp (findHost s.host s.zone hosts)}:${toString harmoniaPort}"
+    ) harmoniaGlobal);
+
+  # Deployment-wide harmonia public key (committed like nix.pub). Present only
+  # once the admin has provisioned the binary-cache key; absent in standalone
+  # test mode where the consumer workspace does not exist.
+  harmoniaPubFile = workDir + "/usr/secrets/harmonia.pub";
+  harmoniaKeys = lib.optional (
+    (!config.darkone.test.standalone) && builtins.pathExists harmoniaPubFile
+  ) (lib.fileContents harmoniaPubFile);
 in
 {
   options = {
@@ -85,11 +112,11 @@ in
             allowPutVerb = true;
             allowDeleteVerb = true;
             upstream = {
-              urls = [
+              urls = harmoniaUrls ++ [
                 "https://cache.nixos.org"
                 "https://nix-community.cachix.org"
               ];
-              publicKeys = [
+              publicKeys = harmoniaKeys ++ [
                 "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
                 "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
               ];
@@ -106,7 +133,7 @@ in
           (lib.mkIf isClient "http://${zone.gateway.hostname}.${zone.domain}:${toString ncpsPort}")
           "https://nix-community.cachix.org"
         ];
-        trusted-public-keys = [
+        trusted-public-keys = harmoniaKeys ++ [
           "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
           "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
         ];

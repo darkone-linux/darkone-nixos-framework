@@ -31,6 +31,7 @@
 - [x] Remplacer le générateur PHP par un générateur Rust + parseur nix complet.
   - [x] Implémentation + tests.
   - [ ] Corrections et optimisations à l'utilisation.
+- [x] Cache de store harmonia. (en cours de tests)
 
 ### Planifié
 
