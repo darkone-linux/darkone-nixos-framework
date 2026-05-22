@@ -35,7 +35,7 @@ let
   # True when this host runs the DNF local AI service (ollama).
   hasLocalAI = osConfig.darkone.service.ai.enable;
 
-  ollamaModel = "llama3.2:3b";
+  ollamaModel = builtins.head osConfig.services.ollama.loadModels;
   ollamaBase = "ollama/${ollamaModel}";
 
   # Aider model: prefer Claude if enabled, fall back to local ollama.
@@ -225,6 +225,7 @@ in
             # Claude Code native tools
             "Edit"
             "Read"
+            "Read(/nix/store/**)"
             "WebFetch"
             "WebSearch"
           ];
@@ -260,6 +261,7 @@ in
           ];
 
           deny = [
+
             # Never expose secrets to the AI agent.
             "Read(*/secrets/**)"
           ];
@@ -274,33 +276,37 @@ in
     programs.opencode = lib.mkIf cfg.enableOpenCode {
       enable = true;
 
-      # MCP expands the agent's toolset (filesystem, GitHub, search, etc.)
-      enableMcpIntegration = true;
-
       settings = {
 
         # Prefer local ollama when available to avoid cloud API costs.
-        model = if (hasLocalAI && cfg.preferLocal) then ollamaBase else "opencode/big-pickle";
+        model = lib.mkIf (hasLocalAI && cfg.preferLocal) ollamaBase;
         autoshare = false;
 
         # NixOS manages upgrades declaratively; runtime auto-update breaks reproducibility.
         autoupdate = false;
 
         # MCP servers — require Node.js (npx) at runtime.
-        mcpServers = {
-          filesystem = {
-            command = "npx";
-            args = [
-              "-y"
-              "@modelcontextprotocol/server-filesystem"
-              config.home.homeDirectory
-            ];
-          };
-          fetch = {
-            command = "npx";
-            args = [ "-y" "@modelcontextprotocol/server-fetch" ];
-          };
-        };
+        # Schema: type + command array required for local servers.
+        # TODO: check security + fetch -> not working
+        # mcp = {
+        #   # filesystem = {
+        #   #   type = "local";
+        #   #   command = [
+        #   #     "npx"
+        #   #     "-y"
+        #   #     "@modelcontextprotocol/server-filesystem"
+        #   #     config.home.homeDirectory
+        #   #   ];
+        #   # };
+        #   fetch = {
+        #     type = "local";
+        #     command = [
+        #       "npx"
+        #       "-y"
+        #       "@modelcontextprotocol/server-fetch"
+        #     ];
+        #   };
+        # };
       };
     };
 

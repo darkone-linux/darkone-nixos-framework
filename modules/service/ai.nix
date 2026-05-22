@@ -94,11 +94,10 @@ in
         openFirewall = false;
         host = "0.0.0.0";
         loadModels = [
-          "deepseek-r1:latest" # 8b
-          "gemma4:e4b"
           "llama3.2:3b"
+          "gemma4:e4b"
+          "deepseek-r1:latest" # 8b
           "mistral-small3.2:latest" # 24b
-          "translategemma:27b"
         ];
       };
 
