@@ -102,7 +102,6 @@ in
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) gcc) # Useful for rust generator
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) hugo) # TODO: deprecated
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) just)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) moreutils) # sponge
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nix-unit)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nixfmt)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) treefmt)
@@ -150,7 +149,7 @@ in
       (lib.mkIf cfg.enableEssentials zip)
       (lib.mkIf cfg.enableNixAdmin mkpasswd)
       (lib.mkIf cfg.enableNixAdmin wakeonlan)
-      (lib.mkIf cfg.enableNixAdmin yq)
+      (lib.mkIf cfg.enableNixAdmin yq-go)
       (lib.mkIf cfg.enablePhoneTools qtscrcpy) # Smartphone VNC
       (lib.mkIf cfg.enablePhoneTools scrcpy)
       (lib.mkIf cfg.enableTools fastfetch)

@@ -257,7 +257,6 @@ let
         git
         just
         mkpasswd
-        moreutils
         nix-unit
         nixfmt
         rustc
@@ -265,7 +264,7 @@ let
         sops
         ssh-to-age
         statix
-        yq
+        yq-go
         zsh
       ];
       shellHook = "exec zsh";

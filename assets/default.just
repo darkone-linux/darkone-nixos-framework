@@ -465,22 +465,15 @@ configure-admin-host:
 	# public key committed (read by ncps to trust harmonia-signed paths).
 	if [ ! -f "{{secretsDir}}/harmonia.pub" ] ;then
 		just _log "Generating Harmonia binary-cache signing key..." "SOPS"
-		DOMAIN=$(yq -r '.network.domain // "harmonia"' {{workDir}}/etc/config.yaml 2>/dev/null || echo "harmonia")
+		DOMAIN=$(yq '.network.domain // "harmonia"' {{workDir}}/etc/config.yaml 2>/dev/null || echo "harmonia")
 		KEY_NAME="cache.${DOMAIN}-1"
 		TMP_DIR=$(mktemp -d)
 		nix-store --generate-binary-cache-key "$KEY_NAME" "$TMP_DIR/harmonia.key" "{{secretsDir}}/harmonia.pub"
-		just _sops_before_edit
 		export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
 		just _log "Injecting Harmonia private key into sops..." "SOPS"
-		if [ -f {{sopsSecretsFile}} ] ;then
-			sops -d -i {{sopsSecretsFile}}
-		else
-			echo "{}" >> {{sopsSecretsFile}}
-		fi
 		HARMONIA_KEY=$(cat "$TMP_DIR/harmonia.key")
-		yq -y --arg key "$HARMONIA_KEY" '."harmonia-secret-key" = $key' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
-		sops -e -i {{sopsSecretsFile}}
-		rm -rf "$TMP_DIR"
+		sops set {{sopsSecretsFile}} '["harmonia-secret-key"]' "\"$HARMONIA_KEY\""
+		wipe -rf "$TMP_DIR"
 	else
 		just _info "Harmonia public key already exists." "SOPS"
 	fi
@@ -654,6 +647,9 @@ passwd-default:
 	if [ "$PASSWORD" != "$PASSWORD_CONFIRM" ]; then
 		just _fail "Error: not corresponding."
 	fi
+	export PASSWORD
+	BCRYPT_HASH=$(mkpasswd --method=bcrypt --rounds=12 "$PASSWORD")
+	export BCRYPT_HASH
 	just _sops_before_edit
 	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
 	just _log "Updating default password..." "SOPS"
@@ -662,15 +658,14 @@ passwd-default:
 	else
 		echo "{}" >> {{sopsSecretsFile}}
 	fi
-	yq -y --arg pw "$PASSWORD" '."default-password" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
-	BCRYPT_HASH=$(mkpasswd --method=bcrypt --rounds=12 "$PASSWORD")
-	yq -y --arg pw "$BCRYPT_HASH" '."default-password-hash" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
+	yq --inplace '."default-password" = strenv(PASSWORD)' {{sopsSecretsFile}}
+	yq --inplace '."default-password-hash" = strenv(BCRYPT_HASH)' {{sopsSecretsFile}}
 	sops -e -i {{sopsSecretsFile}}
 
 	# var/generated/ is owned by the workspace user (generator output, committed
-	# to git). sponge does an atomic rename and needs write access on the parent
-	# dir, not just on the file. Hand both to nix for the duration of the write;
-	# _fix_fs_permissions (below) restores ownership via --reference=. at the end.
+	# to git). yq --inplace does an atomic rename and needs write access on the
+	# parent dir, not just on the file. Hand both to nix for the duration of the
+	# write; _fix_fs_permissions (below) restores ownership via --reference=. at the end.
 	sudo mkdir -p "$(dirname {{generatedConfigFile}})"
 	sudo chown nix "$(dirname {{generatedConfigFile}})"
 	if [ -f {{generatedConfigFile}} ] ;then
@@ -679,7 +674,7 @@ passwd-default:
 	if [ ! -f {{generatedConfigFile}} ] ;then
 		echo "{}" >> {{generatedConfigFile}}
 	fi
-	yq -y --arg pw "$BCRYPT_HASH" '.network.default."password-hash" = $pw' {{generatedConfigFile}} | sponge {{generatedConfigFile}}
+	yq --inplace '.network.default."password-hash" = strenv(BCRYPT_HASH)' {{generatedConfigFile}}
 	just _fix_fs_permissions
 	just _log "Password updated, don't forget to deploy" "SOPS"
 
@@ -704,7 +699,7 @@ passwd user:
 		just _fail "Error: not corresponding."
 	fi
 
-	# sops -i and sponge both do an atomic rename inside usr/secrets/, which
+	# sops -i and yq --inplace both do an atomic rename inside usr/secrets/, which
 	# is darkone-owned in the default state. _sops_before_edit chowns it to
 	# nix for the duration of the edit; _fix_fs_permissions restores at the
 	# end. Same export as passwd-default so sops can decrypt without relying
@@ -713,8 +708,9 @@ passwd user:
 	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
 	just _log "Updating {{user}} password..." "SOPS"
 	HASH=$(mkpasswd -m sha-512 "$PASSWORD")
+	export HASH
 	sops -d -i {{sopsSecretsFile}}
-	yq -y --arg pw "$HASH" '.user."{{user}}"."password-hash" = $pw' {{sopsSecretsFile}} | sponge {{sopsSecretsFile}}
+	yq --inplace '.user."{{user}}"."password-hash" = strenv(HASH)' {{sopsSecretsFile}}
 	sops -e -i {{sopsSecretsFile}}
 	just _fix_fs_permissions
 	just _log "OK, password updated for {{user}}" "SOPS"
