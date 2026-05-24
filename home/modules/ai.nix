@@ -9,7 +9,7 @@
 # - `darkone.home.ai.preferLocal` when combined with a local `darkone.service.ai`
 #   ollama host, agents default to the local model instead of cloud APIs.
 # :::
-# 
+#
 # :::tip[Per-host wiring]
 # This module reads `osConfig.darkone.service.ai.enable` to detect a
 # local ollama host.  On such hosts, `gollama`, the `ollama` CLI, and
@@ -18,7 +18,10 @@
 # `programs.gh` is enabled with the `github-copilot-cli` extension.
 # OpenCode gets two MCP servers (filesystem, fetch) via `npx -y`.
 # Claude Code enforces an allow/ask/deny permission matrix and an RTK
-# governance hook on Bash calls.
+# governance hook on Bash calls. Its `settings.json` is NOT pinned as a
+# read-only store symlink: the socle is merged into a WRITABLE
+# `~/.claude/settings.json` on every switch, so plugins/add-ons
+# (claude-mem, graphify, ...) can be installed and managed by hand on top.
 # :::
 
 {
@@ -46,6 +49,183 @@ let
       ollamaBase
     else
       "anthropic/claude-sonnet-4-6";
+
+  # Claude Code governance socle (permission matrix + RTK PreToolUse hook).
+  # Kept as Nix data, rendered to an immutable store JSON, then merged into a
+  # writable settings.json by `claudeSettingsMerge` below. We deliberately do
+  # NOT feed this to `programs.claude-code.settings`: the module would pin
+  # settings.json as a read-only store symlink, blocking manual plugin installs
+  # (`npx claude-mem install` & co. fail with EROFS on the read-only file).
+  claudeSettings = {
+    "$schema" = "https://json.schemastore.org/claude-code-settings.json";
+
+    hooks.PreToolUse = [
+      {
+        matcher = "Bash";
+
+        # RTK intercepts each Bash call for logging/governance.
+        hooks = [
+          {
+            type = "command";
+            command = "rtk hook claude";
+          }
+        ];
+      }
+    ];
+
+    includeCoAuthoredBy = false;
+    theme = "dark";
+
+    statusLine = {
+      type = "command";
+      command = "npx -y ccstatusline@latest";
+      padding = 0;
+      refreshInterval = 10;
+    };
+
+    permissions = {
+      defaultMode = "acceptEdits";
+
+      # Prevent users from bypassing the permission system at runtime.
+      disableBypassPermissionsMode = "disable";
+
+      # Policy: allow = read-only/idempotent, ask = writes/destructive.
+      allow = [
+
+        # File inspection
+        "Bash(awk:*)"
+        "Bash(bat:*)"
+        "Bash(cat:*)"
+        "Bash(comm:*)"
+        "Bash(diff:*)"
+        "Bash(echo:*)"
+        "Bash(fd:*)"
+        "Bash(file:*)"
+        "Bash(find:*)"
+        "Bash(grep:*)"
+        "Bash(head:*)"
+        "Bash(jq:*)"
+        "Bash(ls:*)"
+        "Bash(rg:*)"
+        "Bash(sort:*)"
+        "Bash(stat:*)"
+        "Bash(tail:*)"
+        "Bash(tokei:*)"
+        "Bash(tree:*)"
+        "Bash(uniq:*)"
+        "Bash(wc:*)"
+        "Bash(xargs:*)"
+
+        # Code analysis
+        "Bash(ast-grep:*)"
+        "Bash(deadnix:*)"
+        "Bash(rust-analyzer:*)"
+        "Bash(shellcheck:*)"
+
+        # Git — read only
+        "Bash(git blame:*)"
+        "Bash(git diff:*)"
+        "Bash(git log:*)"
+        "Bash(git show:*)"
+        "Bash(git status:*)"
+        "Bash(git add:*)"
+        "Bash(git checkout:*)"
+
+        # Nix — read/evaluation only
+        "Bash(nix eval:*)"
+        "Bash(nix flake check:*)"
+        "Bash(nix repl:*)"
+        "Bash(nix build:*)"
+
+        # Cargo — build/test/format are idempotent
+        "Bash(cargo build:*)"
+        "Bash(cargo check:*)"
+        "Bash(cargo clippy:*)"
+        "Bash(cargo fmt:*)"
+        "Bash(cargo test:*)"
+
+        # Formatters — idempotent, no side effects
+        "Bash(nixfmt:*)"
+        "Bash(shfmt:*)"
+        "Bash(statix:*)"
+        "Bash(treefmt:*)"
+
+        # Network — read/download only
+        "Bash(curl:*)"
+        "Bash(wget:*)"
+
+        # Task runners and AI hooks
+        "Bash(just:*)"
+        "Bash(QUIET=1 just:*)"
+        "Bash(rtk:*)"
+
+        # Claude Code native tools
+        "Edit"
+        "Read"
+        "Read(/nix/store/**)"
+        "WebFetch"
+        "WebSearch"
+        "Write"
+      ];
+
+      ask = [
+
+        # Git — state-modifying
+        "Bash(git commit:*)"
+        "Bash(git push:*)"
+        "Bash(git rebase:*)"
+        "Bash(git reset:*)"
+
+        # Nix — builds and installs write to the store
+        "Bash(nix shell:*)"
+        "Bash(nix:*)"
+
+        # Cargo — publish and install have external effects
+        "Bash(cargo install:*)"
+        "Bash(cargo publish:*)"
+
+        # Privileged / external access
+        "Bash(gh:*)"
+        "Bash(rm:*)"
+        "Bash(ssh:*)"
+        "Bash(sudo:*)"
+        "Bash(systemctl:*)"
+      ];
+
+      deny = [
+
+        # Never expose secrets to the AI agent.
+        "Read(*/secrets/**)"
+      ];
+    };
+  };
+
+  # Immutable JSON rendering of the socle in the nix store.
+  claudeSettingsFile = (pkgs.formats.json { }).generate "claude-code-settings.json" claudeSettings;
+
+  # Activation helper: keep ~/.claude/settings.json WRITABLE while reapplying
+  # the Nix-owned socle on every switch. jq deep-merge with the socle as the
+  # winning operand — nix keys (permissions, RTK hook) always win, but manual
+  # additions (`enabledPlugins`, marketplaces, extra hooks) are preserved.
+  claudeSettingsMerge = pkgs.writeShellScript "claude-settings-merge" ''
+    set -euo pipefail
+
+    settings="$HOME/.claude/settings.json"
+
+    ${pkgs.coreutils}/bin/mkdir -p "$HOME/.claude"
+
+    if [ -f "$settings" ] && [ ! -L "$settings" ]; then
+
+      # Writable file already present: merge, socle wins on conflicts.
+      ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$settings" ${claudeSettingsFile} > "$settings.hm-tmp"
+      ${pkgs.coreutils}/bin/mv -f "$settings.hm-tmp" "$settings"
+    else
+
+      # First seed, or replacing a leftover read-only store symlink.
+      ${pkgs.coreutils}/bin/rm -f "$settings"
+      ${pkgs.coreutils}/bin/install -m644 ${claudeSettingsFile} "$settings"
+    fi
+  '';
 in
 {
   options = {
@@ -122,6 +302,8 @@ in
 
       # Dependencies
       (lib.mkIf cfg.enableClaude nodejs_24)
+      (lib.mkIf cfg.enableClaude bun) # claude-mem dependency
+      (lib.mkIf cfg.enableClaude uv) # claude-mem dependency
 
       # OpenCode desktop UI (requires a graphical environment).
       (lib.mkIf (cfg.enableOpenCode && graphic) opencode-desktop)
@@ -133,151 +315,17 @@ in
 
     programs.claude-code = lib.mkIf cfg.enableClaude {
       enable = true;
-      settings = {
 
-        hooks.PreToolUse = [
-          {
-            matcher = "Bash";
-            hooks = [
-              {
-                type = "command";
-
-                # RTK intercepts each Bash call for logging/governance.
-                command = "rtk hook claude";
-              }
-            ];
-          }
-        ];
-
-        includeCoAuthoredBy = false;
-        theme = "dark";
-
-        statusLine = {
-          type = "command";
-          command = "npx -y ccstatusline@latest";
-          padding = 0;
-          refreshInterval = 10;
-        };
-
-        permissions = {
-          defaultMode = "acceptEdits";
-
-          # Prevent users from bypassing the permission system at runtime.
-          disableBypassPermissionsMode = "disable";
-
-          # Policy: allow = read-only/idempotent, ask = writes/destructive.
-          allow = [
-            
-            # File inspection
-            "Bash(awk:*)"
-            "Bash(bat:*)"
-            "Bash(cat:*)"
-            "Bash(comm:*)"
-            "Bash(diff:*)"
-            "Bash(echo:*)"
-            "Bash(fd:*)"
-            "Bash(file:*)"
-            "Bash(find:*)"
-            "Bash(grep:*)"
-            "Bash(head:*)"
-            "Bash(jq:*)"
-            "Bash(ls:*)"
-            "Bash(rg:*)"
-            "Bash(sort:*)"
-            "Bash(stat:*)"
-            "Bash(tail:*)"
-            "Bash(tokei:*)"
-            "Bash(tree:*)"
-            "Bash(uniq:*)"
-            "Bash(wc:*)"
-            "Bash(xargs:*)"
-
-            # Code analysis
-            "Bash(ast-grep:*)"
-            "Bash(deadnix:*)"
-            "Bash(rust-analyzer:*)"
-            "Bash(shellcheck:*)"
-
-            # Git — read only
-            "Bash(git blame:*)"
-            "Bash(git diff:*)"
-            "Bash(git log:*)"
-            "Bash(git show:*)"
-            "Bash(git status:*)"
-
-            # Nix — read/evaluation only
-            "Bash(nix eval:*)"
-            "Bash(nix flake check:*)"
-            "Bash(nix repl:*)"
-
-            # Cargo — build/test/format are idempotent
-            "Bash(cargo build:*)"
-            "Bash(cargo check:*)"
-            "Bash(cargo clippy:*)"
-            "Bash(cargo fmt:*)"
-            "Bash(cargo test:*)"
-
-            # Formatters — idempotent, no side effects
-            "Bash(nixfmt:*)"
-            "Bash(shfmt:*)"
-            "Bash(statix:*)"
-            "Bash(treefmt:*)"
-
-            # Network — read/download only
-            "Bash(curl:*)"
-            "Bash(wget:*)"
-
-            # Task runners and AI hooks
-            "Bash(just:*)"
-            "Bash(QUIET=1 just:*)"
-            "Bash(rtk:*)"
-
-            # Claude Code native tools
-            "Edit"
-            "Read"
-            "Read(/nix/store/**)"
-            "WebFetch"
-            "WebSearch"
-          ];
-
-          ask = [
-            
-            # Claude Code native tools — create/overwrite files.
-            "Write"
-
-            # Git — state-modifying
-            "Bash(git add:*)"
-            "Bash(git checkout:*)"
-            "Bash(git commit:*)"
-            "Bash(git push:*)"
-            "Bash(git rebase:*)"
-            "Bash(git reset:*)"
-
-            # Nix — builds and installs write to the store
-            "Bash(nix build:*)"
-            "Bash(nix shell:*)"
-            "Bash(nix:*)"
-
-            # Cargo — publish and install have external effects
-            "Bash(cargo install:*)"
-            "Bash(cargo publish:*)"
-
-            # Privileged / external access
-            "Bash(gh:*)"
-            "Bash(rm:*)"
-            "Bash(ssh:*)"
-            "Bash(sudo:*)"
-            "Bash(systemctl:*)"
-          ];
-
-          deny = [
-
-            # Never expose secrets to the AI agent.
-            "Read(*/secrets/**)"
-          ];
-        };
-      };
+      # settings.json is intentionally left unmanaged here so it stays writable
+      # for manual plugin/add-on installs; the socle is injected by the
+      # activation script below (see `claudeSettings` / `claudeSettingsMerge`).
     };
+
+    # Seed/merge the governance socle into a writable ~/.claude/settings.json.
+    # Runs after the HM writeBoundary so $HOME is fully provisioned.
+    home.activation.claudeWritableSettings = lib.mkIf cfg.enableClaude (
+      lib.hm.dag.entryAfter [ "writeBoundary" ] "run ${claudeSettingsMerge}"
+    );
 
     #==========================================================================
     # OPENCODE
