@@ -120,6 +120,9 @@ in
       (lib.mkIf cfg.enableAider aider-chat)
       (lib.mkIf cfg.enableGoose goose-cli)
 
+      # Dependencies
+      (lib.mkIf cfg.enableClaude nodejs_24)
+
       # OpenCode desktop UI (requires a graphical environment).
       (lib.mkIf (cfg.enableOpenCode && graphic) opencode-desktop)
     ];
@@ -148,6 +151,13 @@ in
 
         includeCoAuthoredBy = false;
         theme = "dark";
+
+        statusLine = {
+          type = "command";
+          command = "npx -y ccstatusline@latest";
+          padding = 0;
+          refreshInterval = 10;
+        };
 
         permissions = {
           defaultMode = "acceptEdits";
