@@ -26,6 +26,7 @@ sopsYamlFile := secretsDir + '/.sops.yaml'
 sopsInfraTargetDir := '/etc/sops/age'
 sopsInfraTargetFile := sopsInfraTargetDir + '/infra.key'
 generatedConfigFile := workDir + '/var/generated/config.yaml'
+fixturesDir := dnfDir + '/tests/fixtures'
 nix := 'nix --extra-experimental-features "nix-command flakes"'
 logPrefix := '[ {{CYAN}}DNF{{NORMAL}} ] '
 dnfInstallDir := '/mnt/dnf-install'
@@ -165,6 +166,80 @@ simulate what="":
 		system=$({{nix}} eval --raw --impure --expr 'builtins.currentSystem')
 		{{nix}} build ".#checks.${system}.{{what}}" --no-link
 	fi
+
+# Manage test fixtures: generate | check | gen-secrets
+[group('check')]
+fixtures action:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	case "{{action}}" in
+	  generate)    just _fixtures_generate ;;
+	  check)       just _fixtures_check ;;
+	  gen-secrets) just _fixtures_gen_secrets ;;
+	  *)           just _fail "Unknown fixtures action: {{action}} (generate|check|gen-secrets)" ;;
+	esac
+
+# Regenerate var/generated for every test workspace (implemented in a later phase)
+_fixtures_generate:
+	@just _warn "Not implemented until Phase 4."
+
+# Diff committed var/generated against a fresh generation (implemented in a later phase)
+_fixtures_check:
+	@just _warn "Not implemented until Phase 4."
+
+# (Rare) Regenerate the test sops key + encrypted secrets + self-signed TLS.
+# Throwaway, INSECURE, committed: protects only fake test passwords.
+_fixtures_gen_secrets:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	KEYS="{{fixturesDir}}/keys"
+	SEC="{{fixturesDir}}/secrets"
+	TLS="{{fixturesDir}}/tls"
+	mkdir -p "$KEYS" "$SEC" "$TLS"
+
+	# Throwaway age identity (committed on purpose, INSECURE).
+	if [ ! -f "$KEYS/test-infra.age" ]; then
+		just _log "Generating throwaway test age key..." "FIXTURES"
+		age-keygen -o "$KEYS/test-infra.age"
+	fi
+	PUB=$(age-keygen -y "$KEYS/test-infra.age")
+
+	# .sops.yaml targeting the test key only.
+	{
+		echo "keys:"
+		echo "  - &test ${PUB}"
+		echo "creation_rules:"
+		echo "  - path_regex: \"[^/]+\\\\.yaml\$\""
+		echo "    key_groups:"
+		echo "    - age:"
+		echo "      - *test"
+	} > "$SEC/.sops.yaml"
+
+	# Plaintext secrets the test modules need (default password + per-user hash).
+	HASH=$(mkpasswd --method=bcrypt --rounds=12 "test")
+	{
+		echo "default-password: test"
+		echo "default-password-hash: \"${HASH}\""
+		echo "user:"
+		echo "  nix:"
+		echo "    password-hash: \"${HASH}\""
+		echo "  darkone:"
+		echo "    password-hash: \"${HASH}\""
+	} > "$SEC/secrets.yaml"
+
+	# In-place encrypt: cwd = $SEC so sops finds .sops.yaml and the filename
+	# matches the path_regex creation rule.
+	( cd "$SEC" && sops -e -i secrets.yaml )
+
+	# Fixed self-signed TLS cert (stub ACME).
+	if [ ! -f "$TLS/cert.pem" ]; then
+		just _log "Generating self-signed TLS fixture..." "FIXTURES"
+		openssl req -x509 -newkey rsa:2048 -nodes \
+			-keyout "$TLS/key.pem" -out "$TLS/cert.pem" \
+			-days 36500 -subj "/CN=test.local" \
+			-addext "subjectAltName=DNS:test.local,DNS:*.test.local"
+	fi
+	just _log "Test fixtures generated under tests/fixtures/." "FIXTURES"
 
 #==============================================================================
 # Development

@@ -194,9 +194,8 @@
       # Unit tests — run with: nix-unit --flake .#libTests
       libTests = import ./tests/unit { inherit (nixpkgs) lib; };
 
-      # L2 simulation tests — NixOS Test Driver scenarios exposed as checks.
-      # Run with: just simulate [<name>]
-      # Included automatically in: nix flake check / just check-flake
+      # Simulation tests (NixOS Test Driver) — auto-discovered from
+      # tests/scenarios/. Run a single one: just simulate <name>.
       checks = forAllSystems (
         system:
         let
@@ -204,16 +203,8 @@
             inherit system;
             config.allowUnfree = true;
           };
-          dnfLib = import ./lib { inherit (pkgs) lib; };
         in
-        import ./tests/simulate {
-          inherit pkgs dnfLib;
-          dnfModules = ./modules;
-
-          # Non-DNF NixOS modules required by dnfModules (option declarations).
-          # sops-nix: declares the `sops` option used by dnf/modules/system/sops.nix.
-          extraModules = [ inputs.sops-nix.nixosModules.sops ];
-        }
+        import ./tests/scenarios { inherit pkgs inputs; }
       );
 
       # Dev shell for framework hacking (cargo / nix-unit / sops / ...).
@@ -242,6 +233,7 @@
               mkpasswd
               nix-unit
               nixfmt
+              openssl
               rustc
               treefmt
               sops
