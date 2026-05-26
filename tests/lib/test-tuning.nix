@@ -13,6 +13,11 @@
   # Seam: skip workDir-only bits + neutralize headscale/tailscale.
   darkone.test.standalone = true;
 
+  # Each node owns its nixpkgs (node.pkgsReadOnly = false). The framework
+  # enables unfree via hardware.nix, but a scenario may disable core; keep
+  # unfree allowed test-wide. mkDefault yields to core's own setting.
+  nixpkgs.config.allowUnfree = lib.mkDefault true;
+
   # Real sops: decrypt with the committed throwaway test key only.
   # (No host SSH key exists in the VM, so drop sshKeyPaths.)
   sops.age.sshKeyPaths = lib.mkForce [ ];

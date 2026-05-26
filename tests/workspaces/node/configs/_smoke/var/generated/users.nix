@@ -4,19 +4,17 @@
 
 {
   darkone = {
+    uid = 1000;
     email = "darkone@test.local";
-    groups = [
-      "global"
-    ];
     name = "Darkone";
     profile = "dnf/home/profiles/nix-admin";
-    uid = 1000;
+    groups = [ "global" ];
   };
   nix = {
+    uid = 65000;
     email = "nix@test.local";
+    name = "Nix Maintenance User";
+    profile = "dnf/home/profiles/nix-admin";
     groups = [ ];
-    name = "nix";
-    profile = "dnf/home/profiles/minimal";
-    uid = 65534;
   };
 }

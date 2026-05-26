@@ -4,16 +4,22 @@
 
 [
   {
-    arch = "x86_64-linux";
-    colmena = { };
-    disko = { };
-    features = [ ];
-    groups = [ ];
     hostname = "node1";
+    zone = "z1";
+    fqdn = "node1.z1.test.local";
     name = "Smoke node";
     profile = "minimal";
+    ip = "10.10.1.1";
+    zoneDomain = "z1.test.local";
+    networkDomain = "test.local";
+    groups = [ ];
+    features = { };
+    users = [ "nix" ];
+    colmena = {
+      deployment = {
+        tags = [ "zone-z1" ];
+      };
+    };
     services = { };
-    users = [ ];
-    zone = "z1";
   }
 ]

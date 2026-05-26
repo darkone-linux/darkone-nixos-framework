@@ -34,5 +34,5 @@ users:
 hosts:
   - hostname: "node1"
     name: "Smoke node"
-    zone: "z1:1.2"
+    zone: "z1:1.1"
     profile: "minimal"

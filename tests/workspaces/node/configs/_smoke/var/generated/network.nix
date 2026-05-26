@@ -3,35 +3,57 @@
 # --> DO NOT EDIT <--
 
 {
-  coordination = {
-    domain = "headscale";
-    enable = false;
-    hostname = "hcs";
-  };
+  domain = "test.local";
   default = {
     locale = "en_US.UTF-8";
     timezone = "Etc/UTC";
   };
-  domain = "test.local";
+  coordination = {
+    enable = false;
+    hostname = "hcs";
+    domain = "headscale";
+  };
   services = [ ];
-  smtp = { };
   zones = {
+    www = {
+      description = "www network zone";
+      domain = "test.local";
+      lang = "en";
+      locale = "en_US.UTF-8";
+      timezone = "Etc/UTC";
+      name = "www";
+      tls-builder-hosts = [ ];
+    };
     z1 = {
       description = "Test zone 1";
+      domain = "z1.test.local";
       gateway = {
+        wan = {
+          interface = "eth0";
+        };
         lan = {
-          interfaces = [
-            "eth1"
-          ];
+          interfaces = [ "eth1" ];
+          ip = "10.10.1.1";
         };
         vpn = {
           ipv4 = "100.64.0.1";
         };
-        wan = {
-          interface = "eth0";
-        };
+        hostname = "node1";
       };
       ipPrefix = "10.10";
+      lang = "en";
+      locale = "en_US.UTF-8";
+      networkIp = "10.10.0.0";
+      prefixLength = 16;
+      timezone = "Etc/UTC";
+      name = "z1";
+      extraDnsmasqSettings = {
+        dhcp-host = [ ];
+        dhcp-range = [ "10.10.3.200,10.10.3.249,24h" ];
+        address = [ "/z1.test.local/10.10.1.1" ];
+        server = [ ];
+        host-record = [ "node1,node1.z1.test.local,10.10.1.1" ];
+      };
     };
   };
 }
