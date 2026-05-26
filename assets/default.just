@@ -179,13 +179,63 @@ fixtures action:
 	  *)           just _fail "Unknown fixtures action: {{action}} (generate|check|gen-secrets)" ;;
 	esac
 
-# Regenerate var/generated for every test workspace (implemented in a later phase)
-_fixtures_generate:
-	@just _warn "Not implemented until Phase 4."
+# Generate hosts/users/network for ONE workspace dir (CWD-independent).
+# Two execution paths (co-dev cargo / release binary), like `_gen`.
+_fixtures_gen_one dir:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	cd "{{dir}}"
 
-# Diff committed var/generated against a fresh generation (implemented in a later phase)
+	# The generator writes into an existing var/generated/ (new workspaces
+	# have none yet); create it so generation never fails on a fresh dir.
+	mkdir -p var/generated
+	for what in hosts users network; do
+		if [ -f {{dnfDir}}/../src/generator/Cargo.toml ] && command -v cargo >/dev/null 2>&1; then
+			cargo run --quiet --manifest-path {{dnfDir}}/../src/generator/Cargo.toml -- "$what" >/dev/null
+		elif command -v dnf-generator >/dev/null 2>&1; then
+			dnf-generator "$what" >/dev/null
+		else
+			just _fail "Generator unavailable: enter devShell or provide src/generator/"
+		fi
+	done
+
+# Regenerate var/generated for every test workspace (in place).
+_fixtures_generate:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	shopt -s nullglob
+	for d in {{dnfDir}}/tests/workspaces/*/configs/*/; do
+		[ -f "${d}etc/config.yaml" ] || continue
+		just _log "Generating ${d#{{dnfDir}}/}..." "FIXTURES"
+		just _fixtures_gen_one "$d"
+	done
+	just _log "All test workspaces generated." "FIXTURES"
+
+# Anti-drift: regenerate each workspace in a temp dir (skeleton symlinked by
+# absolute path so profile resolution works) and diff against the committed
+# output. Non-mutating: the working tree is never touched.
 _fixtures_check:
-	@just _warn "Not implemented until Phase 4."
+	#!/usr/bin/env bash
+	set -euo pipefail
+	shopt -s nullglob
+	rc=0
+	skel="{{dnfDir}}/tests/workspaces/_skeleton"
+	for d in {{dnfDir}}/tests/workspaces/*/configs/*/; do
+		[ -f "${d}etc/config.yaml" ] || continue
+		tmp=$(mktemp -d)
+		mkdir -p "$tmp/etc"
+		cp "${d}etc/config.yaml" "$tmp/etc/"
+		ln -s "$skel/usr" "$tmp/usr"
+		ln -s "$skel/dnf" "$tmp/dnf"
+		just _fixtures_gen_one "$tmp"
+		if ! diff -rq "${d}var/generated" "$tmp/var/generated" >/dev/null 2>&1; then
+			just _err "Drift in ${d#{{dnfDir}}/} — run 'just fixtures generate'"
+			rc=1
+		fi
+		rm -rf "$tmp"
+	done
+	[ "$rc" -eq 0 ] && just _log "No fixture drift." "FIXTURES"
+	exit "$rc"
 
 # (Rare) Regenerate the test sops key + encrypted secrets + self-signed TLS.
 # Throwaway, INSECURE, committed: protects only fake test passwords.
@@ -225,6 +275,8 @@ _fixtures_gen_secrets:
 		echo "    password-hash: \"${HASH}\""
 		echo "  darkone:"
 		echo "    password-hash: \"${HASH}\""
+		echo "smtp:"
+		echo "  password: test"
 	} > "$SEC/secrets.yaml"
 
 	# In-place encrypt: cwd = $SEC so sops finds .sops.yaml and the filename
