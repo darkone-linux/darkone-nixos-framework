@@ -57,23 +57,20 @@ Spatial axis = `node` / `network` / `vpn`. Orthogonal modes = `eval` (any worksp
 | `just fixtures check` | Anti-drift: regenerate in a tmp dir, diff against committed |
 | `just fixtures gen-secrets` | (Rare) Regenerate throwaway age key + sops store + self-signed TLS |
 
-### Interactive driver — usage
+### Interactive driver
 
 ```bash
-# REPL — type Python commands directly
-just simulate-debug node-sops
-
-# Smoke-run with piped commands
-echo -e 'start_all()\nnode1.succeed("true")\n' | just simulate-debug node-sops
+just simulate-debug node-sops                          # REPL
+echo -e 'start_all()\nnode1.succeed("true")\n' | just simulate-debug node-sops  # pipe
 ```
 
-Useful primitives: `start_all()`, `node1.wait_for_unit("multi-user.target")`, `node1.succeed("cmd")`, `node1.fail("cmd")`, `node1.shell_interact()`, `node1.screenshot("name")`, `node1.get_screen_text()`.
+Primitives: `start_all()`, `wait_for_unit`, `succeed`, `fail`, `shell_interact`, `screenshot`, `get_screen_text`. 
 
 ## Adding a scenario
 
-1. Pick the right subdir: `scenarios/{machines,modules,services}/` (or future `networks/`, `installs/`).
-2. Name the file `node-<what>.nix` (prefix matches the spatial axis: `node-`, `network-`, `vpn-`).
-3. Write the scenario — `mkNodeTest` for L2, point at a workspace + host, add assertions:
+1. Pick subdir: `scenarios/{machines,modules,services}/`.
+2. Name: `node-<what>.nix`.
+3. Template — `mkNodeTest`, point at workspace + host:
 
    ```nix
    { pkgs, inputs }:
@@ -88,29 +85,29 @@ Useful primitives: `start_all()`, `node1.wait_for_unit("multi-user.target")`, `n
    }
    ```
 
-4. Auto-discovery does the rest — `scenarios/default.nix` walks the tree and exposes the check as `<subdir>-<filename>` (e.g. `services/node-foo.nix` → `services-node-foo`).
-5. If a new workspace variant is needed: drop `etc/config.yaml` under `workspaces/<axis>/configs/<variant>/`, symlink `usr` and `dnf` to `_skeleton/`, then `just fixtures generate`.
-6. Append the workspace path to `scenarios/eval-all.nix` so L1 covers its hosts too.
+4. Auto-discovery: `scenarios/default.nix` walks the tree, exposes `<subdir>-<filename>` (e.g. `services/node-foo.nix` → `services-node-foo`).
+5. New workspace variant: `etc/config.yaml` under `workspaces/<axis>/configs/<variant>/`, symlink `usr` + `dnf` to `_skeleton/`, then `just fixtures generate`.
+6. Append workspace path to `scenarios/eval-all.nix` for L1 coverage.
 
 ## Adding a service test
 
-Pattern for a `darkone.service.<X>` module exercised on a real "server" profile host.
+Pattern for `darkone.service.<X>` on a "server" profile host.
 
 ### 1. Workspace
 
-- `workspaces/node/configs/server-<X>/etc/config.yaml`: copy `server-forgejo` as a starting template (one zone, one gateway `gw1`, one server host `server1` with the service declared under `hosts[].services.<X>`).
-- The minimal-mixin auto-bridge does the rest: `host.services.<X>` present → `darkone.host.minimal.enable<X> = true` → `darkone.service.<X>.enable = true` (see `modules/mixin/host/minimal.nix`). Don't enable the service module by hand.
+- `workspaces/node/configs/server-<X>/etc/config.yaml`: copy `server-forgejo` as template (one zone, gw1, server1 with `hosts[].services.<X>`).
+- Minimal-mixin auto-bridge: `host.services.<X>` → `darkone.host.minimal.enable<X> = true` → `darkone.service.<X>.enable = true`. Don't hand-enable modules.
 - `usr` + `dnf` → symlinks to `_skeleton/`. `just fixtures generate`.
 
 ### 2. Scenario
 
 - `scenarios/services/node-server-<X>.nix`, `mkNodeTest`, `host = "server1"`.
-- Wait for `multi-user.target`, then `wait_for_unit` + `is-active` on every hard runtime dep (postgresql, redis, ...) **and** the main unit. Auto-iterate `<X>-*.service` to catch upstream unit splits without pinning a nixpkgs version.
-- HTTP smoke: `wait_for_open_port` + `wait_until_succeeds` with `curl -fsS | grep -q '^200$'`.
+- Wait for `multi-user.target`, then `wait_for_unit` + `is-active` on every hard runtime dep **and** the main unit. Auto-iterate `<X>-*.service` to catch upstream unit splits.
+- HTTP smoke: `wait_for_open_port` + `wait_until_succeeds` with `curl -fsSL … | grep -q '^200$'`. The `-L` follows redirects — some services (forgejo) return 303 on `/`.
 
-### 3. Bind address — `lan = true`
+### 3. `lan = true`
 
-If the module pins its bind to `host.ip` (e.g. `services.immich.host = host.ip`), opt-in:
+If the module binds to `host.ip` (e.g. `services.immich.host = host.ip`):
 
 ```nix
 (import ../../lib/mkNodeTest.nix { inherit pkgs inputs; }) {
@@ -120,17 +117,17 @@ If the module pins its bind to `host.ip` (e.g. `services.immich.host = host.ip`)
 }
 ```
 
-`lan = true` brings up the zone VLAN on `eth1` and pins `host.ip` statically. Without it, the bind fails with `EADDRNOTAVAIL` and the unit crash-loops on systemd `Restart=on-failure` (typical log: "starting … worker → postgres → worker"). Leave default (`false`) when the service binds to `0.0.0.0`/`localhost` (forgejo, fail2ban, ...).
+`lan = true` brings up the zone VLAN on `eth1`, pins `host.ip`. Without it, the bind fails with `EADDRNOTAVAIL`; the unit crash-loops on `Restart=on-failure`. Leave default (`false`) when the service binds to `0.0.0.0`/`localhost` (forgejo, fail2ban).
 
-### 4. What NOT to assert in a service test
+### 4. What NOT to assert
 
-- **Reverse proxy (caddy)**: lives on the **gateway** in real DNF topology, not on the service host. Assert on caddy in a gateway / network test instead.
-- **idm / kanidm**: most service modules register an OAuth2 client *template* under `darkone.service.idm.oauth2.<X>`. The template is inert until kanidm itself is enabled in the workspace.
-- **Optional features**: redis, machine-learning, ... default off. Document the gate (`darkone.service.<X>.enable<Feature>`) in the scenario's header instead of muting the assert.
+- **caddy**: lives on the **gateway**, not the service host. Test in gateway/network scenarios.
+- **kanidm**: OAuth2 client templates inert until kanidm itself is enabled.
+- **Optional features**: redis, ML, … default off. Document the gate in the header instead of muting asserts.
 
 ### 5. Eval-all
 
-Append the new workspace path to `scenarios/eval-all.nix` so L1 catches eval regressions on every host of the workspace, not just the one booted by L2.
+Append workspace path to `scenarios/eval-all.nix` for L1 eval coverage on all hosts.
 
 ## Invariants
 
