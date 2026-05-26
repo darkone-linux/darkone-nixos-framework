@@ -1,6 +1,6 @@
 # DNF tests
 
-Telegraph style. Reference spec: `.specs/dnf/docs/superpowers/specs/2026-05-25-tests-simulation-design.md`.
+Telegraph style.
 
 ## Layout
 
@@ -117,6 +117,6 @@ Useful primitives: `start_all()`, `node1.wait_for_unit("multi-user.target")`, `n
 
 ## See also
 
-- Spec: `.specs/dnf/docs/superpowers/specs/2026-05-25-tests-simulation-design.md`
-- Plan: `.specs/dnf/docs/superpowers/plans/2026-05-25-tests-simulation.md`
-- Strategy overview (3-tier vision): `.specs/FULL-TEST-STRATEGY.fr.md`
+Only if there are doubts about the organisation of the tests!
+
+- Spec: `.specs/2026-05-25-tests-simulation-design.md`
