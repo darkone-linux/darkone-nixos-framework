@@ -8,5 +8,6 @@
     ../workspaces/node/configs/_smoke
     ../workspaces/node/configs/server-forgejo
     ../workspaces/network/configs/dns
+    ../workspaces/vpn/configs/multizone
   ];
 }

@@ -1,0 +1,64 @@
+# vpn workspace: two zones with coordination enabled — boots a single
+# headscale-coordination host (`hcs`) and asserts the test seam keeps the
+# headscale service inactive in the VM (spec §7).
+#
+# :::note[Why only hcs is booted]
+# Multi-zone is declared so the generator emits both zones and threads
+# `coordination` through `network.nix`. `hcs` lives in z1 and is the only
+# host the scenario starts; gateways/clients would re-introduce the
+# `dnsmasq` bridge-slave conflict gated out in Phase 7.
+# :::
+
+network:
+  domain: "test.local"
+  default:
+    locale: "en_US.UTF-8"
+    timezone: "Etc/UTC"
+  coordination:
+    enable: true
+    hostname: "hcs"
+    domain: "headscale"
+  smtp:
+    protocol: "submissions"
+    server: "smtp.test.local"
+    port: 465
+    username: "noreply@test.local"
+    sender: "Test <noreply@test.local>"
+    tls: true
+
+zones:
+  z1:
+    description: "Test zone 1"
+    ipPrefix: "10.10"
+    gateway:
+      wan:
+        interface: "eth0"
+      lan:
+        interfaces: ["eth1"]
+      vpn:
+        ipv4: "100.64.0.1"
+
+  z2:
+    description: "Test zone 2"
+    ipPrefix: "10.20"
+    gateway:
+      wan:
+        interface: "eth0"
+      lan:
+        interfaces: ["eth1"]
+      vpn:
+        ipv4: "100.64.0.2"
+
+users:
+  darkone:
+    uid: 1000
+    name: "Darkone"
+    email: "darkone@test.local"
+    profile: "nix-admin"
+    groups: ["global"]
+
+hosts:
+  - hostname: "hcs"
+    name: "Test coordination server"
+    zone: "z1:1.5"
+    profile: "hcs"

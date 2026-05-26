@@ -35,7 +35,14 @@ in
 
   config = lib.mkIf cfg.standalone {
 
-    # VPN coordination + mesh are out of scope in VM tests.
+    # VPN coordination + mesh are out of scope in VM tests. We disable at the
+    # DNF abstraction level so the module bodies (which reach into
+    # `network.zones.www.gateway.vpn.ipv4`, `zone.unbound.local-data`, ...)
+    # are short-circuited entirely — forcing only `services.{headscale,
+    # tailscale}.enable` leaves the `lib.mkIf cfg.enable` block live and
+    # trips on those missing attributes in test workspaces.
+    darkone.service.headscale.enable = lib.mkForce false;
+    darkone.service.tailscale.enable = lib.mkForce false;
     services.headscale.enable = lib.mkForce false;
     services.tailscale.enable = lib.mkForce false;
   };
