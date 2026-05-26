@@ -3,6 +3,7 @@
 # TODO: filter only usefull actions here.
 
 import 'assets/default.just'
+import 'assets/testing.just'
 
 _default:
 	@just --list
