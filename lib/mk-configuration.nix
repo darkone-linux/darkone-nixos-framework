@@ -18,6 +18,7 @@ let
   inherit (inputs)
     nixpkgs
     nixpkgs-stable
+    nixpkgs-geneweb
     home-manager
     colmena
     sops-nix
@@ -49,6 +50,13 @@ let
     frameworkRoot = ./..;
     inherit workDir;
   };
+
+  # Overlay temporaire : injecte `pkgs.geneweb` depuis la PR nixpkgs#522751.
+  # À supprimer en même temps que l'input `nixpkgs-geneweb` (cf. flake.nix).
+  # Appliqué via `nixpkgs.overlays` dans `mkNode` plutôt que dans `nixpkgsFor` :
+  # `nixosSystem` reconstruit son propre `pkgs`, donc seul `nixpkgs.overlays`
+  # passé en module atteint le `pkgs` vu par les modules.
+  genewebOverlay = import ./overlays/geneweb.nix { inherit nixpkgs-geneweb; };
 
   # Per-system nixpkgs instances
   nixpkgsFor = forAllSystems (
@@ -127,6 +135,16 @@ let
 
           # Framework-side NixOS modules
           ../modules
+
+          # Geneweb : module upstream importé depuis la PR nixpkgs#522751
+          # (à retirer dès que la PR est mergée dans `nixos-unstable`).
+          # Parsé inconditionnellement mais sans effet tant que
+          # `services.geneweb.enable = false`.
+          "${nixpkgs-geneweb}/nixos/modules/services/web-apps/geneweb.nix"
+
+          # Geneweb : overlay temporaire injectant `pkgs.geneweb`.
+          # Retirer en même temps que l'import du module upstream.
+          { nixpkgs.overlays = [ (genewebOverlay system) ]; }
 
           # Consumer-side NixOS modules overlay
           (workDir + "/usr/modules")

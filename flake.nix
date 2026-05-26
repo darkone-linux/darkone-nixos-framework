@@ -49,6 +49,20 @@
 
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
+    # Geneweb : suivi de la PR nixpkgs#522751 (module + paquetage `geneweb`
+    # en attente de merge). Voir `lib/overlays/geneweb.nix`.
+    #
+    # Quand la PR est mergée dans `nixos-unstable` :
+    #   1. Supprimer cet input,
+    #   2. Supprimer `lib/overlays/geneweb.nix` et son usage dans `lib/mk-configuration.nix`,
+    #   3. Retirer le path du module upstream de la `modules` list de `mkNode`.
+    # Le wrapper `modules/service/geneweb.nix` reste inchangé.
+    #
+    # Pas de `inputs.nixpkgs.follows` : on veut le tree complet du fork
+    # (sinon l'overlay reconstruirait `geneweb` sur un nixpkgs sans les
+    # dépendances OCaml ajoutées par la PR).
+    nixpkgs-geneweb.url = "github:darkone-linux/nixpkgs/create-geneweb";
+
     # Rust generator (`dnf-generator`). Default points at the public release
     # repo; consumers in co-dev (arthur-network) can override with a path or
     # `git+file://` URL to pick up local changes:

@@ -301,6 +301,22 @@
         "type": "github"
       }
     },
+    "nixpkgs-geneweb": {
+      "locked": {
+        "lastModified": 1779672807,
+        "narHash": "sha256-BXdL4vHBnqQyNCCFVWDQBjkZCRDKTepOKAoBernlsPU=",
+        "owner": "darkone-linux",
+        "repo": "nixpkgs",
+        "rev": "41377bff7b99fc7025ec505df2fb3dae23b55542",
+        "type": "github"
+      },
+      "original": {
+        "owner": "darkone-linux",
+        "ref": "create-geneweb",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "nixpkgs-stable": {
       "locked": {
         "lastModified": 1779102034,
@@ -327,6 +343,7 @@
         "nixos-anywhere": "nixos-anywhere",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs",
+        "nixpkgs-geneweb": "nixpkgs-geneweb",
         "nixpkgs-stable": "nixpkgs-stable",
         "sops-nix": "sops-nix"
       }
