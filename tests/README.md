@@ -85,9 +85,10 @@ Primitives: `start_all()`, `wait_for_unit`, `succeed`, `fail`, `shell_interact`,
    }
    ```
 
-4. Auto-discovery: `scenarios/default.nix` walks the tree, exposes `<subdir>-<filename>` (e.g. `services/node-foo.nix` → `services-node-foo`).
-5. New workspace variant: `etc/config.yaml` under `workspaces/<axis>/configs/<variant>/`, symlink `usr` + `dnf` to `_skeleton/`, then `just fixtures generate`.
-6. Append workspace path to `scenarios/eval-all.nix` for L1 coverage.
+4. `git add <new-files>` — nix pure eval only sees git-tracked files. Untracked files cause "attribute missing" errors even though they exist on disk.
+5. Verify: `just simulate <check-name>` builds the VM (no boot).
+6. New workspace variant: `etc/config.yaml` under `workspaces/<axis>/configs/<variant>/`, symlink `usr` + `dnf` to `_skeleton/`, then `just fixtures generate`.
+7. Append workspace path to `scenarios/eval-all.nix` for L1 coverage.
 
 ## Adding a service test
 
@@ -104,6 +105,7 @@ Pattern for `darkone.service.<X>` on a "server" profile host.
 - `scenarios/services/node-server-<X>.nix`, `mkNodeTest`, `host = "server1"`.
 - Wait for `multi-user.target`, then `wait_for_unit` + `is-active` on every hard runtime dep **and** the main unit. Auto-iterate `<X>-*.service` to catch upstream unit splits.
 - HTTP smoke: `wait_for_open_port` + `wait_until_succeeds` with `curl -fsSL … | grep -q '^200$'`. The `-L` follows redirects — some services (forgejo) return 303 on `/`.
+- **`git add`** the scenario `.nix` before `just simulate` sees it (pure eval).
 
 ### 3. `lan = true`
 
@@ -128,6 +130,17 @@ If the module binds to `host.ip` (e.g. `services.immich.host = host.ip`):
 ### 5. Eval-all
 
 Append workspace path to `scenarios/eval-all.nix` for L1 eval coverage on all hosts.
+
+### 6. Iteration
+
+- `just simulate <check-name>` builds the check VM (no boot).
+- Equivalent: `nix build '.#checks.<system>.<check-name>' --no-link`.
+- **Avoid** `nix build '.#checks.<system>.eval-all'` during iteration — evaluates every workspace, costs minutes per cycle.
+
+### 7. Gotchas
+
+- **Untracked files invisible to pure eval.** New files must be `git add`ed (or committed) before `nix build` / `just simulate` sees them. Staging is enough — no commit needed. The "dirty tree" warning is harmless; missing untracked files cause "attribute missing" errors.
+- **`dnf-generator` writes into existing `var/generated/`.** `just fixtures generate` handles this. If running the generator by hand, `mkdir -p var/generated` first.
 
 ## Invariants
 

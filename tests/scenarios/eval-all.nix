@@ -8,6 +8,7 @@
     ../workspaces/node/configs/_smoke
     ../workspaces/node/configs/server-forgejo
     ../workspaces/node/configs/server-immich
+    ../workspaces/node/configs/server-ncps
     ../workspaces/node/configs/disko-server
     ../workspaces/network/configs/dns
     ../workspaces/vpn/configs/multizone
