@@ -6,6 +6,12 @@
 # `pkgs.geneweb` provient de l'overlay `lib/overlays/geneweb.nix`.
 # :::
 #
+# :::caution[Required sops secrets]
+# When enabled, this module reads friend and wizard passwords from the sops
+# secrets `geneweb-friend` and `geneweb-wizard`. Add the entries to
+# `usr/secrets/` before rebuilding, otherwise sops-nix activation will fail.
+# :::
+#
 # Aim: configurer, utiliser, maintenir.
 
 {
@@ -50,12 +56,31 @@ in
       darkone.system.services = dnfLib.enableBlock "geneweb";
 
       #------------------------------------------------------------------------
+      # Sops secrets
+      #------------------------------------------------------------------------
+
+      # Friend password, provisioned from sops.
+      sops.secrets."geneweb-friend" = {
+        mode = "0400";
+        owner = "geneweb";
+      };
+
+      # Wizard password, provisioned from sops.
+      sops.secrets."geneweb-wizard" = {
+        mode = "0400";
+        owner = "geneweb";
+      };
+
+      #------------------------------------------------------------------------
       # GeneWeb Service
       #------------------------------------------------------------------------
 
       services.geneweb = {
         enable = true;
         package = pkgs.geneweb;
+
+        friendPasswordFile = config.sops.secrets."geneweb-friend".path;
+        wizardPasswordFile = config.sops.secrets."geneweb-wizard".path;
 
         # `openFirewall = false` : sur un host gateway, le reverse proxy
         # DNF expose le service ; sur les autres hosts, l'accès LAN est
