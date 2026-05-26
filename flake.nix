@@ -109,6 +109,11 @@
           value = nixpkgs.lib.nixosSystem {
             specialArgs = {
               imgFormat = nixpkgs.lib.mkDefault "iso";
+
+              # Standalone framework ISO: no consumer workspace. `hosts/iso.nix`
+              # declares `workDir ? null` but the module system bypasses that
+              # default and queries `_module.args.workDir`; inject it explicitly.
+              workDir = null;
               host = {
                 hostname = "new-dnf-host";
                 name = "New Darkone NixOS Framework";

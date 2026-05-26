@@ -167,6 +167,18 @@ simulate what="":
 		{{nix}} build ".#checks.${system}.{{what}}" --no-link
 	fi
 
+# Interactive driver for one scenario (Python REPL inside the test driver).
+# Useful to step through a failing scenario: `start_all()`, then drive nodes
+# (`node1.succeed(...)`, `node1.shell_interact()`, ...). Pipe a heredoc on
+# stdin for non-interactive smoke-runs.
+[group('check')]
+simulate-debug what:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	just _log "Interactive driver for {{what}}..." "SIMULATE"
+	system=$({{nix}} eval --raw --impure --expr 'builtins.currentSystem')
+	{{nix}} run ".#checks.${system}.{{what}}.driverInteractive"
+
 # Manage test fixtures: generate | check | gen-secrets
 [group('check')]
 fixtures action:
