@@ -1,9 +1,15 @@
-# GeneWeb — wrapper DNF du module nixpkgs (en provenance de la PR #522751).
+# GeneWeb — Powerful Genealogy Service.
 #
-# :::tip
-# Le module upstream `services.geneweb.*` est importé en amont par
-# `lib/mk-configuration.nix` (tant que la PR n'est pas mergée). Le paquetage
-# `pkgs.geneweb` provient de l'overlay `lib/overlays/geneweb.nix`.
+# :::note[Service currently being validated]
+# DNF wrapper around the nixpkgs module (from [PR #522751](https://github.com/NixOS/nixpkgs/pull/522751)).
+# :::
+#
+# :::tip[Database declaration]
+# To declare a `base.gw` file (default dir is `/var/lib/geneweb`), 
+# add this in your server configuration:
+# ```nix
+# services.geneweb.databases.base = {};
+# ```
 # :::
 #
 # :::caution[Required sops secrets]
@@ -11,19 +17,23 @@
 # secrets `geneweb-friend` and `geneweb-wizard`. Add the entries to
 # `usr/secrets/` before rebuilding, otherwise sops-nix activation will fail.
 # :::
-#
-# Aim: configurer, utiliser, maintenir.
 
 {
   lib,
   dnfLib,
   config,
   pkgs,
+  host,
+  zone,
   ...
 }:
 let
   cfg = config.darkone.service.geneweb;
   gwCfg = config.services.geneweb;
+  defaultParams = {
+    title = "Geneweb";
+    icon = "hypermind";
+  };
 in
 {
   options = {
@@ -38,14 +48,8 @@ in
 
     {
       darkone.system.services.service.geneweb = {
-
-        # `baseDir` héberge les bases généalogiques : données primaires +
-        # contenu base-like → catégoriser comme dbDirs pour aligner sur
-        # la stratégie de persistance/backup du framework.
+        inherit defaultParams;
         persist.dbDirs = [ gwCfg.baseDir ];
-
-        # `services.geneweb.port` est l'option upstream qui pilote
-        # l'écoute HTTP locale ; le reverse proxy DNF s'y branche.
         proxy.servicePort = gwCfg.port;
       };
     }
@@ -54,6 +58,14 @@ in
 
       # Darkone service: enable
       darkone.system.services = dnfLib.enableBlock "geneweb";
+
+      #------------------------------------------------------------------------
+      # Firewall
+      #------------------------------------------------------------------------
+
+      networking.firewall = dnfLib.mkInternalFirewall host zone [
+        gwCfg.port
+      ];
 
       #------------------------------------------------------------------------
       # Sops secrets
@@ -78,14 +90,11 @@ in
       services.geneweb = {
         enable = true;
         package = pkgs.geneweb;
+        defaultLang = zone.lang;
 
         friendPasswordFile = config.sops.secrets."geneweb-friend".path;
         wizardPasswordFile = config.sops.secrets."geneweb-wizard".path;
-
-        # `openFirewall = false` : sur un host gateway, le reverse proxy
-        # DNF expose le service ; sur les autres hosts, l'accès LAN est
-        # géré par `dnfLib.mkInternalFirewall` côté framework. Garder le
-        # port `2317` upstream par défaut tant que le consumer n'override pas.
+        
         openFirewall = false;
       };
     })
