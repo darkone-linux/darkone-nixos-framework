@@ -19,6 +19,7 @@ unit-tests:
 # Usage:
 #   just simulate              # list available scenarios
 #   just simulate all          # run them all via `nix flake check`
+#   just simulate full         # regenerate fixtures first, then `all`
 #   just simulate <name>       # run a single named scenario
 #
 # Scenario names match the auto-discovery convention in
@@ -35,11 +36,17 @@ simulate what="":
 	    {{nix}} eval --raw ".#checks.${system}" \
 	      --apply 'cs: builtins.concatStringsSep "\n  " ([ "" ] ++ builtins.attrNames cs)'
 	    echo; echo
-	    just _log "Run one:  just simulate <name>" "SIMULATE"
-	    just _log "Run all:  just simulate all" "SIMULATE"
+	    just _log "Run one:   just simulate <name>" "SIMULATE"
+	    just _log "Run all:   just simulate all" "SIMULATE"
+	    just _log "Full run:  just simulate full" "SIMULATE"
 	    ;;
 	  all)
 	    just _log "Running all simulation tests..." "SIMULATE"
+	    {{nix}} flake check --quiet
+	    ;;
+	  full)
+	    just _log "Regenerating fixtures, then running everything..." "SIMULATE"
+	    just _fixtures_generate
 	    {{nix}} flake check --quiet
 	    ;;
 	  *)

@@ -32,14 +32,15 @@ let
 
           # Eval-only (drvPath, never built/booted): a real host gets these
           # from its hardware/disko profile, the VM tier from qemu-vm. Stub
-          # them so `system.build.toplevel` evaluates standalone.
+          # at `mkDefault` priority so disko-aware hosts (which define their
+          # own fileSystems via the disko module) win the merge cleanly.
           fileSystems."/" = {
-            device = "/dev/vda";
-            fsType = "ext4";
+            device = lib.mkDefault "/dev/vda";
+            fsType = lib.mkDefault "ext4";
           };
           fileSystems."/boot" = {
-            device = "/dev/vda1";
-            fsType = "vfat";
+            device = lib.mkDefault "/dev/vda1";
+            fsType = lib.mkDefault "vfat";
           };
         }
       ];

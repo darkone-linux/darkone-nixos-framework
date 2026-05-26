@@ -139,6 +139,13 @@ let
           disko.nixosModules.disko
           home-manager.nixosModules.home-manager
           {
+
+            # Silence the upstream warning on fresh hosts. Hosts that own a
+            # `usr/machines/<host>/default.nix` keep pinning their own value;
+            # `mkDefault` lets them win.
+            system.stateVersion = nixpkgs.lib.mkDefault unstableStateVersion;
+          }
+          {
             home-manager = {
 
               # Reuse global pkgs from nixpkgs
