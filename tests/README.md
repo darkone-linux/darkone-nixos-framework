@@ -89,8 +89,48 @@ Useful primitives: `start_all()`, `node1.wait_for_unit("multi-user.target")`, `n
    ```
 
 4. Auto-discovery does the rest — `scenarios/default.nix` walks the tree and exposes the check as `<subdir>-<filename>` (e.g. `services/node-foo.nix` → `services-node-foo`).
-5. If a new workspace variant is needed: drop `etc/config.yaml` under `workspaces/<axis>/configs/<variant>/`, symlink `usr` to `_skeleton/usr`, then `just fixtures generate`.
+5. If a new workspace variant is needed: drop `etc/config.yaml` under `workspaces/<axis>/configs/<variant>/`, symlink `usr` and `dnf` to `_skeleton/`, then `just fixtures generate`.
 6. Append the workspace path to `scenarios/eval-all.nix` so L1 covers its hosts too.
+
+## Adding a service test
+
+Pattern for a `darkone.service.<X>` module exercised on a real "server" profile host.
+
+### 1. Workspace
+
+- `workspaces/node/configs/server-<X>/etc/config.yaml`: copy `server-forgejo` as a starting template (one zone, one gateway `gw1`, one server host `server1` with the service declared under `hosts[].services.<X>`).
+- The minimal-mixin auto-bridge does the rest: `host.services.<X>` present → `darkone.host.minimal.enable<X> = true` → `darkone.service.<X>.enable = true` (see `modules/mixin/host/minimal.nix`). Don't enable the service module by hand.
+- `usr` + `dnf` → symlinks to `_skeleton/`. `just fixtures generate`.
+
+### 2. Scenario
+
+- `scenarios/services/node-server-<X>.nix`, `mkNodeTest`, `host = "server1"`.
+- Wait for `multi-user.target`, then `wait_for_unit` + `is-active` on every hard runtime dep (postgresql, redis, ...) **and** the main unit. Auto-iterate `<X>-*.service` to catch upstream unit splits without pinning a nixpkgs version.
+- HTTP smoke: `wait_for_open_port` + `wait_until_succeeds` with `curl -fsS | grep -q '^200$'`.
+
+### 3. Bind address — `lan = true`
+
+If the module pins its bind to `host.ip` (e.g. `services.immich.host = host.ip`), opt-in:
+
+```nix
+(import ../../lib/mkNodeTest.nix { inherit pkgs inputs; }) {
+  ...
+  lan = true;
+  testScript = ''… curl http://${host.ip}:<port>/ …'';
+}
+```
+
+`lan = true` brings up the zone VLAN on `eth1` and pins `host.ip` statically. Without it, the bind fails with `EADDRNOTAVAIL` and the unit crash-loops on systemd `Restart=on-failure` (typical log: "starting … worker → postgres → worker"). Leave default (`false`) when the service binds to `0.0.0.0`/`localhost` (forgejo, fail2ban, ...).
+
+### 4. What NOT to assert in a service test
+
+- **Reverse proxy (caddy)**: lives on the **gateway** in real DNF topology, not on the service host. Assert on caddy in a gateway / network test instead.
+- **idm / kanidm**: most service modules register an OAuth2 client *template* under `darkone.service.idm.oauth2.<X>`. The template is inert until kanidm itself is enabled in the workspace.
+- **Optional features**: redis, machine-learning, ... default off. Document the gate (`darkone.service.<X>.enable<Feature>`) in the scenario's header instead of muting the assert.
+
+### 5. Eval-all
+
+Append the new workspace path to `scenarios/eval-all.nix` so L1 catches eval regressions on every host of the workspace, not just the one booted by L2.
 
 ## Invariants
 
