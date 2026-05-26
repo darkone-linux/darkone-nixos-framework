@@ -14,20 +14,39 @@ unit-tests:
 	just _log "Running unit tests..." "TESTS"
 	nix-unit --gc-roots-dir /tmp --flake .#libTests
 
-# Run L2 simulation tests (NixOS Test Driver).
-# With no argument: runs all scenarios via `nix flake check`.
-# With an argument: runs a single named scenario (e.g. `just simulate console-git`).
+# Run simulation tests (NixOS Test Driver).
+#
+# Usage:
+#   just simulate              # list available scenarios
+#   just simulate all          # run them all via `nix flake check`
+#   just simulate <name>       # run a single named scenario
+#
+# Scenario names match the auto-discovery convention in
+# `tests/scenarios/default.nix`: relative path with `/` → `-`, minus `.nix`
+# (e.g. `modules/node-console-git.nix` ⇒ `just simulate modules-node-console-git`).
 [group('test')]
 simulate what="":
 	#!/usr/bin/env bash
 	set -euo pipefail
-	just _log "Running simulation tests..." "SIMULATE"
-	if [ -z "{{what}}" ]; then
-		{{nix}} flake check --quiet
-	else
-		system=$({{nix}} eval --raw --impure --expr 'builtins.currentSystem')
-		{{nix}} build ".#checks.${system}.{{what}}" --no-link
-	fi
+	system=$({{nix}} eval --raw --impure --expr 'builtins.currentSystem')
+	case "{{what}}" in
+	  "")
+	    just _log "Available scenarios:" "SIMULATE"
+	    {{nix}} eval --raw ".#checks.${system}" \
+	      --apply 'cs: builtins.concatStringsSep "\n  " ([ "" ] ++ builtins.attrNames cs)'
+	    echo; echo
+	    just _log "Run one:  just simulate <name>" "SIMULATE"
+	    just _log "Run all:  just simulate all" "SIMULATE"
+	    ;;
+	  all)
+	    just _log "Running all simulation tests..." "SIMULATE"
+	    {{nix}} flake check --quiet
+	    ;;
+	  *)
+	    just _log "Running {{what}}..." "SIMULATE"
+	    {{nix}} build ".#checks.${system}.{{what}}" --no-link
+	    ;;
+	esac
 
 # Interactive driver for one scenario (Python REPL inside the test driver).
 # Useful to step through a failing scenario: `start_all()`, then drive nodes
