@@ -3,7 +3,7 @@
 # minus the `.nix` suffix (e.g. services/node-fail2ban.nix ->
 # services-node-fail2ban).
 #
-# Aim: use, maintain.
+# TODO: réorganiser les scénarios (home manager, profiles, combinaisons...)
 
 { pkgs, inputs }:
 let
