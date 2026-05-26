@@ -1,15 +1,49 @@
-# Standalone test mode for the NixOS Test Driver (L2 simulations).
+# Standalone test mode for the NixOS Test Driver.
 #
-# When enabled, disables workDir-dependent configuration (sops secrets,
-# authorized keys) so individual modules can be exercised in isolation
-# without a real consumer workspace or secret store.
+# When enabled, neutralizes the irreducibly external/runtime bits so a node
+# can be exercised in a VM: headscale/tailscale become no-ops and a fixed
+# TLS cert can stub ACME. It also lets workDir-only config (nix.pub,
+# harmonia.pub) be skipped by core/ncps. sops stays REAL (high fidelity).
 #
 # :::caution[Tests only]
-# Only set `darkone.test.standalone = true` inside `dnf/tests/simulate/`.
-# Never enable this in a production NixOS configuration.
+# Enabled only via `tests/lib/test-tuning.nix`. This module never references
+# any path under `tests/` — the cert path is passed as an option value.
 # :::
+#
+# Aim: use, debug.
 
-{ lib, ... }:
+{ lib, config, ... }:
+let
+  cfg = config.darkone.test;
+in
 {
-  options.darkone.test.standalone = lib.mkEnableOption "Standalone test mode — disables workDir-dependent config (sops, nix.pub keys)";
+  options.darkone.test = {
+    standalone = lib.mkEnableOption "Standalone test mode — skip workDir-only config (nix.pub, harmonia.pub) and neutralize external services";
+
+    tlsCert = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
+      default = null;
+      description = "Self-signed cert (PEM) provided by the test harness to stub ACME. Never a tests/ path baked into the framework.";
+    };
+
+    tlsKey = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
+      default = null;
+      description = "Private key (PEM) paired with tlsCert.";
+    };
+  };
+
+  config = lib.mkIf cfg.standalone {
+
+    # VPN coordination + mesh are out of scope in VM tests. We disable at the
+    # DNF abstraction level so the module bodies (which reach into
+    # `network.zones.www.gateway.vpn.ipv4`, `zone.unbound.local-data`, ...)
+    # are short-circuited entirely — forcing only `services.{headscale,
+    # tailscale}.enable` leaves the `lib.mkIf cfg.enable` block live and
+    # trips on those missing attributes in test workspaces.
+    darkone.service.headscale.enable = lib.mkForce false;
+    darkone.service.tailscale.enable = lib.mkForce false;
+    services.headscale.enable = lib.mkForce false;
+    services.tailscale.enable = lib.mkForce false;
+  };
 }

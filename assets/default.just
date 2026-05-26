@@ -26,6 +26,7 @@ sopsYamlFile := secretsDir + '/.sops.yaml'
 sopsInfraTargetDir := '/etc/sops/age'
 sopsInfraTargetFile := sopsInfraTargetDir + '/infra.key'
 generatedConfigFile := workDir + '/var/generated/config.yaml'
+fixturesDir := dnfDir + '/tests/fixtures'
 nix := 'nix --extra-experimental-features "nix-command flakes"'
 logPrefix := '[ {{CYAN}}DNF{{NORMAL}} ] '
 dnfInstallDir := '/mnt/dnf-install'
@@ -144,27 +145,6 @@ check-statix:
 	set -euo pipefail
 	just _log "Checking nix configuration..." "STATIX"
 	statix check .
-
-# Run unit tests
-[group('check')]
-unit-tests:
-	just _log "Running unit tests..." "TESTS"
-	nix-unit --gc-roots-dir /tmp --flake .#libTests
-
-# Run L2 simulation tests (NixOS Test Driver).
-# With no argument: runs all scenarios via `nix flake check`.
-# With an argument: runs a single named scenario (e.g. `just simulate console-git`).
-[group('check')]
-simulate what="":
-	#!/usr/bin/env bash
-	set -euo pipefail
-	just _log "Running simulation tests..." "SIMULATE"
-	if [ -z "{{what}}" ]; then
-		{{nix}} flake check --quiet
-	else
-		system=$({{nix}} eval --raw --impure --expr 'builtins.currentSystem')
-		{{nix}} build ".#checks.${system}.{{what}}" --no-link
-	fi
 
 #==============================================================================
 # Development

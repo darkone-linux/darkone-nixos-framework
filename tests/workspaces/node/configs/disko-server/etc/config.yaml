@@ -1,0 +1,56 @@
+# node variant: server host carrying a disko profile, exercised by the L4
+# install tier (`mkInstallTest` driving `nixos-anywhere --vm-test`).
+#
+# :::note[Real `usr/` directory]
+# Unlike other node variants whose `usr/` symlinks straight to
+# `_skeleton/usr`, this variant owns its `usr/` (with per-subdir symlinks to
+# the skeleton) so the disko generator can lay down `usr/machines/server1/`
+# without writing through a shared skeleton symlink.
+# :::
+
+network:
+  domain: "test.local"
+  default:
+    locale: "en_US.UTF-8"
+    timezone: "Etc/UTC"
+  coordination:
+    enable: false
+    hostname: "hcs"
+    domain: "headscale"
+  smtp:
+    protocol: "submissions"
+    server: "smtp.test.local"
+    port: 465
+    username: "noreply@test.local"
+    sender: "Test <noreply@test.local>"
+    tls: true
+
+zones:
+  z1:
+    description: "Test zone 1"
+    ipPrefix: "10.10"
+    gateway:
+      wan:
+        interface: "eth0"
+      lan:
+        interfaces: ["eth1"]
+      vpn:
+        ipv4: "100.64.0.1"
+
+users:
+  darkone:
+    uid: 1000
+    name: "Darkone"
+    email: "darkone@test.local"
+    profile: "nix-admin"
+    groups: ["global"]
+
+hosts:
+  - hostname: "server1"
+    name: "Test server (disko)"
+    zone: "z1:1.2"
+    profile: "server"
+    disko:
+      profile: "luks-btrfs-1-disk"
+      devices:
+        main: "/dev/vda"

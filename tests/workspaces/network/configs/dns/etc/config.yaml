@@ -1,0 +1,61 @@
+# network workspace: minimal LAN — two hosts in the same zone, sharing the
+# zone's VLAN through the test driver's `virtualisation.vlans`. Goal: gate
+# Phase 7 risk (5) by booting two real DNF nodes with per-node specialArgs.
+#
+# :::note[Profile choice]
+# Both hosts use `profile: minimal`. The `gateway` profile enables `dnsmasq`,
+# which builds a `lan0` bridge over `eth1` and assigns an IP to it; the test
+# driver also pins a static IP on `eth1` (its VLAN NIC), and NixOS asserts
+# that a slaved interface must have no IP. Neutralising gateway networking
+# inside the test seam is a follow-up — `vlans.forHost` already maps a
+# `gateway` host to its WAN + LAN VLANs, so a future scenario can exercise
+# it once the seam handles the bridge conflict.
+# :::
+
+network:
+  domain: "test.local"
+  default:
+    locale: "en_US.UTF-8"
+    timezone: "Etc/UTC"
+  coordination:
+    enable: false
+    hostname: "hcs"
+    domain: "headscale"
+  smtp:
+    protocol: "submissions"
+    server: "smtp.test.local"
+    port: 465
+    username: "noreply@test.local"
+    sender: "Test <noreply@test.local>"
+    tls: true
+
+zones:
+  z1:
+    description: "Test zone 1"
+    ipPrefix: "10.10"
+    gateway:
+      wan:
+        interface: "eth0"
+      lan:
+        interfaces: ["eth1"]
+      vpn:
+        ipv4: "100.64.0.1"
+
+users:
+  darkone:
+    uid: 1000
+    name: "Darkone"
+    email: "darkone@test.local"
+    profile: "nix-admin"
+    groups: ["global"]
+
+hosts:
+  - hostname: "node1"
+    name: "Test LAN node 1"
+    zone: "z1:1.1"
+    profile: "minimal"
+
+  - hostname: "node2"
+    name: "Test LAN node 2"
+    zone: "z1:1.2"
+    profile: "minimal"

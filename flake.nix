@@ -37,6 +37,11 @@
     disko.url = "github:nix-community/disko";
     disko.inputs.nixpkgs.follows = "nixpkgs";
 
+    # L4 install tier — `nixos-anywhere --flake .#<host> --vm-test` exposed
+    # as a deterministic `.#checks` entry through `tests/lib/mkInstallTest.nix`.
+    nixos-anywhere.url = "github:nix-community/nixos-anywhere";
+    nixos-anywhere.inputs.nixpkgs.follows = "nixpkgs";
+
     firefox-addons = {
       url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -109,6 +114,11 @@
           value = nixpkgs.lib.nixosSystem {
             specialArgs = {
               imgFormat = nixpkgs.lib.mkDefault "iso";
+
+              # Standalone framework ISO: no consumer workspace. `hosts/iso.nix`
+              # declares `workDir ? null` but the module system bypasses that
+              # default and queries `_module.args.workDir`; inject it explicitly.
+              workDir = null;
               host = {
                 hostname = "new-dnf-host";
                 name = "New Darkone NixOS Framework";
@@ -194,9 +204,8 @@
       # Unit tests — run with: nix-unit --flake .#libTests
       libTests = import ./tests/unit { inherit (nixpkgs) lib; };
 
-      # L2 simulation tests — NixOS Test Driver scenarios exposed as checks.
-      # Run with: just simulate [<name>]
-      # Included automatically in: nix flake check / just check-flake
+      # Simulation tests (NixOS Test Driver) — auto-discovered from
+      # tests/scenarios/. Run a single one: just simulate <name>.
       checks = forAllSystems (
         system:
         let
@@ -204,16 +213,8 @@
             inherit system;
             config.allowUnfree = true;
           };
-          dnfLib = import ./lib { inherit (pkgs) lib; };
         in
-        import ./tests/simulate {
-          inherit pkgs dnfLib;
-          dnfModules = ./modules;
-
-          # Non-DNF NixOS modules required by dnfModules (option declarations).
-          # sops-nix: declares the `sops` option used by dnf/modules/system/sops.nix.
-          extraModules = [ inputs.sops-nix.nixosModules.sops ];
-        }
+        import ./tests/scenarios { inherit pkgs inputs; }
       );
 
       # Dev shell for framework hacking (cargo / nix-unit / sops / ...).
@@ -242,6 +243,7 @@
               mkpasswd
               nix-unit
               nixfmt
+              openssl
               rustc
               treefmt
               sops

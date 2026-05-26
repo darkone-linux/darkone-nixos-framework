@@ -1,0 +1,58 @@
+# node variant: a gateway + a server host running the immich photo manager.
+# Exercises the `darkone.service.immich` module (core + sops + caddy proxy +
+# postgres + optional redis) on a "server" profile host.
+# Only server1 is booted by the scenario; gw1 exists so the zone gets a
+# gateway (zone.gateway.hostname), mirroring real DNF topology.
+
+network:
+  domain: "test.local"
+  default:
+    locale: "en_US.UTF-8"
+    timezone: "Etc/UTC"
+  coordination:
+    enable: false
+    hostname: "hcs"
+    domain: "headscale"
+  smtp:
+    protocol: "submissions"
+    server: "smtp.test.local"
+    port: 465
+    username: "noreply@test.local"
+    sender: "Test <noreply@test.local>"
+    tls: true
+
+zones:
+  z1:
+    description: "Test zone 1"
+    ipPrefix: "10.10"
+    gateway:
+      wan:
+        interface: "eth0"
+      lan:
+        interfaces: ["eth1"]
+      vpn:
+        ipv4: "100.64.0.1"
+
+users:
+  darkone:
+    uid: 1000
+    name: "Darkone"
+    email: "darkone@test.local"
+    profile: "nix-admin"
+    groups: ["global"]
+
+hosts:
+  - hostname: "gw1"
+    name: "Test gateway"
+    zone: "z1:1.1"
+    profile: "gateway"
+
+  - hostname: "server1"
+    name: "Test server"
+    zone: "z1:1.2"
+    profile: "server"
+    services:
+      immich:
+        title: "Test photos"
+        description: "Photo manager"
+        domain: "photos"

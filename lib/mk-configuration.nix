@@ -108,6 +108,88 @@ let
 
   nodeSpecialArgs = builtins.listToAttrs (map mkNodeSpecialArgs hosts);
 
+  # Single source of truth consumed by every downstream:
+  # nixosConfigurations, colmena, tests and install all derive from this.
+  # `forTest` drops only what the NixOS Test Driver owns itself (the nixpkgs
+  # misc module and `nixpkgs.hostPlatform.system`); everything else stays
+  # identical to production for fidelity.
+  mkNode =
+    { forTest ? false }:
+    host:
+    let
+      system = getHostArch host;
+    in
+    {
+      inherit system;
+      specialArgs = nodeSpecialArgs.${host.hostname};
+      modules =
+        [
+
+          # Framework-side NixOS modules
+          ../modules
+
+          # Consumer-side NixOS modules overlay
+          (workDir + "/usr/modules")
+        ]
+
+        # The test driver provides its own nixpkgs/system layer.
+        ++ nixpkgs.lib.optional (!forTest) "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+        ++ [
+          sops-nix.nixosModules.sops
+          disko.nixosModules.disko
+          home-manager.nixosModules.home-manager
+          {
+
+            # Silence the upstream warning on fresh hosts. Hosts that own a
+            # `usr/machines/<host>/default.nix` keep pinning their own value;
+            # `mkDefault` lets them win.
+            system.stateVersion = nixpkgs.lib.mkDefault unstableStateVersion;
+          }
+          {
+            home-manager = {
+
+              # Reuse global pkgs from nixpkgs
+              useGlobalPkgs = true;
+
+              # Install in /etc/profiles instead of ~/.nix-profile
+              useUserPackages = true;
+
+              # Backup colliding files (e.g. .zshrc) instead of failing.
+              # LIMITATION: bails if a .bkp already exists.
+              backupFileExtension = "bkp";
+
+              users = builtins.listToAttrs (map mkHome host.users);
+
+              extraSpecialArgs = mkNodeArgs {
+                inherit host hosts network;
+                extraArgs = mkCommonNodeArgs system // {
+                  inherit inputs;
+                };
+              };
+            };
+          }
+        ]
+        ++ nixpkgs.lib.optional (
+          system == "aarch64-linux"
+        ) nixos-hardware.nixosModules.raspberry-pi-5
+        ++ nixpkgs.lib.optional (builtins.pathExists (workDir + "/usr/machines/${host.hostname}")) (
+          workDir + "/usr/machines/${host.hostname}"
+        );
+    };
+
+  # Public API returned by mkConfigurations (see spec §9.1).
+  mkNodes =
+    { forTest ? false }:
+    builtins.listToAttrs (
+      map (host: {
+        name = host.hostname;
+        value = mkNode { inherit forTest; } host;
+      }) hosts
+    );
+
+  # Production variant reused by colmena + nixosConfigurations.
+  prodNodes = mkNodes { forTest = false; };
+
   # Home-manager wiring for one user login
   mkHome = login: {
     name = login;
@@ -130,53 +212,12 @@ let
     };
   };
 
-  # One Colmena host descriptor
+  # One Colmena host descriptor, derived from the shared node definition.
   mkHost = host: {
     name = host.hostname;
     value = host.colmena // {
-      nixpkgs.hostPlatform.system = getHostArch host;
-      imports = [
-
-        # Framework-side NixOS modules
-        ../modules
-
-        # Consumer-side NixOS modules overlay
-        (workDir + "/usr/modules")
-
-        "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
-        sops-nix.nixosModules.sops
-        disko.nixosModules.disko
-        home-manager.nixosModules.home-manager
-        {
-          home-manager = {
-
-            # Reuse global pkgs from nixpkgs
-            useGlobalPkgs = true;
-
-            # Install in /etc/profiles instead of ~/.nix-profile
-            useUserPackages = true;
-
-            # Backup colliding files (e.g. .zshrc) instead of failing.
-            # LIMITATION: bails if a .bkp already exists.
-            backupFileExtension = "bkp";
-
-            users = builtins.listToAttrs (map mkHome host.users);
-
-            extraSpecialArgs = mkNodeArgs {
-              inherit host hosts network;
-              extraArgs = mkCommonNodeArgs (getHostArch host) // {
-                inherit inputs;
-              };
-            };
-          };
-        }
-      ]
-      ++ nixpkgs.lib.optional (
-        getHostArch host == "aarch64-linux"
-      ) nixos-hardware.nixosModules.raspberry-pi-5
-      ++ nixpkgs.lib.optional (builtins.pathExists (workDir + "/usr/machines/${host.hostname}")) (
-        workDir + "/usr/machines/${host.hostname}"
-      );
+      nixpkgs.hostPlatform.system = prodNodes.${host.hostname}.system;
+      imports = prodNodes.${host.hostname}.modules;
     };
   };
 
@@ -197,23 +238,14 @@ let
   }
   // builtins.listToAttrs (map mkHost hosts);
 
-  # Standalone nixosSystem evaluations (built by nixos-rebuild / nix build)
-  consumerNixosConfigurations =
-    builtins.mapAttrs
-      (
-        name: node:
-        nixpkgs.lib.nixosSystem {
-          inherit (node.nixpkgs.hostPlatform) system;
-          specialArgs = nodeSpecialArgs.${name};
-          modules = node.imports;
-        }
-      )
-      (
-        removeAttrs colmenaSet [
-          "meta"
-          "defaults"
-        ]
-      );
+  # Standalone nixosSystem evaluations (built by nixos-rebuild / nix build).
+  consumerNixosConfigurations = builtins.mapAttrs (
+    _name: node:
+    nixpkgs.lib.nixosSystem {
+      inherit (node) system specialArgs;
+      modules = node.modules;
+    }
+  ) prodNodes;
 
   # ISO images. `workDir` is forwarded so iso.nix injects the consumer's
   # `usr/secrets/nix.pub` for nixos-anywhere.
@@ -259,6 +291,7 @@ let
         mkpasswd
         nix-unit
         nixfmt
+        openssl
         rustc
         treefmt
         sops
@@ -272,6 +305,11 @@ let
 
 in
 {
+
+  # Public node API — single source of truth for nixosConfigurations,
+  # colmena, tests and install (see spec §9).
+  inherit mkNodes;
+
   colmena = colmenaSet;
   colmenaHive = colmena.lib.makeHive colmenaSet;
 

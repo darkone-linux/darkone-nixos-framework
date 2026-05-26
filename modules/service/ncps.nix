@@ -27,8 +27,11 @@ let
   inherit (dnfLib) findHost preferredIp;
   cfg = config.darkone.service.ncps;
   hostIsLocal = host.zone != "www";
-  serverName =
-    (lib.findFirst (s: s.zone == zone.name && s.name == "ncps") null network.services).host;
+  ncpsService = lib.findFirst (s: s.zone == zone.name && s.name == "ncps") null network.services;
+
+  # A zone may declare no ncps service (eg. minimal hosts); stay null-safe so
+  # `serverName` does not select `.host` on a missing service.
+  serverName = if ncpsService == null then null else ncpsService.host;
   hasServer = hostIsLocal && serverName != null;
   isServer = hostIsLocal && host.hostname == serverName;
   isClient = hostIsLocal && hasServer;
