@@ -24,7 +24,8 @@ tests/
 │   └── node/configs/<variant>/
 │       ├── etc/config.yaml            #   inventory source
 │       ├── var/generated/             #   COMMITTED output of dnf-generator
-│       └── usr -> ../../../_skeleton/usr
+│       ├── usr -> ../../../_skeleton/usr
+│       └── dnf -> ../../../_skeleton/dnf
 └── scenarios/                         # auto-discovered checks
     ├── default.nix                    #   walks the tree, exposes checks attrset
     ├── eval-all.nix                   #   L1 — all workspaces × all hosts
@@ -94,20 +95,49 @@ Primitives: `start_all()`, `wait_for_unit`, `succeed`, `fail`, `shell_interact`,
 
 Pattern for `darkone.service.<X>` on a "server" profile host.
 
-### 1. Workspace
+### 1. Wrap (skip if `modules/service/<X>.nix` exists)
 
-- `workspaces/node/configs/server-<X>/etc/config.yaml`: copy `server-forgejo` as template (one zone, gw1, server1 with `hosts[].services.<X>`).
-- Minimal-mixin auto-bridge: `host.services.<X>` → `darkone.host.minimal.enable<X> = true` → `darkone.service.<X>.enable = true`. Don't hand-enable modules.
-- `usr` + `dnf` → symlinks to `_skeleton/`. `just fixtures generate`.
+Look up upstream (nixpkgs / PR) :
 
-### 2. Scenario
+- Main unit + sub-units (`<X>.service`, `<X>-init.service`, `<X>-setup.service`, …).
+- Default port + interface (`null` interface = the binary's own default, often `0.0.0.0`).
+- Hard runtime deps (postgres, redis, …) — `requires` / `after` upstream.
+- Package option — `services.<X>.package` (`mkPackageOption` upstream).
+
+Then :
+
+- `modules/service/<X>.nix` modelled on `forgejo.nix`. Declare `darkone.service.<X>.enable`, register `darkone.system.services.service.<X>` (persist + `proxy.servicePort`), wire `services.<X>.*` inside `lib.mkIf cfg.enable`.
+- `modules/mixin/host/minimal.nix` — auto-bridge entry, once per service :
+  ```nix
+  darkone.host.minimal.enable<X> = mkOption {
+    type = types.bool;
+    default = attrsets.hasAttrByPath [ "services" "<x>" ] host;
+  };
+  # in `config.darkone.service`:
+  <x>.enable = cfg.enable<X>;
+  ```
+- `modules/default.nix` is generated (`# DO NOT EDIT` header) — let `dnf-generator` register the new path. Hand-insertion is fine during iteration : the next regen produces the same alphabetical line, no drift.
+
+### 2. Workspace
+
+- Copy `workspaces/node/configs/server-forgejo/` → `server-<X>/`. Edit `etc/config.yaml` : swap `services.forgejo` for `services.<X>: { title, description, domain }`.
+- `usr` + `dnf` → relative symlinks to `_skeleton/` (`../../../_skeleton/{usr,dnf}`).
+- Generate this workspace only (faster than `just fixtures generate`, which walks every workspace) :
+  ```sh
+  cd tests/workspaces/node/configs/server-<X>
+  mkdir -p var/generated
+  for w in hosts users network disko; do dnf-generator "$w"; done
+  ```
+- Never hand-enable `darkone.service.<x>` in a workspace — the minimal-mixin bridge derives it from `hosts[].services.<X>`.
+
+### 3. Scenario
 
 - `scenarios/services/node-server-<X>.nix`, `mkNodeTest`, `host = "server1"`.
 - Wait for `multi-user.target`, then `wait_for_unit` + `is-active` on every hard runtime dep **and** the main unit. Auto-iterate `<X>-*.service` to catch upstream unit splits.
 - HTTP smoke: `wait_for_open_port` + `wait_until_succeeds` with `curl -fsSL … | grep -q '^200$'`. The `-L` follows redirects — some services (forgejo) return 303 on `/`.
 - **`git add`** the scenario `.nix` before `just simulate` sees it (pure eval).
 
-### 3. `lan = true`
+### 4. `lan = true`
 
 If the module binds to `host.ip` (e.g. `services.immich.host = host.ip`):
 
@@ -121,26 +151,30 @@ If the module binds to `host.ip` (e.g. `services.immich.host = host.ip`):
 
 `lan = true` brings up the zone VLAN on `eth1`, pins `host.ip`. Without it, the bind fails with `EADDRNOTAVAIL`; the unit crash-loops on `Restart=on-failure`. Leave default (`false`) when the service binds to `0.0.0.0`/`localhost` (forgejo, fail2ban).
 
-### 4. What NOT to assert
+### 5. What NOT to assert
 
 - **caddy**: lives on the **gateway**, not the service host. Test in gateway/network scenarios.
 - **kanidm**: OAuth2 client templates inert until kanidm itself is enabled.
 - **Optional features**: redis, ML, … default off. Document the gate in the header instead of muting asserts.
 
-### 5. Eval-all
+### 6. Eval-all
 
 Append workspace path to `scenarios/eval-all.nix` for L1 eval coverage on all hosts.
 
-### 6. Iteration
+### 7. Iteration
 
 - `just simulate <check-name>` builds the check VM (no boot).
 - Equivalent: `nix build '.#checks.<system>.<check-name>' --no-link`.
+- **Dry-run for eval-only validation** : `nix build '.#checks.<system>.<check-name>' --dry-run` — confirms the Nix evaluation chain without compiling.
 - **Avoid** `nix build '.#checks.<system>.eval-all'` during iteration — evaluates every workspace, costs minutes per cycle.
+- First build of source-heavy packages (OCaml/Haskell : geneweb, …) costs minutes ; the store caches subsequent runs.
 
-### 7. Gotchas
+### 8. Gotchas
 
 - **Untracked files invisible to pure eval.** New files must be `git add`ed (or committed) before `nix build` / `just simulate` sees them. Staging is enough — no commit needed. The "dirty tree" warning is harmless; missing untracked files cause "attribute missing" errors.
 - **`dnf-generator` writes into existing `var/generated/`.** `just fixtures generate` handles this. If running the generator by hand, `mkdir -p var/generated` first.
+- **Wrapper module reachable only via `modules/default.nix`.** A new `modules/service/<X>.nix` alone is invisible until its path appears in `modules/default.nix` (generated, or hand-inserted during iteration).
+- **`services.<X>.interface = null`** is *not* a guarantee the binary listens on `0.0.0.0`. Verify with `ss -tlnp` inside `simulate-debug` before relying on `localhost` ; if bound to `host.ip`, switch to `lan = true`.
 
 ## Invariants
 
