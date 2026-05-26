@@ -32,5 +32,12 @@ pkgs.testers.runNixOSTest {
       ./test-tuning.nix
       testModule
     ];
+
+    # VM sizing lives here (qemu-vm-only options); test-tuning stays generic.
+    virtualisation = {
+      memorySize = 2048;
+      cores = 2;
+      diskSize = 4096;
+    };
   };
 }

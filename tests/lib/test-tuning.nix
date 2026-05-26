@@ -3,6 +3,8 @@
 # :::caution[Tests only]
 # Imported exclusively by `tests/lib/mk*Test.nix`. Never referenced from
 # `modules/`. Provisions the throwaway sops key so secrets decrypt for real.
+# Stays qemu-vm-agnostic (no `virtualisation.*`) so the L1 eval tier can
+# import it into a plain `nixosSystem`; VM sizing lives in the VM helpers.
 # :::
 #
 # Aim: use.
@@ -28,10 +30,4 @@
   # Provide the self-signed cert fixture for scenarios that need TLS.
   darkone.test.tlsCert = ../fixtures/tls/cert.pem;
   darkone.test.tlsKey = ../fixtures/tls/key.pem;
-
-  virtualisation = {
-    memorySize = 2048;
-    cores = 2;
-    diskSize = 4096;
-  };
 }
