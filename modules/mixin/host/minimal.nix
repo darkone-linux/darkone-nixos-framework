@@ -30,6 +30,11 @@ in
       default = attrsets.hasAttrByPath [ "services" "forgejo" ] host;
       description = "Enable pre-configured forgejo git forge service";
     };
+    darkone.host.minimal.enableGeneweb = mkOption {
+      type = types.bool;
+      default = attrsets.hasAttrByPath [ "services" "geneweb" ] host;
+      description = "Enable pre-configured GeneWeb genealogy service";
+    };
     darkone.host.minimal.enableImmich = mkOption {
       type = types.bool;
       default = attrsets.hasAttrByPath [ "services" "immich" ] host;
@@ -167,6 +172,7 @@ in
       docs.enable = cfg.enableDocs;
       element.enable = cfg.enableElement;
       forgejo.enable = cfg.enableForgejo;
+      geneweb.enable = cfg.enableGeneweb;
       harmonia.enable = cfg.enableHarmonia;
 
       # `mkIf` (not direct assignment) because consumer modules can also
