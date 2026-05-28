@@ -79,7 +79,9 @@ in
       # 8501 -> packages proxy (ncps)
       firewall = {
         enable = true;
-        allowPing = lib.mkDefault true;
+
+        # Ping only on LAN; extraInputRules accepts on lan0
+        allowPing = false;
         interfaces.${lanInterface} = {
           allowedTCPPorts = [
             22
@@ -99,13 +101,9 @@ in
           allowedTCPPorts = [ ];
           allowedUDPPorts = [ ];
         };
-        extraCommands = ''
-          # No ping on wan interface
-          iptables -A nixos-fw -i ${wanInterface} -p icmp --icmp-type echo-request -j DROP
-        '';
-        extraStopCommands = ''
-          # Extra rules cleans
-          iptables -D nixos-fw -i ${wanInterface} -p icmp --icmp-type echo-request -j DROP 2>/dev/null || true
+
+        extraInputRules = ''
+          iifname "${lanInterface}" icmp type echo-request accept
         '';
       };
 

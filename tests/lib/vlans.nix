@@ -16,7 +16,7 @@
 #
 # Aim: use.
 
-{ }:
+{ ... }:
 let
   zoneVlans = {
     z1 = 1;

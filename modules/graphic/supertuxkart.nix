@@ -80,18 +80,8 @@ in
         }
       ];
 
-      # Accept STK broadcasts
-      extraCommands = ''
-        # Allow inbound broadcast on port 2757
-        iptables -A INPUT -d 10.1.255.255 -p udp --dport 2757 -j ACCEPT
-        iptables -A INPUT -d 10.1.2.255 -p udp --dport 2757 -j ACCEPT
-
-        # Allow outbound broadcast
-        iptables -A OUTPUT -d 10.1.255.255 -p udp --dport 2757 -j ACCEPT
-        iptables -A OUTPUT -d 10.1.2.255 -p udp --dport 2757 -j ACCEPT
-
-        # Allow replies to broadcasts
-        iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+      extraInputRules = ''
+        ip daddr { 10.1.255.255, 10.1.2.255 } udp dport 2757 accept
       '';
     };
   };

@@ -153,8 +153,8 @@ in
 
         # C4 — nftables with deny-by-default policy (minimal → reinforced)
         # sideEffects: egress filtering breaks curl/downloads without an outbound proxy
+        # nftables backend is already enabled globally in core.nix
         (lib.mkIf (isActive "C4" "minimal" "base" [ ]) {
-          networking.nftables.enable = true;
           networking.firewall.enable = true;
 
           # Deny-by-default policy: no port open unless explicitly declared

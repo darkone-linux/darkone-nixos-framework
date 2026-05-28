@@ -103,6 +103,7 @@ in
     # Global networking
     networking = {
       hostName = host.hostname;
+      nftables.enable = true;
       firewall = {
         enable = cfg.enableFirewall;
         allowPing = lib.mkDefault true;

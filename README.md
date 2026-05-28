@@ -25,7 +25,7 @@ This project is constantly evolving according to my needs. If you'd like to be i
 | 👤 | User profiles | User [profiles](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/home/profiles) and [modules](https://darkone-linux.github.io/ref/modules/#home-manager-modules) with [Home Manager](https://github.com/nix-community/home-manager) (admin, gamer, beginner...) |
 | 🖥️ | Host profiles | [Host profiles](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop) (servers, containers, network nodes, workstations...) |
 | 🌐 | Tailnet VPN | [Full-mesh VPN](https://en.wikipedia.org/wiki/Mesh_networking) with [headscale](https://headscale.net/) + [tailscale](https://tailscale.com/), [independent subnets](#one-configuration-for-a-full-network) |
-| 🛡️ | Ad-Free web | Secure, ad-free internet with [AdguardHome](https://adguard.com/fr/adguard-home/overview.html) and effective firewall |
+| 🛡️ | Ad-Free web | Secure, ad-free internet with [AdguardHome](https://adguard.com/fr/adguard-home/overview.html) and effective firewall (nftables) |
 | 🧩 | Single Sign On | SSO strategy with [Kanidm](https://kanidm.com/): one identity for (almost) all services |
 | 🤗 | Smart services | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [Jellyfin](https://jellyfin.org/), [etc.](https://darkone-linux.github.io/ref/modules/#-darkoneserviceadguardhome) |
 | 💻 | Clean Gnome | NixOS hosts with streamlined [GNOME UI](https://www.gnome.org/) + stable and useful apps |

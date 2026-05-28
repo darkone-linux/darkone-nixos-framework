@@ -10,7 +10,8 @@
 #   - generated host record (from `zone.extraDnsmasqSettings.host-record`)
 #     resolves through dnsmasq itself
 #   - NAT MASQUERADE rule installed for the zone subnet
-#   - WAN ICMP echo-request dropped (firewall extraCommands)
+#   - LAN ICMP echo-request accepted via extraInputRules; WAN implicitly
+#     dropped (allowPing = false, no accept rule on wan)
 #
 # Out of scope here (covered elsewhere or optional):
 #   - adguardhome interaction: minimal profile → adguardhome disabled, so
@@ -77,14 +78,12 @@
     # Zone domain must not be forwarded upstream.
     node1.succeed(f"grep -qE '^local=/z1.test.local/' {conf}")
 
-    # NAT for the zone subnet (zone.networkIp + prefixLength). NixOS puts
-    # the rule in `nixos-nat-post`, not in POSTROUTING directly.
-    node1.succeed("iptables -t nat -S nixos-nat-post | grep -q '10.10.0.0/16'")
+    # NAT for the zone subnet — nftables table ip nixos-nat, chain post.
+    node1.succeed("nft list chain ip nixos-nat post | grep -q '10.10.0.0/16'")
 
-    # WAN-side ICMP echo-request dropped (extraCommands). `iptables -S`
-    # renders the type numerically (`--icmp-type 8`), so match on the
-    # interface + protocol + DROP shape instead of the human alias.
-    node1.succeed("iptables -S nixos-fw | grep -qE -- '-i eth0 .*-p icmp .*DROP'")
+    # LAN-side ICMP echo-request accepted via extraInputRules; WAN is
+    # implicitly dropped (allowPing = false, no accept on wan).
+    node1.succeed("nft list chain inet nixos-fw input-allow | grep -qE 'iifname .lan0.*icmp type echo-request accept'")
 
     # The generated host-record in zone.extraDnsmasqSettings must resolve
     # through dnsmasq on its LAN IP — exercises the full eval → render →
