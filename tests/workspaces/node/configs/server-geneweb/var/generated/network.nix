@@ -70,7 +70,7 @@
         address = [ "/z1.test.local/10.10.1.1" ];
         server = [ ];
         host-record = [
-          "geneweb,geneweb.z1.test.local,10.10.1.2"
+          "geneweb,geneweb.z1.test.local,10.10.1.1"
           "gw1,gw1.z1.test.local,10.10.1.1"
           "server1,server1.z1.test.local,10.10.1.2"
         ];

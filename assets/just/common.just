@@ -85,7 +85,13 @@ _fix_fs_permissions:
 	set -euo pipefail
 	just _log "Fixing filesystem permissions..." "FS"
 	sudo chown -R --reference=. .
-	sudo chmod 644 {{sopsSecretsFile}}
+
+	# Consumer project only: secrets file lives under usr/secrets/ and needs
+	# world-read for the nix build sandbox. In framework-standalone mode
+	# there is no usr/ tree, so skip.
+	if [ -f "{{workDir}}/etc/config.yaml" ]; then
+		sudo chmod 644 {{sopsSecretsFile}}
+	fi
 
 	# Infra key(s) live under /etc/sops/age, owned by the nix deploy user so
 	# the admin tooling can read them (root/sops-nix reads them regardless).
@@ -165,17 +171,30 @@ fix:
 # Generators
 #==============================================================================
 
-# Update the nix generated files
+# Update the nix generated files.
+#
+# Detects the running context:
+#   - Consumer project (workDir has etc/config.yaml): full generation including
+#     Rust-generated files (var/generated/*.nix) and consumer-side paths.
+#   - Framework standalone (workDir is dnf/ itself): only framework module
+#     default.nix files, no Rust generator (no config.yaml to consume).
 [group('dev')]
-generate: \
-	(_gen-default "dnf/modules") \
-	(_gen-default "usr/modules") \
-	(_gen-default "dnf/home/modules") \
-	(_gen-default "usr/home/modules") \
-	(_gen "users") \
-	(_gen "hosts") \
-	(_gen "network") \
-	(_gen "disko")
+generate:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	if [ -f "{{workDir}}/etc/config.yaml" ]; then
+		just _gen-default "dnf/modules"
+		just _gen-default "usr/modules"
+		just _gen-default "dnf/home/modules"
+		just _gen-default "usr/home/modules"
+		just _gen "users"
+		just _gen "hosts"
+		just _gen "network"
+		just _gen "disko"
+	else
+		just _gen-default "modules"
+		just _gen-default "home/modules"
+	fi
 
 # Generator of default.nix files
 _gen-default dir:
