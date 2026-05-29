@@ -1,8 +1,8 @@
 # Darkone framework — testing just file
-# Imported by dnf/Justfile alongside assets/default.just.
+# Imported by dnf/Justfile alongside assets/just/common.just.
 #
 # Variables (nix, dnfDir, fixturesDir, …) and helper recipes
-# (_log, _err, _fail, …) are provided by default.just; always import both.
+# (_log, _err, _fail, …) are provided by common.just; always import both.
 
 #==============================================================================
 # Tests

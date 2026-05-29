@@ -167,8 +167,8 @@
       # Surface artefacts consumers fetch without a local checkout of the
       # framework. `dnf-generator` re-exposes the Rust binary built by the
       # `dnf-generator` flake input. `assets` packages the shared Justfile
-      # recipes (`assets/default.just`) so a consumer can symlink them into
-      # `.dnf/` via `nix run .#init` and then `import? '.dnf/default.just'`
+      # recipes (`just/project.just`) so a consumer can symlink them into
+      # `.dnf/` via `nix run .#init` and then `import? '.dnf/just/project.just'`
       # from its own Justfile.
 
       packages = forAllSystems (
