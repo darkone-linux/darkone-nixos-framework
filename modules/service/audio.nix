@@ -1,7 +1,12 @@
 # Audio services: alsa, pulse (not jack for the moment).
 # Automatically adds users to the `audio` group when enabled.
 
-{ lib, config, host, ... }:
+{
+  lib,
+  config,
+  host,
+  ...
+}:
 let
   cfg = config.darkone.service.audio;
 in
@@ -17,10 +22,14 @@ in
     security.rtkit.enable = true;
 
     # Add all host users to the audio group for ALSA/PipeWire access
-    users.users = builtins.listToAttrs (map (login: {
-      name = login;
-      value = { extraGroups = [ "audio" ]; };
-    }) host.users);
+    users.users = builtins.listToAttrs (
+      map (login: {
+        name = login;
+        value = {
+          extraGroups = [ "audio" ];
+        };
+      }) host.users
+    );
 
     # Enable sound with pipewire.
     services.pulseaudio.enable = false;

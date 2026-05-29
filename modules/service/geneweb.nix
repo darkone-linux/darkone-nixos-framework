@@ -5,7 +5,7 @@
 # :::
 #
 # :::tip[Database declaration]
-# To declare a `base.gw` file (default dir is `/var/lib/geneweb`), 
+# To declare a `base.gw` file (default dir is `/var/lib/geneweb`),
 # add this in your server configuration:
 # ```nix
 # services.geneweb.databases.base = {};
@@ -63,9 +63,7 @@ in
       # Firewall
       #------------------------------------------------------------------------
 
-      networking.firewall = dnfLib.mkInternalFirewall host zone [
-        gwCfg.port
-      ];
+      networking.firewall = dnfLib.mkInternalFirewall host zone [ gwCfg.port ];
 
       #------------------------------------------------------------------------
       # Sops secrets
@@ -94,7 +92,7 @@ in
 
         friendPasswordFile = config.sops.secrets."geneweb-friend".path;
         wizardPasswordFile = config.sops.secrets."geneweb-wizard".path;
-        
+
         openFirewall = false;
       };
     })

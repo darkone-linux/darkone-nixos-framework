@@ -122,7 +122,9 @@ let
   # misc module and `nixpkgs.hostPlatform.system`); everything else stays
   # identical to production for fidelity.
   mkNode =
-    { forTest ? false }:
+    {
+      forTest ? false,
+    }:
     host:
     let
       system = getHostArch host;
@@ -130,74 +132,73 @@ let
     {
       inherit system;
       specialArgs = nodeSpecialArgs.${host.hostname};
-      modules =
-        [
+      modules = [
 
-          # Framework-side NixOS modules
-          ../modules
+        # Framework-side NixOS modules
+        ../modules
 
-          # Geneweb : module upstream importé depuis la PR nixpkgs#522751
-          # (à retirer dès que la PR est mergée dans `nixos-unstable`).
-          # Parsé inconditionnellement mais sans effet tant que
-          # `services.geneweb.enable = false`.
-          "${nixpkgs-geneweb}/nixos/modules/services/web-apps/geneweb.nix"
+        # Geneweb : module upstream importé depuis la PR nixpkgs#522751
+        # (à retirer dès que la PR est mergée dans `nixos-unstable`).
+        # Parsé inconditionnellement mais sans effet tant que
+        # `services.geneweb.enable = false`.
+        "${nixpkgs-geneweb}/nixos/modules/services/web-apps/geneweb.nix"
 
-          # Geneweb : overlay temporaire injectant `pkgs.geneweb`.
-          # Retirer en même temps que l'import du module upstream.
-          { nixpkgs.overlays = [ (genewebOverlay system) ]; }
+        # Geneweb : overlay temporaire injectant `pkgs.geneweb`.
+        # Retirer en même temps que l'import du module upstream.
+        { nixpkgs.overlays = [ (genewebOverlay system) ]; }
 
-          # Consumer-side NixOS modules overlay
-          (workDir + "/usr/modules")
-        ]
+        # Consumer-side NixOS modules overlay
+        (workDir + "/usr/modules")
+      ]
 
-        # The test driver provides its own nixpkgs/system layer.
-        ++ nixpkgs.lib.optional (!forTest) "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
-        ++ [
-          sops-nix.nixosModules.sops
-          disko.nixosModules.disko
-          home-manager.nixosModules.home-manager
-          {
+      # The test driver provides its own nixpkgs/system layer.
+      ++ nixpkgs.lib.optional (!forTest) "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+      ++ [
+        sops-nix.nixosModules.sops
+        disko.nixosModules.disko
+        home-manager.nixosModules.home-manager
+        {
 
-            # Silence the upstream warning on fresh hosts. Hosts that own a
-            # `usr/machines/<host>/default.nix` keep pinning their own value;
-            # `mkDefault` lets them win.
-            system.stateVersion = nixpkgs.lib.mkDefault unstableStateVersion;
-          }
-          {
-            home-manager = {
+          # Silence the upstream warning on fresh hosts. Hosts that own a
+          # `usr/machines/<host>/default.nix` keep pinning their own value;
+          # `mkDefault` lets them win.
+          system.stateVersion = nixpkgs.lib.mkDefault unstableStateVersion;
+        }
+        {
+          home-manager = {
 
-              # Reuse global pkgs from nixpkgs
-              useGlobalPkgs = true;
+            # Reuse global pkgs from nixpkgs
+            useGlobalPkgs = true;
 
-              # Install in /etc/profiles instead of ~/.nix-profile
-              useUserPackages = true;
+            # Install in /etc/profiles instead of ~/.nix-profile
+            useUserPackages = true;
 
-              # Backup colliding files (e.g. .zshrc) instead of failing.
-              # LIMITATION: bails if a .bkp already exists.
-              backupFileExtension = "bkp";
+            # Backup colliding files (e.g. .zshrc) instead of failing.
+            # LIMITATION: bails if a .bkp already exists.
+            backupFileExtension = "bkp";
 
-              users = builtins.listToAttrs (map mkHome host.users);
+            users = builtins.listToAttrs (map mkHome host.users);
 
-              extraSpecialArgs = mkNodeArgs {
-                inherit host hosts network;
-                extraArgs = mkCommonNodeArgs system // {
-                  inherit inputs;
-                };
+            extraSpecialArgs = mkNodeArgs {
+              inherit host hosts network;
+              extraArgs = mkCommonNodeArgs system // {
+                inherit inputs;
               };
             };
-          }
-        ]
-        ++ nixpkgs.lib.optional (
-          system == "aarch64-linux"
-        ) nixos-hardware.nixosModules.raspberry-pi-5
-        ++ nixpkgs.lib.optional (builtins.pathExists (workDir + "/usr/machines/${host.hostname}")) (
-          workDir + "/usr/machines/${host.hostname}"
-        );
+          };
+        }
+      ]
+      ++ nixpkgs.lib.optional (system == "aarch64-linux") nixos-hardware.nixosModules.raspberry-pi-5
+      ++ nixpkgs.lib.optional (builtins.pathExists (workDir + "/usr/machines/${host.hostname}")) (
+        workDir + "/usr/machines/${host.hostname}"
+      );
     };
 
   # Public API returned by mkConfigurations (see spec §9.1).
   mkNodes =
-    { forTest ? false }:
+    {
+      forTest ? false,
+    }:
     builtins.listToAttrs (
       map (host: {
         name = host.hostname;

@@ -47,19 +47,21 @@ let
         (na.checks.${pkgs.system}.vm-test or null)
       ];
 
-  fallback = pkgs.runCommand "install-${name}" { passthru.toplevel = system.config.system.build.toplevel; } ''
-    mkdir -p "$out"
-    cat > "$out/README" <<EOF
-    L4 install tier for host '${host}' (workspace ${toString workspace}).
+  fallback =
+    pkgs.runCommand "install-${name}" { passthru.toplevel = system.config.system.build.toplevel; }
+      ''
+        mkdir -p "$out"
+        cat > "$out/README" <<EOF
+        L4 install tier for host '${host}' (workspace ${toString workspace}).
 
-    No automatic vm-test derivation exposed by the pinned nixos-anywhere
-    input. The host's toplevel was built (see passthru.toplevel) — eval
-    regressions are caught. To actually drive the install in a VM, run:
+        No automatic vm-test derivation exposed by the pinned nixos-anywhere
+        input. The host's toplevel was built (see passthru.toplevel) — eval
+        regressions are caught. To actually drive the install in a VM, run:
 
-      just install ${host} test
+          just install ${host} test
 
-    from a workspace that includes this host (cf. plan Phase 9.4).
-    EOF
-  '';
+        from a workspace that includes this host (cf. plan Phase 9.4).
+        EOF
+      '';
 in
 if vmTestCandidates != [ ] then builtins.head vmTestCandidates else fallback

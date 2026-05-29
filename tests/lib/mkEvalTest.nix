@@ -11,10 +11,7 @@
 # Aim: use.
 
 { pkgs, inputs }:
-{
-  name,
-  workspaces,
-}:
+{ name, workspaces }:
 let
   inherit (pkgs) lib;
   load = import ./workspace.nix { inherit inputs; };

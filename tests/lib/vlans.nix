@@ -38,6 +38,13 @@ in
       isGateway = host.profile == "gateway";
     in
     {
-      virtualisation.vlans = if isGateway then [ wanVlan lanVlan ] else [ lanVlan ];
+      virtualisation.vlans =
+        if isGateway then
+          [
+            wanVlan
+            lanVlan
+          ]
+        else
+          [ lanVlan ];
     };
 }
