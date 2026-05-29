@@ -89,7 +89,6 @@ in
     # GDM options if activated
     services.displayManager.gdm = lib.mkIf (!cfg.enableLightDM) {
       enable = true;
-      wayland = true; # Default
       autoSuspend = config.darkone.system.core.enableAutoSuspend;
       settings = {
         greeter = {
