@@ -18,4 +18,7 @@
 
   # Mime types improvements for DNF
   darkone.home.mime.enable = true;
+
+  # Local binaries access
+  home.sessionPath = [ "$HOME/.local/bin" ];
 }

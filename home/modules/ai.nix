@@ -29,6 +29,7 @@
   pkgs,
   config,
   osConfig,
+  inputs,
   ...
 }:
 let
@@ -52,10 +53,9 @@ let
 
   # Claude Code governance socle (permission matrix + RTK PreToolUse hook).
   # Kept as Nix data, rendered to an immutable store JSON, then merged into a
-  # writable settings.json by `claudeSettingsMerge` below. We deliberately do
-  # NOT feed this to `programs.claude-code.settings`: the module would pin
-  # settings.json as a read-only store symlink, blocking manual plugin installs
-  # (`npx claude-mem install` & co. fail with EROFS on the read-only file).
+  # writable settings.json by `claudeSettingsMerge` below. We keep settings.json
+  # writable on purpose: read-only store symlinks would block manual plugin
+  # installs (`npx claude-mem install` & co. fail with EROFS).
   claudeSettings = {
     "$schema" = "https://json.schemastore.org/claude-code-settings.json";
 
@@ -300,10 +300,9 @@ in
       (lib.mkIf cfg.enableAider aider-chat)
       (lib.mkIf cfg.enableGoose goose-cli)
 
-      # Dependencies
-      (lib.mkIf cfg.enableClaude nodejs_24)
-      (lib.mkIf cfg.enableClaude bun) # claude-mem dependency
-      (lib.mkIf cfg.enableClaude uv) # claude-mem dependency
+      # Claude Code — self-contained native binary (no runtime deps).
+      # Package from sadjow/claude-code-nix flake, updated hourly.
+      (lib.mkIf cfg.enableClaude inputs.claude-code.packages.${pkgs.system}.default)
 
       # OpenCode desktop UI (requires a graphical environment).
       (lib.mkIf (cfg.enableOpenCode && graphic) opencode-desktop)
@@ -313,22 +312,11 @@ in
     # CLAUDE CODE
     #==========================================================================
 
-    programs.claude-code = lib.mkIf cfg.enableClaude {
-      enable = true;
-
-      # settings.json is intentionally left unmanaged here so it stays writable
-      # for manual plugin/add-on installs; the socle is injected by the
-      # activation script below (see `claudeSettings` / `claudeSettingsMerge`).
-    };
-
     # Seed/merge the governance socle into a writable ~/.claude/settings.json.
     # Runs after the HM writeBoundary so $HOME is fully provisioned.
     home.activation.claudeWritableSettings = lib.mkIf cfg.enableClaude (
       lib.hm.dag.entryAfter [ "writeBoundary" ] "run ${claudeSettingsMerge}"
     );
-
-    # Useful for "claude update" (impure)
-    home.sessionPath = [ "$HOME/.local/bin" ];
 
     #==========================================================================
     # OPENCODE

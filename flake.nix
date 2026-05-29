@@ -47,6 +47,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Claude Code — always-up-to-date native binary from Anthropic.
+    # Auto-updated hourly by the upstream flake; no version pin.
+    claude-code.url = "github:sadjow/claude-code-nix";
+    claude-code.inputs.nixpkgs.follows = "nixpkgs";
+
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
     # Geneweb : suivi de la PR nixpkgs#522751 (module + paquetage `geneweb`
