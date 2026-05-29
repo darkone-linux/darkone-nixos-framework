@@ -209,6 +209,7 @@ in
                 icon-theme = "Papirus-Dark";
                 gtk-theme = "Adw-dark"; # not Adwaita-dark
                 color-scheme = "prefer-dark";
+                gtk-enable-primary-paste = true; # Middle-click paste (PRIMARY selection)
                 monospace-font-name = "JetBrainsMono Nerd Font Mono 16";
                 enable-hot-corners = false; # Disable hot-corner actions when the cursor reaches a screen corner
               };
