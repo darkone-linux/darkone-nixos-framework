@@ -327,6 +327,9 @@ in
       lib.hm.dag.entryAfter [ "writeBoundary" ] "run ${claudeSettingsMerge}"
     );
 
+    # Useful for "claude update" (impure)
+    home.sessionPath = [ "$HOME/.local/bin" ];
+
     #==========================================================================
     # OPENCODE
     #==========================================================================

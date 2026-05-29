@@ -291,6 +291,7 @@ in
           listenAddress = "${params.ip}:${toString srvPort}";
           htpasswd-file = config.sops.secrets.restic-htpasswd.path;
           dataDir = cfg.repositoryRoot;
+          privateRepos = true;
         };
 
         #----------------------------------------------------------------------

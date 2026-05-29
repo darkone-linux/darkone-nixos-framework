@@ -1,6 +1,7 @@
 # Audio services: alsa, pulse (not jack for the moment).
+# Automatically adds users to the `audio` group when enabled.
 
-{ lib, config, ... }:
+{ lib, config, host, ... }:
 let
   cfg = config.darkone.service.audio;
 in
@@ -13,7 +14,13 @@ in
 
     # Whether to enable the RealtimeKit system service, which hands out realtime scheduling
     # priority to user processes on demand. PipeWire use this to acquire realtime priority.
-    #security.rtkit.enable = true;
+    security.rtkit.enable = true;
+
+    # Add all host users to the audio group for ALSA/PipeWire access
+    users.users = builtins.listToAttrs (map (login: {
+      name = login;
+      value = { extraGroups = [ "audio" ]; };
+    }) host.users);
 
     # Enable sound with pipewire.
     services.pulseaudio.enable = false;

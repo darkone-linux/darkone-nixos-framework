@@ -297,6 +297,35 @@ in
               "org/gnome/settings-daemon/plugins/sharing" = {
                 active = false;
               };
+
+              # Recherche locale : indexe tous les dossiers XDG user-dirs
+              # (Desktop, Documents, Download, Music, Pictures, Videos...)
+              # + blacklist node_modules, *.ts, *.mts
+              "org/freedesktop/tracker/miner/files" = {
+                index-recursive-directories = [
+                  "&DESKTOP"
+                  "&DOCUMENTS"
+                  "&DOWNLOAD"
+                  "&MUSIC"
+                  "&PICTURES"
+                  "&PUBLIC_SHARE"
+                  "&TEMPLATES"
+                  "&VIDEOS"
+                ];
+                ignored-directories = [
+                  "node_modules"
+                  "vendor"
+                  "po"
+                  "CVS"
+                  "core-dumps"
+                  "lost+found"
+                  ".cache"
+                ];
+                ignored-files = [
+                  "*.ts"
+                  "*.mts"
+                ];
+              };
             };
           }
         ];
