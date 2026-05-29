@@ -212,6 +212,17 @@ in
         allowedUDPPorts = [
           3478 # STUN, DERP server
         ];
+
+        # Unbound (pivot DNS) must be reachable by tailnet nodes on the VPN IP.
+        # With the nftables backend, the NixOS firewall and tailscale live in
+        # separate base chains on the same input hook: tailscale's accept rule
+        # no longer short-circuits the nixos-fw drop policy, so port 53 must be
+        # opened explicitly on the tailscale interface. Unbound already limits
+        # queries via access-control (100.64.0.0/10).
+        interfaces.${config.services.tailscale.interfaceName} = {
+          allowedTCPPorts = [ 53 ];
+          allowedUDPPorts = [ 53 ];
+        };
       };
     })
   ];
