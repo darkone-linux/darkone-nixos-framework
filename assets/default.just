@@ -21,10 +21,18 @@ secretsGitIgnore := secretsDir + '/.gitignore'
 sopsSecretsFile := secretsDir + '/secrets.yaml'
 sopsAdminKeyDir := home_directory() + '/.config/sops/age'
 sopsAdminKeyFile := sopsAdminKeyDir + '/keys.txt'
-sopsInfraKeyFile := secretsDir + '/infra.key'
 sopsYamlFile := secretsDir + '/.sops.yaml'
+
+# Infra age key now lives outside the repo, under /etc/sops/age (restricted),
+# instead of usr/secrets. It is the file sops-nix reads on every host and the
+# file pushed by `push-key`. During a key rotation it transiently holds BOTH
+# the new and the old identity (concatenated), with the two single keys kept
+# alongside as `.cur` / `.old` sidecars (rotation-only).
 sopsInfraTargetDir := '/etc/sops/age'
 sopsInfraTargetFile := sopsInfraTargetDir + '/infra.key'
+sopsInfraKeyFile := sopsInfraTargetFile
+sopsInfraCurKeyFile := sopsInfraTargetDir + '/infra.key.cur'
+sopsInfraOldKeyFile := sopsInfraTargetDir + '/infra.key.old'
 generatedConfigFile := workDir + '/var/generated/config.yaml'
 fixturesDir := dnfDir + '/tests/fixtures'
 nix := 'nix --extra-experimental-features "nix-command flakes"'
@@ -101,10 +109,16 @@ _fix_fs_permissions:
 	just _log "Fixing filesystem permissions..." "FS"
 	sudo chown -R --reference=. .
 	sudo chmod 644 {{sopsSecretsFile}}
-	if [ -d {{secretsDir}} ] ;then
-		sudo chown nix {{secretsDir}}/*.key
-		sudo chmod 600 {{secretsDir}}/*.key
-	fi
+
+	# Infra key(s) live under /etc/sops/age, owned by the nix deploy user so
+	# the admin tooling can read them (root/sops-nix reads them regardless).
+	# The .cur/.old sidecars exist only mid-rotation.
+	for keyfile in {{sopsInfraKeyFile}} {{sopsInfraCurKeyFile}} {{sopsInfraOldKeyFile}} ;do
+		if [ -f "$keyfile" ] ;then
+			sudo chown nix "$keyfile"
+			sudo chmod 600 "$keyfile"
+		fi
+	done
 
 _sops_before_edit:
 	#!/usr/bin/env bash
@@ -406,36 +420,26 @@ configure-admin-host:
 	fi
 	if [ ! -f {{sopsInfraKeyFile}} ] ;then
 		just _log "Infra private key file generation..." "SOPS"
+
+		# The infra key lives under /etc/sops/age (not in the repo). Own the
+		# directory as the nix deploy user so the admin tooling can read/manage
+		# the key; sops-nix still reads it as root at activation.
+		sudo mkdir -p {{sopsInfraTargetDir}}
+		sudo chown nix {{sopsInfraTargetDir}}
 		age-keygen -o {{sopsInfraKeyFile}}
+		chmod 600 {{sopsInfraKeyFile}}
 	else
 		just _info "Infra key file already exists." "SOPS"
 	fi
 	if [ ! -f {{sopsYamlFile}} ] ;then
 		just _log "[SOPS] .sops.yaml file generation..."
-		INF_PUB_KEY=$(age-keygen -y {{sopsInfraKeyFile}})
-
-		# Dérivation directe depuis la pub SSH : ssh-to-age sur la pub key sort
-		# un age1... en une ligne, sans parser le fichier admin keys.txt (qui
-		# selon la version de ssh-to-age n'est pas toujours reconnu comme
-		# identité native AGE-SECRET-KEY-1... par age-keygen -y).
-		ADM_PUB_KEY=$(ssh-to-age -i "$HOME/.ssh/id_ed25519.pub")
-		[ -f {{sopsYamlFile}} ] || echo "{}" > {{sopsYamlFile}}
-		echo "keys:" > {{sopsYamlFile}}
-		echo "  - &nix ${ADM_PUB_KEY}" >> {{sopsYamlFile}}
-		echo "  - &infra ${INF_PUB_KEY}" >> {{sopsYamlFile}}
-		echo "creation_rules:" >> {{sopsYamlFile}}
-		echo "  - path_regex: \"[^/]+\\\\.yaml$\"" >> {{sopsYamlFile}}
-		echo "    key_groups:" >> {{sopsYamlFile}}
-		echo "    - age:" >> {{sopsYamlFile}}
-		echo "      - *nix" >> {{sopsYamlFile}}
-		echo "      - *infra" >> {{sopsYamlFile}}
+		just _regen-sops-yaml
 	else
 		just _info ".sops.yaml file already exists." "SOPS"
 	fi
 	if [ ! -f {{sopsSecretsFile}} ] ;then
 		just _log "We need a default password..." "SOPS"
 		just passwd-default
-		just push-key localhost
 	else
 		just _info "Default secret file already exists." "SOPS"
 	fi
@@ -710,6 +714,213 @@ sops:
 	just _sops_before_edit
 	sudo -i -u nix EDITOR=vim sops {{sopsSecretsFile}}
 	just _fix_fs_permissions
+
+#==============================================================================
+# Rotation
+#==============================================================================
+#
+# Infra age key rotation, in three explicit, integrity-checked steps:
+#   1. just rotate init       generate a new key, keep the old one as a second
+#                             recipient, re-encrypt secrets to both.
+#   2. just rotate push-keys  push the combined (new+old) key to every hive
+#                             host, so each one decrypts whatever its store
+#                             holds, in any apply/push order.
+#   3. just rotate finalize   once every host carries the new key (verified
+#                             first), drop the old one, re-encrypt to the new
+#                             key only and push the new-only key everywhere.
+#
+# The presence of /etc/sops/age/infra.key.old marks a rotation in progress.
+
+# (Re)generate usr/secrets/.sops.yaml from the current recipients: the admin
+# SSH-derived age key plus the infra key(s). During a rotation both the new
+# (.cur) and previous (.old) infra keys are recipients; otherwise just the
+# single operational infra key.
+_regen-sops-yaml:
+	#!/usr/bin/env bash
+	set -euo pipefail
+
+	# Admin recipient, derived straight from the SSH public key (ssh-to-age on
+	# the pub key yields a single age1... line, without parsing keys.txt which
+	# some ssh-to-age versions don't expose as a native AGE-SECRET-KEY-1).
+	ADM_PUB=$(ssh-to-age -i "$HOME/.ssh/id_ed25519.pub")
+	recipients=("$ADM_PUB")
+
+	# Infra recipients. age-keygen -y is only ever run on single-identity files.
+	if [ -f {{sopsInfraCurKeyFile}} ] && [ -f {{sopsInfraOldKeyFile}} ] ;then
+		recipients+=("$(age-keygen -y {{sopsInfraCurKeyFile}})")
+		recipients+=("$(age-keygen -y {{sopsInfraOldKeyFile}})")
+	else
+		recipients+=("$(age-keygen -y {{sopsInfraKeyFile}})")
+	fi
+	just _sops_before_edit
+	{
+		echo "creation_rules:"
+		echo "  - path_regex: \"[^/]+\\\\.yaml\$\""
+		echo "    key_groups:"
+		echo "    - age:"
+		for r in "${recipients[@]}" ;do
+			echo "      - ${r}"
+		done
+	} > {{sopsYamlFile}}
+
+# List all colmena hive node names (the deploy source of truth), one per line.
+_hive-nodes:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	colmena eval --config {{workDir}}/flake.nix -E '{ nodes, ... }: builtins.attrNames nodes' 2>/dev/null \
+		| grep -oE '"[^"]+"' | tr -d '"'
+
+# Rotate the infra age key (step: init | push-keys | finalize)
+[group('install')]
+rotate step:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just rotate "{{step}}"
+	case "{{step}}" in
+		init)      just _rotate-infra-init ;;
+		push-keys) just _rotate-infra-push-keys ;;
+		finalize)  just _rotate-infra-finalize ;;
+		*) just _fail "Unknown rotate step '{{step}}' — valid: init, push-keys, finalize" ;;
+	esac
+
+# Rotation step 1: introduce a new infra key alongside the old one.
+_rotate-infra-init:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	just _check_infra_admin
+	if [ -f {{sopsInfraOldKeyFile}} ] || [ -f {{sopsInfraCurKeyFile}} ] ;then
+		just _err "A rotation is already in progress."
+		just _fail "Run 'just rotate push-keys' then 'just rotate finalize' (or remove {{sopsInfraCurKeyFile}} / {{sopsInfraOldKeyFile}} to abort)."
+	fi
+	if [ ! -s {{sopsAdminKeyFile}} ] ;then
+		just _fail "Admin age key not found ({{sopsAdminKeyFile}}). Run 'just configure-admin-host' first."
+	fi
+	if [ ! -f {{sopsSecretsFile}} ] ;then
+		just _fail "Secrets file not found ({{sopsSecretsFile}})."
+	fi
+	just _log "Generating a new infra key (keeping the old one as recipient)..." "ROTATE"
+
+	# Make sure the key store is writable by the nix deploy user.
+	sudo mkdir -p {{sopsInfraTargetDir}}
+	sudo chown nix {{sopsInfraTargetDir}}
+
+	# Preserve the current single key as .old, generate the new single key as
+	# .cur, then make the operational infra.key the concatenation new+old: any
+	# host that receives it decrypts secrets sealed for either identity.
+	cp {{sopsInfraKeyFile}} {{sopsInfraOldKeyFile}}
+	age-keygen -o {{sopsInfraCurKeyFile}}
+	cat {{sopsInfraCurKeyFile}} {{sopsInfraOldKeyFile}} > {{sopsInfraKeyFile}}
+	chmod 600 {{sopsInfraCurKeyFile}} {{sopsInfraOldKeyFile}} {{sopsInfraKeyFile}}
+
+	# Re-encrypt secrets to admin + new + old, decrypting with the stable admin
+	# key. sops resolves .sops.yaml from the CWD, so run it from the secrets dir
+	# (same pattern as passwd-default), in a subshell to keep the recipe CWD.
+	just _regen-sops-yaml
+	just _log "Re-encrypting secrets for new + old recipients..." "ROTATE"
+	( cd {{secretsDir}} && SOPS_AGE_KEY_FILE={{sopsAdminKeyFile}} sops updatekeys -y {{sopsSecretsFile}} )
+	just _fix_fs_permissions
+	just _log "Init done. Commit, deploy ('just apply ...'), then 'just rotate push-keys'." "ROTATE"
+
+# Rotation step 2: push the combined key to every hive host.
+_rotate-infra-push-keys:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	just _check_infra_admin
+	if [ ! -f {{sopsInfraOldKeyFile}} ] ;then
+		just _fail "No rotation in progress. Run 'just rotate init' first."
+	fi
+	self=$(hostname)
+
+	# Fail safe: an empty list means colmena eval failed — never report success
+	# (or, in finalize, prune the old key) against zero hosts.
+	nodes=$(just _hive-nodes)
+	[ -n "$nodes" ] || just _fail "No hive nodes found (colmena eval failed?). Aborting."
+	just _log "Pushing combined infra key to all hive hosts..." "ROTATE"
+	failed=()
+	for node in $nodes ;do
+
+		# The admin host already holds the combined key locally; never scp to
+		# self (push-key would chown the key to root and lock the tooling out).
+		if [ "$node" = "$self" ] ;then
+			just _info "Skipping admin host $node (already up to date)." "ROTATE"
+			continue
+		fi
+		if just push-key "$node" ;then
+			just _info "Pushed to $node." "ROTATE"
+		else
+			just _warn "Push FAILED for $node."
+			failed+=("$node")
+		fi
+	done
+	if [ ${#failed[@]} -ne 0 ] ;then
+		just _fail "Key not delivered to: ${failed[*]} — fix connectivity and re-run 'just rotate push-keys'."
+	fi
+	just _log "All hosts have the combined key. After 'just apply' everywhere, run 'just rotate finalize'." "ROTATE"
+
+# Rotation step 3: verify every host carries the new key, then drop the old one.
+_rotate-infra-finalize:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	just _check_infra_admin
+	if [ ! -f {{sopsInfraOldKeyFile}} ] || [ ! -f {{sopsInfraCurKeyFile}} ] ;then
+		just _fail "No rotation in progress (nothing to finalize). Run 'just rotate init' first."
+	fi
+	if [ ! -s {{sopsAdminKeyFile}} ] ;then
+		just _fail "Admin age key not found ({{sopsAdminKeyFile}})."
+	fi
+	self=$(hostname)
+	NEW_PUB=$(age-keygen -y {{sopsInfraCurKeyFile}})
+
+	# Fail safe: empty list => colmena eval failed; never prune against zero hosts.
+	nodes=$(just _hive-nodes)
+	[ -n "$nodes" ] || just _fail "No hive nodes found (colmena eval failed?). Aborting."
+
+	# Integrity gate: refuse to drop the old key until EVERY hive host carries
+	# the new one (else a host would be left unable to decrypt). Unreachable
+	# hosts count as missing.
+	just _log "Verifying every host carries the new key..." "ROTATE"
+	missing=()
+	for node in $nodes ;do
+		[ "$node" = "$self" ] && continue
+		tmp=$(mktemp)
+		if ssh -o BatchMode=yes nix@"$node" 'sudo cat {{sopsInfraKeyFile}}' > "$tmp" 2>/dev/null \
+			&& age-keygen -y "$tmp" 2>/dev/null | grep -qxF "$NEW_PUB" ;then
+			just _info "$node OK." "ROTATE"
+		else
+			just _warn "$node is missing the new key (or unreachable)."
+			missing+=("$node")
+		fi
+		rm -f "$tmp"
+	done
+	if [ ${#missing[@]} -ne 0 ] ;then
+		just _fail "Cannot finalize — these hosts lack the new key: ${missing[*]}. Run 'just rotate push-keys' (and 'just apply') first."
+	fi
+	just _log "All hosts verified. Dropping the old key..." "ROTATE"
+
+	# Operational key becomes the new single identity; remove the sidecars.
+	mv {{sopsInfraCurKeyFile}} {{sopsInfraKeyFile}}
+	rm -f {{sopsInfraOldKeyFile}}
+	chmod 600 {{sopsInfraKeyFile}}
+
+	# Re-encrypt secrets to admin + new only (the old key becomes useless).
+	# Run sops from the secrets dir (CWD-based .sops.yaml discovery).
+	just _regen-sops-yaml
+	just _log "Re-encrypting secrets for the new key only..." "ROTATE"
+	( cd {{secretsDir}} && SOPS_AGE_KEY_FILE={{sopsAdminKeyFile}} sops updatekeys -y {{sopsSecretsFile}} )
+	just _fix_fs_permissions
+
+	# Replace the combined key with the new-only key on every host. Hosts we
+	# can't reach keep the combined key, so they keep working until re-pushed.
+	just _log "Pushing new-only key to all hive hosts..." "ROTATE"
+	failed=()
+	for node in $nodes ;do
+		[ "$node" = "$self" ] && continue
+		if just push-key "$node" ;then :; else failed+=("$node"); fi
+	done
+	if [ ${#failed[@]} -ne 0 ] ;then
+		just _warn "New-only key not pushed to: ${failed[*]} — re-run 'just push-key <host>' for them."
+	fi
+	just _log "Finalize done. Commit and 'just apply' everywhere to flush the old recipient." "ROTATE"
 
 #==============================================================================
 # Apply (colmena)

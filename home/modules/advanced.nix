@@ -59,7 +59,9 @@ in
     #============================================================================
 
     home.sessionVariables = {
-      SOPS_AGE_KEY_FILE = "/etc/nixos/usr/secrets/infra.key";
+
+      # Infra age key now lives under /etc/sops/age (restricted), not in the repo.
+      SOPS_AGE_KEY_FILE = "/etc/sops/age/infra.key";
       MANPAGER = "sh -c 'col -bx | bat -l man -p'"; # bat
       MANROFFOPT = "-c"; # bat
       EDITOR = "vim";
