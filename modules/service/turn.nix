@@ -188,13 +188,8 @@ in
           srv.listening-port # 3478
           srv.tls-listening-port # 5349
         ];
+        # Media relay is UDP-only (no-tcp-relay): no TCP relay range needed.
         allowedUDPPortRanges = [
-          {
-            from = srv.min-port; # 49152
-            to = srv.max-port; # 65535
-          }
-        ];
-        allowedTCPPortRanges = [
           {
             from = srv.min-port; # 49152
             to = srv.max-port; # 65535
