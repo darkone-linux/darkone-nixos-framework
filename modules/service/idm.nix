@@ -182,10 +182,6 @@ in
 
     {
       darkone.system.services.service.idm = {
-
-        # Runs on the gateway itself; DNS points at the host directly.
-        reverseProxy = false;
-
         inherit defaultParams;
         persist.dirs = [ "/var/lib/kanidm" ];
         proxy.enable = isMainReplica;

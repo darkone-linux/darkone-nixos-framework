@@ -83,11 +83,6 @@ in
 
     {
       darkone.system.services.service.ncps = {
-
-        # Direct host access (no gateway reverse proxy), one per zone.
-        reverseProxy = false;
-        uniquePerZone = true;
-
         displayOnHomepage = false;
         persist = {
           varDirs = [ config.services.ncps.cache.dataPath ];

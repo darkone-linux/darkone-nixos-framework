@@ -37,11 +37,6 @@ in
 
     {
       darkone.system.services.service.headscale = {
-
-        # Fixed external IP, reachable from the LAN; not behind the proxy.
-        reverseProxy = false;
-        externalAccess = true;
-
         displayOnHomepage = false;
         inherit defaultParams;
         persist.dirs = [ "/var/lib/headscale" ];
