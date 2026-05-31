@@ -59,6 +59,10 @@ assert
 
     {
       darkone.system.services.service.nfs = {
+
+        # Filesystem share accessed directly, not via the gateway reverse proxy.
+        reverseProxy = false;
+
         displayOnHomepage = false;
         persist = {
           dirs = lib.optionals isServer [

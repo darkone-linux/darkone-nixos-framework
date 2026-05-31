@@ -43,6 +43,10 @@ in
 
     {
       darkone.system.services.service.adguardhome = {
+
+        # One AdGuardHome instance per zone.
+        uniquePerZone = true;
+
         defaultParams = {
           title = "AdGuardHome";
           description = "Ad and tracker blocker";

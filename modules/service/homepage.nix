@@ -71,6 +71,10 @@ in
 
     {
       darkone.system.services.service.homepage = {
+
+        # One homepage dashboard per zone.
+        uniquePerZone = true;
+
         inherit defaultParams;
         displayOnHomepage = false;
         proxy.servicePort = hpd.listenPort;

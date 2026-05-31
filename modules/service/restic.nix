@@ -211,6 +211,10 @@ in
 
     {
       darkone.system.services.service.restic = {
+
+        # Backup server accessed directly, not via the gateway reverse proxy.
+        reverseProxy = false;
+
         inherit defaultParams;
         displayOnHomepage = false;
         persist.dirs = [ srv.dataDir ];

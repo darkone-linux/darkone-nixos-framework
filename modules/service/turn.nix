@@ -37,6 +37,10 @@ in
 
     {
       darkone.system.services.service.turn = {
+
+        # STUN/TURN needs a fixed external IP reachable from the LAN.
+        externalAccess = true;
+
         displayOnHomepage = false;
         proxy.enable = false;
       };

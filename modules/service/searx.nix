@@ -31,6 +31,10 @@ in
 
     {
       darkone.system.services.service.searx = {
+
+        # Accessed directly, not via the gateway reverse proxy.
+        reverseProxy = false;
+
         inherit defaultParams;
         displayOnHomepage = false; # Accessible via the homepage search bar
         persist.dirs = [ "/var/lib/searx" ];

@@ -58,6 +58,10 @@ in
 
     {
       darkone.system.services.service.harmonia = {
+
+        # Nix cache accessed directly, not via the gateway reverse proxy.
+        reverseProxy = false;
+
         displayOnHomepage = false;
 
         # No reverse proxy: ncps reaches harmonia directly over HTTP.
