@@ -187,7 +187,6 @@ generate:
 		just _gen-default "usr/modules"
 		just _gen-default "dnf/home/modules"
 		just _gen-default "usr/home/modules"
-		just _gen-registry
 		just _gen "users"
 		just _gen "hosts"
 		just _gen "network"
@@ -214,37 +213,6 @@ _gen-default dir:
 			echo "];}"
 		} > default.nix
 		nixfmt -sv default.nix
-	fi
-
-# Generate var/generated/service-registry.json
-#
-# Single source of truth for per-service topology flags = the service modules
-# (`darkone.system.services.service.<name>.{reverseProxy,uniquePerZone,externalAccess}`).
-# The Rust generator reads this JSON instead of hard-coding service names.
-#
-#  - `--override-input dnf path:dnf` makes uncommitted `dnf/` changes visible
-#    (co-dev: flake.lock still pins the previous dnf rev otherwise).
-#  - All hosts import every service module, so any host's `service` attrset is
-#    complete; we pick the first nixosConfiguration.
-#  - On eval failure (bootstrap / broken flake) we keep the committed registry
-#    so generation still works; an empty registry would silently break DNS.
-_gen-registry:
-	#!/usr/bin/env bash
-	set -euo pipefail
-	just _log "service-registry.json..." "GENERATOR"
-	REG="var/generated/service-registry.json"
-	if HOST=$({{nix}} eval --raw \
-			--override-input dnf path:dnf \
-			.#nixosConfigurations --apply 'c: builtins.head (builtins.attrNames c)' 2>/dev/null) \
-		&& {{nix}} eval --json \
-			--override-input dnf path:dnf \
-			".#nixosConfigurations.${HOST}.config.darkone.system.services.service" \
-			--apply 'svc: builtins.mapAttrs (_: s: { reverse_proxy = s.reverseProxy; unique_per_zone = s.uniquePerZone; external_access = s.externalAccess; }) svc' \
-			> "${REG}.tmp" 2>/dev/null; then
-		mv "${REG}.tmp" "${REG}"
-	else
-		rm -f "${REG}.tmp"
-		just _info "Registry eval failed, keeping committed ${REG}"
 	fi
 
 # Generate var/generated/*.nix files
