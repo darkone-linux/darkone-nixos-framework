@@ -1,207 +1,61 @@
 # Every host configuration is based on this minimal config.
 #
 # :::caution[Services declaration]
-# A number of services (immich, nextcloud, forgejo, etc.) can be declared in the configuration `usr/config.yaml`
-# of each host, regardless of its type (server, laptop, desktop, etc.). **It is advisable to declare them in the
-# yaml file so that the service is visible across the entire network!**
+# A number of services (immich, nextcloud, forgejo, etc.) can be declared in
+# `usr/config.yaml` of each host, regardless of its type (server, laptop,
+# desktop, etc.). **It is advisable to declare them in the yaml file so that
+# the service is visible across the entire network!**
 # :::
 
 {
   lib,
   config,
+  dnfConfig,
+  dnfLib,
   host,
   ...
 }:
-with lib;
 let
   cfg = config.darkone.host.minimal;
+  profileServicesArgs = {
+    profileName = "minimal";
+    inherit host;
+    inherit (dnfConfig) modules;
+  };
 in
 {
   options = {
-    darkone.host.minimal.enable = mkEnableOption "Minimal host configuration";
-    darkone.host.minimal.secure = mkEnableOption "Prefer more secure options (disable mutable users...)";
-    darkone.host.minimal.enableHomepage = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "homepage" ] host;
-      description = "Enable the auto-configured homepage service";
-    };
-    darkone.host.minimal.enableForgejo = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "forgejo" ] host;
-      description = "Enable pre-configured forgejo git forge service";
-    };
-    darkone.host.minimal.enableGeneweb = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "geneweb" ] host;
-      description = "Enable pre-configured GeneWeb genealogy service";
-    };
-    darkone.host.minimal.enableImmich = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "immich" ] host;
-      description = "Enable pre-configured immich service";
-    };
-    darkone.host.minimal.enableNextcloud = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "nextcloud" ] host;
-      description = "Enable pre-configured nextcloud service";
-    };
-    darkone.host.minimal.enableMonitoring = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "monitoring" ] host;
-      description = "Enable pre-configured monitoring service (prometheus, grafana)";
-    };
-    darkone.host.minimal.enableVaultwarden = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "vaultwarden" ] host;
-      description = "Enable pre-configured Vaultwarden service";
-    };
-    darkone.host.minimal.enableNfsHomeShares = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "nfs" ] host;
-      description = "Enable a DNF nfs home shares";
-    };
-    darkone.host.minimal.enableJitsiMeet = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "jitsi-meet" host.services;
-      description = "Enable jitsi-meet service";
-    };
-    darkone.host.minimal.enableRestic = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "restic" host.services;
-      description = "Enable Restic service";
-    };
-    darkone.host.minimal.enableJellyfin = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "jellyfin" host.services;
-      description = "Enable Jellyfin server";
-    };
-    darkone.host.minimal.enableOutline = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "outline" host.services;
-      description = "Enable Outline WIKI service";
-    };
-    darkone.host.minimal.enableDocs = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "docs" host.services;
-      description = "Enable LaSuite Docs service";
-    };
-    darkone.host.minimal.enableGarage = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "garage" host.services;
-      description = "Enable Garage S3 service (backend for docs and other S3 consumers)";
-    };
-    darkone.host.minimal.enableMealie = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "mealie" host.services;
-      description = "Enable Mealie service";
-    };
-    darkone.host.minimal.enableSearx = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "searx" host.services;
-      description = "Enable Searx service";
-    };
-    darkone.host.minimal.enableMatrix = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "matrix" ] host;
-      description = "Enable a matrix server";
-    };
-    darkone.host.minimal.enableTurn = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "turn" ] host;
-      description = "Enable a coturn server (STUN/TURN) for VOIP";
-    };
-    darkone.host.minimal.enableElement = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "element" ] host;
-      description = "Enable Element-Web interface (matrix)";
-    };
-    darkone.host.minimal.enableAi = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "ai" ] host;
-      description = "Enable AI environment (ollama, open-webui, llms...)";
-    };
-    darkone.host.minimal.enableHarmonia = mkOption {
-      type = types.bool;
-      default = attrsets.hasAttrByPath [ "services" "harmonia" ] host;
-      description = "Enable a local Harmonia Nix binary cache server";
-    };
-
-    # Deactivated
-    # darkone.host.minimal.enableMattermost = mkOption {
-    #   type = types.bool;
-    #   default = attrsets.hasAttrByPath [ "services" "mattermost" ] host;
-    #   description = "Enable a mattermost server";
-    # };
-    # darkone.host.minimal.enableOpencloud = mkOption {
-    #   type = types.bool;
-    #   default = attrsets.hasAttrByPath [ "services" "opencloud" ] host;
-    #   description = "Enable pre-configured opencloud service";
-    # };
-    # darkone.host.minimal.enableSyncthing = mkOption {
-    #   type = types.bool;
-    #   default = attrsets.hasAttrByPath [ "services" "syncthing" ] host;
-    #   description = "Enable a syncthing server";
-    # };
+    darkone.host.minimal.enable = lib.mkEnableOption "Minimal host configuration";
+    darkone.host.minimal.secure = lib.mkEnableOption "Prefer more secure options (disable mutable users...)";
   };
 
-  config = mkIf cfg.enable {
+  config = lib.mkIf cfg.enable (
+    lib.mkMerge [
+      {
+        # Darkone main modules
+        darkone.system = {
+          hardware.enable = true;
+          core.enableFirewall = lib.mkDefault true;
+          i18n.enable = lib.mkDefault true;
+        };
 
-    # Darkone main modules
-    darkone.system = {
-      hardware.enable = true; # firmwares
-      core.enableFirewall = mkDefault true;
-      i18n.enable = mkDefault true;
-    };
+        # Minimum console features
+        darkone.console = {
+          zsh.enable = lib.mkDefault true;
+          zsh.enableForRoot = lib.mkDefault true;
+        };
 
-    # Minimum console features
-    darkone.console = {
-      zsh.enable = mkDefault true;
-      zsh.enableForRoot = mkDefault true;
-    };
+        # No password for sudoers
+        security.sudo.wheelNeedsPassword = lib.mkDefault false;
 
-    # No password for sudoers
-    security.sudo.wheelNeedsPassword = mkDefault false;
+        # Can manage users with useradd, usermod...
+        # Note: sops module forces mutable users.
+        users.mutableUsers = lib.mkDefault (!cfg.secure);
+      }
 
-    # Can manage users with useradd, usermod...
-    # Note: sops module force mutable users.
-    users.mutableUsers = mkDefault (!cfg.secure);
-
-    # Enabled services
-    darkone.service = {
-      ai.enable = cfg.enableAi;
-      docs.enable = cfg.enableDocs;
-      element.enable = cfg.enableElement;
-      forgejo.enable = cfg.enableForgejo;
-      geneweb.enable = cfg.enableGeneweb;
-      harmonia.enable = cfg.enableHarmonia;
-
-      # `mkIf` (not direct assignment) because consumer modules can also
-      # auto-enable garage when they use a localhost S3 backend; merging
-      # a host-level `false` with a consumer-level `true` on a bool option
-      # would fail.
-      garage.enable = mkIf cfg.enableGarage true;
-
-      homepage.enable = cfg.enableHomepage;
-      immich.enable = cfg.enableImmich;
-      jellyfin.enable = cfg.enableJellyfin;
-      jitsi-meet.enable = cfg.enableJitsiMeet;
-      matrix.enable = cfg.enableMatrix;
-      mealie.enable = cfg.enableMealie;
-      monitoring.enable = cfg.enableMonitoring;
-      nextcloud.enable = cfg.enableNextcloud;
-      outline.enable = cfg.enableOutline;
-      restic = lib.mkIf cfg.enableRestic {
-        enable = true;
-        enableServer = true;
-      };
-      searx.enable = cfg.enableSearx;
-      turn.enable = cfg.enableTurn;
-      vaultwarden.enable = cfg.enableVaultwarden;
-
-      # Deactivated
-      # mattermost.enable = cfg.enableMattermost;
-      # opencloud.enable = cfg.enableOpencloud;
-      # syncthing.enable = cfg.enableSyncthing;
-    };
-  };
+      # Activate services declared in host.services via modules.nix triggers.
+      (dnfLib.triggerProfileServices profileServicesArgs)
+      { assertions = dnfLib.mkHostProfileServicesAssertions profileServicesArgs; }
+    ]
+  );
 }

@@ -14,6 +14,7 @@ let
   security = import ./security.nix { inherit lib; };
   hive = import ./hive.nix { inherit lib; };
   paths = import ./paths.nix { inherit lib; };
+  services = import ./services.nix { inherit lib; };
 in
 {
   inherit constants;
@@ -21,6 +22,7 @@ in
   inherit (security) mkIsActive levelMapping;
   inherit (hive) getHostArch mkNodeArgs;
   inherit (paths) resolveProfile resolveNixosProfile;
+  inherit (services) triggerProfileServices mkHostProfileServicesAssertions;
   inherit (srv)
     findHost
     findService

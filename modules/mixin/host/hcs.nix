@@ -12,51 +12,47 @@
 {
   lib,
   config,
+  dnfConfig,
+  dnfLib,
   host,
   ...
 }:
 let
   cfg = config.darkone.host.hcs;
+  profileServicesArgs = {
+    profileName = "hcs";
+    inherit host;
+    inherit (dnfConfig) modules;
+  };
 in
 {
   options = {
     darkone.host.hcs.enable = lib.mkEnableOption "Enable headscale coordination server";
-    darkone.host.hcs.enableFail2ban = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Enable fail2ban service";
-    };
     darkone.host.hcs.enableClient = lib.mkOption {
       type = lib.types.bool;
       default = true;
       description = "Enable tailscale client on HCS node (recommande to host services)";
     };
-    darkone.host.hcs.enableIdm = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "idm" host.services;
-      description = "Enable identity manager (kanidm)";
-    };
   };
 
-  config = lib.mkIf cfg.enable {
+  config = lib.mkIf cfg.enable (
+    lib.mkMerge [
+      {
+        # Is a server
+        darkone.host.server.enable = true;
 
-    # Is a server
-    darkone.host.server.enable = true;
+        darkone.service.tailscale = lib.mkIf cfg.enableClient {
+          enable = true;
+          isExitNode = true;
+        };
 
-    # Enabled services
-    darkone.service = {
-      fail2ban.enable = cfg.enableFail2ban;
-      headscale.enable = true;
-      idm.enable = cfg.enableIdm;
-      tailscale = lib.mkIf cfg.enableClient {
-        enable = true;
-        isExitNode = true;
-      };
-    };
+        # Zsh aliases
+        programs.zsh.shellAliases.h = "sudo headscale";
+      }
 
-    # Zsh aliases
-    programs.zsh.shellAliases = {
-      h = "sudo headscale";
-    };
-  };
+      # Activate services declared in host.services via modules.nix triggers.
+      (dnfLib.triggerProfileServices profileServicesArgs)
+      { assertions = dnfLib.mkHostProfileServicesAssertions profileServicesArgs; }
+    ]
+  );
 }

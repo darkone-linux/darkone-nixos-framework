@@ -10,6 +10,8 @@
 {
   lib,
   config,
+  dnfConfig,
+  dnfLib,
   network,
   host,
   ...
@@ -18,62 +20,48 @@ let
   cfg = config.darkone.host.gateway;
   hasHeadscale = network.coordination.enable;
   hasAdguardHome = config.darkone.service.adguardhome.enable;
+  profileServicesArgs = {
+    profileName = "gateway";
+    inherit host;
+    inherit (dnfConfig) modules;
+  };
 in
 {
   options = {
     darkone.host.gateway.enable = lib.mkEnableOption "Enable gateway features for the current host (dhcp, dns, proxy, etc.)";
-    darkone.host.gateway.enableFail2ban = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Enable fail2ban service";
-    };
-    darkone.host.gateway.enableAdguardhome = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "adguardhome" host.services;
-      description = "Enable pre-configured Aguard Home service";
-    };
-    darkone.host.gateway.enableIdm = lib.mkOption {
-      type = lib.types.bool;
-      default = builtins.hasAttr "idm" host.services;
-      description = "Enable identity manager (kanidm)";
-    };
   };
 
-  config = lib.mkIf cfg.enable {
+  config = lib.mkIf cfg.enable (
+    lib.mkMerge [
+      {
+        darkone.host.server.enable = true;
 
-    # Is a server
-    darkone.host.server.enable = true;
+        # Tailscale as a VPN gateway when headscale coordination is active.
+        darkone.service.tailscale = lib.mkIf hasHeadscale {
+          enable = true;
+          isGateway = true;
+          isExitNode = true;
+        };
 
-    #--------------------------------------------------------------------------
-    # Gateway services
-    #--------------------------------------------------------------------------
+        #--------------------------------------------------------------------------
+        # dnsmasq updates
+        #--------------------------------------------------------------------------
 
-    # Enabled services
-    darkone.service = {
-      dnsmasq.enable = true;
-      adguardhome.enable = cfg.enableAdguardhome;
-      idm.enable = cfg.enableIdm;
-      tailscale = lib.mkIf hasHeadscale {
-        enable = true;
-        isGateway = true;
-        isExitNode = true;
-      };
-      fail2ban.enable = cfg.enableFail2ban;
-    };
+        # If headscale is enabled but not adguardhome, we must have fallback DNS
+        # servers to contact headscale coordination server. (wip)
+        services.dnsmasq.settings = lib.mkIf (hasHeadscale && (!hasAdguardHome)) {
 
-    #--------------------------------------------------------------------------
-    # dnsmasq updates
-    #--------------------------------------------------------------------------
+          # no-resolv is false because tailscale client updates the resolv file.
+          no-resolv = false;
 
-    # If headscale is enabled but not adguardhome, we must have fallback DNS
-    # servers to contact headscale coordination server. (wip)
-    services.dnsmasq.settings = lib.mkIf (hasHeadscale && (!hasAdguardHome)) {
+          # DNS upstreams are headscale DNS upstreams.
+          server = config.services.headscale.settings.dns.nameservers.global;
+        };
+      }
 
-      # no-resolv is false because tailscale client update the resolv file.
-      no-resolv = false;
-
-      # DNS upstreams are headscale DNS upstreams.
-      server = config.services.headscale.settings.dns.nameservers.global;
-    };
-  };
+      # Activate services declared in host.services via modules.nix triggers.
+      (dnfLib.triggerProfileServices profileServicesArgs)
+      { assertions = dnfLib.mkHostProfileServicesAssertions profileServicesArgs; }
+    ]
+  );
 }

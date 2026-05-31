@@ -1,5 +1,3 @@
 # Global DNF configuraiton
 
-{
-  modules = import ./modules.nix;
-}
+{ modules = import ./modules.nix; }

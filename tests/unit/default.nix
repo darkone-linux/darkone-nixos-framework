@@ -12,4 +12,5 @@ in
   lib_security = import ./lib/security_test.nix { inherit dnfLib; };
   lib_hive = import ./lib/hive_test.nix { inherit dnfLib; };
   lib_paths = import ./lib/paths_test.nix { inherit dnfLib; };
+  lib_services = import ./lib/services_test.nix { inherit dnfLib; };
 }

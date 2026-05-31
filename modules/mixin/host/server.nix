@@ -5,10 +5,22 @@
 # that we can hopefully still access it remotely. (cf. srvos)
 # :::
 
-{ lib, config, ... }:
+{
+  lib,
+  config,
+  dnfConfig,
+  dnfLib,
+  host,
+  ...
+}:
 let
   cfg = config.darkone.host.server;
   cfgLimit = 10;
+  profileServicesArgs = {
+    profileName = "server";
+    inherit host;
+    inherit (dnfConfig) modules;
+  };
 in
 {
   options = {
@@ -20,64 +32,67 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable {
+  config = lib.mkIf cfg.enable (
+    lib.mkMerge [
+      {
+        # Load minimal configuration
+        darkone.host.minimal.enable = true;
 
-    # Load minimal configuration
-    darkone.host.minimal.enable = true;
+        # Do not suspend!
+        darkone.system.core.disableSuspend = lib.mkForce true;
 
-    # Do not suspend!
-    darkone.system.core.disableSuspend = lib.mkForce true;
+        # Darkone modules (very low priority)
+        darkone.system.documentation.enable = lib.mkOverride 2000 false;
 
-    # Darkone modules (very low priority)
-    darkone.system.documentation.enable = lib.mkOverride 2000 false;
+        # Restrict the number of boot entries to prevent full /boot partition.
+        # Servers don't need too many generations.
+        boot.loader.grub.configurationLimit = lib.mkDefault cfgLimit;
+        boot.loader.systemd-boot.configurationLimit = lib.mkDefault cfgLimit;
 
-    # Restrict the number of boot entries to prevent full /boot partition.
-    # Servers don't need too many generations.
-    boot.loader.grub.configurationLimit = lib.mkDefault cfgLimit;
-    boot.loader.systemd-boot.configurationLimit = lib.mkDefault cfgLimit;
+        # Firewall is enabled
+        darkone.system.core.enableFirewall = lib.mkDefault true;
 
-    # Firewall is enabled
-    darkone.system.core.enableFirewall = lib.mkDefault true;
+        # Given that our systems are headless, emergency mode is useless.
+        # We prefer the system to attempt to continue booting so
+        # that we can hopefully still access it remotely.
+        boot.initrd.systemd.suppressedUnits = lib.mkIf config.systemd.enableEmergencyMode [
+          "emergency.service"
+          "emergency.target"
+        ];
 
-    # Delegate the hostname setting to dhcp/cloud-init by default.
-    # TODO: enable this feature if useful
-    #networking.hostName = lib.mkOverride 1337 ""; # lower prio than lib.mkDefault
+        systemd = {
 
-    # Given that our systems are headless, emergency mode is useless.
-    # We prefer the system to attempt to continue booting so
-    # that we can hopefully still access it remotely.
-    boot.initrd.systemd.suppressedUnits = lib.mkIf config.systemd.enableEmergencyMode [
-      "emergency.service"
-      "emergency.target"
-    ];
+          # Given that our systems are headless, emergency mode is useless.
+          # We prefer the system to attempt to continue booting so
+          # that we can hopefully still access it remotely.
+          enableEmergencyMode = false;
 
-    systemd = {
+          # https://0pointer.de/blog/projects/watchdog.html
+          settings.Manager = lib.mkIf cfg.enableWatchdog {
 
-      # Given that our systems are headless, emergency mode is useless.
-      # We prefer the system to attempt to continue booting so
-      # that we can hopefully still access it remotely.
-      enableEmergencyMode = false;
+            # systemd will send a signal to the hardware watchdog at half
+            # the interval defined here, so every 15s.
+            # If the hardware watchdog does not get a signal for 30s,
+            # it will forcefully reboot the system.
+            RuntimeWatchdogSec = "30s";
 
-      # https://0pointer.de/blog/projects/watchdog.html
-      settings.Manager = lib.mkIf cfg.enableWatchdog {
+            # Forcefully reboot if the final stage of the reboot
+            # hangs without progress for more than 60s.
+            # https://utcc.utoronto.ca/~cks/space/blog/linux/SystemdShutdownWatchdog
+            RebootWatchdogSec = "60s";
 
-        # systemd will send a signal to the hardware watchdog at half
-        # the interval defined here, so every 15s.
-        # If the hardware watchdog does not get a signal for 30s,
-        # it will forcefully reboot the system.
-        RuntimeWatchdogSec = "30s";
+            # Forcefully reboot when a host hangs after kexec.
+            # This may be the case when the firmware does not support kexec.
+            KExecWatchdogSec = "1m";
+          };
+        };
+      }
 
-        # Forcefully reboot if the final stage of the reboot
-        # hangs without progress for more than 60s.
-        # https://utcc.utoronto.ca/~cks/space/blog/linux/SystemdShutdownWatchdog
-        RebootWatchdogSec = "60s";
-
-        # Forcefully reboot when a host hangs after kexec.
-        # This may be the case when the firmware does not support kexec.
-        KExecWatchdogSec = "1m";
-      };
-    };
-  };
+      # Activate services declared in host.services via modules.nix triggers.
+      (dnfLib.triggerProfileServices profileServicesArgs)
+      { assertions = dnfLib.mkHostProfileServicesAssertions profileServicesArgs; }
+    ]
+  );
 }
 
 # src: https://github.com/nix-community/srvos/blob/main/nixos/server/default.nix

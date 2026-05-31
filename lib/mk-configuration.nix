@@ -87,6 +87,7 @@ let
   hosts = import (workDir + "/var/generated/hosts.nix");
   users = import (workDir + "/var/generated/users.nix");
   network = import (workDir + "/var/generated/network.nix");
+  dnfConfig = import ./../config;
 
   # Pre-resolve NixOS-side profile module paths so `modules/user/build.nix`
   # stays agnostic to the framework/consumer layout.
@@ -97,6 +98,7 @@ let
   # (`usr/secrets/...`, `usr/www/...`) without baking relative paths.
   mkCommonNodeArgs = system: {
     inherit
+      dnfConfig
       network
       users
       userNixosProfiles

@@ -17,6 +17,10 @@
     uniquePerZone = true;
     activation.profiles.gateway.triggers.keys.adguardhome = [ "enable" ];
   };
+  audio = {
+    reverseProxy = false;
+    activation.profiles.desktop.triggers.always = [ "enable" ];
+  };
   harmonia = {
     reverseProxy = false;
     activation.profiles.minimal.triggers.keys.harmonia = [ "enable" ];
@@ -24,6 +28,7 @@
   headscale = {
     reverseProxy = false;
     externalAccess = true;
+    activation.profiles.hcs.triggers.always = [ "enable" ];
   };
   homepage = {
     uniquePerZone = true;
@@ -31,17 +36,30 @@
   };
   idm = {
     reverseProxy = false;
-    activation.profiles.gateway.triggers.keys.idm = [ "enable" ];
+    activation.profiles = {
+      gateway.triggers.keys.idm = [ "enable" ];
+      hcs.triggers.keys.idm = [ "enable" ];
+    };
   };
   nfs = {
     reverseProxy = false;
   };
+  printing = {
+    reverseProxy = false;
+    activation.profiles = {
+      desktop.triggers.always = [ "enable" ];
+      laptop.triggers.always = [ "loadAll" ];
+    };
+  };
   restic = {
     reverseProxy = false;
-    activation.profiles.minimal.triggers.keys.restic = [
-      "enable"
-      "enableServer"
-    ];
+    activation.profiles.minimal.triggers.keys = {
+      restic = [
+        "enable"
+        "enableServer"
+      ];
+      backuped = [ "enable" ];
+    };
   };
   searx = {
     reverseProxy = false;
@@ -100,6 +118,9 @@
     activation.profiles.gateway.triggers.always = [ "enable" ];
   };
   fail2ban = {
-    activation.profiles.gateway.triggers.always = [ "enable" ];
+    activation.profiles = {
+      gateway.triggers.always = [ "enable" ];
+      hcs.triggers.always = [ "enable" ];
+    };
   };
 }
