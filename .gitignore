@@ -14,3 +14,7 @@ tmp/
 *.iso
 *.lock
 *.log
+*.md
+!README*.md
+!TODO*.md
+

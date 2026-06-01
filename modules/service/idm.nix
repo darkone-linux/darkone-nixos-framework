@@ -433,9 +433,11 @@ in
             bindaddress = "${params.ip}:${toString srvPort}";
 
             # The domain that Kanidm manages. Must be below or equal to the domain specified in serverSettings.origin.
-            # Must be left null on a ReadOnlyReplica: it inherits the domain from
-            # the supplier it follows (nixpkgs asserts this).
-            domain = mkIf (!isRoReplica) network.domain;
+            # Always set (same value network-wide). The kanidm 1.10 nixpkgs module
+            # asserts `domain == null -> role is a Write replica`, i.e. a
+            # ReadOnlyReplica MUST keep a non-null domain (it simply matches the
+            # supplier's, which is identical here since the whole net shares one).
+            domain = network.domain;
 
             # The origin of the Kanidm instance.
             origin = params.href;

@@ -450,6 +450,8 @@ idm-sync-certs:
 	set -euo pipefail
 	dest="{{secretsDir}}/replication"
 	mkdir -p "$dest"
+
+	# TODO: itérer uniquement sur HCS et gateways... un peu long d'aller chercher sur 150 noeuds.
 	nodes=$(just _hive-nodes)
 	[ -n "$nodes" ] || just _fail "No hive nodes found (colmena eval failed?)."
 	found=0
