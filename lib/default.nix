@@ -36,15 +36,8 @@ in
     isHcs
     preferredIp
     ;
-  inherit (serviceParams)
-    buildServiceParams
-    extractServiceParams
-    enableBlock
-    ;
-  inherit (firewall)
-    getInternalInterfaceFwPath
-    mkInternalFirewall
-    ;
+  inherit (serviceParams) buildServiceParams extractServiceParams enableBlock;
+  inherit (firewall) getInternalInterfaceFwPath mkInternalFirewall;
   inherit (oidc)
     oauth2ClientName
     idmHref

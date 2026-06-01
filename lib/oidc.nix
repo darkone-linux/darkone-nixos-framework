@@ -11,10 +11,7 @@
   serviceParams,
 }:
 let
-  inherit (lib)
-    hasInfix
-    findFirst
-    ;
+  inherit (lib) hasInfix findFirst;
   inherit (topology) findHost;
   inherit (serviceParams) buildServiceParams;
 

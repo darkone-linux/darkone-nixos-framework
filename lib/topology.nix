@@ -5,16 +5,9 @@
 # host/service sit in the network?" — gateway, VPN client, HCS, local zone —
 # and resolve preferred IPs. All functions are total and side-effect free.
 
-{
-  lib,
-  constants,
-}:
+{ lib, constants }:
 let
-  inherit (lib)
-    hasAttr
-    hasAttrByPath
-    findFirst
-    ;
+  inherit (lib) hasAttr hasAttrByPath findFirst;
 in
 rec {
 

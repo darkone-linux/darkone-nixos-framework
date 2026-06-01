@@ -5,15 +5,9 @@
 # values derived from the host topology. Also exposes the small activation
 # fragment every service module repeats. Pure and side-effect free.
 
-{
-  lib,
-  strings,
-}:
+{ lib, strings }:
 let
-  inherit (lib)
-    hasAttr
-    hasAttrByPath
-    ;
+  inherit (lib) hasAttr hasAttrByPath;
 in
 rec {
 

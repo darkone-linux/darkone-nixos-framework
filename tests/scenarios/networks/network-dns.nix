@@ -2,7 +2,7 @@
 # Disabled: `host` passed via `_module.args` causes infinite recursion when
 # `runNixOSTest` evaluates `driverConfiguration.vlans` (forces full node config
 # fixpoint, which requires `_module.args`, which requires `config` → cycle).
-{ pkgs }:
+{ pkgs, ... }:
 pkgs.runCommand "network-dns-disabled" { } "echo disabled > $out"
 
 # L3 — two real DNF nodes booted together on the same zone VLAN. Gates

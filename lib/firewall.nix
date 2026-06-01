@@ -10,10 +10,7 @@
   topology,
 }:
 let
-  inherit (topology)
-    isGateway
-    isVpnClient
-    ;
+  inherit (topology) isGateway isVpnClient;
 in
 rec {
 

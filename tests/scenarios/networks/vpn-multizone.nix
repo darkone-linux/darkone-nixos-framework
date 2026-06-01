@@ -1,7 +1,7 @@
 # TODO: fix multi-nodes tests, cf. .specs/dnf/docs/todo-fix-tests-multi-noeuds.md
 # Disabled: same root cause as network-dns — `mkVpnTest` wraps `mkNetworkTest`,
 # which injects `host` via `_module.args` → infinite recursion.
-{ pkgs }:
+{ pkgs, ... }:
 pkgs.runCommand "vpn-multizone-disabled" { } "echo disabled > $out"
 
 # L3+ — multi-zone workspace with `coordination.enable = true`, exercising
