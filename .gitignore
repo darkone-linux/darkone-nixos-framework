@@ -9,7 +9,7 @@
 !/CHANGELOG.*
 /result/
 /target/
-/docs/
+/docs
 tmp/
 *.iso
 *.lock

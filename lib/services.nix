@@ -44,7 +44,10 @@
           );
           allOpts = lib.unique (alwaysOpts ++ keyOpts);
         in
-        if allOpts == [ ] then { } else { darkone.service.${moduleName} = lib.genAttrs allOpts (_: mkHigherDefault true); };
+        if allOpts == [ ] then
+          { }
+        else
+          { darkone.service.${moduleName} = lib.genAttrs allOpts (_: mkHigherDefault true); };
     in
     lib.foldl' lib.recursiveUpdate { } (lib.mapAttrsToList activateModule modules);
 
