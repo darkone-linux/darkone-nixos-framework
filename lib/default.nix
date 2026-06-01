@@ -19,6 +19,7 @@ let
   hive = import ./hive.nix { inherit lib; };
   paths = import ./paths.nix { inherit lib; };
   serviceActivation = import ./service-activation.nix { inherit lib; };
+  configSchema = import ./config-schema.nix { inherit lib; };
 in
 {
   inherit constants;
@@ -27,6 +28,7 @@ in
   inherit (hive) getHostArch mkNodeArgs;
   inherit (paths) resolveProfile resolveNixosProfile;
   inherit (serviceActivation) triggerProfileServices mkHostProfileServicesAssertions;
+  inherit (configSchema) checkSchema;
   inherit (topology)
     findHost
     findService
