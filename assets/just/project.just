@@ -38,6 +38,18 @@ cat host='':
 		just apply-verbose "{{host}}"
 	fi
 
+# Update all flake inputs (dnf/ + root), commit and align locks
+[group('dev')]
+update-flake:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	just _log "Updating dnf/ flake inputs..." "FLAKE"
+	(cd {{workDir}}/dnf && {{nix}} flake update)
+	just commit "update(flake): Regular NixOS Update"
+	just _log "Updating root flake inputs..." "FLAKE"
+	cd {{workDir}} && {{nix}} flake update
+	just amend
+
 # Refresh flake.lock's dnf input to the framework's HEAD (co-dev)
 [group('dev')]
 update-dnf:
