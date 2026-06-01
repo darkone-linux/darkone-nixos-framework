@@ -8,7 +8,7 @@
   - [x] Tests unitaires (lib).
   - [x] Migration vers [nix-unit](https://nix-community.github.io/nix-unit/).
   - [ ] Déplacement dans lib/ de tout algorithme un peu complexe ou comportant de possibles effets de bords, sous forme de fonctions durcies et testées, simplifiant le code utile des modules.
-  - [ ] Tests simulés (pkgs.testers.runNixOSTest) -> peu viable...
+  - [x] Tests simulés (pkgs.testers.runNixOSTest) -> peu viable...
   - [ ] Lab de staging (microvm.nix ou nixos.vm)
 - [ ] Linux durci selon les [recommandations ANSSI](https://messervices.cyber.gouv.fr/guides/recommandations-de-securite-relatives-un-systeme-gnulinux).
   - [x] [Architecture modulaire](https://darkone-linux.github.io/en/ref/modules/#security-modules) pour l'activation et le paramétrage des règles.
@@ -28,9 +28,6 @@
   - [ ] Agents MCP personnels.
   - [ ] Générateur d'images et de médias.
   - [x] Conf OpenCode / Claude Code optimisée pour les développeurs.
-- [x] Remplacer le générateur PHP par un générateur Rust + parseur nix complet.
-  - [x] Implémentation + tests.
-  - [ ] Corrections et optimisations à l'utilisation.
 - [x] Cache de store harmonia. (en cours de tests)
 
 ### Planifié
@@ -83,6 +80,10 @@
 
 ### Fait
 
+- [x] Update + déploiement complet du réseau.
+- [x] Remplacer le générateur PHP par un générateur Rust + parseur nix complet.
+  - [x] Implémentation + tests.
+  - [x] Corrections et optimisations à l'utilisation.
 - [x] `just format`: nixfmt -> treefmt
 - [x] Module LaSuite Docs
   - [x] Implémentation de base.
