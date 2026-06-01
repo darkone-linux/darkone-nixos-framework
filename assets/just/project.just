@@ -434,16 +434,20 @@ sops:
 
 # Sync Kanidm replication certificates (multi-zone read-only replicas).
 #
-# Two-phase bootstrap for `darkone.service.idm.replication.enable`:
-#   1. `just apply` once  -> each node generates its replication identity.
+# Replication is automatic when idm runs on the HCS and >=1 zone gateway. Bootstrap
+# is a two-step deploy:
+#   1. `just apply` once  -> each replication node generates its identity.
 #   2. `just idm-sync-certs` -> collect the public certs into usr/secrets.
 #   3. commit + `just apply` again -> partner blocks appear, replication starts.
 # Re-run any time a replica is added. Certs are public; safe to commit.
+#
+# Runs as the current (admin) user so the collected files stay user-owned and
+# committable. Only the per-node SSH needs the `nix` deploy identity (its keys,
+# config and known_hosts live in ~nix/.ssh), so just that call uses `sudo -u nix`.
 [group('install')]
 idm-sync-certs:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just idm-sync-certs
 	dest="{{secretsDir}}/replication"
 	mkdir -p "$dest"
 	nodes=$(just _hive-nodes)
@@ -453,9 +457,12 @@ idm-sync-certs:
 
 		# show-replication-certificate only succeeds on a node that has a
 		# [replication] block; other hosts fail and are skipped. The cert body
-		# is the bare base64 (MII...) that goes verbatim into supplier/consumer.
-		cert=$(ssh -o BatchMode=yes nix@"$node" \
-			'sudo kanidmd show-replication-certificate -c /etc/kanidm/server.toml 2>/dev/null | grep -oE "MII[A-Za-z0-9+/=]+" | head -n1' \
+		# is the bare DER (MII...) that goes verbatim into supplier/consumer.
+		# Kanidm emits it in base64url (URL-safe `-`/`_`), so the class must
+		# accept both alphabets — otherwise the cert is truncated at the first
+		# `-`/`_`. `-H` gives ssh the nix user's HOME so it uses ~nix/.ssh.
+		cert=$(sudo -u nix -H ssh -o BatchMode=yes nix@"$node" \
+			'sudo kanidmd show-replication-certificate -c /etc/kanidm/server.toml 2>/dev/null | grep -oE "MII[A-Za-z0-9+/=_-]+" | head -n1' \
 			2>/dev/null || true)
 		if [ -n "$cert" ] ;then
 			echo "$cert" > "$dest/${node}.pem"
@@ -466,7 +473,6 @@ idm-sync-certs:
 		fi
 	done
 	[ "$found" -gt 0 ] || just _warn "No replication certificates collected — did you 'just apply' first?"
-	just _fix_fs_permissions
 	just _log "Done. Commit usr/secrets/replication/ then 'just apply' again to activate replication." "IDM"
 
 #==============================================================================

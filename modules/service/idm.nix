@@ -23,22 +23,26 @@ let
   isMainReplica = isHcs || !network.coordination.enable;
 
   #--------------------------------------------------------------------------
-  # Multi-zone read-only replication (opt-in)
+  # Multi-zone read-only replication (automatic, derived from declared services)
   #--------------------------------------------------------------------------
   #
-  # When `darkone.service.idm.replication.enable` is set on a coordinated
-  # network, the HCS keeps its role of write replica (supplier) while every
-  # local-zone gateway runs a `ReadOnlyReplica` (consumer). The consumer keeps
-  # serving authentication when the tailnet link to the HCS is down, then
-  # resynchronises automatically once it is back.
+  # No manual flag: the mode is inferred from where `idm` is declared (see
+  # `network.services`) and from the coordination topology. Three scenarios:
+  #   1. idm on the HCS only        -> single instance, no replication.
+  #   2. idm on a gateway, no HCS   -> standalone autonomous instance in the zone.
+  #   3. idm on the HCS *and* >=1 local-zone gateway -> replication engaged:
+  #      the HCS is the supplier (WriteReplica) and each idm gateway a consumer.
   #
-  # Disabled by default: when off, every binding below collapses to the former
-  # single-instance behaviour (no replication block, role/domain unchanged).
+  # In scenario 3 the bootstrap is a real two-step deploy:
+  #   - step 1 (`just apply`): HCS and gateways both emit their `[replication]`
+  #     identity block, so every node generates its certificate at once. The
+  #     gateways stay functional WriteReplicaNoUI until their HCS cert is synced.
+  #   - step 2 (`just idm-sync-certs` + `just apply`): partner sub-blocks appear
+  #     and each gateway flips to ReadOnlyReplica (pull from the HCS).
 
-  # A coordinated zone gateway is a read-only replica candidate.
-  isZoneReplica = dnfLib.isGateway host zone && network.coordination.enable;
-  replEnabled = cfg.replication.enable && network.coordination.enable;
-  isRoReplica = replEnabled && isZoneReplica;
+  # A coordinated local-zone gateway is a read-only replica candidate.
+  isZoneReplica =
+    dnfLib.isGateway host zone && dnfLib.inLocalZone zone && network.coordination.enable;
 
   globalZone = dnfLib.constants.globalZone;
   replPort = dnfConfig.network.ports.kanidmReplPort;
@@ -61,10 +65,50 @@ let
     else
       "";
 
-  # Local zones eligible as replication consumers (those with a gateway VPN IP).
+  # HCS (supplier) certificate. Public, synced out-of-band by `just idm-sync-certs`
+  # into usr/secrets/replication/. Empty until step 1's certificates are gathered.
+  hcsReplCert = readReplCert network.coordination.hostname;
+
+  # Where idm runs on the network. `network.services` mirrors the per-host service
+  # declarations (config.yaml -> var/generated/), and the `idm` key drives
+  # `darkone.service.idm.enable` (lib/service-activation.nix), so this is the
+  # authoritative cross-host view of "which nodes run idm".
+  idmInstances = filter (s: s.name == "idm") network.services;
+
+  # idm declared on the HCS itself.
+  idmOnHcs = any (s: s.zone == globalZone && s.host == network.coordination.hostname) idmInstances;
+
+  # Local-zone gateways that run idm = replication consumers (need a gateway VPN
+  # IP to bind the pull origin). Keyed by zone name.
   replConsumerZones = filterAttrs (
-    n: z: n != globalZone && hasAttrByPath [ "gateway" "vpn" "ipv4" ] z
+    _: z:
+    dnfLib.inLocalZone z
+    && hasAttrByPath [ "gateway" "hostname" ] z
+    && hasAttrByPath [ "gateway" "vpn" "ipv4" ] z
+    && any (s: s.zone == z.name && s.host == z.gateway.hostname) idmInstances
   ) network.zones;
+
+  # Scenario 3 only: replication engages when idm runs on the HCS *and* on at
+  # least one local gateway, on a coordinated network. Scenarios 1 & 2 leave
+  # every binding below collapsed to the single-instance behaviour.
+  replicationActive = network.coordination.enable && idmOnHcs && replConsumerZones != { };
+
+  # This node takes part in replication: the HCS as supplier, an idm-running
+  # local gateway as consumer.
+  replEnabled = replicationActive && (isHcs || (isZoneReplica && replConsumerZones ? ${zone.name}));
+
+  # This gateway is a replication consumer (in both bootstrap steps). A consumer
+  # is NEVER provisioned: it mirrors the HCS through replication, so provisioning
+  # it would create a divergent DB that the supplier overwrites. (It also avoids
+  # the provisioning post-start, whose readiness probe hits the web UI that a
+  # WriteReplicaNoUI does not serve.)
+  isReplConsumer = replEnabled && isZoneReplica;
+
+  # A consumer only switches to the read-only role once its HCS supplier cert is
+  # synced (step 2). Until then it is a WriteReplicaNoUI that boots and emits its
+  # own replication identity (step 1), but stays unprovisioned (empty DB) — it
+  # only serves logins once replication is established in step 2.
+  isRoReplica = isReplConsumer && hcsReplCert != "";
 
   # Supplier side (HCS): one `allow-pull` block per zone-gateway consumer whose
   # certificate has already been synced.
@@ -90,17 +134,13 @@ let
   );
 
   # Consumer side (zone gateway): a single `pull` block toward the HCS supplier.
-  replConsumerBlocks =
-    let
-      cert = readReplCert network.coordination.hostname;
-    in
-    optionalAttrs (cert != "") {
-      ${hcsOrigin} = {
-        type = "pull";
-        supplier_cert = cert;
-        automatic_refresh = true;
-      };
+  replConsumerBlocks = optionalAttrs (hcsReplCert != "") {
+    ${hcsOrigin} = {
+      type = "pull";
+      supplier_cert = hcsReplCert;
+      automatic_refresh = true;
     };
+  };
 
   # Effective `replication` settings for this node (only used when replEnabled).
   replSettings = {
@@ -172,14 +212,6 @@ in
 {
   options = {
     darkone.service.idm.enable = mkEnableOption "Enable local SSO with Kanidm";
-
-    # Multi-zone read-only replication. When enabled on a coordinated network,
-    # the HCS becomes the write supplier and each zone gateway a ReadOnlyReplica
-    # that keeps authentication alive during a tailnet outage. Off by default:
-    # Kanidm then runs as a single instance, exactly as before. Activating it
-    # requires a two-phase deploy (see `just idm-sync-certs`).
-    darkone.service.idm.replication.enable =
-      mkEnableOption "Enable multi-zone read-only Kanidm replication (HCS supplier, zone gateways as ReadOnlyReplica)";
 
     # OAuth2 client registry. Each service module that supports OIDC contributes
     # a template here unconditionally; when the idm module is enabled, kanidm
@@ -412,14 +444,16 @@ in
             ldapbindaddress = mkIf isMainReplica "${host.vpnIp}:636";
 
             # The role of this server. This affects the replication relationship and thereby available features.
-            # With replication off, the historical behaviour is preserved; with
-            # it on, the HCS supplies and zone gateways follow read-only.
+            # Scenarios 1 & 2 keep the historical behaviour. In scenario 3 the HCS
+            # supplies; an idm gateway is a functional WriteReplicaNoUI in step 1
+            # (emitting its identity) and flips to ReadOnlyReplica in step 2 once
+            # its HCS supplier cert is synced.
             role =
               if !replEnabled then
                 (if isMainReplica then "WriteReplica" else "WriteReplicaNoUI")
               else if isHcs then
                 "WriteReplica"
-              else if isZoneReplica then
+              else if isRoReplica then
                 "ReadOnlyReplica"
               else
                 "WriteReplicaNoUI";
@@ -429,11 +463,11 @@ in
             tls_chain = secrets.kanidm-tls-chain.path;
             tls_key = secrets.kanidm-tls-key.path;
 
-            # Multi-zone replication (opt-in). Emitted only when
-            # `darkone.service.idm.replication.enable` is set on a coordinated
-            # network. The top-level origin/bindaddress make the node generate
-            # its replication identity at first boot; partner sub-blocks appear
-            # once the peer certificates have been synced (see readReplCert).
+            # Multi-zone replication. Emitted automatically: always on the HCS
+            # supplier, and on a zone gateway once the HCS cert is synced (see
+            # replEnabled). The top-level origin/bindaddress make the node
+            # generate its replication identity at first boot; partner sub-blocks
+            # appear once the peer certificates have been synced (see readReplCert).
             replication = mkIf replEnabled replSettings;
           };
         };
@@ -460,7 +494,10 @@ in
           enable = !isHcs;
           settings = {
             default_shell = "/etc/profiles/per-user/nix/bin/zsh";
-            pam_allowed_login_groups = [ "posix" ];
+
+            # Renamed in the unixd v2 config: the PAM login groups now live under
+            # the `[kanidm]` provider table (nixpkgs asserts this).
+            kanidm.pam_allowed_login_groups = [ "posix" ];
           };
         };
 
@@ -470,10 +507,11 @@ in
 
         provision = {
 
-          # Provisioning writes to the database, so it only runs on a write
-          # replica. A ReadOnlyReplica receives the same state through
-          # replication and must never be provisioned directly.
-          enable = !isRoReplica;
+          # Provisioning writes to the database, so it must never run on a
+          # replication consumer (WriteReplicaNoUI in step 1, ReadOnlyReplica in
+          # step 2): the consumer receives its whole state from the HCS supplier.
+          # Standalone instances (scenarios 1 & 2) are provisioned as before.
+          enable = !isReplConsumer;
 
           # Determines whether deleting an entity in this provisioning config should automatically cause them to be removed from kanidm, too.
           # This works because the provisioning tool tracks all entities it has ever created.
