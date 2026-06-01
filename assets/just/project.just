@@ -45,7 +45,13 @@ update-flake:
 	set -euo pipefail
 	just _log "Updating dnf/ flake inputs..." "FLAKE"
 	(cd {{workDir}}/dnf && {{nix}} flake update)
-	just commit "update(flake): Regular NixOS Update"
+	last_msg=$(git -C {{workDir}}/dnf log -1 --format=%s 2>/dev/null || echo "")
+	if [[ "$last_msg" == "update(flake):"* ]]; then
+		just _log "Amending existing update(flake) commit..." "FLAKE"
+		just amend
+	else
+		just commit "update(flake): Regular NixOS Update"
+	fi
 	just _log "Updating root flake inputs..." "FLAKE"
 	cd {{workDir}} && {{nix}} flake update
 	just amend
