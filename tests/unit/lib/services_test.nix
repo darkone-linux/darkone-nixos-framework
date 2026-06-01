@@ -55,9 +55,9 @@ let
 
 in
 {
-  # triggers.keys: matching key → option set to true.
+  # triggers.keys: matching key → option activated via mkOverride 200.
   testKeyPresentActivates = {
-    expr = minimalResult.darkone.service.forgejo.enable;
+    expr = minimalResult.darkone.service.forgejo.enable.content;
     expected = true;
   };
 
@@ -77,17 +77,17 @@ in
           services = { };
         };
         modules = mockModules;
-      }).darkone.service.dnsmasq.enable;
+      }).darkone.service.dnsmasq.enable.content;
     expected = true;
   };
 
-  # Multi-option trigger: all options set to true on match.
+  # Multi-option trigger: all options activated via mkOverride 200 on match.
   testMultipleOptionsOnMatch = {
     expr =
       let
         svc = minimalResult.darkone.service.restic;
       in
-      svc.enable && svc.enableServer;
+      svc.enable.content && svc.enableServer.content;
     expected = true;
   };
 

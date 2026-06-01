@@ -42,12 +42,12 @@ simulate what="":
 	    ;;
 	  all)
 	    just _log "Running all simulation tests..." "SIMULATE"
-	    {{nix}} flake check --quiet
+	    {{nix}} flake check
 	    ;;
 	  full)
 	    just _log "Regenerating fixtures, then running everything..." "SIMULATE"
 	    just _fixtures_generate
-	    {{nix}} flake check --quiet
+	    {{nix}} flake check
 	    ;;
 	  *)
 	    just _log "Running {{what}}..." "SIMULATE"

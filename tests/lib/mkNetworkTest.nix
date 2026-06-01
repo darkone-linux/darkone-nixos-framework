@@ -32,6 +32,7 @@ let
   # the same nixpkgs/dnfLib instances, and the same workDir — only `host`
   # (and its derived `zone`) actually vary.
   sharedKeys = [
+    "dnfConfig"
     "hosts"
     "network"
     "users"

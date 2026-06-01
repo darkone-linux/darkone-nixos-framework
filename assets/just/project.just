@@ -760,7 +760,7 @@ check-all:
 	set -euo pipefail
 	if [ -d {{workDir}}/dnf ] ;then
 		just _log "DNF Unit Tests" "CHECK-ALL"
-		cd {{workDir}}/dnf && just unit-tests
+		cd {{workDir}}/dnf && just unit-tests | grep -v '✅'
 		just _log "DNF Flake + Simulation" "CHECK-ALL"
 		cd {{workDir}}/dnf && just check-flake
 	fi
