@@ -31,7 +31,7 @@ in
     darkone.host.hcs.enableClient = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Enable tailscale client on HCS node (recommande to host services)";
+      description = "Enable tailscale client on HCS node (recommended to host services)";
     };
   };
 

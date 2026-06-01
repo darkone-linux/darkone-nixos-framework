@@ -15,7 +15,7 @@
 }:
 let
   cfg = config.darkone.host.server;
-  cfgLimit = 10;
+  bootGenerationsLimit = 10;
   profileServicesArgs = {
     profileName = "server";
     inherit host;
@@ -46,8 +46,8 @@ in
 
         # Restrict the number of boot entries to prevent full /boot partition.
         # Servers don't need too many generations.
-        boot.loader.grub.configurationLimit = lib.mkDefault cfgLimit;
-        boot.loader.systemd-boot.configurationLimit = lib.mkDefault cfgLimit;
+        boot.loader.grub.configurationLimit = lib.mkDefault bootGenerationsLimit;
+        boot.loader.systemd-boot.configurationLimit = lib.mkDefault bootGenerationsLimit;
 
         # Firewall is enabled
         darkone.system.core.enableFirewall = lib.mkDefault true;
@@ -62,9 +62,7 @@ in
 
         systemd = {
 
-          # Given that our systems are headless, emergency mode is useless.
-          # We prefer the system to attempt to continue booting so
-          # that we can hopefully still access it remotely.
+          # Headless: keep booting instead of dropping to emergency (cf. above).
           enableEmergencyMode = false;
 
           # https://0pointer.de/blog/projects/watchdog.html

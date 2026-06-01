@@ -30,6 +30,7 @@
     }:
     let
       hostServices = host.services or { };
+      mkHigherDefault = lib.mkOverride 200; # default 1000, higherDefault 200, normal 100, force 50
 
       activateModule =
         moduleName: moduleConfig:
@@ -43,7 +44,7 @@
           );
           allOpts = lib.unique (alwaysOpts ++ keyOpts);
         in
-        if allOpts == [ ] then { } else { darkone.service.${moduleName} = lib.genAttrs allOpts (_: true); };
+        if allOpts == [ ] then { } else { darkone.service.${moduleName} = lib.genAttrs allOpts (_: mkHigherDefault true); };
     in
     lib.foldl' lib.recursiveUpdate { } (lib.mapAttrsToList activateModule modules);
 

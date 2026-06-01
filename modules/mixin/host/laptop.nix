@@ -36,7 +36,7 @@ in
         darkone.system.core.enableAutoSuspend = lib.mkDefault true;
 
         # Temperature management daemon
-        services.thermald.enable = true;
+        services.thermald.enable = lib.mkDefault true;
       }
 
       # Activate services declared in host.services via modules.nix triggers.
