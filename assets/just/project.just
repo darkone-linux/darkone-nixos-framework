@@ -432,6 +432,43 @@ sops:
 	sudo -i -u nix EDITOR=vim sops {{sopsSecretsFile}}
 	just _fix_fs_permissions
 
+# Sync Kanidm replication certificates (multi-zone read-only replicas).
+#
+# Two-phase bootstrap for `darkone.service.idm.replication.enable`:
+#   1. `just apply` once  -> each node generates its replication identity.
+#   2. `just idm-sync-certs` -> collect the public certs into usr/secrets.
+#   3. commit + `just apply` again -> partner blocks appear, replication starts.
+# Re-run any time a replica is added. Certs are public; safe to commit.
+[group('install')]
+idm-sync-certs:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just idm-sync-certs
+	dest="{{secretsDir}}/replication"
+	mkdir -p "$dest"
+	nodes=$(just _hive-nodes)
+	[ -n "$nodes" ] || just _fail "No hive nodes found (colmena eval failed?)."
+	found=0
+	for node in $nodes ;do
+
+		# show-replication-certificate only succeeds on a node that has a
+		# [replication] block; other hosts fail and are skipped. The cert body
+		# is the bare base64 (MII...) that goes verbatim into supplier/consumer.
+		cert=$(ssh -o BatchMode=yes nix@"$node" \
+			'sudo kanidmd show-replication-certificate -c /etc/kanidm/server.toml 2>/dev/null | grep -oE "MII[A-Za-z0-9+/=]+" | head -n1' \
+			2>/dev/null || true)
+		if [ -n "$cert" ] ;then
+			echo "$cert" > "$dest/${node}.pem"
+			just _info "Synced replication cert for ${node}." "IDM"
+			found=$((found+1))
+		else
+			just _info "No replication cert on ${node} (skipped)." "IDM"
+		fi
+	done
+	[ "$found" -gt 0 ] || just _warn "No replication certificates collected — did you 'just apply' first?"
+	just _fix_fs_permissions
+	just _log "Done. Commit usr/secrets/replication/ then 'just apply' again to activate replication." "IDM"
+
 #==============================================================================
 # Rotation
 #==============================================================================

@@ -18,7 +18,9 @@
   - [x] Implémentation du module IDM.
   - [x] Configuration paramétrable pour chaque service (config inconditionnelle) et instance de service (config conditionnelle).
   - [x] Brancher Grafana.
-  - [ ] Réplicats de zone.
+  - [ ] Réplicats de zone (`darkone.service.idm.replication.enable`).
+    - [x] Mécanisme de réplication : HCS supplier (WriteReplica), passerelles ReadOnlyReplica, bootstrap certs en 2 phases (`just idm-sync-certs`).
+    - [ ] Joignabilité locale du réplicat pour le login hors-ligne : vhost Caddy servant le FQDN global `idm.<network.domain>` sur la passerelle + bascule DNS dnsmasq → IP passerelle. À câbler/valider en déploiement réel multi-hôtes.
 - [ ] Ponts Mautrix pour Matrix (whatsapp, telegram, messenger, discord).
   - [x] POC -> implémentation locale.
   - [ ] Généralisation -> implémentation paramétrable pour chaque user.
