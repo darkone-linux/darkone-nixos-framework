@@ -4,112 +4,193 @@
 let
   inherit (dnfLib) checkSchema;
 
-  # Reusable schema: an attrs limited to "ports", values are unique ports.
+  # Reusable attrs schema: keys are alphanumeric, values are unique ports.
   portsSchema = {
     type = "attrs";
-    exactKeys = [ "ports" ];
-    fields.ports = {
-      type = "attrs";
-      valueType = "port";
-      uniqueValues = true;
+    key.regex = "[a-zA-Z0-9]+";
+    value = {
+      type = "int";
+      min = 1024;
+      max = 65535;
+      unique = true;
     };
   };
+
+  # `../../..` is the dnf flake root (tests/unit/lib/ → up 3).
+  dnfRoot = ../../..;
 in
 {
 
   # ----- happy path -----
-  testValidMinimal = {
+  testValidPorts = {
     expr = checkSchema portsSchema {
-      ports = {
-        a = 8444;
-        b = 9000;
-      };
+      a = 8444;
+      b = 9000;
     };
     expected = [ ];
   };
 
-  testValidEmptyPorts = {
-    expr = checkSchema portsSchema { ports = { }; };
+  testValidEmpty = {
+    expr = checkSchema portsSchema { };
     expected = [ ];
   };
 
-  # ----- exactKeys: unknown top-level key rejected -----
-  testUnknownKey = {
-    expr = checkSchema portsSchema {
-      ports = { };
-      foo = { };
-    };
-    expected = [ "<root>: unknown key \"foo\" (allowed: ports)" ];
+  # ----- key.oneOf -----
+  testKeyOneOfReject = {
+    expr = checkSchema {
+      type = "attrs";
+      key.oneOf = [ "ports" ];
+    } { foo = 1; };
+    expected = [ "<root>: key \"foo\" not allowed (oneOf: ports)" ];
   };
 
-  # ----- valueType: wrong leaf type -----
-  testWrongType = {
-    expr = checkSchema portsSchema {
-      ports = {
-        a = "8444";
-      };
-    };
-    expected = [ "ports.a: must be an internal port (int in 1024-65535)" ];
+  # ----- key.regex -----
+  testKeyRegexReject = {
+    expr = checkSchema portsSchema { "bad-key" = 8444; };
+    expected = [ "<root>: key \"bad-key\" does not match regex \"[a-zA-Z0-9]+\"" ];
   };
 
-  # ----- range: below 1024 and above 65535 rejected, bounds accepted -----
-  testPortTooLow = {
-    expr = checkSchema portsSchema {
-      ports = {
-        a = 80;
+  # ----- key.fileExists (real filesystem, dnf root) -----
+  testKeyFileExistsOk = {
+    expr = checkSchema {
+      type = "attrs";
+      key = {
+        root = dnfRoot;
+        fileExists = "{{value}}.nix";
       };
-    };
-    expected = [ "ports.a: must be an internal port (int in 1024-65535)" ];
+      value.type = "bool";
+    } { flake = true; };
+    expected = [ ];
   };
 
-  testPortTooHigh = {
-    expr = checkSchema portsSchema {
-      ports = {
-        a = 70000;
+  testKeyFileExistsMissing = {
+    expr = checkSchema {
+      type = "attrs";
+      key = {
+        root = dnfRoot;
+        fileExists = "{{value}}.nix";
       };
-    };
-    expected = [ "ports.a: must be an internal port (int in 1024-65535)" ];
+      value.type = "bool";
+    } { does-not-exist = true; };
+    expected = [ "<root>: key \"does-not-exist\": expected file \"does-not-exist.nix\" not found" ];
   };
 
-  testPortBounds = {
+  # ----- int min/max (inclusive bounds) -----
+  testIntBoundsOk = {
     expr = checkSchema portsSchema {
-      ports = {
-        lo = 1024;
-        hi = 65535;
-      };
+      lo = 1024;
+      hi = 65535;
     };
     expected = [ ];
   };
 
-  # ----- uniqueValues: duplicate detected, distinct values pass -----
-  testDuplicateValues = {
-    expr = checkSchema portsSchema {
-      ports = {
-        a = 8444;
-        b = 8444;
-      };
-    };
-    expected = [ "ports: values must be unique" ];
+  testIntTooLow = {
+    expr = checkSchema portsSchema { a = 80; };
+    expected = [ "a: must be >= 1024" ];
   };
 
-  # ----- nested recursion: violation path is fully qualified -----
+  testIntTooHigh = {
+    expr = checkSchema portsSchema { a = 70000; };
+    expected = [ "a: must be <= 65535" ];
+  };
+
+  testIntWrongType = {
+    expr = checkSchema portsSchema { a = "8444"; };
+    expected = [ "a: must be an int" ];
+  };
+
+  # ----- string regex + oneOf -----
+  testStringRegexReject = {
+    expr = checkSchema {
+      type = "string";
+      regex = "[a-z]+";
+    } "Bad1";
+    expected = [ "<root>: must match regex \"[a-z]+\"" ];
+  };
+
+  testStringOneOfReject = {
+    expr = checkSchema {
+      type = "string";
+      oneOf = [
+        "red"
+        "green"
+      ];
+    } "blue";
+    expected = [ "<root>: must be one of red, green" ];
+  };
+
+  testStringOneOfOk = {
+    expr = checkSchema {
+      type = "string";
+      oneOf = [
+        "red"
+        "green"
+      ];
+    } "green";
+    expected = [ ];
+  };
+
+  # ----- bool -----
+  testBoolReject = {
+    expr = checkSchema { type = "bool"; } "true";
+    expected = [ "<root>: must be a bool" ];
+  };
+
+  # ----- listOfStrings + unique -----
+  testListOfStringsOk = {
+    expr = checkSchema { type = "listOfStrings"; } [
+      "a"
+      "b"
+    ];
+    expected = [ ];
+  };
+
+  testListOfStringsReject = {
+    expr = checkSchema { type = "listOfStrings"; } [
+      "a"
+      2
+    ];
+    expected = [ "<root>: must be a list of strings" ];
+  };
+
+  testListUniqueReject = {
+    expr =
+      checkSchema
+        {
+          type = "listOfStrings";
+          unique = true;
+        }
+        [
+          "a"
+          "a"
+        ];
+    expected = [ "<root>: list elements must be unique" ];
+  };
+
+  # ----- value.unique across a map -----
+  testValueUniqueReject = {
+    expr = checkSchema portsSchema {
+      a = 8444;
+      b = 8444;
+    };
+    expected = [ "<root>: values must be unique" ];
+  };
+
+  # ----- nested recursion: fully-qualified path -----
   testNestedPath = {
     expr = checkSchema {
       type = "attrs";
       fields.outer = {
         type = "attrs";
-        fields.inner = {
-          type = "attrs";
-          valueType = "int";
-        };
+        fields.inner.type = "int";
       };
-    } { outer.inner.x = "nope"; };
-    expected = [ "outer.inner.x: must be an int" ];
+    } { outer.inner = "nope"; };
+    expected = [ "outer.inner: must be an int" ];
   };
 
   # ----- non-attrs where attrs expected -----
   testNotAnAttrs = {
-    expr = checkSchema portsSchema { ports = 42; };
-    expected = [ "ports: must be an attrset" ];
+    expr = checkSchema portsSchema 42;
+    expected = [ "<root>: must be an attrset" ];
   };
 }

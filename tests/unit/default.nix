@@ -19,4 +19,5 @@ in
   lib_service_activation = import ./lib/service-activation_test.nix { inherit dnfLib; };
   lib_config_schema = import ./lib/config-schema_test.nix { inherit dnfLib; };
   config_network = import ./config/network_test.nix { inherit dnfLib; };
+  config_modules = import ./config/modules_test.nix { inherit dnfLib lib; };
 }
