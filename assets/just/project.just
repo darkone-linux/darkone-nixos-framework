@@ -752,3 +752,17 @@ fix-boot on:
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just fix-boot "{{on}}"
 	just _log "Fixing boot of {{on}}..."
 	colmena exec --on "{{on}}" "sudo NIXOS_INSTALL_BOOTLOADER=1 /nix/var/nix/profiles/system/bin/switch-to-configuration boot"
+
+# Run all checks and tests (useful before deploy)
+[group('check')]
+check-all:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	if [ -d {{workDir}}/dnf ] ;then
+		just _log "DNF Unit Tests" "CHECK-ALL"
+		cd {{workDir}}/dnf && just unit-tests
+		just _log "DNF Flake + Simulation" "CHECK-ALL"
+		cd {{workDir}}/dnf && just check-flake
+	fi
+	just _log "Network flake" "CHECK-ALL"
+	cd {{workDir}} && just check-flake
