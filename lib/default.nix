@@ -10,11 +10,15 @@
 let
   constants = import ./constants.nix;
   strings = import ./strings.nix { inherit lib; };
-  srv = import ./srv.nix { inherit lib strings constants; };
+  topology = import ./topology.nix { inherit lib constants; };
+  serviceParams = import ./service-params.nix { inherit lib strings; };
+  firewall = import ./firewall.nix { inherit lib constants topology; };
+  oidc = import ./oidc.nix { inherit lib topology serviceParams; };
+  homepage = import ./homepage.nix { inherit lib constants; };
   security = import ./security.nix { inherit lib; };
   hive = import ./hive.nix { inherit lib; };
   paths = import ./paths.nix { inherit lib; };
-  services = import ./services.nix { inherit lib; };
+  serviceActivation = import ./service-activation.nix { inherit lib; };
 in
 {
   inherit constants;
@@ -22,25 +26,31 @@ in
   inherit (security) mkIsActive levelMapping;
   inherit (hive) getHostArch mkNodeArgs;
   inherit (paths) resolveProfile resolveNixosProfile;
-  inherit (services) triggerProfileServices mkHostProfileServicesAssertions;
-  inherit (srv)
+  inherit (serviceActivation) triggerProfileServices mkHostProfileServicesAssertions;
+  inherit (topology)
     findHost
     findService
-    buildServiceParams
-    extractServiceParams
-    oauth2ClientName
-    idmHref
     isVpnClient
     isGateway
     inLocalZone
     isHcs
-    getInternalInterfaceFwPath
     preferredIp
+    ;
+  inherit (serviceParams)
+    buildServiceParams
+    extractServiceParams
+    enableBlock
+    ;
+  inherit (firewall)
+    getInternalInterfaceFwPath
     mkInternalFirewall
+    ;
+  inherit (oidc)
+    oauth2ClientName
+    idmHref
     mkOidcContext
     mkOauth2Clients
     mkKanidmEndpoints
-    enableBlock
-    mkHomepageSection
     ;
+  inherit (homepage) mkHomepageSection;
 }

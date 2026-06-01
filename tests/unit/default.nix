@@ -8,9 +8,13 @@ in
 {
   lib_constants = import ./lib/constants_test.nix { inherit dnfLib; };
   lib_strings = import ./lib/strings_test.nix { inherit dnfLib; };
-  lib_srv = import ./lib/srv_test.nix { inherit dnfLib; };
+  lib_topology = import ./lib/topology_test.nix { inherit dnfLib; };
+  lib_service_params = import ./lib/service-params_test.nix { inherit dnfLib; };
+  lib_firewall = import ./lib/firewall_test.nix { inherit dnfLib; };
+  lib_oidc = import ./lib/oidc_test.nix { inherit dnfLib; };
+  lib_homepage = import ./lib/homepage_test.nix { inherit dnfLib; };
   lib_security = import ./lib/security_test.nix { inherit dnfLib; };
   lib_hive = import ./lib/hive_test.nix { inherit dnfLib; };
   lib_paths = import ./lib/paths_test.nix { inherit dnfLib; };
-  lib_services = import ./lib/services_test.nix { inherit dnfLib; };
+  lib_service_activation = import ./lib/service-activation_test.nix { inherit dnfLib; };
 }

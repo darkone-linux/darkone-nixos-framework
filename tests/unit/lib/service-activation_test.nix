@@ -1,4 +1,4 @@
-# Tests for dnf/lib/services.nix
+# Tests for dnf/lib/service-activation.nix
 # Run with: nix-unit --flake .#libTests
 { dnfLib }:
 let
