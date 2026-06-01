@@ -291,7 +291,12 @@ in
           listenAddress = "${params.ip}:${toString srvPort}";
           htpasswd-file = config.sops.secrets.restic-htpasswd.path;
           dataDir = cfg.repositoryRoot;
-          privateRepos = true;
+
+          # A single REST credential (restic-env) is shared by all hosts.
+          # privateRepos=true would require the htpasswd user to match the
+          # path prefix (hostname), breaking inter-machine backups (regression
+          # introduced in 2cdfe08).
+          privateRepos = false;
         };
 
         #----------------------------------------------------------------------

@@ -231,6 +231,7 @@ in
       type = types.attrsOf (
         types.submodule (_: {
           options = {
+            
             # Disable the template without unloading the consumer module.
             enable = mkOption {
               type = types.bool;
