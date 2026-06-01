@@ -6,9 +6,10 @@ Telegraph style.
 
 ```
 tests/
-├── unit/                              # L1 unit — nix-unit on lib/
-│   ├── default.nix
-│   └── lib/*_test.nix
+├── unit/                              # L1 unit — nix-unit on lib/ + config/
+│   ├── default.nix                    #   aggregator (feeds dnfLib, sometimes lib)
+│   ├── lib/*_test.nix                 #   lib/ helpers + checkSchema engine
+│   └── config/*_test.nix              #   config/ registries via dnfLib.checkSchema
 ├── fixtures/                          # pre-generated, committed, shared
 │   ├── keys/test-infra.age            #   throwaway age key (INSECURE)
 │   ├── secrets/{secrets.yaml,.sops.yaml}
@@ -66,6 +67,67 @@ echo -e 'start_all()\nnode1.succeed("true")\n' | just simulate-debug node-sops  
 ```
 
 Primitives: `start_all()`, `wait_for_unit`, `succeed`, `fail`, `shell_interact`, `screenshot`, `get_screen_text`. 
+
+## Config validation (`config/` grammar)
+
+L1 unit tests for the `config/*.nix` registries. Each `tests/unit/config/<file>_test.nix`
+declares a **schema** (the expected grammar of `config/<file>.nix`) and asserts
+`dnfLib.checkSchema schema value == [ ]`. Engine: `lib/config-schema.nix` (compact
+spec in its header). Violations are path-prefixed strings (`ports.foo: ...`) — empty
+list == valid.
+
+Run: `just unit-tests`. Schema lives **inline** in the test (one source of truth per
+config file); adding e.g. a new port to `network.nix` is validated automatically, no
+test edit.
+
+### Grammar
+
+A schema node is an attrset with a `type`. Containers recurse; leaves check a value.
+
+| `type` | Extra fields | Validates |
+|--------|--------------|-----------|
+| `attrs` | `key`, `fields`, `value` | recursion (see below) |
+| `int` | `min`, `max` | integer; bounds **inclusive** |
+| `string` | `regex`, `oneOf` | string; full match; literal whitelist |
+| `bool` | — | boolean |
+| `listOfStrings` | `unique` | list of strings; optionally distinct |
+
+`attrs` node:
+
+| Field | Meaning |
+|-------|---------|
+| `key.oneOf` | allowed key names (whitelist) |
+| `key.regex` | each key fully matches (`builtins.match`, anchored — no `/.../`, no `^`/`$`) |
+| `key.fileExists` + `key.root` | `pathExists (root + "/" + tpl)`; `{{value}}` → the key. `root` = Nix path **inside the dnf flake** (`../../..` from a test) |
+| `fields.<k>` | sub-schema for known key `<k>` |
+| `value` | sub-schema for every key **not** in `fields` |
+| `value.unique = true` | all values across the map must be distinct |
+
+Dispatch per key: `fields.<k>` wins; otherwise `value`. `min`/`max`, `regex`, `oneOf`,
+`unique`, `fileExists` are all optional.
+
+### Cross-cutting constraints
+
+`checkSchema` is **node-local** — it cannot express rules that aggregate across the
+whole tree (e.g. "a value at a wildcard path is unique across distinct owners"). For
+those, write a **dedicated test case** in the `*_test.nix` using `lib` directly, and
+pass `lib` alongside `dnfLib` in `tests/unit/default.nix`:
+
+```nix
+config_modules = import ./config/modules_test.nix { inherit dnfLib lib; };
+```
+
+Reference: `modules_test.nix` `testUniqueTriggerKeys` — collects every
+`activation.profiles.<*>.triggers.keys.<myKey>`, dedups per module, and rejects a key
+claimed by two distinct modules.
+
+### Evolving a config test
+
+1. **New key in a config file** → extend its schema (`key.oneOf` / `fields` / `value`). No engine change.
+2. **New value type or constraint** (e.g. `ipv4`, a new leaf predicate) → add it to `lib/config-schema.nix` **and** cover it in `tests/unit/lib/config-schema_test.nix` (CLAUDE.md: every helper change is unit-tested).
+3. **New cross-cutting rule** → dedicated test case (pass `lib`), per above.
+4. New `config/<file>_test.nix` → add a `config_<file>` entry to `tests/unit/default.nix`.
+5. `git add -N` new test files (pure eval sees only git-tracked files), `just unit-tests`, then `just clean`.
 
 ## Adding a scenario
 
