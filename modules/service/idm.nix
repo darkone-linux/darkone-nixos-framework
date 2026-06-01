@@ -231,7 +231,7 @@ in
       type = types.attrsOf (
         types.submodule (_: {
           options = {
-            
+
             # Disable the template without unloading the consumer module.
             enable = mkOption {
               type = types.bool;
@@ -432,6 +432,9 @@ in
           enable = true;
           settings = {
             bindaddress = "${params.ip}:${toString srvPort}";
+
+            # Default is info
+            #log_level = "debug";
 
             # The domain that Kanidm manages. Must be below or equal to the domain specified in serverSettings.origin.
             # Always set (same value network-wide). The kanidm 1.10 nixpkgs module

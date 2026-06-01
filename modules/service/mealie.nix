@@ -90,6 +90,8 @@ in
         settings = {
           DB_ENGINE = "sqlite"; # Default
 
+          BASE_URL = params.href; # Required by redirect_url construction (oidc)
+
           SMTP_HOST = smtp.server;
           SMTP_PORT = smtp.port;
           SMTP_USER = smtp.username;
