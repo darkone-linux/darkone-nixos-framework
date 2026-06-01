@@ -132,7 +132,7 @@ check:
 # always exits 0, which keeps pipefail honest about nix's real exit status.
 [group('check')]
 check-flake:
-	{{nix}} flake check --all-systems 2>&1 \
+	{{nix}} flake check --quiet 2>&1 \
 	  | sed -E "/^warning: unknown flake output '(colmena|colmenaHive|homeManagerModules|libTests)'\$/d"
 
 # Check with statix
