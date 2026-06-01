@@ -429,7 +429,7 @@ sops:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	just _sops_before_edit
-	sudo -i -u nix EDITOR=vim sops {{sopsSecretsFile}}
+	sudo -i -u nix EDITOR=vim sops {{sopsSecretsFile}} || true
 	just _fix_fs_permissions
 
 # Sync Kanidm replication certificates (multi-zone read-only replicas).
