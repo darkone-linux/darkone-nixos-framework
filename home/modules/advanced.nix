@@ -100,6 +100,7 @@ in
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) age)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) cargo)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) colmena)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) d2) # doc diagrams
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) deadnix)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) gcc) # Useful for rust generator
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) hugo) # TODO: deprecated

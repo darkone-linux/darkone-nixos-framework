@@ -258,6 +258,7 @@
               age
               cargo
               colmena
+              d2
               deadnix
               git
               just
