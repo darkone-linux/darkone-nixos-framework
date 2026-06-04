@@ -22,11 +22,13 @@
   config,
   host,
   pkgs,
+  network,
   workDir,
   ...
 }:
 let
   cfg = config.darkone.system.core;
+  hasVaultwarden = (lib.findFirst (s: s.name == "vaultwarden") null network.services) != null;
 in
 {
   options = {
@@ -146,6 +148,9 @@ in
       "@wheel"
     ];
 
+    # bitwarden-desktop pulls electron_39, insecure in 26.11 — allow when vaultwarden is active
+    nixpkgs.config.permittedInsecurePackages = lib.optional hasVaultwarden "electron-39.8.10";
+
     # Nerd fond for gnome terminal and default monospace
     fonts.packages = with pkgs; [ nerd-fonts.jetbrains-mono ];
     fonts.fontconfig.enable = true;
@@ -153,20 +158,17 @@ in
     # Nerd font for TTY
     services.kmscon = lib.mkIf cfg.enableKmscon {
       enable = true;
-      fonts = [
-        {
-          name = "JetBrainsMono Nerd Font Mono";
-          package = pkgs.nerd-fonts.jetbrains-mono;
-        }
-      ];
       extraOptions = "--term xterm-256color";
-      extraConfig = ''
-        font-size=18
-        xkb-layout=fr
-        xkb-variant=oss
-        xkb-model=pc105
-      '';
       useXkbConfig = false;
+
+      # fonts/extraConfig removed in nixpkgs 26.11 — migrated to config attrset
+      config = {
+        "font-name" = "JetBrainsMono Nerd Font Mono";
+        "font-size" = 18;
+        "xkb-layout" = "fr";
+        "xkb-variant" = "oss";
+        "xkb-model" = "pc105";
+      };
     };
 
     # To manage nodes, openssh must be activated
