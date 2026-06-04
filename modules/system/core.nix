@@ -22,13 +22,11 @@
   config,
   host,
   pkgs,
-  network,
   workDir,
   ...
 }:
 let
   cfg = config.darkone.system.core;
-  hasVaultwarden = (lib.findFirst (s: s.name == "vaultwarden") null network.services) != null;
 in
 {
   options = {
@@ -148,8 +146,11 @@ in
       "@wheel"
     ];
 
-    # bitwarden-desktop pulls electron_39, insecure in 26.11 — allow when vaultwarden is active
-    nixpkgs.config.permittedInsecurePackages = lib.optional hasVaultwarden "electron-39.8.10";
+    # logseq (and formerly bitwarden-desktop) pull electron_39, marked insecure in 26.11 (EOL < 40).
+    # nixpkgs.config in home-manager modules is silently ignored with useGlobalPkgs=true;
+    # this MUST be set here at the NixOS level to take effect.
+    # TODO: remove once logseq upstream migrates to electron >= 40.
+    nixpkgs.config.permittedInsecurePackages = [ "electron-39.8.10" ];
 
     # Nerd fond for gnome terminal and default monospace
     fonts.packages = with pkgs; [ nerd-fonts.jetbrains-mono ];

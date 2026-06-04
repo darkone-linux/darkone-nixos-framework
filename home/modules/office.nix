@@ -231,6 +231,7 @@ in
 
     home.packages = with pkgs; [
       #(mkIf cfg.enableProductivity super-productivity) # Time processing -> build error
+      #(mkIf hasVaultwarden bitwarden-desktop) # TMP: Vulnerability + huge build -> electron is not maintained any more
       (mkIf (cfg.enableCommunication && cfg.enableMore) tuba) # Browse the Fediverse
       (mkIf (cfg.enableCommunication && cfg.enableMore) zoom-us)
       (mkIf (cfg.enableCommunication && hasMattermost) mattermost-desktop)
@@ -261,16 +262,18 @@ in
       (mkIf cfg.enableTools iotas) # Simple note taking with mobile-first design and Nextcloud sync
       (mkIf cfg.enableTools snapshot) # Webcam
       (mkIf cfg.enableProductivity obsidian)
-      (mkIf cfg.enableProductivity logseq)
+      (mkIf cfg.enableProductivity logseq) # unstable depends on electron 39 -> vulnerable & huge build
       (mkIf cfg.enableBrave brave)
       (mkIf cfg.enableSecurity keepassxc)
       (mkIf cfg.enableSecurity keepmenu) # Dmenu/Rofi frontend for Keepass databases
       (mkIf cfg.enableSecurity gnome-secrets)
       (mkIf cfg.enableSecurity git-credential-keepassxc)
       (mkIf hasMatrix fractal)
-      (mkIf hasVaultwarden bitwarden-desktop)
       (mkIf hasVaultwarden bitwarden-cli)
     ];
+
+    # TMP: logseq dependency
+    nixpkgs.config.permittedInsecurePackages = lib.optional cfg.enableProductivity "electron-39.8.10";
 
     #--------------------------------------------------------------------------
     # Fixes
