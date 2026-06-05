@@ -12,10 +12,14 @@
 # ```
 # :::
 #
-# :::caution[Required sops secrets]
-# When enabled, this module reads friend and wizard passwords from the sops
-# secrets `geneweb-friend` and `geneweb-wizard`. Add the entries to
+# :::caution[SOPS secrets]
+# The option `enablePasswords` reads friend and wizard passwords from the sops
+# secrets `geneweb-friend` and `geneweb-wizard`. If enabled, add the entries to
 # `usr/secrets/` before rebuilding, otherwise sops-nix activation will fail.
+# 
+# **Important note:** Sops passwords must be sent in plain text to the Geneweb 
+# daemon. For greater security, it is better to define these passwords in the 
+# database configuration file (your-base.gwf) rather than using `enablePasswords`.
 # :::
 
 {
@@ -38,6 +42,7 @@ in
 {
   options = {
     darkone.service.geneweb.enable = lib.mkEnableOption "Enable local GeneWeb genealogy service";
+    darkone.service.geneweb.enablePasswords = lib.mkEnableOption "Enable sops passwords (not recommanded)";
   };
 
   config = lib.mkMerge [
@@ -70,13 +75,13 @@ in
       #------------------------------------------------------------------------
 
       # Friend password, provisioned from sops.
-      sops.secrets."geneweb-friend" = {
+      sops.secrets."geneweb-friend" = lib.mkIf cfg.enablePasswords {
         mode = "0400";
         owner = "geneweb";
       };
 
       # Wizard password, provisioned from sops.
-      sops.secrets."geneweb-wizard" = {
+      sops.secrets."geneweb-wizard" = lib.mkIf cfg.enablePasswords {
         mode = "0400";
         owner = "geneweb";
       };
@@ -89,10 +94,8 @@ in
         enable = true;
         package = pkgs.geneweb;
         defaultLang = zone.lang;
-
-        friendPasswordFile = config.sops.secrets."geneweb-friend".path;
-        wizardPasswordFile = config.sops.secrets."geneweb-wizard".path;
-
+        friendPasswordFile = lib.mkIf cfg.enablePasswords config.sops.secrets."geneweb-friend".path;
+        wizardPasswordFile = lib.mkIf cfg.enablePasswords config.sops.secrets."geneweb-wizard".path;
         openFirewall = false;
       };
     })
