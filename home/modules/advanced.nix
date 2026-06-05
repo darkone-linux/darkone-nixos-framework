@@ -160,7 +160,7 @@ in
       (lib.mkIf cfg.enableTools pv)
       (lib.mkIf cfg.enableTools yt-dlp)
       (lib.mkIf graphic wl-clipboard) # Wayland clipboard tools
-      (lib.mkIf graphic cliphist) # Clipboard history manager
+      #(lib.mkIf graphic cliphist) # Clipboard history manager
     ];
 
     #============================================================================
@@ -428,36 +428,38 @@ in
 
     # Sync PRIMARY selection to CLIPBOARD so selected text is always
     # pasteable via both middle-click and Ctrl+V.
-    systemd.user.services.primary-to-clipboard = lib.mkIf graphic {
-      Unit = {
-        Description = "Sync PRIMARY selection to CLIPBOARD";
-        PartOf = [ "graphical-session.target" ];
-      };
-      Service = {
-        ExecStart = "${pkgs.wl-clipboard}/bin/wl-paste --primary --watch ${pkgs.wl-clipboard}/bin/wl-copy";
-        Restart = "on-failure";
-        RestartSec = 3;
-      };
-      Install = {
-        WantedBy = [ "graphical-session.target" ];
-      };
-    };
+    # TODO: not working -> Watch mode requires a compositor that supports the data-control protocol
+    # systemd.user.services.primary-to-clipboard = lib.mkIf graphic {
+    #   Unit = {
+    #     Description = "Sync PRIMARY selection to CLIPBOARD";
+    #     PartOf = [ "graphical-session.target" ];
+    #   };
+    #   Service = {
+    #     ExecStart = "${pkgs.wl-clipboard}/bin/wl-paste --primary --watch ${pkgs.wl-clipboard}/bin/wl-copy";
+    #     Restart = "on-failure";
+    #     RestartSec = 3;
+    #   };
+    #   Install = {
+    #     WantedBy = [ "graphical-session.target" ];
+    #   };
+    # };
 
     # Clipboard history (browse with cliphist list | cliphist decode).
-    systemd.user.services.cliphist = lib.mkIf graphic {
-      Unit = {
-        Description = "Clipboard history daemon";
-        PartOf = [ "graphical-session.target" ];
-      };
-      Service = {
-        ExecStart = "${pkgs.cliphist}/bin/cliphist watch";
-        Restart = "on-failure";
-        RestartSec = 3;
-      };
-      Install = {
-        WantedBy = [ "graphical-session.target" ];
-      };
-    };
+    # TODO: "watch" do not exists -> <store|list|decode|delete|delete-query|wipe|version>
+    # systemd.user.services.cliphist = lib.mkIf graphic {
+    #   Unit = {
+    #     Description = "Clipboard history daemon";
+    #     PartOf = [ "graphical-session.target" ];
+    #   };
+    #   Service = {
+    #     ExecStart = "${pkgs.cliphist}/bin/cliphist watch";
+    #     Restart = "on-failure";
+    #     RestartSec = 3;
+    #   };
+    #   Install = {
+    #     WantedBy = [ "graphical-session.target" ];
+    #   };
+    # };
 
     #============================================================================
     # GIT
