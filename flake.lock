@@ -356,6 +356,22 @@
         "type": "github"
       }
     },
+    "nixpkgs-oxicloud": {
+      "locked": {
+        "lastModified": 1777820821,
+        "narHash": "sha256-Dkd2Okuqo9DixM3N4IFy5eIAQT8rYmNpAKePPe3OE1Y=",
+        "owner": "flashonfire",
+        "repo": "nixpkgs",
+        "rev": "739df6f3e12665c33c6184c50c8712fd72906367",
+        "type": "github"
+      },
+      "original": {
+        "owner": "flashonfire",
+        "ref": "oxicloud-service",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "nixpkgs-stable": {
       "locked": {
         "lastModified": 1780453794,
@@ -400,6 +416,7 @@
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-geneweb": "nixpkgs-geneweb",
+        "nixpkgs-oxicloud": "nixpkgs-oxicloud",
         "nixpkgs-stable": "nixpkgs-stable",
         "sops-nix": "sops-nix"
       }

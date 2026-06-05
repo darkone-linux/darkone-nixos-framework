@@ -70,6 +70,18 @@
     # dépendances OCaml ajoutées par la PR).
     nixpkgs-geneweb.url = "github:darkone-linux/nixpkgs/create-geneweb";
 
+    # OxiCloud : suivi de la PR nixpkgs#516113 (module NixOS uniquement ; le
+    # paquet `oxicloud` est déjà dans `nixos-unstable`, pas d'overlay).
+    #
+    # Quand la PR est mergée dans `nixos-unstable` :
+    #   1. Supprimer cet input,
+    #   2. Retirer le path du module upstream de la `modules` list de `mkNode`.
+    # Le wrapper `modules/service/oxicloud.nix` reste inchangé.
+    #
+    # Pas de `inputs.nixpkgs.follows` : on source l'arbre du fork tel quel
+    # (cf. nixpkgs-geneweb).
+    nixpkgs-oxicloud.url = "github:flashonfire/nixpkgs/oxicloud-service";
+
     # Rust generator (`dnf-generator`). Default points at the public release
     # repo; consumers in co-dev (arthur-network) can override with a path or
     # `git+file://` URL to pick up local changes:

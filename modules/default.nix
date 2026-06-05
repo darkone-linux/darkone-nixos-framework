@@ -62,6 +62,7 @@
     ./service/nextcloud.nix
     ./service/nfs.nix
     ./service/outline.nix
+    ./service/oxicloud.nix
     ./service/postfix.nix
     ./service/printing.nix
     ./service/restic.nix

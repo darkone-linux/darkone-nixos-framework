@@ -16,9 +16,9 @@
 # The option `enablePasswords` reads friend and wizard passwords from the sops
 # secrets `geneweb-friend` and `geneweb-wizard`. If enabled, add the entries to
 # `usr/secrets/` before rebuilding, otherwise sops-nix activation will fail.
-# 
-# **Important note:** Sops passwords must be sent in plain text to the Geneweb 
-# daemon. For greater security, it is better to define these passwords in the 
+#
+# **Important note:** Sops passwords must be sent in plain text to the Geneweb
+# daemon. For greater security, it is better to define these passwords in the
 # database configuration file (your-base.gwf) rather than using `enablePasswords`.
 # :::
 

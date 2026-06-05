@@ -19,6 +19,7 @@ let
     nixpkgs
     nixpkgs-stable
     nixpkgs-geneweb
+    nixpkgs-oxicloud
     home-manager
     colmena
     sops-nix
@@ -57,6 +58,11 @@ let
   # `nixosSystem` reconstruit son propre `pkgs`, donc seul `nixpkgs.overlays`
   # passé en module atteint le `pkgs` vu par les modules.
   genewebOverlay = import ./overlays/geneweb.nix { inherit nixpkgs-geneweb; };
+
+  # Overlay portabilité : neutralise le `target-cpu=native` d'OxiCloud pour que
+  # le binaire construit sur le deployer tourne sur tous les nœuds (SIGILL
+  # sinon sur CPU plus ancien). À retirer si le paquet nixpkgs le corrige.
+  oxicloudOverlay = import ./overlays/oxicloud.nix;
 
   # Per-system nixpkgs instances
   nixpkgsFor = forAllSystems (
@@ -145,9 +151,25 @@ let
         # `services.geneweb.enable = false`.
         "${nixpkgs-geneweb}/nixos/modules/services/web-apps/geneweb.nix"
 
-        # Geneweb : overlay temporaire injectant `pkgs.geneweb`.
-        # Retirer en même temps que l'import du module upstream.
-        { nixpkgs.overlays = [ (genewebOverlay system) ]; }
+        # Overlays temporaires (à retirer en même temps que les imports/inputs
+        # upstream correspondants) :
+        #
+        # - geneweb   : injecte `pkgs.geneweb` depuis la PR nixpkgs#522751 ;
+        # - oxicloud  : neutralise `target-cpu=native` pour un binaire portable
+        #               entre nœuds (cf. oxicloudOverlay ci-dessus).
+        {
+          nixpkgs.overlays = [
+            (genewebOverlay system)
+            oxicloudOverlay
+          ];
+        }
+
+        # OxiCloud : module upstream importé depuis la PR nixpkgs#516113
+        # (à retirer dès que la PR est mergée dans `nixos-unstable`). Parsé
+        # inconditionnellement, sans effet tant que `services.oxicloud.enable`
+        # reste à false. Pas d'overlay : `pkgs.oxicloud` vient déjà du tree
+        # `nixpkgs` principal.
+        "${nixpkgs-oxicloud}/nixos/modules/services/web-apps/oxicloud.nix"
 
         # Consumer-side NixOS modules overlay
         (workDir + "/usr/modules")

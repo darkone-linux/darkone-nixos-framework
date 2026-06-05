@@ -111,6 +111,9 @@
   outline = {
     activation.profiles.minimal.triggers.keys.outline = [ "enable" ];
   };
+  oxicloud = {
+    activation.profiles.minimal.triggers.keys.oxicloud = [ "enable" ];
+  };
   vaultwarden = {
     activation.profiles.minimal.triggers.keys.vaultwarden = [ "enable" ];
   };
