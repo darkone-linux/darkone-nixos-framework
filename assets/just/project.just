@@ -385,6 +385,49 @@ passwd-default:
 	just _fix_fs_permissions
 	just _log "Password updated, don't forget to deploy" "SOPS"
 
+# Generate restic backup passwords (idempotent, never overwrites existing)
+[group('install')]
+passwd-restic:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd-restic
+	cd {{secretsDir}}
+	just _sops_before_edit
+	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
+	if [ -f {{sopsSecretsFile}} ] ; then
+		sops -d -i {{sopsSecretsFile}}
+	else
+		just _fail "Passwd file must exists to perform this operation" "SOPS"
+	fi
+
+	# One REST credential per fleet hostname (authority: generated hosts list).
+	just _log "Extracting hostnames..." "SOPS"
+	HOSTNAMES=$(nix eval --extra-experimental-features nix-command --impure --json \
+		--expr 'map (h: h.hostname) (import {{workDir}}/var/generated/hosts.nix)' \
+		| yq -r '.[]' | sort -u)
+	for h in $HOSTNAMES ; do
+		if ! yq -e ".restic.\"$h\".\"rest-password\"" {{sopsSecretsFile}} >/dev/null 2>&1 ; then
+			just _log "Generating REST password for $h..." "SOPS"
+			PW=$(openssl rand -base64 24) \
+				yq --inplace ".restic.\"$h\".\"rest-password\" = strenv(PW)" {{sopsSecretsFile}}
+		fi
+	done
+
+	# One repository passphrase per zone (excluding the 'common' merge template).
+	just _log "Extracting zones..." "SOPS"
+	ZONES=$(yq -r '.zones | keys | .[]' {{workDir}}/etc/config.yaml | grep -vx common)
+	for z in $ZONES ; do
+		if ! yq -e ".\"restic-password-$z\"" {{sopsSecretsFile}} >/dev/null 2>&1 ; then
+			just _log "Generating repository passphrase for zone $z..." "SOPS"
+			PW=$(openssl rand -base64 24) \
+				yq --inplace ".\"restic-password-$z\" = strenv(PW)" {{sopsSecretsFile}}
+		fi
+	done
+
+	sops -e -i {{sopsSecretsFile}}
+	just _fix_fs_permissions
+	just _log "Restic passwords generated, don't forget to deploy" "SOPS"
+
 # Update a user password
 [group('install')]
 passwd user:
