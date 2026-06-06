@@ -17,7 +17,7 @@
 with lib;
 let
   cfg = config.darkone.service.idm;
-  srvPort = 8443;
+  srvPort = dnfConfig.network.ports.kanidm;
   inherit (config.sops) secrets;
   isHcs = dnfLib.isHcs host zone network;
   isMainReplica = isHcs || !network.coordination.enable;
@@ -45,7 +45,7 @@ let
     dnfLib.isGateway host zone && dnfLib.inLocalZone zone && network.coordination.enable;
 
   globalZone = dnfLib.constants.globalZone;
-  replPort = dnfConfig.network.ports.kanidmReplPort;
+  replPort = dnfConfig.network.ports.kanidmReplication;
   hcsVpnIp = network.zones.${globalZone}.gateway.vpn.ipv4;
   mkReplOrigin = ip: "repl://${ip}:${toString replPort}";
   hcsOrigin = mkReplOrigin hcsVpnIp;

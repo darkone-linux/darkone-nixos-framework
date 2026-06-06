@@ -29,6 +29,7 @@
   lib,
   config,
   dnfLib,
+  dnfConfig,
   network,
   host,
   zone,
@@ -36,7 +37,7 @@
 }:
 let
   cfg = config.darkone.service.harmonia;
-  harmoniaPort = 5000;
+  harmoniaPort = dnfConfig.network.ports.harmonia;
 
   # This host's own harmonia service entry (if any), used to know whether it is
   # exposed globally, ie. reachable cross-zone over the tailnet.

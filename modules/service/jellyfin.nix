@@ -3,6 +3,7 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   config,
   host,
   zone,
@@ -12,7 +13,7 @@
 let
   cfg = config.darkone.service.jellyfin;
   srv = config.services.jellyfin;
-  httpPort = 8096;
+  httpPort = dnfConfig.network.ports.jellyfin;
   discoveryPorts = [
     1900
     7359

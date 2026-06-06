@@ -14,13 +14,14 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   config,
   ...
 }:
 let
   cfg = config.darkone.service.minio;
-  srvPort = 9000;
-  consolePort = 9001;
+  srvPort = dnfConfig.network.ports.minio;
+  consolePort = dnfConfig.network.ports.minioConsole;
   srvInternalIp = "127.0.0.1";
   defaultParams = {
     title = "MinIO S3";

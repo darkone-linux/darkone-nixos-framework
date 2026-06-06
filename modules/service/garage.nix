@@ -26,13 +26,14 @@
   lib,
   pkgs,
   dnfLib,
+  dnfConfig,
   config,
   ...
 }:
 let
   cfg = config.darkone.service.garage;
-  srvPort = 3900;
-  rpcPort = 3901;
+  srvPort = dnfConfig.network.ports.garage;
+  rpcPort = dnfConfig.network.ports.garageRpc;
   srvInternalIp = "127.0.0.1";
   s3Region = "garage";
   defaultParams = {

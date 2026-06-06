@@ -25,6 +25,7 @@
   config,
   lib,
   dnfLib,
+  dnfConfig,
   network,
   zone,
   host,
@@ -127,7 +128,7 @@ let
   };
 
   # Module main params
-  srvPort = 8888;
+  srvPort = dnfConfig.network.ports.restic;
   defaultParams = {
     description = "Local backup strategy";
   };
@@ -168,13 +169,13 @@ in
     darkone.service.restic.repositoryRoot = lib.mkOption {
       type = lib.types.str;
       default = "/mnt/backup/restic";
-      example = "rest:restic.${zone.domain}:8888";
+      example = "rest:restic.${zone.domain}:${toString srvPort}";
       description = "Main backup target root path (default is local)";
     };
     darkone.service.restic.extraRepositoryRoot = lib.mkOption {
       type = lib.types.str;
       default = "";
-      example = "rest:restic.${network.zones.other-zone.domain}:8888";
+      example = "rest:restic.${network.zones.other-zone.domain}:${toString srvPort}";
       description = "Extra backup target root path";
     };
 

@@ -3,6 +3,7 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   config,
   network,
   host,
@@ -85,6 +86,9 @@ in
       services.mealie = {
         enable = true;
         package = pkgs-stable.mealie;
+
+        # Pinned off the upstream default (9000) to avoid the minio clash.
+        port = dnfConfig.network.ports.mealie;
         listenAddress = params.ip;
         credentialsFile = config.sops.templates.mealie-credentials.path;
         settings = {

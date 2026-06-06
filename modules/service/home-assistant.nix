@@ -1,6 +1,11 @@
 # A Home Assistant with some plugins (wip).
 
-{ lib, config, ... }:
+{
+  lib,
+  config,
+  dnfConfig,
+  ...
+}:
 let
   cfg = config.darkone.service.home-assistant;
 in
@@ -32,6 +37,6 @@ in
         default_config = { };
       };
     };
-    networking.firewall.allowedTCPPorts = [ 8123 ];
+    networking.firewall.allowedTCPPorts = [ dnfConfig.network.ports.homeAssistant ];
   };
 }

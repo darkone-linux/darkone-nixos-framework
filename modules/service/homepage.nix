@@ -7,6 +7,7 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   config,
   host,
   zone,
@@ -90,7 +91,7 @@ in
       services.homepage-dashboard = {
         enable = true;
         openFirewall = false; # Homepage is in the reverse proxy server
-        listenPort = 8082;
+        listenPort = dnfConfig.network.ports.homepage;
         allowedHosts = params.fqdn;
 
         # https://gethomepage.dev/latest/configs/settings/

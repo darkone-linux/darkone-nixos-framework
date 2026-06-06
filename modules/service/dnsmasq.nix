@@ -8,6 +8,7 @@
 {
   lib,
   config,
+  dnfConfig,
   network,
   zone,
   ...
@@ -88,7 +89,7 @@ in
             53
           ]
           ++ lib.optional config.services.caddy.enable 80
-          ++ lib.optional config.darkone.service.ncps.enable 8501;
+          ++ lib.optional config.darkone.service.ncps.enable dnfConfig.network.ports.ncps;
           allowedUDPPorts = [
             53
             67
@@ -206,7 +207,7 @@ in
           #address = [ "/${zone.gateway.hostname}.${zone.domain}/${zone.gateway.lan.ip}" ];
 
           # Use a different DNS port if adguardhome is enabled.
-          port = if hasAdguardHome then 5353 else 53;
+          port = if hasAdguardHome then dnfConfig.network.ports.dnsmasqAlt else 53;
 
           # Prefer /etc/hosts ips matching the local network.
           localise-queries = true;

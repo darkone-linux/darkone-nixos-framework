@@ -3,6 +3,7 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   config,
   network,
   zone,
@@ -12,7 +13,7 @@
 }:
 let
   cfg = config.darkone.service.outline;
-  srvPort = 3003;
+  srvPort = dnfConfig.network.ports.outline;
   params = dnfLib.extractServiceParams host network "outline" { };
   inherit
     (dnfLib.mkOidcContext {

@@ -3,6 +3,7 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   config,
   pkgs,
   host,
@@ -88,7 +89,7 @@ in
       # Redis for caching (optional but recommended)
       services.redis.servers.immich = lib.mkIf cfg.enableRedis {
         enable = true;
-        port = 6379;
+        port = dnfConfig.network.ports.immichRedis;
         bind = "127.0.0.1";
         requirePass = null; # Local access only
         settings = {
@@ -127,7 +128,7 @@ in
       # Main immich service configuration
       services.immich = {
         enable = true;
-        port = 2283;
+        port = dnfConfig.network.ports.immich;
         host = host.ip;
         openFirewall = false;
 

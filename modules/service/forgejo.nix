@@ -3,6 +3,7 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   config,
   network,
   host,
@@ -105,7 +106,7 @@ in
           server = {
             DOMAIN = host.ip;
             ROOT_URL = params.href; # URL before reverse proxy
-            HTTP_PORT = 3000;
+            HTTP_PORT = dnfConfig.network.ports.forgejo;
             LANDING_PAGE = "explore";
           };
           DEFAULT = {

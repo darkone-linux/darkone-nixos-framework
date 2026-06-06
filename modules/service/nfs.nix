@@ -16,6 +16,7 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   host,
   pkgs,
   config,
@@ -113,7 +114,7 @@ assert
       # Open NFS port, only for lan0 on gateway
       networking.firewall = lib.mkIf isServer (
         lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
-          allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [ 2049 ];
+          allowedTCPPorts = lib.mkIf (!dnfLib.isGateway host zone) [ dnfConfig.network.ports.nfs ];
         }
       );
 

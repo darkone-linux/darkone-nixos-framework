@@ -10,7 +10,7 @@
 # failing test points straight at the offending key.
 # :::
 #
-# :::tip Grammar
+# :::tip[Grammar]
 # Node = attrset with a `type`. Two families: containers and leaves.
 #
 #   # container

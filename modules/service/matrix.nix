@@ -6,6 +6,7 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   config,
   network,
   host,
@@ -17,7 +18,8 @@ let
   inherit network;
   cfg = config.darkone.service.matrix;
   srv = config.services.matrix-synapse;
-  synapsePort = 8008;
+  synapsePort = dnfConfig.network.ports.matrix;
+  telegramPort = dnfConfig.network.ports.matrixTelegram;
 
   # VoIP
   inherit (config.services) coturn;
@@ -43,7 +45,7 @@ let
   # Mautrix - TODO: auto permissions
   mautrixCommonSettings = {
     homeserver = {
-      address = "http://localhost:8008";
+      address = "http://localhost:${toString synapsePort}";
       #address = "https://matrix.${network.domain}";
       domain = config.services.matrix-synapse.settings.server_name;
       verify_ssl = false;
@@ -106,8 +108,8 @@ in
         proxy.extraConfig = ''
 
           # Redirect to Synapse
-          reverse_proxy /_matrix/* http://127.0.0.1:8008
-          reverse_proxy /_synapse/client/* http://127.0.0.1:8008
+          reverse_proxy /_matrix/* http://127.0.0.1:${toString synapsePort}
+          reverse_proxy /_synapse/client/* http://127.0.0.1:${toString synapsePort}
 
           # Helps mobile clients to find the server
           handle /.well-known/matrix/client {
@@ -292,8 +294,8 @@ in
             };
             appservice = {
               id = "telegram";
-              address = "http://localhost:29317"; # 8080 by default already in use
-              port = 29317;
+              address = "http://localhost:${toString telegramPort}"; # 8080 by default already in use
+              port = telegramPort;
               #bot_avatar = "remove"; # Error with the default avatar...
               as_token = "$MAUTRIX_TELEGRAM_APPSERVICE_AS_TOKEN";
               hs_token = "$MAUTRIX_TELEGRAM_APPSERVICE_HS_TOKEN";

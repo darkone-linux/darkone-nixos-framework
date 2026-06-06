@@ -74,6 +74,7 @@
   pkgs,
   config,
   dnfLib,
+  dnfConfig,
   hosts,
   host,
   network,
@@ -84,7 +85,7 @@ let
   cfg = config.darkone.service.loki;
 
   port = {
-    loki = 3100;
+    loki = dnfConfig.network.ports.loki;
   };
 
   # Host running the monitoring service (Grafana). Logs are pushed there.
@@ -147,7 +148,7 @@ in
             http_listen_address = bindAddr;
             http_listen_port = port.loki;
             grpc_listen_address = bindAddr;
-            grpc_listen_port = 9096;
+            grpc_listen_port = dnfConfig.network.ports.lokiGrpc;
           };
 
           common = {

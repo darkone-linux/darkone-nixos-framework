@@ -3,6 +3,7 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   config,
   network,
   zone,
@@ -16,7 +17,7 @@ let
     icon = "searxng";
   };
   params = dnfLib.extractServiceParams host network "searx" defaultParams;
-  srvPort = 8283;
+  srvPort = dnfConfig.network.ports.searx;
 in
 {
   options = {

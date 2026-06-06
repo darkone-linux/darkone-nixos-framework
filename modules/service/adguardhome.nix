@@ -8,6 +8,7 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   config,
   network,
   zone,
@@ -71,7 +72,7 @@ in
         allowDHCP = false;
 
         # Web interface default host + port (target for reverse proxy)
-        port = 3083;
+        port = dnfConfig.network.ports.adguardhome;
         host = "127.0.0.1"; # ADH and RP are on the same host
 
         # Allow changes made on the AdGuard Home web interface to persist between service restarts.

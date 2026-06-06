@@ -15,6 +15,7 @@
   lib,
   config,
   dnfLib,
+  dnfConfig,
   hosts,
   host,
   network,
@@ -25,8 +26,8 @@
 let
   cfg = config.darkone.service.monitoring;
   port = {
-    grafana = 3222;
-    nodeExporter = 9100;
+    grafana = dnfConfig.network.ports.grafana;
+    nodeExporter = dnfConfig.network.ports.nodeExporter;
     prometheus = config.services.prometheus.port;
   };
 

@@ -5,6 +5,7 @@
   config,
   pkgs,
   dnfLib,
+  dnfConfig,
   host,
   network,
   ...
@@ -93,7 +94,7 @@ in
           INVITATIONS_ALLOWED = true;
           ADMIN_SESSION_LIFETIME = 30; # minutes -> for /admin
           ROCKET_ADDRESS = params.ip;
-          ROCKET_PORT = 8222;
+          ROCKET_PORT = dnfConfig.network.ports.vaultwarden;
           ROCKET_LOG = "critical";
           SENDS_ALLOWED = true;
           EMERGENCY_ACCESS_ALLOWED = false;

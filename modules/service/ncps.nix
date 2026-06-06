@@ -20,6 +20,7 @@
   hosts,
   zone,
   dnfLib,
+  dnfConfig,
   workDir,
   ...
 }:
@@ -35,8 +36,8 @@ let
   hasServer = hostIsLocal && serverName != null;
   isServer = hostIsLocal && host.hostname == serverName;
   isClient = hostIsLocal && hasServer;
-  ncpsPort = 8501;
-  harmoniaPort = 5000;
+  ncpsPort = dnfConfig.network.ports.ncps;
+  harmoniaPort = dnfConfig.network.ports.harmonia;
 
   # Harmonia upstreams in scope for this zone's ncps: same-zone instances
   # (highest priority, reached over the LAN) first, then any global harmonia

@@ -3,6 +3,7 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   config,
   pkgs,
   network,
@@ -13,7 +14,7 @@
 }:
 let
   cfg = config.darkone.service.docs;
-  srvPort = 4445;
+  srvPort = dnfConfig.network.ports.docs;
   defaultParams = {
     title = "LaSuite Docs";
     description = "My Documents";
@@ -46,7 +47,7 @@ in
       };
       s3Port = lib.mkOption {
         type = lib.types.port;
-        default = 3900;
+        default = dnfConfig.network.ports.garage;
         description = "S3 backend port";
       };
       s3Bucket = lib.mkOption {

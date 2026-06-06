@@ -3,6 +3,7 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   config,
   pkgs,
   host,
@@ -13,7 +14,7 @@
 }:
 let
   cfg = config.darkone.service.ai;
-  internalPort = 9758;
+  internalPort = dnfConfig.network.ports.ai;
   defaultParams = {
     title = "Local AI";
     description = "Local Generative AI";

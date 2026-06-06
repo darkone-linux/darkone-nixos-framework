@@ -14,12 +14,13 @@
   network,
   host,
   dnfLib,
+  dnfConfig,
   ...
 }:
 let
   cfg = config.darkone.service.nextcloud;
   srv = config.services.nextcloud;
-  port = 8089;
+  port = dnfConfig.network.ports.nextcloud;
   defaultParams = {
     description = "Local personal cloud";
   };
