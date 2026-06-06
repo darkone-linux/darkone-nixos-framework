@@ -272,9 +272,6 @@ in
       (mkIf hasVaultwarden bitwarden-cli)
     ];
 
-    # TMP: logseq dependency
-    nixpkgs.config.permittedInsecurePackages = lib.optional cfg.enableProductivity "electron-39.8.10";
-
     #--------------------------------------------------------------------------
     # Fixes
     #--------------------------------------------------------------------------
