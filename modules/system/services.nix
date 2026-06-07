@@ -64,6 +64,14 @@ let
   # Need Oauth2 proxy if has protected service
   hasProtectedServices = any (s: s.proxy.isProtected) services;
 
+  # Single auth anchor per zone: oauth2-proxy's public `/oauth2/*` endpoints are
+  # hosted on the homepage FQDN, which already has a provisioned TLS certificate.
+  # This avoids a synthetic `auth.<zone>` host (no cert in the HCS->gateway sync).
+  # Every protected service sends the login flow here; the shared `.<zone>` cookie
+  # keeps SSO across services.
+  authAnchor = findFirst (s: s.name == "homepage") null services;
+  authHost = if authAnchor != null then authAnchor.params.fqdn else null;
+
   # Forward auth: checks auth on every request. When groups are supplied, the
   # `allowed_groups` query param restricts access to those Kanidm groups, so a
   # single oauth2-proxy can guard several services with distinct group policies.
@@ -85,7 +93,7 @@ let
         # oauth2-proxy's whitelist-domain).
         @unauthenticated status 401
         handle_response @unauthenticated {
-          redir * https://auth.${authDomain}/oauth2/start?rd=https://{http.request.host}{http.request.uri}
+          redir * https://${authHost}/oauth2/start?rd=https://{http.request.host}{http.request.uri}
         }
       }
     '';
@@ -405,6 +413,15 @@ in
 
   config = mkIf cfg.enable {
 
+    # Protected services anchor their login flow on the homepage FQDN, so the
+    # homepage service must be present in any zone that protects a service.
+    assertions = [
+      {
+        assertion = !hasProtectedServices || authHost != null;
+        message = "darkone.system.services: a protected service requires the homepage service (auth anchor) enabled in the same zone.";
+      }
+    ];
+
     #--------------------------------------------------------------------------
     # Reverse proxy - Caddy
     #--------------------------------------------------------------------------
@@ -479,29 +496,42 @@ in
             };
         }
 
-        # Oauth2 proxy: expose oauth2-proxy publicly (paths /oauth2/*) on the
-        # gateway's own auth subdomain (zonable).
-        ++ optional hasProtectedServices {
-          "${vhPrefix}auth.${authDomain}" = {
-
-            # Forward every path to oauth2-proxy untouched: it owns the whole
-            # `/oauth2/*` surface (proxy-prefix=/oauth2) and redirects `/` to the
-            # sign-in flow itself. Stripping the prefix would break its routes.
-            extraConfig = ''
-              ${localTls}
-              reverse_proxy http://127.0.0.1:4180
-            '';
-          };
-        }
-
         # Local services virtualhosts
         ++ map (
           srv:
           let
             isValid = srv.proxy.enable && (srv.proxy.servicePort != null);
             isDefault = isValid && srv.proxy.defaultService;
+            backend = lib.optionalString srv.proxy.hasReverseProxy "reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString srv.proxy.servicePort}";
+
+            # The auth anchor (homepage) publicly exposes oauth2-proxy's endpoints.
+            # `/oauth2/*` must stay unauthenticated, hence its own handle block.
+            isAnchor = hasProtectedServices && authHost != null && srv.params.fqdn == authHost;
+            oauth2Handle = optionalString isAnchor ''
+              handle /oauth2/* {
+                reverse_proxy http://127.0.0.1:4180
+              }
+            '';
+
+            # Protected services wrap auth + backend in a catch-all handle so the
+            # anchor's `/oauth2/*` handle is excluded from the forward-auth check.
             prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups;
-            reverseProxy = lib.optionalString srv.proxy.hasReverseProxy "${localTls}reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString srv.proxy.servicePort}";
+            body =
+              if srv.proxy.isProtected then
+                ''
+                  handle {
+                    ${prefix}
+                    ${srv.proxy.preExtraConfig}
+                    ${backend}
+                    ${srv.proxy.extraConfig}
+                  }
+                ''
+              else
+                ''
+                  ${srv.proxy.preExtraConfig}
+                  ${backend}
+                  ${srv.proxy.extraConfig}
+                '';
           in
           mkIf isValid {
 
@@ -509,10 +539,9 @@ in
             "${vhPrefix}${srv.params.fqdn}" = {
               logFormat = mkIf accessLogEnabled (mkLogFormat srv.params.fqdn);
               extraConfig = dnfLib.cleanString ''
-                ${prefix}
-                ${srv.proxy.preExtraConfig}
-                ${reverseProxy}
-                ${srv.proxy.extraConfig}
+                ${localTls}
+                ${oauth2Handle}
+                ${body}
               '';
             };
 
@@ -584,7 +613,7 @@ in
       provider = "oidc";
       oidcIssuerUrl = "https://idm.${network.domain}/oauth2/openid/internal-service";
       clientID = "internal-service";
-      redirectURL = "https://auth.${authDomain}/oauth2/callback"; # Must match Kanidm
+      redirectURL = "https://${authHost}/oauth2/callback"; # Must match Kanidm
       scope = "openid email groups"; # `groups` is required for allowed_groups
       cookie = {
         secretFile = config.sops.secrets.oauth2-proxy-cookie-internal-service.path;
@@ -608,8 +637,9 @@ in
         skip-provider-button = true; # Straight to Kanidm
         email-domain = "*"; # Accept all emails
 
-        # Allow the post-login `rd` redirect back to sibling subdomains
-        # (eg. homepage.<zone> while the proxy lives on auth.<zone>).
+        # Allow the post-login `rd` redirect back to sibling subdomains of the
+        # zone (the anchor hosts /oauth2 on homepage.<zone>, other protected
+        # services live on their own <svc>.<zone>).
         whitelist-domain = ".${authDomain}";
       };
     };

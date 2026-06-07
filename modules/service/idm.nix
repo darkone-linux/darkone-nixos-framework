@@ -210,12 +210,19 @@ let
   oauth2Clients = dnfLib.mkOauth2Clients rawPairs;
 
   # Forward-auth client used by oauth2-proxy (system/services.nix). A single
-  # static kanidm client shared by every gateway's proxy: each gateway answers
-  # on its own `auth.<domain>` subdomain, so all per-zone callbacks are
-  # registered here (kanidm accepts several origin URLs; `unique` dedups the
-  # www zone whose domain equals the network domain).
+  # static kanidm client shared by every gateway's proxy. The callback lives on
+  # each zone's homepage FQDN (the auth anchor, already TLS-provisioned), so we
+  # register one redirect URI per homepage instance (kanidm accepts a list).
+  homepageInstances = filter (s: s.name == "homepage") network.services;
   authCallbackUrls = lib.unique (
-    mapAttrsToList (_: z: "https://auth.${z.domain}/oauth2/callback") network.zones
+    map (
+      svc:
+      let
+        svcHost = dnfLib.findHost svc.host svc.zone hosts;
+        homepageDflts = config.darkone.system.services.service.homepage.defaultParams or { };
+      in
+      "${(dnfLib.buildServiceParams svcHost network svc homepageDflts).href}/oauth2/callback"
+    ) homepageInstances
   );
 in
 {
