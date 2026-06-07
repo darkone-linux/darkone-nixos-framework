@@ -8,6 +8,7 @@ in
 {
   lib_constants = import ./lib/constants_test.nix { inherit dnfLib; };
   lib_strings = import ./lib/strings_test.nix { inherit dnfLib; };
+  lib_date_time = import ./lib/date-time_test.nix { inherit dnfLib; };
   lib_topology = import ./lib/topology_test.nix { inherit dnfLib; };
   lib_service_params = import ./lib/service-params_test.nix { inherit dnfLib; };
   lib_firewall = import ./lib/firewall_test.nix { inherit dnfLib; };

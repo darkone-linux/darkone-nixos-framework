@@ -10,6 +10,7 @@
 let
   constants = import ./constants.nix;
   strings = import ./strings.nix { inherit lib; };
+  dateTime = import ./date-time.nix { inherit lib; };
   topology = import ./topology.nix { inherit lib constants; };
   serviceParams = import ./service-params.nix { inherit lib strings; };
   firewall = import ./firewall.nix { inherit lib constants topology; };
@@ -24,6 +25,7 @@ in
 {
   inherit constants;
   inherit (strings) ucFirst cleanString mkCaddySecurityHeaders;
+  inherit (dateTime) shiftHour;
   inherit (security) mkIsActive levelMapping;
   inherit (hive) getHostArch mkNodeArgs;
   inherit (paths) resolveProfile resolveNixosProfile;

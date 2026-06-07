@@ -51,19 +51,8 @@ let
   # Shared directories (/srv/nfs, /srv/medias) and their availability.
   inherit (config.darkone.system) srv-dirs;
 
-  # Add `n` hours (mod 24) to a "HH:MM" calendar time, used to stagger the
-  # timers of several targets backing up the same category.
-  shiftHour =
-    base: n:
-    let
-      parts = lib.splitString ":" base;
-      h = lib.toIntBase10 (builtins.head parts);
-      mm = builtins.elemAt parts 1;
-      s = h + n;
-      nh = s - 24 * (s / 24);
-      hh = if nh < 10 then "0${toString nh}" else toString nh;
-    in
-    "${hh}:${mm}";
+  # Stagger the timers of several targets sharing the same base time.
+  inherit (dnfLib) shiftHour;
 
   # Common options shared by every backup job.
   commonBkpConfig = {
