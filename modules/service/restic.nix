@@ -57,7 +57,7 @@ let
     base: n:
     let
       parts = lib.splitString ":" base;
-      h = lib.toInt (builtins.head parts);
+      h = lib.toIntBase10 (builtins.head parts);
       mm = builtins.elemAt parts 1;
       s = h + n;
       nh = s - 24 * (s / 24);
