@@ -27,6 +27,7 @@
 {
   lib,
   pkgs,
+  pkgs-stable,
   config,
   osConfig,
   inputs,
@@ -293,7 +294,7 @@ in
 
       # Ollama CLI + model manager, only useful when ollama runs locally.
       (lib.mkIf hasLocalAI gollama)
-      (lib.mkIf hasLocalAI ollama)
+      (lib.mkIf hasLocalAI pkgs-stable.ollama) # stable = plus récent
 
       # Per-agent packages.
       (lib.mkIf cfg.enableCodex codex)
