@@ -78,9 +78,12 @@ let
   mkForwardAuth =
     allowedGroups:
     let
-      query = optionalString (
-        allowedGroups != [ ]
-      ) "?allowed_groups=${concatStringsSep "," allowedGroups}";
+
+      # Kanidm emits groups in the `groups` claim as SPNs (`name@<domain>`), not
+      # bare names, so match on the SPN. `@` is percent-encoded to keep it a
+      # single Caddyfile token; oauth2-proxy decodes it back.
+      spns = map (g: "${g}%40${network.domain}") allowedGroups;
+      query = optionalString (allowedGroups != [ ]) "?allowed_groups=${concatStringsSep "," spns}";
     in
     ''
       forward_auth http://127.0.0.1:4180 {
