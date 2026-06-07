@@ -35,6 +35,11 @@ in
 {
   options = {
     darkone.service.homepage.enable = lib.mkEnableOption "Enable homepage dashboard + httpd + host";
+    darkone.service.homepage.protect = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Restrict homepage to authenticated Kanidm users (oauth2-proxy forward auth)";
+    };
     darkone.service.homepage.localServices = lib.mkOption {
       type = lib.types.listOf lib.types.attrs;
       default = [ ];
@@ -76,6 +81,11 @@ in
         displayOnHomepage = false;
         proxy.servicePort = hpd.listenPort;
         proxy.defaultService = true;
+
+        # Gate the dashboard behind Kanidm SSO. The "users" group holds every
+        # provisioned user, so this means "any authenticated Kanidm user".
+        proxy.isProtected = cfg.protect;
+        proxy.allowedGroups = lib.optionals cfg.protect [ "users" ];
       };
     }
 

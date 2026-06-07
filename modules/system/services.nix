@@ -24,6 +24,10 @@ with lib;
 let
   cfg = config.darkone.system.services;
   inLocalZone = dnfLib.inLocalZone zone;
+
+  # oauth2-proxy is served per gateway: local zones answer on their own domain,
+  # only the HCS answers on the network domain.
+  authDomain = if inLocalZone then zone.domain else network.domain;
   hasHeadscale = network.coordination.enable;
   isHcs = dnfLib.isHcs host zone network;
 
@@ -49,13 +53,22 @@ let
   # Need Oauth2 proxy if has protected service
   hasProtectedServices = any (s: s.proxy.isProtected) services;
 
-  # Forward auth: checks auth on every request
-  protectedServiceForwardSection = ''
-    forward_auth http://127.0.0.1:4180 {
-      uri /oauth2/auth
-      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
-    }
-  '';
+  # Forward auth: checks auth on every request. When groups are supplied, the
+  # `allowed_groups` query param restricts access to those Kanidm groups, so a
+  # single oauth2-proxy can guard several services with distinct group policies.
+  mkForwardAuth =
+    allowedGroups:
+    let
+      query = optionalString (
+        allowedGroups != [ ]
+      ) "?allowed_groups=${concatStringsSep "," allowedGroups}";
+    in
+    ''
+      forward_auth http://127.0.0.1:4180 {
+        uri /oauth2/auth${query}
+        copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
+      }
+    '';
 
   # Bind internal IP for internal access services
   internalServiceBindSection = ''
@@ -119,9 +132,9 @@ let
 
   # Make virtualhost prefix
   mkPrefix =
-    isInternal: isProtected:
+    isInternal: isProtected: allowedGroups:
     (optionalString isInternal internalServiceBindSection)
-    + (optionalString isProtected protectedServiceForwardSection);
+    + (optionalString isProtected (mkForwardAuth allowedGroups));
 
   # Global services to expose to internet, only for HCS
   globalServices =
@@ -318,6 +331,11 @@ in
               default = false;
               description = "Oauth2 protected service";
             };
+            proxy.allowedGroups = mkOption {
+              type = types.listOf types.str;
+              default = [ ];
+              description = "Kanidm groups allowed on this protected service (empty = any authenticated user)";
+            };
             proxy.isInternal = mkOption {
               type = types.bool;
               default = false;
@@ -441,11 +459,10 @@ in
             };
         }
 
-        # Oauth2 proxy
-        # Expose oauth2-proxy publiquement (paths /oauth2/*)
-        # TODO: zonable proxy
+        # Oauth2 proxy: expose oauth2-proxy publicly (paths /oauth2/*) on the
+        # gateway's own auth subdomain (zonable).
         ++ optional hasProtectedServices {
-          "auth.${network.domain}" = {
+          "auth.${authDomain}" = {
             extraConfig = ''
               route /oauth2/* {
                 uri strip_prefix /oauth2
@@ -462,7 +479,7 @@ in
           let
             isValid = srv.proxy.enable && (srv.proxy.servicePort != null);
             isDefault = isValid && srv.proxy.defaultService;
-            prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected;
+            prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups;
             vhPrefix = optionalString (!hasHeadscale) "http://";
             tls = optionalString (hasHeadscale && inLocalZone) ''
               tls {
@@ -499,7 +516,7 @@ in
           srv:
           let
             sPort = config.darkone.system.services.service.${srv.name}.proxy.servicePort;
-            prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected;
+            prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups;
             noRobots = optionalString srv.params.noRobots badBotsSection;
             reverseProxy = lib.optionalString srv.proxy.hasReverseProxy "reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString sPort}";
           in
@@ -532,25 +549,18 @@ in
     # Oauth2-proxy (protected services)
     #--------------------------------------------------------------------------
 
-    # TODO: zonable proxy
-
+    # OAuth2 client secret, shared with the kanidm-side `internal-service`
+    # provisioning (idm.nix declares the same `oidc-secret-internal` source).
     sops.secrets.oidc-secret-internal-service = mkIf hasProtectedServices {
       mode = "0400";
       owner = "oauth2-proxy";
       key = "oidc-secret-internal";
     };
+
+    # Session cookie encryption key (32-byte base64, consumer-provided).
     sops.secrets.oauth2-proxy-cookie-internal-service = mkIf hasProtectedServices {
       mode = "0400";
       owner = "oauth2-proxy";
-    };
-
-    sops.secrets.oidc-secret-internal = mkIf hasProtectedServices { };
-    sops.templates."oauth2-proxy-keyfile" = mkIf hasProtectedServices {
-      mode = "0400";
-      owner = "oauth2-proxy";
-      content = ''
-        OAUTH2_PROXY_CLIENT_SECRET=${config.sops.placeholder.oidc-secret-internal}
-      '';
     };
 
     services.oauth2-proxy = mkIf hasProtectedServices {
@@ -559,12 +569,13 @@ in
       provider = "oidc";
       oidcIssuerUrl = "https://idm.${network.domain}/oauth2/openid/internal-service";
       clientID = "internal-service";
-      keyFile = config.sops.templates.postfix-sasl-password.path;
-      redirectURL = "https://auth.${network.domain}/oauth2/callback"; # Must match Kanidm
-      scope = "openid email";
+      redirectURL = "https://auth.${authDomain}/oauth2/callback"; # Must match Kanidm
+      scope = "openid email groups"; # `groups` is required for allowed_groups
       cookie = {
-        #secretFile = config.sops.secrets.oauth2-proxy-cookie-internal-service.path;
-        #domain = ".${network.domain}"; # Share cookie across subdomains
+        secretFile = config.sops.secrets.oauth2-proxy-cookie-internal-service.path;
+
+        # Share the session across the zone's subdomains (SSO).
+        domain = ".${authDomain}";
         secure = true;
       };
 
@@ -573,12 +584,14 @@ in
       reverseProxy = true; # Important for forward_auth
 
       upstream = [ "static://200" ]; # Reply 200 OK after auth (forward_auth mode)
+
+      # Per-service authorization is enforced by Caddy via the `allowed_groups`
+      # query param (see mkForwardAuth); the proxy itself only authenticates.
       extraConfig = {
-        allowed-group = [ "admins" ];
         client-secret-file = config.sops.secrets.oidc-secret-internal-service.path;
-        cookie-secret-file = config.sops.secrets.oauth2-proxy-cookie-internal-service.path;
-        skip-provider-button = true; # Directement vers Kanidm
-        email-domain = "*"; # Accepte tous les emails
+        code-challenge-method = "S256"; # Kanidm requires PKCE
+        skip-provider-button = true; # Straight to Kanidm
+        email-domain = "*"; # Accept all emails
       };
     };
 

@@ -208,6 +208,15 @@ let
   # (typed as a list by kanidm-provision), `originLanding` is the landing of
   # the first instance (typed as a scalar). See `dnfLib.mkOauth2Clients`.
   oauth2Clients = dnfLib.mkOauth2Clients rawPairs;
+
+  # Forward-auth client used by oauth2-proxy (system/services.nix). A single
+  # static kanidm client shared by every gateway's proxy: each gateway answers
+  # on its own `auth.<domain>` subdomain, so all per-zone callbacks are
+  # registered here (kanidm accepts several origin URLs; `unique` dedups the
+  # www zone whose domain equals the network domain).
+  authCallbackUrls = lib.unique (
+    mapAttrsToList (_: z: "https://auth.${z.domain}/oauth2/callback") network.zones
+  );
 in
 {
   options = {
@@ -561,25 +570,39 @@ in
           # zone's redirect URI.
           # -> https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
 
-          systems.oauth2 = listToAttrs (
-            map (c: {
-              name = c.clientId;
-              value = {
-                inherit (c.tpl)
-                  displayName
-                  imageFile
-                  enableLegacyCrypto
-                  allowInsecureClientDisablePkce
-                  ;
-                originUrl = c.originUrls;
-                inherit (c) originLanding;
-                basicSecretFile = config.sops.secrets.${c.secret}.path;
+          systems.oauth2 =
+            listToAttrs (
+              map (c: {
+                name = c.clientId;
+                value = {
+                  inherit (c.tpl)
+                    displayName
+                    imageFile
+                    enableLegacyCrypto
+                    allowInsecureClientDisablePkce
+                    ;
+                  originUrl = c.originUrls;
+                  inherit (c) originLanding;
+                  basicSecretFile = config.sops.secrets.${c.secret}.path;
+                  inherit scopeMaps;
+                }
+                // optionalAttrs (c.tpl.preferShortUsername != null) { inherit (c.tpl) preferShortUsername; }
+                // c.tpl.extra;
+              }) oauth2Clients
+            )
+
+            # Static client backing oauth2-proxy forward auth. Not derived from a
+            # service template: it guards arbitrary reverse-proxy vhosts, with the
+            # group policy enforced per-service by Caddy (allowed_groups query).
+            // {
+              internal-service = {
+                displayName = "DNF protected services";
+                originUrl = authCallbackUrls;
+                originLanding = "https://idm.${network.domain}";
+                basicSecretFile = config.sops.secrets.oidc-secret-internal.path;
                 inherit scopeMaps;
-              }
-              // optionalAttrs (c.tpl.preferShortUsername != null) { inherit (c.tpl) preferShortUsername; }
-              // c.tpl.extra;
-            }) oauth2Clients
-          );
+              };
+            };
 
           #----------------------------------------------------------------------
           # Users provisioning
