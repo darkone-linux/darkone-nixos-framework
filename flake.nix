@@ -25,9 +25,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-26.05";
 
-    # TODO: -> 26.11 (unstable) quand nixpkgs sera réellement passé sur 26.11
-    #home-manager.url = "github:nix-community/home-manager";
-    home-manager.url = "github:nix-community/home-manager/release-26.05";
+    home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
     colmena.url = "github:zhaofengli/colmena/main";
@@ -54,7 +52,9 @@
     claude-code.url = "github:sadjow/claude-code-nix";
     claude-code.inputs.nixpkgs.follows = "nixpkgs";
 
+    # RPI5 + hardware optims.
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
+    nixos-hardware.inputs.nixpkgs.follows = "nixpkgs";
 
     # Geneweb : suivi de la PR nixpkgs#522751 (module + paquetage `geneweb`
     # en attente de merge). Voir `lib/overlays/geneweb.nix`.
