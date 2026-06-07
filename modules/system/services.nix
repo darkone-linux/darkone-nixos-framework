@@ -67,6 +67,15 @@ let
       forward_auth http://127.0.0.1:4180 {
         uri /oauth2/auth${query}
         copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
+
+        # /oauth2/auth answers 401 when unauthenticated; turn that into a
+        # browser redirect to the login flow instead of a bare 401. `rd` brings
+        # the user back to the original URL after login (cross-subdomain, hence
+        # oauth2-proxy's whitelist-domain).
+        @unauthenticated status 401
+        handle_response @unauthenticated {
+          redir * https://auth.${authDomain}/oauth2/start?rd=https://{http.request.host}{http.request.uri}
+        }
       }
     '';
 
@@ -592,6 +601,10 @@ in
         code-challenge-method = "S256"; # Kanidm requires PKCE
         skip-provider-button = true; # Straight to Kanidm
         email-domain = "*"; # Accept all emails
+
+        # Allow the post-login `rd` redirect back to sibling subdomains
+        # (eg. homepage.<zone> while the proxy lives on auth.<zone>).
+        whitelist-domain = ".${authDomain}";
       };
     };
 
