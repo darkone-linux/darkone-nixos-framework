@@ -28,6 +28,17 @@ let
   # oauth2-proxy is served per gateway: local zones answer on their own domain,
   # only the HCS answers on the network domain.
   authDomain = if inLocalZone then zone.domain else network.domain;
+
+  # On-demand TLS for local-zone vhosts: a local zone has no public ACME, so
+  # Caddy fetches certs lazily per SNI. Shared by the service and auth vhosts.
+  localTls = optionalString (hasHeadscale && inLocalZone) ''
+    tls {
+      on_demand
+    }
+  '';
+
+  # vhosts are plain HTTP when there is no tailnet (auto-HTTPS is off).
+  vhPrefix = optionalString (!hasHeadscale) "http://";
   hasHeadscale = network.coordination.enable;
   isHcs = dnfLib.isHcs host zone network;
 
@@ -471,13 +482,14 @@ in
         # Oauth2 proxy: expose oauth2-proxy publicly (paths /oauth2/*) on the
         # gateway's own auth subdomain (zonable).
         ++ optional hasProtectedServices {
-          "auth.${authDomain}" = {
+          "${vhPrefix}auth.${authDomain}" = {
+
+            # Forward every path to oauth2-proxy untouched: it owns the whole
+            # `/oauth2/*` surface (proxy-prefix=/oauth2) and redirects `/` to the
+            # sign-in flow itself. Stripping the prefix would break its routes.
             extraConfig = ''
-              route /oauth2/* {
-                uri strip_prefix /oauth2
-                reverse_proxy http://127.0.0.1:4180
-              }
-              redir / /oauth2/sign_in
+              ${localTls}
+              reverse_proxy http://127.0.0.1:4180
             '';
           };
         }
@@ -489,13 +501,7 @@ in
             isValid = srv.proxy.enable && (srv.proxy.servicePort != null);
             isDefault = isValid && srv.proxy.defaultService;
             prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups;
-            vhPrefix = optionalString (!hasHeadscale) "http://";
-            tls = optionalString (hasHeadscale && inLocalZone) ''
-              tls {
-                on_demand
-              }
-            '';
-            reverseProxy = lib.optionalString srv.proxy.hasReverseProxy "${tls}reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString srv.proxy.servicePort}";
+            reverseProxy = lib.optionalString srv.proxy.hasReverseProxy "${localTls}reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString srv.proxy.servicePort}";
           in
           mkIf isValid {
 
