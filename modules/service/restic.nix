@@ -218,10 +218,6 @@ in
     #------------------------------------------------------------------------
 
     darkone.service.restic.enableServer = lib.mkEnableOption "Enable restic REST server";
-    darkone.service.restic.enableServerPrivateRepos = lib.mkEnableOption ''
-      Enforce per-host repository isolation (restic --private-repos). Only flip
-      this on once every client deploys with its per-host REST credential.
-    '';
     darkone.service.restic.serverDataDir = lib.mkOption {
       type = lib.types.str;
       default = "/mnt/backup/restic";
@@ -412,8 +408,8 @@ in
           htpasswd-file = htpasswdFile;
 
           # Per-host isolation: requires authenticated user == repo path prefix
-          # (= hostname). Off by default to allow staged credential rollout.
-          privateRepos = cfg.enableServerPrivateRepos;
+          # (= hostname).
+          privateRepos = true;
         };
 
         # Backups: generated from targets x categories.
