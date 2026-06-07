@@ -76,7 +76,7 @@ let
   # `allowed_groups` query param restricts access to those Kanidm groups, so a
   # single oauth2-proxy can guard several services with distinct group policies.
   mkForwardAuth =
-    allowedGroups:
+    allowedGroups: externalOnly:
     let
 
       # Kanidm emits groups in the `groups` claim as SPNs (`name@<domain>`), not
@@ -84,9 +84,17 @@ let
       # single Caddyfile token; oauth2-proxy decodes it back.
       spns = map (g: "${g}%40${network.domain}") allowedGroups;
       query = optionalString (allowedGroups != [ ]) "?allowed_groups=${concatStringsSep "," spns}";
+
+      # When externalOnly, gate the auth on a matcher so internal callers (LAN
+      # private ranges + tailnet) reach the backend without logging in; only
+      # external clients are challenged. Otherwise the auth applies to everyone.
+      extMatcher = optionalString externalOnly ''
+        @external not remote_ip private_ranges 100.64.0.0/10
+      '';
+      authGuard = optionalString externalOnly "@external ";
     in
     ''
-      forward_auth http://127.0.0.1:4180 {
+      ${extMatcher}forward_auth ${authGuard}http://127.0.0.1:4180 {
         uri /oauth2/auth${query}
         copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
 
@@ -163,9 +171,9 @@ let
 
   # Make virtualhost prefix
   mkPrefix =
-    isInternal: isProtected: allowedGroups:
+    isInternal: isProtected: allowedGroups: externalOnly:
     (optionalString isInternal internalServiceBindSection)
-    + (optionalString isProtected (mkForwardAuth allowedGroups));
+    + (optionalString isProtected (mkForwardAuth allowedGroups externalOnly));
 
   # Global services to expose to internet, only for HCS
   globalServices =
@@ -367,6 +375,11 @@ in
               default = [ ];
               description = "Kanidm groups allowed on this protected service (empty = any authenticated user)";
             };
+            proxy.protectExternalOnly = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Only require auth for external clients; internal LAN/tailnet callers bypass the login";
+            };
             proxy.isInternal = mkOption {
               type = types.bool;
               default = false;
@@ -518,7 +531,9 @@ in
 
             # Protected services wrap auth + backend in a catch-all handle so the
             # anchor's `/oauth2/*` handle is excluded from the forward-auth check.
-            prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups;
+            prefix =
+              mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups
+                srv.proxy.protectExternalOnly;
             body =
               if srv.proxy.isProtected then
                 ''
@@ -563,7 +578,9 @@ in
           srv:
           let
             sPort = config.darkone.system.services.service.${srv.name}.proxy.servicePort;
-            prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups;
+            prefix =
+              mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups
+                srv.proxy.protectExternalOnly;
             noRobots = optionalString srv.params.noRobots badBotsSection;
             reverseProxy = lib.optionalString srv.proxy.hasReverseProxy "reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString sPort}";
           in
