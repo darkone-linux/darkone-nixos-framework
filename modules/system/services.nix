@@ -647,6 +647,15 @@ in
       passAccessToken = false; # Optional: pass token to upstreams
       reverseProxy = true; # Important for forward_auth
 
+      # In reverseProxy mode oauth2-proxy trusts X-Forwarded-* from every source
+      # by default (0.0.0.0/0). The proxy only listens on loopback (httpAddress
+      # above) and Caddy, on the same host, is its sole client, so restrict the
+      # trust to the loopback to reject forwarded-header spoofing.
+      trustedProxyIP = [
+        "127.0.0.1/32"
+        "::1/128"
+      ];
+
       upstream = [ "static://200" ]; # Reply 200 OK after auth (forward_auth mode)
 
       # Per-service authorization is enforced by Caddy via the `allowed_groups`
