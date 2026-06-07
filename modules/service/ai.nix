@@ -6,6 +6,7 @@
   dnfConfig,
   config,
   pkgs,
+  pkgs-stable,
   host,
   hosts,
   zone,
@@ -92,13 +93,14 @@ in
 
       services.ollama = {
         enable = true;
-        openFirewall = false;
+        package = lib.mkDefault pkgs-stable.ollama; # More recent than unstable
+        openFirewall = lib.mkDefault false;
         host = "0.0.0.0";
         loadModels = [
           "llama3.2:3b"
           "gemma4:e4b"
+          "gemma4:12b"
           "deepseek-r1:latest" # 8b
-          "mistral-small3.2:latest" # 24b
         ];
       };
 
