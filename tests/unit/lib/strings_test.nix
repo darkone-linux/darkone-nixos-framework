@@ -23,6 +23,32 @@
     expected = "no consecutive newlines here";
   };
 
+  # ----- extractCountryFromLocale -----
+  testLocaleCountryFr = {
+    expr = dnfLib.extractCountryFromLocale "fr_FR.UTF-8";
+    expected = "FR";
+  };
+  testLocaleCountryEn = {
+    expr = dnfLib.extractCountryFromLocale "en_US.UTF-8";
+    expected = "US";
+  };
+
+  # Language and country differ: only the country (after `_`) is returned.
+  testLocaleCountryMixed = {
+    expr = dnfLib.extractCountryFromLocale "en_GB.UTF-8";
+    expected = "GB";
+  };
+
+  # Malformed inputs yield null rather than crashing.
+  testLocaleCountryNoEncoding = {
+    expr = dnfLib.extractCountryFromLocale "fr_FR";
+    expected = null;
+  };
+  testLocaleCountryEmpty = {
+    expr = dnfLib.extractCountryFromLocale "";
+    expected = null;
+  };
+
   # ----- mkCaddySecurityHeaders -----
   # Sans upload size : pas de bloc `request_body`
   testCaddyHeadersNoUpload = {

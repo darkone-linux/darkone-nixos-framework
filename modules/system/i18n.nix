@@ -9,6 +9,7 @@
 
 {
   lib,
+  dnfLib,
   config,
   zone,
   ...
@@ -16,12 +17,10 @@
 let
   cfg = config.darkone.system.i18n;
 
-  # Match `xx_YY.UTF-8`, capturing language (group 0) and country (group 1).
-  # `strMatching` on the option already rejects malformed values at evaluation
-  # time, so the match is guaranteed to succeed here.
+  # The option type below rejects malformed values, so the locale always
+  # matches `xx_YY.UTF-8` here and the country code is never null.
   localeRegex = "^([a-z]{2})_([A-Z]{2})\\.UTF-8$";
-  localeParts = builtins.match localeRegex cfg.locale;
-  countryCode = builtins.elemAt localeParts 1;
+  countryCode = dnfLib.extractCountryFromLocale cfg.locale;
 in
 {
   options = {

@@ -22,14 +22,8 @@ let
   # ADH and DNSMASQ are on the same host.
   dnsmasqAddr = "127.0.0.1:" + (toString config.services.dnsmasq.settings.port);
 
-  extractReversePrefix =
-    str:
-    let
-      parts = lib.splitString "." str;
-      first = builtins.elemAt parts 0;
-      second = builtins.elemAt parts 1;
-    in
-    "${second}.${first}";
+  # Local PTR domain prefix derived from the LAN network address.
+  inherit (dnfLib) extractReversePrefix;
 in
 {
   options = {
