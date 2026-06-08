@@ -27,6 +27,12 @@ secrets="$workDir/usr/secrets/secrets.yaml"
 log() { printf '[ \033[36mMTX\033[0m ] %s\n' "$*" >&2; }
 die() { printf '[ \033[31mMTX\033[0m ] %s\n' "$*" >&2; exit 1; }
 
+# The public Matrix vhost runs Caddy's bad-bots filter, which 403s a `curl`
+# User-Agent (and empty/bot-like ones). Use a neutral UA for every request so
+# client calls through the reverse proxy are not rejected.
+UA="DNF-Setup"
+mx() { curl -A "$UA" "$@"; }
+
 [ -f "$cfg" ] || die "config.yaml not found ($cfg)."
 [ -f "$secrets" ] || die "secrets file not found ($secrets) — run 'just configure-admin-host' first."
 for bin in yq jq curl openssl sops nix; do
@@ -63,12 +69,12 @@ sops_set() { sops set "$secrets" "[\"$1\"]" "\"$2\""; }
 # whoami: true when $TOKEN is a valid session for the bot.
 token_valid() {
   [ -n "${TOKEN:-}" ] || return 1
-  curl -fsS "$PUBLIC_HS/_matrix/client/v3/account/whoami" -H "Authorization: Bearer $TOKEN" 2>/dev/null \
+  mx -fsS "$PUBLIC_HS/_matrix/client/v3/account/whoami" -H "Authorization: Bearer $TOKEN" 2>/dev/null \
     | jq -e --arg u "$BOT_USER" '.user_id == $u' >/dev/null 2>&1
 }
 
 login_token() {
-  curl -fsS -XPOST "$PUBLIC_HS/_matrix/client/v3/login" -H 'Content-Type: application/json' \
+  mx -fsS -XPOST "$PUBLIC_HS/_matrix/client/v3/login" -H 'Content-Type: application/json' \
     -d "{\"type\":\"m.login.password\",\"identifier\":{\"type\":\"m.id.user\",\"user\":\"$bot\"},\"password\":\"$1\"}" \
     | jq -r '.access_token // empty'
 }
@@ -82,7 +88,7 @@ register_token() {
   [ -n "$shared" ] || die "registration shared secret (matrix-rss-password) missing in sops."
 
   admin_hs="$PUBLIC_HS"
-  if ! curl -fsS -o /dev/null "$PUBLIC_HS/_synapse/admin/v1/register" 2>/dev/null; then
+  if ! mx -fsS -o /dev/null "$PUBLIC_HS/_synapse/admin/v1/register" 2>/dev/null; then
     [ -n "$matrixHost" ] || die "admin API not public and Matrix host unknown — cannot tunnel."
     log "Admin API not public: opening SSH tunnel to $matrixHost (as nix)..."
     sudo -i -u nix ssh -fN -o ExitOnForwardFailure=yes -L 18008:localhost:8008 "nix@${matrixHost}"
@@ -90,10 +96,10 @@ register_token() {
     admin_hs="http://localhost:18008"
   fi
 
-  nonce="$(curl -fsS "$admin_hs/_synapse/admin/v1/register" | jq -r .nonce)"
+  nonce="$(mx -fsS "$admin_hs/_synapse/admin/v1/register" | jq -r .nonce)"
   mac="$(printf '%s\0%s\0%s\0notadmin' "$nonce" "$bot" "$pass" \
     | openssl dgst -sha1 -hmac "$shared" | awk '{print $NF}')"
-  resp="$(curl -sS -XPOST "$admin_hs/_synapse/admin/v1/register" -H 'Content-Type: application/json' \
+  resp="$(mx -sS -XPOST "$admin_hs/_synapse/admin/v1/register" -H 'Content-Type: application/json' \
     -d "{\"nonce\":\"$nonce\",\"username\":\"$bot\",\"displayname\":\"Alertes\",\"password\":\"$pass\",\"admin\":false,\"mac\":\"$mac\"}" || true)"
 
   [ -n "$tunnel" ] && sudo -i -u nix pkill -f '18008:localhost:8008' 2>/dev/null || true
@@ -138,16 +144,16 @@ fi
 ensure_room() { # $1 alias local part, $2 display name -> echoes room_id
   local alias="$1" name="$2" enc rid
   enc="%23${alias}:${domain}"
-  rid="$(curl -fsS "$PUBLIC_HS/_matrix/client/v3/directory/room/$enc" -H "Authorization: Bearer $TOKEN" 2>/dev/null \
+  rid="$(mx -fsS "$PUBLIC_HS/_matrix/client/v3/directory/room/$enc" -H "Authorization: Bearer $TOKEN" 2>/dev/null \
     | jq -r '.room_id // empty')"
   if [ -z "$rid" ]; then
-    rid="$(curl -fsS -XPOST "$PUBLIC_HS/_matrix/client/v3/createRoom" -H "Authorization: Bearer $TOKEN" \
+    rid="$(mx -fsS -XPOST "$PUBLIC_HS/_matrix/client/v3/createRoom" -H "Authorization: Bearer $TOKEN" \
       -H 'Content-Type: application/json' \
       -d "{\"room_alias_name\":\"$alias\",\"name\":\"$name\",\"preset\":\"private_chat\",\"visibility\":\"private\"}" \
       | jq -r '.room_id // empty')"
   fi
   # Join (no-op if already a member) so the bot can always post.
-  [ -n "$rid" ] && curl -fsS -XPOST "$PUBLIC_HS/_matrix/client/v3/join/$rid" \
+  [ -n "$rid" ] && mx -fsS -XPOST "$PUBLIC_HS/_matrix/client/v3/join/$rid" \
     -H "Authorization: Bearer $TOKEN" -d '{}' >/dev/null 2>&1 || true
   printf '%s' "$rid"
 }
@@ -161,7 +167,7 @@ log "incidents = $INC_ID"
 
 # Invite the human admin (tolerant: already-invited/joined returns an error).
 for R in "$WARN_ID" "$INC_ID"; do
-  curl -fsS -XPOST "$PUBLIC_HS/_matrix/client/v3/rooms/$R/invite" -H "Authorization: Bearer $TOKEN" \
+  mx -fsS -XPOST "$PUBLIC_HS/_matrix/client/v3/rooms/$R/invite" -H "Authorization: Bearer $TOKEN" \
     -H 'Content-Type: application/json' -d "{\"user_id\":\"$HUMAN\"}" >/dev/null 2>&1 || true
 done
 
