@@ -92,7 +92,18 @@ let
   # Consumer-side generated inventory
   hosts = import (workDir + "/var/generated/hosts.nix");
   users = import (workDir + "/var/generated/users.nix");
-  network = import (workDir + "/var/generated/network.nix");
+
+  # `network` carries the topology; the optional `matrix.nix` overlay holds the
+  # alert bot identity + room IDs provisioned by `just configure-alert-bot`
+  # (kept out of config.yaml, which is manual-only). Merged here so framework
+  # modules keep reading `network.matrix.*` transparently.
+  networkBase = import (workDir + "/var/generated/network.nix");
+  matrixFile = workDir + "/var/generated/matrix.nix";
+  network =
+    if builtins.pathExists matrixFile then
+      nixpkgs.lib.recursiveUpdate networkBase (import matrixFile)
+    else
+      networkBase;
   dnfConfig = import ./../config;
 
   # Pre-resolve NixOS-side profile module paths so `modules/user/build.nix`
