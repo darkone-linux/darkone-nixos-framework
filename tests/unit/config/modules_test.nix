@@ -27,12 +27,19 @@ let
         "uniquePerZone"
         "externalAccess"
         "description"
+        "require"
         "activation"
       ];
       fields.reverseProxy.type = "bool";
       fields.uniquePerZone.type = "bool";
       fields.externalAccess.type = "bool";
       fields.description.type = "string";
+
+      # Sibling modules that must co-exist on the node (generator-enforced).
+      fields.require = {
+        type = "listOfStrings";
+        unique = true;
+      };
       fields.activation = {
         type = "attrs";
         key.oneOf = [ "profiles" ];

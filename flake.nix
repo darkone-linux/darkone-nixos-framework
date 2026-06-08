@@ -49,6 +49,7 @@
 
     # Claude Code — always-up-to-date native binary from Anthropic.
     # Auto-updated hourly by the upstream flake; no version pin.
+    # NOTE: evaluation warning: 'system' has been renamed to/replaced by 'stdenv.hostPlatform.system'
     claude-code.url = "github:sadjow/claude-code-nix";
     claude-code.inputs.nixpkgs.follows = "nixpkgs";
 
