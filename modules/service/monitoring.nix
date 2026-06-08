@@ -26,6 +26,11 @@
 let
   cfg = config.darkone.service.monitoring;
   alerting = cfg.alerting;
+
+  # Matrix alerting config declared once in config.yaml (network.matrix), so the
+  # bot user and room IDs (provisioned by `just configure-alert-bot`) default
+  # from the network and need no per-host repetition.
+  mtx = network.matrix or { };
   port = {
     grafana = dnfConfig.network.ports.grafana;
     nodeExporter = dnfConfig.network.ports.nodeExporter;
@@ -128,21 +133,21 @@ in
         };
         userId = lib.mkOption {
           type = lib.types.str;
-          default = "";
+          default = if (mtx.bot or "") != "" then "@${mtx.bot}:${network.domain}" else "";
           example = "@alertbot:poncon.fr";
-          description = "Matrix user ID of the alert bot (must have joined both rooms)";
+          description = "Matrix user ID of the alert bot (defaults from network.matrix.bot)";
         };
         warningsRoom = lib.mkOption {
           type = lib.types.str;
-          default = "";
+          default = mtx.warningsRoom or "";
           example = "!warnings:poncon.fr";
-          description = "Matrix room ID receiving warning-severity alerts";
+          description = "Matrix room ID for warnings (defaults from network.matrix.warningsRoom)";
         };
         incidentsRoom = lib.mkOption {
           type = lib.types.str;
-          default = "";
+          default = mtx.incidentsRoom or "";
           example = "!incidents:poncon.fr";
-          description = "Matrix room ID receiving critical-severity alerts";
+          description = "Matrix room ID for incidents (defaults from network.matrix.incidentsRoom)";
         };
       };
 

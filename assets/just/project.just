@@ -475,6 +475,17 @@ sops:
 	sudo -i -u nix EDITOR=vim sops {{sopsSecretsFile}} || true
 	just _fix_fs_permissions
 
+# Provision the Matrix alert bot + rooms (idempotent) from network.matrix.
+# Reads config.yaml (network.matrix.{admin,bot}), creates/refreshes the bot,
+# webhook secret and the warnings/incidents rooms, and writes the resulting
+# room IDs back into config.yaml. Re-run any time; it only fixes what's missing.
+[group('install')]
+configure-alert-bot:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	WORKDIR="{{workDir}}" bash {{dnfDir}}/assets/scripts/matrix-alert-creation.sh
+	just _fix_fs_permissions
+
 # Sync Kanidm replication certificates (multi-zone read-only replicas).
 #
 # Replication is automatic when idm runs on the HCS and >=1 zone gateway. Bootstrap
