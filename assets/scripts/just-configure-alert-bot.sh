@@ -191,7 +191,7 @@ cat > "$tmp" <<EOF
 }
 EOF
 mv -f "$tmp" "$gen/matrix.nix"
+chmod 644 "$gen/matrix.nix"
 log "Bot + room IDs written to var/generated/matrix.nix."
-
 log "Done. Alerting auto-enables on the prometheus host (rooms now provisioned)."
 log "Run 'just apply <host>' to deploy."
