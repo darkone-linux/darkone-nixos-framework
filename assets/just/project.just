@@ -889,6 +889,26 @@ apply-local what='switch':
 	just _log "Applying locally ({{what}})..."
 	colmena apply-local --sudo {{what}}
 
+# Apply with rebuild silence: flag the target(s) under maintenance so
+# Alertmanager inhibits their alerts during the restart, then clear the flag.
+# Requires the monitoring alerting layer (dnf-maintenance ships on monitored
+# nodes); on a first deploy or a non-monitored host the flag step is a no-op.
+[group('apply')]
+apply-silenced on what='switch':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	_exec() {
+		if [ "${USER:-}" = "nix" ] ;then
+			colmena exec --on "{{on}}" "$@"
+		else
+			sudo -i -u nix colmena exec --config "{{workDir}}/flake.nix" --on "{{on}}" "$@"
+		fi
+	}
+	just _log "Silencing alerts on {{on}}..."
+	_exec dnf-maintenance on || just _warn "Could not set maintenance flag (first deploy or alerting disabled)."
+	trap '_exec dnf-maintenance off || true' EXIT
+	just apply "{{on}}" "{{what}}"
+
 #==============================================================================
 # Maintenance
 #==============================================================================

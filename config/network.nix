@@ -100,11 +100,20 @@
     # modules/service/mealie.nix
     mealie = 9002;
 
+    # Prometheus Alertmanager web/API. modules/service/monitoring.nix
+    alertmanager = 9093;
+
     # Loki gRPC listener. modules/service/loki.nix
     lokiGrpc = 9096;
 
+    # matrix-alertmanager webhook bot (loopback). modules/service/monitoring.nix
+    matrixAlertReceiver = 9099;
+
     # Prometheus node exporter. modules/service/monitoring.nix
     nodeExporter = 9100;
+
+    # Prometheus blackbox exporter (network probes). modules/service/monitoring.nix
+    blackboxExporter = 9115;
 
     # Open WebUI (AI front-end, reverse-proxy target). modules/service/ai.nix
     ai = 9758;

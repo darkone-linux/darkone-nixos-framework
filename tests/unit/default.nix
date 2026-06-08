@@ -11,6 +11,7 @@ in
   lib_date_time = import ./lib/date-time_test.nix { inherit dnfLib; };
   lib_networking = import ./lib/networking_test.nix { inherit dnfLib; };
   lib_topology = import ./lib/topology_test.nix { inherit dnfLib; };
+  lib_alerts = import ./lib/alerts_test.nix { inherit dnfLib; };
   lib_service_params = import ./lib/service-params_test.nix { inherit dnfLib; };
   lib_firewall = import ./lib/firewall_test.nix { inherit dnfLib; };
   lib_oidc = import ./lib/oidc_test.nix { inherit dnfLib; };

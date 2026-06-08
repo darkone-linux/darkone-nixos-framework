@@ -13,6 +13,7 @@ let
   dateTime = import ./date-time.nix { inherit lib; };
   networking = import ./networking.nix { inherit lib; };
   topology = import ./topology.nix { inherit lib constants; };
+  alerts = import ./alerts.nix { inherit lib topology; };
   serviceParams = import ./service-params.nix { inherit lib strings; };
   firewall = import ./firewall.nix { inherit lib constants topology; };
   oidc = import ./oidc.nix { inherit lib topology serviceParams; };
@@ -48,6 +49,18 @@ in
     preferredIp
     ;
   inherit (serviceParams) buildServiceParams extractServiceParams enableBlock;
+  inherit (alerts)
+    serviceUnits
+    nodeClass
+    severityForClass
+    hostExpectedUnits
+    mkNodeRuleGroups
+    mkResourceRuleGroups
+    mkNetworkRuleGroups
+    mkMaintenanceRuleGroups
+    mergeRuleGroups
+    mkAlertRuleGroups
+    ;
   inherit (firewall) getInternalInterfaceFwPath mkInternalFirewall;
   inherit (oidc)
     oauth2ClientName
