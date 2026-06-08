@@ -8,8 +8,6 @@
 # Called once per consumer flake; closes over the framework inputs declared
 # in `dnf/flake.nix`. The consumer only has to forward `workDir`.
 # :::
-#
-# Aim: configure, use, maintain.
 
 { inputs }:
 workDir:

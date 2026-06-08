@@ -11,8 +11,6 @@
 # `workDir`, which makes them straightforward to unit-test with mock string
 # roots (`/fw`, `/wd`).
 # :::
-#
-# Aim: configure, use, maintain.
 
 { lib }:
 

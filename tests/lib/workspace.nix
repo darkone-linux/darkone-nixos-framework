@@ -6,8 +6,6 @@
 # `nodeOf <host>` returns `{ modules; specialArgs; system; }`, ready to
 # replug into `pkgs.testers.runNixOSTest`.
 # :::
-#
-# Aim: use, debug.
 
 { inputs }:
 let

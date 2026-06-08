@@ -1,6 +1,6 @@
 # Prometheus monitoring server with declarative Alertmanager escalation.
 #
-# :::tip
+# :::tip[Prometheus & Grafana]
 # Standalone metrics + alerting service, independent from Grafana:
 #
 # - Scrapes every zone node carrying the `monitoring-node:<zone>` feature.
@@ -15,8 +15,6 @@
 # `https://prometheus.<zone>.<domain>` behind oauth2-proxy (group `admins`),
 # which also fixes the alert links pointing back to Prometheus.
 # :::
-#
-# Aim: use, maintain, configure, debug.
 
 {
   lib,

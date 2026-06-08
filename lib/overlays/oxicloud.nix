@@ -14,8 +14,6 @@
 # (via `env.RUSTFLAGS` ou suppression du `.cargo/config.toml`). À remonter en
 # amont : `target-cpu=native` casse le contrat de portabilité du cache binaire.
 # :::
-#
-# Aim: maintenir, supprimer.
 
 _final: prev: {
 

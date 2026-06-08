@@ -6,8 +6,6 @@
 # Stays qemu-vm-agnostic (no `virtualisation.*`) so the L1 eval tier can
 # import it into a plain `nixosSystem`; VM sizing lives in the VM helpers.
 # :::
-#
-# Aim: use.
 
 { lib, ... }:
 {

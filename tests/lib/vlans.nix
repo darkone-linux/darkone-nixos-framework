@@ -13,8 +13,6 @@
 #   - VLAN 9 is the shared "WAN" segment carried only by gateways
 #   - host.zone is the bare zone name ("z1"), as emitted by the generator
 #     in `var/generated/hosts.nix`
-#
-# Aim: use.
 
 { ... }:
 let

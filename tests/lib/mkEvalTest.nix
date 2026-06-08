@@ -7,8 +7,6 @@
 # production-only workDir reads (nix.pub, ...) don't trip the guard. The driver-
 # owned bits dropped by `forTest` (the nixpkgs misc module + hostPlatform) are
 # added back for a standalone `nixosSystem`.
-#
-# Aim: use.
 
 { pkgs, inputs }:
 { name, workspaces }:

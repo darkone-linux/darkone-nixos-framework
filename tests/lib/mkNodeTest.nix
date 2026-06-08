@@ -9,8 +9,6 @@
 # scenarios (forgejo, fail2ban, ...) bind on `0.0.0.0`/`localhost` and
 # don't need the extra plumbing.
 # :::
-#
-# Aim: use.
 
 { pkgs, inputs }:
 {

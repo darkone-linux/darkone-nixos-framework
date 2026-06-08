@@ -11,8 +11,6 @@
 # they are external and need no `config` lookup. Only the truly per-node bits
 # (`host`, `zone`) flow through `_module.args`.
 # :::
-#
-# Aim: use.
 
 { pkgs, inputs }:
 {

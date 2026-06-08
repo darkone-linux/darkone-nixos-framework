@@ -4,8 +4,6 @@
 # (§4) stays explicit and the helper can grow VPN-specific knobs later
 # (headscale-stub assertions, mesh fixtures) without touching the network
 # tier.
-#
-# Aim: use.
 
 { pkgs, inputs }:
 {

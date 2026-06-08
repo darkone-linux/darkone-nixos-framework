@@ -6,8 +6,6 @@
 # `nixpkgs-geneweb` dans `flake.nix` rend ce fichier mort, et `pkgs.geneweb`
 # devient naturellement fourni par le tree `nixpkgs` principal.
 # :::
-#
-# Aim: maintenir, supprimer.
 
 { nixpkgs-geneweb }:
 

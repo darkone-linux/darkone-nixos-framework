@@ -10,8 +10,6 @@
 # falls back to a documentation marker pointing at the manual command —
 # explicitly allowed by Phase 9.4 of the plan.
 # :::
-#
-# Aim: use.
 
 { pkgs, inputs }:
 {

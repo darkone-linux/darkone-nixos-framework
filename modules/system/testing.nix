@@ -9,8 +9,6 @@
 # Enabled only via `tests/lib/test-tuning.nix`. This module never references
 # any path under `tests/` — the cert path is passed as an option value.
 # :::
-#
-# Aim: use, debug.
 
 { lib, config, ... }:
 let
