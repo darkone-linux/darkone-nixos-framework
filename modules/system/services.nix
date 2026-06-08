@@ -169,7 +169,7 @@ let
     }
   '';
 
-  # Make virtualhost prefix: 
+  # Make virtualhost prefix:
   # - isInternal -> abort external access
   # - isProtected -> forward to oauth2-proxy (must be logged with kanidm + member of allowedGroups)
   mkPrefix =

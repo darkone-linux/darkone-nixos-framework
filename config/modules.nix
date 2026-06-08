@@ -103,7 +103,14 @@
     activation.profiles.minimal.triggers.keys.mealie = [ "enable" ];
   };
   monitoring = {
+
+    # Grafana needs a Prometheus on the same host; the generator errors out if a
+    # node enables `monitoring` without `prometheus`.
+    require = [ "prometheus" ];
     activation.profiles.minimal.triggers.keys.monitoring = [ "enable" ];
+  };
+  prometheus = {
+    activation.profiles.minimal.triggers.keys.prometheus = [ "enable" ];
   };
   nextcloud = {
     activation.profiles.minimal.triggers.keys.nextcloud = [ "enable" ];

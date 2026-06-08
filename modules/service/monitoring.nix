@@ -1,14 +1,13 @@
-# Supervision module with prometheus, grafana and node exporter.
+# Supervision module: Grafana dashboards + per-node exporter.
 #
 # :::tip
-# This module is preconfigured with a configuration that allows you
-# to monitor the operating system, network activity, resources, and performance.
-# For each zone:
+# Grafana visualises the metrics collected by the `prometheus` service (which it
+# requires on the same host, enforced by the generator). For each zone:
 #
-# - All nodes with tag "monitoring-node" contains prometheus + node exporter.
-# - The node with service "monitoring" contains grafana.
+# - All nodes with tag "monitoring-node" run the node exporter.
+# - The node with service "monitoring" runs Grafana (and requires `prometheus`).
 # - Only one monitoring host per zone is accepted.
-# - A tag "monitoring-node:[zone]" is attached to a monitoring host of the designed zone.
+# - A tag "monitoring-node:[zone]" attaches a node to that zone's Prometheus.
 # :::
 
 {
@@ -25,25 +24,15 @@
 }:
 let
   cfg = config.darkone.service.monitoring;
-  alerting = cfg.alerting;
 
-  # Matrix alerting config declared once in config.yaml (network.matrix), so the
-  # bot user and room IDs (provisioned by `just configure-alert-bot`) default
-  # from the network and need no per-host repetition.
-  mtx = network.matrix or { };
+  # Rebuild silence is owned by the prometheus alerting block; the per-node flag
+  # writer below only needs to know whether to ship the maintenance helper.
+  silenceOnRebuild = config.darkone.service.prometheus.alerting.silenceOnRebuild;
+
   port = {
     grafana = dnfConfig.network.ports.grafana;
     nodeExporter = dnfConfig.network.ports.nodeExporter;
-    prometheus = config.services.prometheus.port;
-    alertmanager = dnfConfig.network.ports.alertmanager;
-    matrixReceiver = dnfConfig.network.ports.matrixAlertReceiver;
-    blackbox = dnfConfig.network.ports.blackboxExporter;
   };
-
-  # Nodes supervised by the current zone
-  nodes = lib.filter (
-    h: lib.hasAttr "monitoring-node" h.features && h.features.monitoring-node == zone.name
-  ) hosts;
 
   # Service params
   defaultParams = {
@@ -92,38 +81,6 @@ let
       esac
     '';
   };
-
-  # Network reachability targets, shared by the blackbox prober (probes scraped)
-  # and the network alert rules (probe_success == 0). The zone gateway and the
-  # headscale coordination server are the two single points whose loss breaks
-  # the zone or the tailnet. Lazy: only forced inside the alerting mkIf blocks.
-  gwIp = zone.gateway.vpn.ipv4 or "";
-  hcsHost = dnfLib.findHost network.coordination.hostname dnfLib.constants.globalZone hosts;
-  hcsIp = hcsHost.vpnIp or "";
-  dnsTarget = "${gwIp}:53";
-
-  # One alert per probe target, named and severity-tagged: gateway/tailnet
-  # losses page, a DNS miss warns.
-  networkProbes =
-    (lib.optional (gwIp != "") {
-      name = "gateway ${zone.name} (${gwIp})";
-      instance = gwIp;
-      job = "blackbox-icmp";
-      severity = "critical";
-    })
-    ++ (lib.optional (hcsIp != "") {
-      name = "tailnet coordination ${network.coordination.hostname} (${hcsIp})";
-      instance = hcsIp;
-      job = "blackbox-icmp";
-      severity = "critical";
-    })
-    ++ (lib.optional (gwIp != "") {
-      name = "DNS resolver ${gwIp}";
-      instance = dnsTarget;
-      job = "blackbox-dns";
-      severity = "warning";
-      "for" = "5m";
-    });
 in
 {
   options = {
@@ -132,11 +89,6 @@ in
       type = lib.types.bool;
       default = lib.hasAttrByPath [ "features" "monitoring-node" ] host;
       description = "Is a monitoring node";
-    };
-    darkone.service.monitoring.retentionTime = lib.mkOption {
-      type = lib.types.str;
-      default = "30d";
-      description = "Prometheus metrics retention duration";
     };
     darkone.service.monitoring.kioskTarget = lib.mkOption {
       type = lib.types.str;
@@ -148,78 +100,9 @@ in
         when active to point to a multi-source home dashboard.
       '';
     };
-
-    # Alerting (Alertmanager + Matrix/email escalation). Lives on the zone
-    # monitoring host (alongside Prometheus/Grafana). Severity drives the
-    # escalation: warning -> Matrix #warnings, critical -> Matrix #incidents +
-    # mail. Node class (critical/non-critical/disabled) comes from the `alert-*`
-    # features or the host profile (see dnfLib alerts helpers).
-    darkone.service.monitoring.alerting = {
-      enable = lib.mkEnableOption "Alertmanager-based alerting on the zone monitoring host";
-
-      matrix = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Deliver alerts to Matrix rooms via the matrix-alertmanager bot";
-        };
-        userId = lib.mkOption {
-          type = lib.types.str;
-          default = if (mtx.bot or "") != "" then "@${mtx.bot}:${network.domain}" else "";
-          example = "@alertbot:poncon.fr";
-          description = "Matrix user ID of the alert bot (defaults from network.matrix.bot)";
-        };
-        warningsRoom = lib.mkOption {
-          type = lib.types.str;
-          default = mtx.warningsRoom or "";
-          example = "!warnings:poncon.fr";
-          description = "Matrix room ID for warnings (defaults from network.matrix.warningsRoom)";
-        };
-        incidentsRoom = lib.mkOption {
-          type = lib.types.str;
-          default = mtx.incidentsRoom or "";
-          example = "!incidents:poncon.fr";
-          description = "Matrix room ID for incidents (defaults from network.matrix.incidentsRoom)";
-        };
-      };
-
-      email = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Also send critical alerts by mail (through the local Postfix relay)";
-        };
-        to = lib.mkOption {
-          type = lib.types.str;
-          default = "admin@${network.domain}";
-          description = "Recipient of critical alert mails";
-        };
-      };
-
-      network.enable = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = "Probe network reachability (gateway/tailnet/DNS) with blackbox_exporter";
-      };
-
-      silenceOnRebuild = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = "Ship the dnf-maintenance flag (textfile collector) so rebuilds inhibit a node's alerts";
-      };
-
-      thresholds = lib.mkOption {
-        type = lib.types.attrs;
-        default = { };
-        example = {
-          diskFreePercentWarn = 10;
-        };
-        description = "Override resource alert thresholds (see dnf/lib/alerts.nix defaults)";
-      };
-    };
   };
 
-  # Prometheus + Grafana + Node Exporter
+  # Grafana dashboards + per-node exporter (Prometheus lives in prometheus.nix)
   config = lib.mkMerge [
 
     #------------------------------------------------------------------------
@@ -231,10 +114,7 @@ in
         inherit defaultParams;
         persist = {
           dbFiles = lib.optional cfg.enable "/var/lib/grafana/grafana.db";
-          varDirs = [
-            "/var/lib/prometheus2"
-          ]
-          ++ lib.optionals cfg.enable [
+          varDirs = lib.optionals cfg.enable [
             "/var/lib/grafana/plugins"
             "/var/lib/grafana/data"
           ];
@@ -341,27 +221,6 @@ in
       systemd.services.prometheus-node-exporter = {
         after = [ "network-online.target" ];
         wants = [ "network-online.target" ];
-      };
-
-      #--------------------------------------------------------------------------
-      # Prometheus
-      #--------------------------------------------------------------------------
-
-      # Prometheus (scraping du node exporter)
-      services.prometheus = {
-        inherit (cfg) enable;
-        inherit (cfg) retentionTime;
-        scrapeConfigs = lib.optional cfg.enable {
-          job_name = "node";
-          static_configs = [
-            { targets = map (h: "${dnfLib.preferredIp h}:${toString port.nodeExporter}") nodes; }
-          ];
-          scrape_interval = "15s";
-        };
-        globalConfig = lib.mkIf cfg.enable {
-          scrape_interval = "15s";
-          evaluation_interval = "15s";
-        };
       };
 
       #--------------------------------------------------------------------------
@@ -476,266 +335,10 @@ in
     })
 
     #--------------------------------------------------------------------------
-    # Alerting — Alertmanager + Matrix/email escalation (severity-based)
-    #--------------------------------------------------------------------------
-
-    (lib.mkIf (cfg.enable && alerting.enable) {
-
-      assertions = [
-        {
-          assertion =
-            !alerting.matrix.enable
-            || (
-              alerting.matrix.userId != ""
-              && alerting.matrix.warningsRoom != ""
-              && alerting.matrix.incidentsRoom != ""
-            );
-          message = "darkone.service.monitoring.alerting.matrix: userId, warningsRoom and incidentsRoom are required when Matrix delivery is enabled.";
-        }
-      ];
-
-      # Critical alerts escalate to mail through the framework's local relay, so
-      # it must run here: Postfix owns the 465/SASL/TLS handshake, Alertmanager
-      # only talks plain SMTP to localhost.
-      darkone.service.postfix.enable = lib.mkIf alerting.email.enable (lib.mkDefault true);
-
-      # Bot access token + shared webhook secret. The same webhook secret is fed
-      # to Alertmanager via env so the receiver URL it builds matches the bot.
-      sops.secrets = lib.mkIf alerting.matrix.enable {
-        alertmanager-matrix-token = { };
-        alertmanager-webhook-secret = { };
-      };
-      sops.templates = lib.mkIf alerting.matrix.enable {
-        alertmanager-env.content = ''
-          WEBHOOK_SECRET=${config.sops.placeholder.alertmanager-webhook-secret}
-        '';
-      };
-
-      # Matrix delivery bot: maps an Alertmanager receiver name to a room.
-      services.matrix-alertmanager = lib.mkIf alerting.matrix.enable {
-        enable = true;
-        port = port.matrixReceiver;
-        homeserverUrl = "https://matrix.${network.domain}";
-        matrixUser = alerting.matrix.userId;
-        tokenFile = config.sops.secrets.alertmanager-matrix-token.path;
-        secretFile = config.sops.secrets.alertmanager-webhook-secret.path;
-        matrixRooms = [
-          {
-            receivers = [ "matrix-warnings" ];
-            roomId = alerting.matrix.warningsRoom;
-          }
-          {
-            receivers = [ "matrix-incidents" ];
-            roomId = alerting.matrix.incidentsRoom;
-          }
-        ];
-      };
-
-      # Alertmanager: dedup + grouping + severity routing + inhibition.
-      services.prometheus.alertmanager = {
-        enable = true;
-        port = port.alertmanager;
-        listenAddress = "127.0.0.1";
-        environmentFile = lib.mkIf alerting.matrix.enable config.sops.templates.alertmanager-env.path;
-
-        # `$WEBHOOK_SECRET` is substituted at runtime from environmentFile; the
-        # build-time amtool check sees the literal, so it is disabled.
-        checkConfig = false;
-
-        configuration = {
-          route = {
-            group_by = [
-              "alertname"
-              "instance"
-            ];
-            group_wait = "30s";
-            group_interval = "5m";
-            repeat_interval = "4h";
-            receiver = "matrix-warnings";
-            routes =
-              # Maintenance alerts are swallowed: they exist only to drive
-              # inhibition, never to notify.
-              lib.optional alerting.silenceOnRebuild {
-                matchers = [ ''alertname="MaintenanceMode"'' ];
-                receiver = "null";
-              }
-              ++ [
-                {
-                  matchers = [ ''severity="critical"'' ];
-                  receiver = "matrix-incidents";
-                }
-                {
-                  matchers = [ ''severity="warning"'' ];
-                  receiver = "matrix-warnings";
-                }
-              ];
-          };
-
-          inhibit_rules =
-            # A firing critical mutes the matching warning for the same target.
-            [
-              {
-                source_matchers = [ ''severity="critical"'' ];
-                target_matchers = [ ''severity="warning"'' ];
-                equal = [
-                  "alertname"
-                  "instance"
-                ];
-              }
-            ]
-            # A node under maintenance mutes all of its own alerts.
-            ++ lib.optional alerting.silenceOnRebuild {
-              source_matchers = [ ''alertname="MaintenanceMode"'' ];
-              target_matchers = [ ''severity=~".+"'' ];
-              equal = [ "instance" ];
-            };
-
-          receivers = lib.optional alerting.silenceOnRebuild { name = "null"; } ++ [
-            {
-              name = "matrix-warnings";
-              webhook_configs = lib.optionals alerting.matrix.enable [
-                {
-                  url = "http://127.0.0.1:${toString port.matrixReceiver}/alerts?secret=$WEBHOOK_SECRET";
-                  send_resolved = true;
-                }
-              ];
-            }
-            {
-              name = "matrix-incidents";
-              webhook_configs = lib.optionals alerting.matrix.enable [
-                {
-                  url = "http://127.0.0.1:${toString port.matrixReceiver}/alerts?secret=$WEBHOOK_SECRET";
-                  send_resolved = true;
-                }
-              ];
-              email_configs = lib.optionals alerting.email.enable [
-                {
-                  to = alerting.email.to;
-                  from = "alertmanager@${network.domain}";
-                  smarthost = "localhost:25";
-                  require_tls = false;
-                  send_resolved = true;
-                }
-              ];
-            }
-          ];
-        };
-      };
-
-      # Point Prometheus at the local Alertmanager and load the generated rules.
-      services.prometheus.alertmanagers = [
-        { static_configs = [ { targets = [ "127.0.0.1:${toString port.alertmanager}" ]; } ]; }
-      ];
-      
-      # NixOS concatenates every `services.prometheus.rules` entry into ONE file;
-      # multiple top-level `groups:` documents would not merge (only the first is
-      # read). So fold node/resource, maintenance and network groups into a single
-      # document here rather than emitting separate entries.
-      services.prometheus.rules = [
-        (builtins.toJSON (
-          dnfLib.mergeRuleGroups (
-            [
-              (dnfLib.mkAlertRuleGroups {
-                inherit nodes;
-                services = network.services;
-                nodeExporterPort = port.nodeExporter;
-                zoneName = zone.name;
-                inherit (alerting) thresholds;
-              })
-            ]
-            ++ lib.optional alerting.silenceOnRebuild (dnfLib.mkMaintenanceRuleGroups { zoneName = zone.name; })
-            ++ lib.optional alerting.network.enable (
-              dnfLib.mkNetworkRuleGroups {
-                zoneName = zone.name;
-                probes = networkProbes;
-              }
-            )
-          )
-        ))
-      ];
-    })
-
-    #--------------------------------------------------------------------------
-    # Network reachability — blackbox probes (gateway / tailnet / DNS)
-    #--------------------------------------------------------------------------
-
-    (lib.mkIf (cfg.enable && alerting.enable && alerting.network.enable) (
-      let
-
-        # A name that must always resolve through the zone resolver; failure to
-        # answer it flags a DNS problem. (Reachability targets gwIp/hcsIp/dnsTarget
-        # are derived once at module scope and shared with the network rules.)
-        controlName = "idm.${network.domain}";
-
-        icmpTargets = lib.filter (x: x != "") [
-          gwIp
-          hcsIp
-        ];
-
-        # Blackbox prober definitions (ICMP reachability + DNS resolution).
-        blackboxConfig = (pkgs.formats.yaml { }).generate "blackbox.yml" {
-          modules = {
-            icmp = {
-              prober = "icmp";
-              timeout = "5s";
-              icmp.preferred_ip_protocol = "ip4";
-            };
-            dns = {
-              prober = "dns";
-              timeout = "5s";
-              dns = {
-                query_name = controlName;
-                query_type = "A";
-                preferred_ip_protocol = "ip4";
-              };
-            };
-          };
-        };
-
-        # Standard blackbox scrape: the probed address travels as `instance`,
-        # the request itself is sent to the local exporter.
-        mkBlackboxJob = jobName: moduleName: targets: {
-          job_name = jobName;
-          metrics_path = "/probe";
-          params.module = [ moduleName ];
-          static_configs = [ { inherit targets; } ];
-          scrape_interval = "30s";
-          relabel_configs = [
-            {
-              source_labels = [ "__address__" ];
-              target_label = "__param_target";
-            }
-            {
-              source_labels = [ "__param_target" ];
-              target_label = "instance";
-            }
-            {
-              target_label = "__address__";
-              replacement = "127.0.0.1:${toString port.blackbox}";
-            }
-          ];
-        };
-      in
-      {
-        services.prometheus.exporters.blackbox = {
-          enable = true;
-          port = port.blackbox;
-          listenAddress = "127.0.0.1";
-          openFirewall = false;
-          configFile = blackboxConfig;
-        };
-
-        services.prometheus.scrapeConfigs =
-          (lib.optional (icmpTargets != [ ]) (mkBlackboxJob "blackbox-icmp" "icmp" icmpTargets))
-          ++ (lib.optional (gwIp != "") (mkBlackboxJob "blackbox-dns" "dns" [ dnsTarget ]));
-      }
-    ))
-
-    #--------------------------------------------------------------------------
     # Rebuild silence — per-node maintenance flag (textfile collector)
     #--------------------------------------------------------------------------
 
-    (lib.mkIf (cfg.isNode && alerting.silenceOnRebuild) {
+    (lib.mkIf (cfg.isNode && silenceOnRebuild) {
 
       # Expose the textfile collector dir and ship the `dnf-maintenance on|off`
       # helper the deploy flow wraps around nixos-rebuild test/switch.

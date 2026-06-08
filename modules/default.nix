@@ -65,6 +65,7 @@
     ./service/oxicloud.nix
     ./service/postfix.nix
     ./service/printing.nix
+    ./service/prometheus.nix
     ./service/restic.nix
     ./service/searx.nix
     ./service/tailscale.nix
