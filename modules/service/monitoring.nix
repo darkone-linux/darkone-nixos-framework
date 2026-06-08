@@ -92,6 +92,38 @@ let
       esac
     '';
   };
+
+  # Network reachability targets, shared by the blackbox prober (probes scraped)
+  # and the network alert rules (probe_success == 0). The zone gateway and the
+  # headscale coordination server are the two single points whose loss breaks
+  # the zone or the tailnet. Lazy: only forced inside the alerting mkIf blocks.
+  gwIp = zone.gateway.vpn.ipv4 or "";
+  hcsHost = dnfLib.findHost network.coordination.hostname dnfLib.constants.globalZone hosts;
+  hcsIp = hcsHost.vpnIp or "";
+  dnsTarget = "${gwIp}:53";
+
+  # One alert per probe target, named and severity-tagged: gateway/tailnet
+  # losses page, a DNS miss warns.
+  networkProbes =
+    (lib.optional (gwIp != "") {
+      name = "gateway ${zone.name} (${gwIp})";
+      instance = gwIp;
+      job = "blackbox-icmp";
+      severity = "critical";
+    })
+    ++ (lib.optional (hcsIp != "") {
+      name = "tailnet coordination ${network.coordination.hostname} (${hcsIp})";
+      instance = hcsIp;
+      job = "blackbox-icmp";
+      severity = "critical";
+    })
+    ++ (lib.optional (gwIp != "") {
+      name = "DNS resolver ${gwIp}";
+      instance = dnsTarget;
+      job = "blackbox-dns";
+      severity = "warning";
+      "for" = "5m";
+    });
 in
 {
   options = {
@@ -594,20 +626,32 @@ in
       services.prometheus.alertmanagers = [
         { static_configs = [ { targets = [ "127.0.0.1:${toString port.alertmanager}" ]; } ]; }
       ];
+      # NixOS concatenates every `services.prometheus.rules` entry into ONE file;
+      # multiple top-level `groups:` documents would not merge (only the first is
+      # read). So fold node/resource, maintenance and network groups into a single
+      # document here rather than emitting separate entries.
       services.prometheus.rules = [
         (builtins.toJSON (
-          dnfLib.mkAlertRuleGroups {
-            inherit nodes;
-            services = network.services;
-            nodeExporterPort = port.nodeExporter;
-            zoneName = zone.name;
-            inherit (alerting) thresholds;
-          }
+          dnfLib.mergeRuleGroups (
+            [
+              (dnfLib.mkAlertRuleGroups {
+                inherit nodes;
+                services = network.services;
+                nodeExporterPort = port.nodeExporter;
+                zoneName = zone.name;
+                inherit (alerting) thresholds;
+              })
+            ]
+            ++ lib.optional alerting.silenceOnRebuild (dnfLib.mkMaintenanceRuleGroups { zoneName = zone.name; })
+            ++ lib.optional alerting.network.enable (
+              dnfLib.mkNetworkRuleGroups {
+                zoneName = zone.name;
+                probes = networkProbes;
+              }
+            )
+          )
         ))
-      ]
-      ++ lib.optional alerting.silenceOnRebuild (
-        builtins.toJSON (dnfLib.mkMaintenanceRuleGroups { zoneName = zone.name; })
-      );
+      ];
     })
 
     #--------------------------------------------------------------------------
@@ -617,16 +661,10 @@ in
     (lib.mkIf (cfg.enable && alerting.enable && alerting.network.enable) (
       let
 
-        # Zone gateway (DNS/DHCP/router) and the headscale coordination server:
-        # the two single points whose loss breaks the zone or the tailnet.
-        gwIp = zone.gateway.vpn.ipv4 or "";
-        hcsHost = dnfLib.findHost network.coordination.hostname dnfLib.constants.globalZone hosts;
-        hcsIp = hcsHost.vpnIp or "";
-
         # A name that must always resolve through the zone resolver; failure to
-        # answer it flags a DNS problem.
+        # answer it flags a DNS problem. (Reachability targets gwIp/hcsIp/dnsTarget
+        # are derived once at module scope and shared with the network rules.)
         controlName = "idm.${network.domain}";
-        dnsTarget = "${gwIp}:53";
 
         icmpTargets = lib.filter (x: x != "") [
           gwIp
@@ -676,29 +714,6 @@ in
             }
           ];
         };
-
-        # One alert per probe target, named and severity-tagged: gateway/tailnet
-        # losses page, a DNS miss warns.
-        probes =
-          (lib.optional (gwIp != "") {
-            name = "gateway ${zone.name} (${gwIp})";
-            instance = gwIp;
-            job = "blackbox-icmp";
-            severity = "critical";
-          })
-          ++ (lib.optional (hcsIp != "") {
-            name = "tailnet coordination ${network.coordination.hostname} (${hcsIp})";
-            instance = hcsIp;
-            job = "blackbox-icmp";
-            severity = "critical";
-          })
-          ++ (lib.optional (gwIp != "") {
-            name = "DNS resolver ${gwIp}";
-            instance = dnsTarget;
-            job = "blackbox-dns";
-            severity = "warning";
-            "for" = "5m";
-          });
       in
       {
         services.prometheus.exporters.blackbox = {
@@ -712,15 +727,6 @@ in
         services.prometheus.scrapeConfigs =
           (lib.optional (icmpTargets != [ ]) (mkBlackboxJob "blackbox-icmp" "icmp" icmpTargets))
           ++ (lib.optional (gwIp != "") (mkBlackboxJob "blackbox-dns" "dns" [ dnsTarget ]));
-
-        services.prometheus.rules = [
-          (builtins.toJSON (
-            dnfLib.mkNetworkRuleGroups {
-              zoneName = zone.name;
-              inherit probes;
-            }
-          ))
-        ];
       }
     ))
 
