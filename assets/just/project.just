@@ -483,7 +483,7 @@ sops:
 configure-alert-bot:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	WORKDIR="{{workDir}}" bash {{dnfDir}}/assets/scripts/matrix-alert-creation.sh
+	WORKDIR="{{workDir}}" bash {{dnfDir}}/assets/scripts/just-configure-alert-bot.sh
 	just _fix_fs_permissions
 
 # Sync Kanidm replication certificates (multi-zone read-only replicas).

@@ -626,6 +626,7 @@ in
       services.prometheus.alertmanagers = [
         { static_configs = [ { targets = [ "127.0.0.1:${toString port.alertmanager}" ]; } ]; }
       ];
+      
       # NixOS concatenates every `services.prometheus.rules` entry into ONE file;
       # multiple top-level `groups:` documents would not merge (only the first is
       # read). So fold node/resource, maintenance and network groups into a single

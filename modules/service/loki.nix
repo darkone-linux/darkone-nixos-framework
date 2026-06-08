@@ -128,6 +128,8 @@ in
         persist.varDirs =
           lib.optional cfg.enable "/var/lib/loki" ++ lib.optional cfg.isClient "/var/lib/alloy";
         proxy.enable = false; # internal access only, no Caddy vhost
+
+        # TODO: inutile ?
         proxy.servicePort = port.loki;
         proxy.isInternal = true;
       };
