@@ -32,7 +32,7 @@ let
 
     # Free space / memory below which we warn, then page (percent).
     diskFreePercentWarn = 15;
-    diskFreePercentCrit = 7;
+    diskFreePercentCrit = 5;
     memAvailablePercentWarn = 12;
     memAvailablePercentCrit = 6;
     inodeFreePercentWarn = 10;
