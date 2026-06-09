@@ -43,6 +43,7 @@ This project is constantly evolving according to my needs. If you'd like to be i
 | 📐 | Consistent architecture | [Extensible and scalable architecture](https://darkone-linux.github.io/doc/introduction/#structure), consistent and customizable |
 | ✴️ | Reverse proxy | Services distributed across network servers through [Caddy](https://github.com/caddyserver/caddy) proxies |
 | 🛜 | Auto-networking | Zero-conf network plumbing (DNS, DHCP, firewall...) with [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html)  |
+| ✅ | Monitoring & Alerts | Supervision with [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) |
 
 ## SSO status
 
@@ -64,14 +65,17 @@ This project is constantly evolving according to my needs. If you'd like to be i
 | [Immich](https://immich.app) | ✅ | ✅ | ✅ | ⚠️ | ✅ | Non-declarative configuration |
 | [Forgejo](https://forgejo.org) | ✅ | ✅ | ✅ | ❌ | ✅ | Non-declarative configuration |
 | [Nextcloud](https://nextcloud.com) | ✅ | ❌ | ❌ | ❌ | ✅ | Requires a plugin, non-declarative |
-| [OAuth2 Proxy](https://oauth2-proxy.github.io/oauth2-proxy/) | ✅ | ✅ | ✅ | ✅ | ⚠️ | Multiple backends to resolve |
-| [Jellyfin](https://jellyfin.org) | ✅ | ❌ | ❔ | ❔ | ❔ | Coming soon |
-| [AdGuard Home](https://adguard.com/en/adguard-home/overview.html) | ❌ | ❌ | ❌ | ❌ | ❔ | Via OAuth2 Proxy |
+| [OAuth2 Proxy](https://oauth2-proxy.github.io/oauth2-proxy/) | ✅ | ✅ | ✅ | ✅ | ✅ | Linked to Caddy & Kanidm |
+| [Homepage](https://gethomepage.dev/) | 🔁 | 🔁 | 🔁 | 🔁 | ✅ | Via OAuth2 Proxy |
+| [Prometheus](https://prometheus.io/) | 🔁 | 🔁 | 🔁 | 🔁 | ✅ | Via OAuth2 Proxy |
+| [Jellyfin](https://jellyfin.org) | ℹ️ | ℹ️ | ℹ️ | ℹ️ | ℹ️ | Common access |
+| [AdGuard Home](https://adguard.com/en/adguard-home/overview.html) | ℹ️ | ℹ️ | ℹ️ | ℹ️ | ℹ️ | Common access |
+| [Geneweb](https://geneweb.tuxfamily.org/wiki/GeneWeb/fr) | ℹ️ | ℹ️ | ℹ️ | ℹ️ | ℹ️ | Common access |
 | [~~Mattermost~~](https://mattermost.com) | ❌ | ❌ | ❌ | ❌ | ❌ | No more OAuth2 for the TEAM edition |
 
 ## Homepage screenshot
 
-![Homepage screenshot](assets/images/homepage-screenshot.png)
+![Homepage screenshot](assets/images/homepage.png)
 
 ## One configuration for a full network
 

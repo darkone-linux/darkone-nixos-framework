@@ -113,6 +113,7 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 | 📐 | Architecture | [Architecture extensible et scalable](https://darkone-linux.github.io/doc/introduction/#structure), cohérente et personnalisable |
 | ✴️ | Proxy inverse | Services distribués à travers le réseau via des proxies sous [Caddy](https://github.com/caddyserver/caddy) |
 | 🛜 | Réseau automatisé | Plomberie réseau zero-conf (DNS, DHCP, pare-feu…) avec [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html) |
+| ✅ | Monitoring & Alertes | Supervision avec [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com) et [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) |
 
 ### État des services SSO (OIDC / Oauth2)
 
@@ -134,18 +135,21 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 | [Immich](https://immich.app) | ✅ | ✅ | ✅ | ⚠️ | ✅ | Configuration manuelle |
 | [Forgejo](https://forgejo.org) | ✅ | ✅ | ✅ | ❌ | ✅ | Configuration manuelle |
 | [Nextcloud](https://nextcloud.com) | ✅ | ❌ | ❌ | ❌ | ✅ | Plugin + configuration manuelle |
-| [Oauth2 Proxy](https://oauth2-proxy.github.io/oauth2-proxy/) | ✅ | ✅ | ✅ | ✅ | ⚠️ | Gestion multi-service problématique |
-| [Jellyfin](https://jellyfin.org) | ✅ | ❌ | ❔ | ❔ | ❔ | En cours |
-| [AdGuardHome](https://adguard.com/en/adguard-home/overview.html) | ❌ | ❌ | ❌ | ❌ | ❔ | Via Oauth2 Proxy |
+| [Oauth2 Proxy](https://oauth2-proxy.github.io/oauth2-proxy/) | ✅ | ✅ | ✅ | ✅ | ✅ | Lié à Caddy et Kanidm |
+| [Homepage](https://gethomepage.dev/) | 🔁 | 🔁 | 🔁 | 🔁 | ✅ | Via OAuth2 Proxy |
+| [Prometheus](https://prometheus.io/) | 🔁 | 🔁 | 🔁 | 🔁 | ✅ | Via OAuth2 Proxy |
+| [Jellyfin](https://jellyfin.org) | ℹ️ | ℹ️ | ℹ️ | ℹ️ | ℹ️ | Accès communs |
+| [AdGuard Home](https://adguard.com/en/adguard-home/overview.html) | ℹ️ | ℹ️ | ℹ️ | ℹ️ | ℹ️ | Accès communs |
+| [Geneweb](https://geneweb.tuxfamily.org/wiki/GeneWeb/fr) | ℹ️ | ℹ️ | ℹ️ | ℹ️ | ℹ️ | Accès communs |
 | [~~Mattermost~~](https://mattermost.com) | ❌ | ❌ | ❌ | ❌ | ❌ | Plus de OAuth2 pour l'édition TEAM |
 
 ## Page d'accueil dynamique
 
-![Homepage](doc/src/assets/homepage-screenshot.png)
+![Homepage](assets/images/homepage.png)
 
 ## Une configuration pour un réseau complet
 
-![New network architecture](doc/src/assets/reseau-darkone-2.png)
+![New network architecture](assets/images/reseau-darkone-2.png)
 
 ## Organisation
 
@@ -208,7 +212,7 @@ hosts:
 
 ## Accueil des services
 
-![Homepage screenshot](assets/images/homepage-screenshot.png)
+![Homepage screenshot](assets/images/homepage.png)
 
 ## Une configuration pour un réseau complet
 
