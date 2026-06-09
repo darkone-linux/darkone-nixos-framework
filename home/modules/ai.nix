@@ -179,7 +179,6 @@ let
 
         # Nix — builds and installs write to the store
         "Bash(nix shell:*)"
-        "Bash(nix:*)"
 
         # Cargo — publish and install have external effects
         "Bash(cargo install:*)"
