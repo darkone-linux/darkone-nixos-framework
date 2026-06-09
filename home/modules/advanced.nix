@@ -14,7 +14,6 @@
 let
   cfg = config.darkone.home.advanced;
   graphic = osConfig.darkone.graphic.gnome.enable;
-  #hasBorg = osConfig.darkone.service.borg.enable;
   hasRestic = osConfig.darkone.service.restic.enable;
 
   # Nix administrator host (additional tools)
@@ -420,6 +419,44 @@ in
         window-padding-x = 6;
         window-padding-y = 6;
         copy-on-select = "clipboard";
+
+        # Otherwise the working directory flag is ignored by a running instance (nautilus open terminal)
+        gtk-single-instance = false;
+      };
+    };
+
+    # "Open in Ghostty" entry in Nautilus.
+    #
+    # :::note[Why a Nautilus script and not nautilus-open-any-terminal]
+    # Under GNOME 50, Nautilus does not load the nautilus-python layer, so the
+    # extension never registers its menu item. Nautilus scripts are a built-in
+    # mechanism (no extension, no GSettings schema), hence reliable.
+    # :::
+    #
+    # Ghostty inherits the cwd, so the script just resolves the target directory
+    # and cd's into it. gtk-single-instance is disabled above so a running
+    # instance honours this directory instead of ignoring it.
+    #
+    # Right-clicking a folder selects it: the folder is passed as $1, while
+    # NAUTILUS_SCRIPT_CURRENT_URI is the *parent* (the viewed directory). So we
+    # prefer the selected item, falling back to the viewed directory (empty-space
+    # click). A selected file resolves to its containing directory.
+    xdg.dataFile = lib.mkIf hasGhostty {
+      "nautilus/scripts/Open in Ghostty" = {
+        executable = true;
+        text = ''
+          #!/usr/bin/env bash
+          dir="''${1:-}"
+          if [ -z "$dir" ]; then
+            uri="''${NAUTILUS_SCRIPT_CURRENT_URI:-}"
+            dir="''${uri#file://}"
+            dir="$(printf '%b' "''${dir//%/\\x}")"
+          fi
+
+          [ -d "$dir" ] || dir="$(dirname "$dir")"
+          [ -d "$dir" ] || dir="$HOME"
+          exec ${lib.getExe pkgs.ghostty} --working-directory="$dir"
+        '';
       };
     };
 

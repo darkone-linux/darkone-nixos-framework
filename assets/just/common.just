@@ -158,6 +158,10 @@ format:
 	set -euo pipefail
 	just _log "Full formatting..." "TREEFMT"
 	treefmt --config-file {{dnfDir}}/assets/treefmt.toml --no-cache --quiet
+	if [ -d dnf ] ;then
+		just _log "Formatting also dnf..." "TREEFMT"
+		cd dnf && treefmt --config-file {{dnfDir}}/assets/treefmt.toml --no-cache --quiet
+	fi
 
 # Fix with statix
 [group('dev')]

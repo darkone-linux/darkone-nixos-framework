@@ -5,7 +5,6 @@
 # Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
 # :::
 
-# TODO: home-manager module
 { lib, config, ... }:
 let
   cfg = config.darkone.profile.advanced;

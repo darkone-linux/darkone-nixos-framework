@@ -5,26 +5,31 @@
   config,
   pkgs,
   host,
+  network,
   ...
 }:
+with lib;
 let
   cfg = config.darkone.graphic.gnome;
+  hasInternalCloud =
+    (findFirst (s: s.name == "nextcloud" || s.name == "oxicloud") null network.services) != null;
 in
 {
   options = {
-    darkone.graphic.gnome.enable = lib.mkEnableOption "Pre-configured gnome WM";
-    darkone.graphic.gnome.enableDashToDock = lib.mkEnableOption "Dash to dock plugin";
-    darkone.graphic.gnome.enableLightDM = lib.mkEnableOption "Enable LightDM instead of GDM";
-    darkone.graphic.gnome.enableCaffeine = lib.mkEnableOption "Disable auto-suspend";
-    darkone.graphic.gnome.enableGsConnect = lib.mkEnableOption "Communication with devices";
-    darkone.graphic.gnome.xkbVariant = lib.mkOption {
-      type = lib.types.str;
+    darkone.graphic.gnome.enable = mkEnableOption "Pre-configured gnome WM";
+    darkone.graphic.gnome.enableDashToDock = mkEnableOption "Dash to dock plugin";
+    darkone.graphic.gnome.enableLightDM = mkEnableOption "Enable LightDM instead of GDM";
+    darkone.graphic.gnome.enableCaffeine = mkEnableOption "Disable auto-suspend";
+    darkone.graphic.gnome.enableGsConnect = mkEnableOption "Communication with devices";
+    darkone.graphic.gnome.enableOnlineServices = mkEnableOption "Online Accounts, CalDAV, CardDAV...";
+    darkone.graphic.gnome.xkbVariant = mkOption {
+      type = types.str;
       default = "oss";
       description = "Keyboard variant. Layout is extracted from console keymap.";
     };
   };
 
-  config = lib.mkIf cfg.enable {
+  config = mkIf cfg.enable {
 
     # Enable gnome
     services.desktopManager.gnome.enable = true;
@@ -56,7 +61,7 @@ in
       ];
 
       # LightDM options if activated
-      displayManager.lightdm = lib.mkIf cfg.enableLightDM {
+      displayManager.lightdm = mkIf cfg.enableLightDM {
         enable = true;
         background = "#394999";
         greeters.gtk = {
@@ -87,7 +92,7 @@ in
     #==========================================================================
 
     # GDM options if activated
-    services.displayManager.gdm = lib.mkIf (!cfg.enableLightDM) {
+    services.displayManager.gdm = mkIf (!cfg.enableLightDM) {
       enable = true;
       autoSuspend = config.darkone.system.core.enableAutoSuspend;
       settings = {
@@ -148,9 +153,9 @@ in
 
     # Gnome packages
     environment.systemPackages = with pkgs; [
-      (lib.mkIf cfg.enableCaffeine gnomeExtensions.caffeine)
-      (lib.mkIf cfg.enableDashToDock gnomeExtensions.dash-to-dock)
-      (lib.mkIf cfg.enableGsConnect gnomeExtensions.gsconnect)
+      (mkIf cfg.enableCaffeine gnomeExtensions.caffeine)
+      (mkIf cfg.enableDashToDock gnomeExtensions.dash-to-dock)
+      (mkIf cfg.enableGsConnect gnomeExtensions.gsconnect)
       bibata-cursors
       gnomeExtensions.appindicator
       gnomeExtensions.just-perfection
@@ -172,16 +177,20 @@ in
     };
 
     # Devices connections
-    programs.kdeconnect = lib.mkIf cfg.enableGsConnect {
+    programs.kdeconnect = mkIf cfg.enableGsConnect {
       enable = true;
       package = pkgs.gnomeExtensions.gsconnect;
     };
 
     # Gnome services
     services.gnome = {
-      gnome-online-accounts.enable = false;
+      gnome-online-accounts.enable = hasInternalCloud || cfg.enableOnlineServices; # Nextcloud, etc.
+      evolution-data-server.enable = hasInternalCloud || cfg.enableOnlineServices; # CalDAV, CardDAV, tasks
+      gnome-settings-daemon.enable = true;
       gnome-user-share.enable = false;
+      glib-networking.enable = true; # HTTPS, proxy, authentification support
       localsearch.enable = true;
+      sushi.enable = true; # Files preview in Nautilus
     };
 
     #==========================================================================
@@ -280,13 +289,13 @@ in
                 show-mounts-network = true;
               };
               "org/gnome/settings-daemon/plugins/power" = {
-                sleep-inactive-ac-timeout = lib.gvariant.mkUint32 1800;
+                sleep-inactive-ac-timeout = gvariant.mkUint32 1800;
                 sleep-inactive-ac-type = "nothing";
-                sleep-inactive-battery-timeout = lib.gvariant.mkUint32 1800;
+                sleep-inactive-battery-timeout = gvariant.mkUint32 1800;
                 sleep-inactive-battery-type = "suspend";
               };
               "org/gnome/mutter" = {
-                check-alive-timeout = lib.gvariant.mkUint32 30000;
+                check-alive-timeout = gvariant.mkUint32 30000;
                 edge-tiling = true;
               };
               "org/gnome/bluetooth" = {
