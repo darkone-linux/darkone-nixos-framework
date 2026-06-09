@@ -276,6 +276,7 @@
               git
               just
               mkpasswd
+              nix-output-monitor
               nix-unit
               nixfmt
               openssl

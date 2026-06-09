@@ -105,6 +105,7 @@ in
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) gcc) # Useful for rust generator
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) hugo) # TODO: deprecated
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) just)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nix-output-monitor) # nom (nom develop, nom build, xxx |& nom)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nix-unit)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nixfmt)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) treefmt)
