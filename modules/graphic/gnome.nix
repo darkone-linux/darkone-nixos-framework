@@ -159,6 +159,12 @@ in
       bibata-cursors
       gnomeExtensions.appindicator
       gnomeExtensions.just-perfection
+
+      # Force focus + raise on newly mapped windows. Works around Mutter's
+      # focus-stealing prevention (apps launched from notifications or tray
+      # indicators open unfocused, with a bouncing dash icon instead).
+      gnomeExtensions.steal-my-focus-window
+
       papirus-icon-theme
       adwaita-qt
       qgnomeplatform-qt6
@@ -249,6 +255,7 @@ in
                 enabled-extensions = [
                   "appindicatorsupport@rgcjonas.gmail.com"
                   "blur-my-shell@aunetx"
+                  "steal-my-focus-window@steal-my-focus-window"
                 ]
                 ++ (if cfg.enableCaffeine then [ "caffeine@patapon.info" ] else [ ])
                 ++ (if cfg.enableGsConnect then [ "gsconnect@andyholmes.github.io" ] else [ ])
