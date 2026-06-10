@@ -107,6 +107,12 @@ in
         };
       };
 
+      # nginx binds a specific host address that may be momentarily absent
+      # while the network stack is reconfigured during a nixos-rebuild switch.
+      # Non-local bind lets the listener come up regardless, instead of dying
+      # with "cannot assign requested address" at every fleet deployment.
+      boot.kernel.sysctl."net.ipv4.ip_nonlocal_bind" = 1;
+
       # Whiteboard server (TODO: automatiser)
       # nextcloud-occ config:app:set whiteboard collabBackendUrl --value="${params.href}"
       # nextcloud-occ config:app:set whiteboard jwt_secret_key --value="test123"

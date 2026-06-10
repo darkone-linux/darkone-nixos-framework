@@ -430,6 +430,18 @@ in
         pkgs.coreutils
       ];
 
+      # At boot, bring the tailnet up before kanidm reaches its peers (no-op
+      # where tailscaled is absent: missing units are ignored in wants/after).
+      systemd.services.kanidm.after = [ "tailscaled.service" ];
+      systemd.services.kanidm.wants = [ "tailscaled.service" ];
+
+      # Kanidm binds VPN addresses (LDAP on the tailscale IP, replication on
+      # the VPN IP) that may not be assigned yet when the unit (re)starts —
+      # typically during a nixos-rebuild switch while tailscaled reconfigures.
+      # Non-local bind lets the listener come up regardless, instead of dying
+      # with "cannot assign requested address" at every fleet deployment.
+      boot.kernel.sysctl."net.ipv4.ip_nonlocal_bind" = 1;
+
       #========================================================================
       # Kanidm instance
       #========================================================================
