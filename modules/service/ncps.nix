@@ -116,6 +116,11 @@ in
             allowPutVerb = true;
             allowDeleteVerb = true;
             upstream = {
+
+              # Bounded upstream waits: a sick harmonia or an unreachable
+              # public cache must not freeze the proxy for every client.
+              dialerTimeout = "3s";
+              responseHeaderTimeout = "10s";
               urls = harmoniaUrls ++ [
                 "https://cache.nixos.org"
                 "https://nix-community.cachix.org"
@@ -141,7 +146,45 @@ in
           "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
           "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
         ];
+
+        # Fail fast when the zone cache is down or degraded: a broken ncps
+        # must never be slower than no cache at all (cf. agate disk-full
+        # incident: HTTP 500 retries slowed down every build of the fleet).
+        connect-timeout = 5;
+        download-attempts = 2;
+        fallback = true;
       };
+
+      #------------------------------------------------------------------------
+      # Recovery helper (server only)
+      #------------------------------------------------------------------------
+
+      # A disk-full incident can desync the sqlite index from the stored NARs,
+      # making ncps answer HTTP 500 "invalid nar hash" on every request.
+      # Wiping store + db is the reliable repair (the signing key in config/
+      # is preserved); the only cost is re-downloading from upstreams.
+      environment.systemPackages = lib.mkIf isServer [
+        (pkgs.writeShellScriptBin "ncps-reset" ''
+          set -euo pipefail
+
+          if [ "$(${pkgs.coreutils}/bin/id -u)" -ne 0 ]; then
+            echo "ncps-reset must run as root" >&2
+            exit 1
+          fi
+
+          echo "This wipes the ncps cache and index (${cfg.dataPath}/{store,db}) then restarts ncps."
+          read -r -p "Continue? [y/N] " answer
+          [ "$answer" = "y" ] || exit 1
+
+          ${pkgs.systemd}/bin/systemctl stop ncps.service
+          ${pkgs.coreutils}/bin/rm -rf ${cfg.dataPath}/store ${cfg.dataPath}/db
+          ${pkgs.coreutils}/bin/mkdir -p ${cfg.dataPath}/db
+          ${pkgs.coreutils}/bin/chown -R ncps:ncps ${cfg.dataPath}
+          ${pkgs.coreutils}/bin/chmod 0700 ${cfg.dataPath} ${cfg.dataPath}/db
+          ${pkgs.systemd}/bin/systemctl start ncps.service
+          echo "ncps cache reset done."
+        '')
+      ];
     })
   ];
 }
