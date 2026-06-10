@@ -24,6 +24,16 @@
 # `usr/secrets/harmonia.pub` is missing: the public key is committed and the
 # private key is injected into the sops secret `harmonia-secret-key`.
 # :::
+#
+# :::note[Benign startup warning about sign-key permissions]
+# `WARN harmonia_cache::tls: /run/credentials/harmonia.service/sign-key-0 has
+# insecure permissions 0o440; recommend 0600` is a false positive: systemd
+# exposes `LoadCredential` files as root-owned mode 0440 with an ACL that
+# grants access to the service user only (systemd/systemd#29435); harmonia
+# naively checks the chmod bits. Watch upstream though: harmonia already
+# hard-rejects group-readable *TLS* keys at startup — if that policy ever
+# extends to sign keys, this unit will break on upgrade.
+# :::
 
 {
   lib,
