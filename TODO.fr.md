@@ -7,7 +7,7 @@
   - [x] [Cahier des charges](.specs/FULL-TEST-STRATEGY.fr.md).
   - [x] Tests unitaires (lib).
   - [x] Migration vers [nix-unit](https://nix-community.github.io/nix-unit/).
-  - [ ] Déplacement dans lib/ de tout algorithme un peu complexe ou comportant de possibles effets de bords, sous forme de fonctions durcies et testées, simplifiant le code utile des modules.
+  - [x] Déplacement dans lib/ de tout algorithme un peu complexe ou comportant de possibles effets de bords, sous forme de fonctions durcies et testées, simplifiant le code utile des modules.
   - [x] Tests simulés (pkgs.testers.runNixOSTest) -> peu viable...
   - [ ] Lab de staging (microvm.nix ou nixos.vm)
 - [ ] Linux durci selon les [recommandations ANSSI](https://messervices.cyber.gouv.fr/guides/recommandations-de-securite-relatives-un-systeme-gnulinux).
@@ -18,28 +18,26 @@
   - [x] Implémentation du module IDM.
   - [x] Configuration paramétrable pour chaque service (config inconditionnelle) et instance de service (config conditionnelle).
   - [x] Brancher Grafana.
-  - [ ] Réplicats de zone (activation auto selon les services idm déclarés).
+  - [ ] Réplicats de zone (activation auto selon les services idm déclarés). -> FAIL
     - [x] Mécanisme de réplication : auto par scénario (idm/HCS seul = instance unique ; idm/passerelle sans HCS = autonome ; idm/HCS + passerelles = réplication). HCS supplier (WriteReplica), passerelles WriteReplicaNoUI puis ReadOnlyReplica, bootstrap 2 phases (`just idm-sync-certs`).
     - [ ] Joignabilité locale du réplicat pour le login hors-ligne : vhost Caddy servant le FQDN global `idm.<network.domain>` sur la passerelle + bascule DNS dnsmasq → IP passerelle. À câbler/valider en déploiement réel multi-hôtes.
 - [ ] Ponts Mautrix pour Matrix (whatsapp, telegram, messenger, discord).
   - [x] POC -> implémentation locale.
   - [ ] Généralisation -> implémentation paramétrable pour chaque user.
+  - [ ] Stabilisation et simplification -> certains ponts (whatsapp, discord) sont compliqués et instables.
 - [ ] Module d'IA générative self-hosted + agents.
   - [x] Interface Open WebUI + Ollama + Modèles locaux.
   - [x] Comptes OIDC, cloisonnés pour chaque utilisateur.
   - [ ] Agents MCP personnels.
   - [ ] Générateur d'images et de médias.
   - [x] Conf OpenCode / Claude Code optimisée pour les développeurs.
-- [x] Cache de store harmonia. (en cours de tests)
 
 ### Planifié
 
-- [ ] Services -> réorganiser la manière dont on les déclare -> services uniques + avec sous-domaine fixe, sous-domaines interdits déclarables, services multiples avec OIDC.
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
 - [ ] Automatisation des secrets OIDC et similaires.
 - [ ] Corriger l'arbre de démarrage des services, un redémarrage de passerelle ou du HCS laisse certains services (kanidm, prometheus-node-exporter, mnt-nfs-homes) en berne.
 - [ ] Suite de tests de recette complète, intégrée à une stratégie d'intégration continue déclarative et utilisable par chaque instance DNF.
-- [ ] Gestion optimale des traductions FR <-> EN avec fichiers MO + agent IA dédié.
 - [ ] Officialiser le projet auprès du public.
   - [ ] Politique de versionning, packaging, changelog, diffusion.
   - [ ] "Getting Started" très simple, rapide et efficace.
@@ -62,7 +60,6 @@
 
 ### A voir
 
-- [ ] Voir si [Zabbix](https://www.zabbix.com/fr) ne serait pas une bonne alternative / complément à Prometheus / Grafana.
 - [ ] Intégration de [nixvim](https://nix-community.github.io/nixvim/).
 - [ ] Gestion du secure boot avec [lanzaboote](https://github.com/nix-community/lanzaboote).
 - [ ] Serveur de mails.
@@ -80,8 +77,16 @@
   - [x] Implémentation (version locale ou distante).
   - [ ] Tests et stabilisation.
 
+### Abandonnés
+
+- [ ] Voir si [Zabbix](https://www.zabbix.com/fr) ne serait pas une bonne alternative / complément à Prometheus / Grafana. -> Alertmanager
+
 ### Fait
 
+- [x] Remontée d'information et alertes avec Alertmanager + Prometheus.
+- [x] Cache de store harmonia.
+- [x] Gestion optimale des traductions FR <-> EN ~~avec fichiers MO~~ avec un mécanisme de taguage + agent IA dédié.
+- [x] Services -> réorganiser la manière dont on les déclare -> services uniques + avec sous-domaine fixe, sous-domaines interdits déclarables, services multiples avec OIDC.
 - [x] Update + déploiement complet du réseau.
 - [x] Remplacer le générateur PHP par un générateur Rust + parseur nix complet.
   - [x] Implémentation + tests.
