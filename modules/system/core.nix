@@ -7,7 +7,8 @@
 #
 # Sets up the systemd-boot loader, the LTS kernel, JetBrains Mono Nerd
 # Font (with `kmscon` for the TTY), nightly Nix store optimisation and
-# weekly garbage collection (30 d retention), the firewall, suspend
+# weekly garbage collection (30 d retention, or keep-last-N via
+# `gcKeepGenerations` on disk-constrained hosts), the firewall, suspend
 # policy (servers can fully disable it via `disableSuspend`), polkit
 # rules letting `wheel` halt/reboot, and a shared `common-files`
 # group/user for cross-service media folders.
@@ -64,6 +65,16 @@ in
       type = lib.types.bool;
       default = true;
       description = "Enable nerd font for TTY";
+    };
+    darkone.system.core.gcKeepGenerations = lib.mkOption {
+      type = lib.types.int;
+      default = 0;
+      example = 5;
+      description = ''
+        When > 0, trim the system profile to the last N generations before
+        each garbage collection, and collect daily without age-based
+        retention. For hosts with a tight root partition (gateways).
+      '';
     };
     darkone.system.core.enableBoost = lib.mkEnableOption "Enable overclocking, corectl";
     darkone.system.core.enableAutoSuspend = lib.mkEnableOption "Enable automatic suspend (for laptops, ignored if disableSuspend is true)";
@@ -126,11 +137,30 @@ in
     # Nix store optimize and GC
     nix.optimise.automatic = true;
     nix.optimise.dates = [ "03:45" ];
-    nix.gc = {
-      automatic = true;
-      dates = "weekly";
-      options = "--delete-older-than 30d";
-    };
+    nix.gc = lib.mkMerge [
+      { automatic = true; }
+
+      # Default policy: weekly GC, 30 days of retention.
+      (lib.mkIf (cfg.gcKeepGenerations == 0) {
+        dates = "weekly";
+        options = "--delete-older-than 30d";
+      })
+
+      # Disk-constrained hosts: daily GC, retention driven by the generation
+      # trim below — age-based retention could delete the kept generations on
+      # a rarely updated host.
+      (lib.mkIf (cfg.gcKeepGenerations > 0) {
+        dates = "daily";
+        options = "";
+      })
+    ];
+
+    # Trim the system profile to the last N generations before collecting, so
+    # the GC can free the closures of the dropped generations.
+    systemd.services.nix-gc.preStart = lib.mkIf (cfg.gcKeepGenerations > 0) ''
+      ${config.nix.package}/bin/nix-env --delete-generations +${toString cfg.gcKeepGenerations} \
+        --profile /nix/var/nix/profiles/system
+    '';
 
     # Using experimental flakes and nix
     nix.settings.experimental-features = [

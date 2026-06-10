@@ -36,6 +36,10 @@ in
       {
         darkone.host.server.enable = true;
 
+        # Gateways usually live on small root partitions and rebuild often:
+        # keep only the last system generations instead of 30 days of history.
+        darkone.system.core.gcKeepGenerations = lib.mkDefault 5;
+
         # Tailscale as a VPN gateway when headscale coordination is active.
         darkone.service.tailscale = lib.mkIf hasHeadscale {
           enable = true;
