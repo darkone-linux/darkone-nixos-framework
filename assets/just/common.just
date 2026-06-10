@@ -128,12 +128,13 @@ check:
 
 # Check the main flake. Filter benign "unknown flake output" warnings for the
 # DNF non-standard outputs (colmena, colmenaHive, homeManagerModules,
-# libTests); any *other* unknown output stays visible. sed (vs. grep -v)
-# always exits 0, which keeps pipefail honest about nix's real exit status.
+# libTests, mkNodes); any *other* unknown output stays visible. sed (vs.
+# grep -v) always exits 0, which keeps pipefail honest about nix's real exit
+# status.
 [group('check')]
 check-flake:
 	{{nix}} flake check --quiet 2>&1 \
-	  | sed -E "/^warning: unknown flake output '(colmena|colmenaHive|homeManagerModules|libTests)'\$/d"
+	  | sed -E "/^warning: unknown flake output '(colmena|colmenaHive|homeManagerModules|libTests|mkNodes)'\$/d"
 
 # Check with statix
 [group('check')]
