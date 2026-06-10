@@ -100,6 +100,16 @@ in
         service.ncps.enable = isServer;
       };
 
+      # The upstream unit runs with ProtectHome=true: a dataPath under /home
+      # is invisible to the service ("permission denied" at first dbmate run).
+      # Put the cache elsewhere, or bind mount the /home space onto dataPath.
+      assertions = [
+        {
+          assertion = !(isServer && lib.hasPrefix "/home" cfg.dataPath);
+          message = "darkone.service.ncps.dataPath cannot live under /home (ncps runs with ProtectHome=true); use a bind mount instead.";
+        }
+      ];
+
       #------------------------------------------------------------------------
       # NCPS Service
       #------------------------------------------------------------------------
@@ -178,9 +188,13 @@ in
 
           ${pkgs.systemd}/bin/systemctl stop ncps.service
           ${pkgs.coreutils}/bin/rm -rf ${cfg.dataPath}/store ${cfg.dataPath}/db
-          ${pkgs.coreutils}/bin/mkdir -p ${cfg.dataPath}/db
-          ${pkgs.coreutils}/bin/chown -R ncps:ncps ${cfg.dataPath}
-          ${pkgs.coreutils}/bin/chmod 0700 ${cfg.dataPath} ${cfg.dataPath}/db
+
+          # Recreate the data directories with their canonical owner/perms,
+          # exactly as a fresh deployment would.
+          ${pkgs.systemd}/bin/systemd-tmpfiles --create --prefix=${cfg.dataPath}
+
+          # The unit may have hit its start rate limit while broken.
+          ${pkgs.systemd}/bin/systemctl reset-failed ncps.service || true
           ${pkgs.systemd}/bin/systemctl start ncps.service
           echo "ncps cache reset done."
         '')
