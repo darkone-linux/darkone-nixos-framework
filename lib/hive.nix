@@ -4,8 +4,7 @@
 # via specialArgs.dnfLib. Note: flake.nix imports this file directly
 # (system-independent) to avoid the circular dependency with mkDnfLib.
 
-{ lib }:
-{
+{ lib }: {
   # CPU architecture for a host, defaulting to x86_64-linux.
   getHostArch = host: lib.attrByPath [ "arch" ] "x86_64-linux" host;
 

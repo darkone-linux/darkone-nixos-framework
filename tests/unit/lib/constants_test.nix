@@ -1,7 +1,6 @@
 # Tests for dnf/lib/constants.nix
 # Run with: nix-unit --flake .#libTests
-{ dnfLib }:
-{
+{ dnfLib }: {
   testCaddyStoragePath = {
     expr = dnfLib.constants.caddyStorage;
     expected = "/var/lib/caddy/storage";

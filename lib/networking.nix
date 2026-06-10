@@ -2,8 +2,7 @@
 #
 # Pure helpers manipulating addresses and DNS naming.
 
-{ lib }:
-rec {
+{ lib }: rec {
 
   # Reverse-DNS prefix from the first two labels of a dotted string:
   # `"a.b.c.d"` -> `"b.a"`. Used to build the local PTR domain handed to

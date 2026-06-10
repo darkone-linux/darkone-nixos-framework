@@ -2,7 +2,4 @@
 # from the configuration file etc/config.yaml
 # --> DO NOT EDIT <--
 
-{ lib, ... }:
-{
-  disko.devices.disk.main.device = lib.mkForce "/dev/vda";
-}
+{ lib, ... }: { disko.devices.disk.main.device = lib.mkForce "/dev/vda"; }

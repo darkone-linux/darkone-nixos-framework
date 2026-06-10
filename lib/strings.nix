@@ -1,7 +1,6 @@
 # Strings manipulations
 
-{ lib }:
-rec {
+{ lib }: rec {
   ucFirst =
     str:
     lib.concatStrings [

@@ -35,19 +35,17 @@
   workspace = ../../workspaces/node/configs/_smoke;
   host = "node1";
 
-  testModule =
-    { pkgs, ... }:
-    {
-      darkone.service.dnsmasq.enable = true;
+  testModule = { pkgs, ... }: {
+    darkone.service.dnsmasq.enable = true;
 
-      virtualisation.interfaces.eth1 = {
-        vlan = 1;
-        assignIP = false;
-      };
-
-      # `dig` — query dnsmasq on its lan0 IP without going through resolv.conf.
-      environment.systemPackages = [ pkgs.dnsutils ];
+    virtualisation.interfaces.eth1 = {
+      vlan = 1;
+      assignIP = false;
     };
+
+    # `dig` — query dnsmasq on its lan0 IP without going through resolv.conf.
+    environment.systemPackages = [ pkgs.dnsutils ];
+  };
 
   testScript = ''
     node1.wait_for_unit("multi-user.target")

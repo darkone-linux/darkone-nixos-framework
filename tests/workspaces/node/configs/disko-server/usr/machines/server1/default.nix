@@ -1,7 +1,6 @@
 # Host specific configuration (writable)
 
-{ modulesPath, ... }:
-{
+{ modulesPath, ... }: {
   imports = [
     (modulesPath + "/installer/scan/not-detected.nix")
     ./generated-configuration.nix

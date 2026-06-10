@@ -1,7 +1,6 @@
 # Tests for dnf/lib/strings.nix
 # Run with: nix-unit --flake .#libTests
-{ dnfLib }:
-{
+{ dnfLib }: {
   testUcFirst = {
     expr = dnfLib.ucFirst "hello";
     expected = "Hello";

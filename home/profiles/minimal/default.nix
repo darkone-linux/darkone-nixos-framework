@@ -1,7 +1,6 @@
 # The minimal configuration for all home manager profiles.
 
-{ osConfig, zone, ... }:
-{
+{ osConfig, zone, ... }: {
   imports = [
     ./features.nix
     ./nfs.nix

@@ -1,7 +1,6 @@
 # Tests for dnf/lib/networking.nix
 # Run with: nix-unit --flake .#libTests
-{ dnfLib }:
-{
+{ dnfLib }: {
 
   # ----- extractReversePrefix -----
 

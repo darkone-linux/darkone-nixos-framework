@@ -7,8 +7,7 @@
 # import it into a plain `nixosSystem`; VM sizing lives in the VM helpers.
 # :::
 
-{ lib, ... }:
-{
+{ lib, ... }: {
 
   # Seam: skip workDir-only bits + neutralize headscale/tailscale.
   darkone.test.standalone = true;

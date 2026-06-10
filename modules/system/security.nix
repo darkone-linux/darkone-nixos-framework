@@ -75,8 +75,7 @@
 # raising the level on a production system.
 # :::
 
-{ lib, network, ... }:
-{
+{ lib, network, ... }: {
   options = {
     darkone.system.security = {
       enable = lib.mkEnableOption "Enable the ANSSI BP-028 v2.0 hardening module.";

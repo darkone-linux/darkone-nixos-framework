@@ -1,7 +1,6 @@
 # Standalone machine used to install a new host - DEPRECATED
 
-{ pkgs, ... }:
-{
+{ pkgs, ... }: {
   console.keyMap = "fr"; # TODO: auto
   boot.initrd.systemd.enable = true; # To set the console keyMap before asking luks password
   boot.loader.systemd-boot.enable = true;

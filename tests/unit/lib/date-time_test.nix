@@ -1,7 +1,6 @@
 # Tests for dnf/lib/date-time.nix
 # Run with: nix-unit --flake .#libTests
-{ dnfLib }:
-{
+{ dnfLib }: {
 
   # ----- shiftHour -----
 

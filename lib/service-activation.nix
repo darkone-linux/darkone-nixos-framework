@@ -15,8 +15,7 @@
 #   but only one may be declared per host — enforced by `mkHostProfileServicesAssertions`.
 # :::
 
-{ lib }:
-{
+{ lib }: {
   # Build a plain attrset activating `darkone.service.*` options for a profile.
   #
   # Returns `{ darkone.service.<module> = { <opt> = true; ... }; ... }`.

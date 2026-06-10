@@ -4,8 +4,7 @@
 # colour-coded marker classifying each as public/private and local/remote
 # relative to the consuming host's zone. Pure and side-effect free.
 
-{ lib, constants }:
-{
+{ lib, constants }: {
 
   # Build the homepage section entries for a list of services. Classifies
   # each entry as public/private and local/remote relative to the current

@@ -2,8 +2,7 @@
 #
 # Pure helpers manipulating systemd `OnCalendar`-style time strings.
 
-{ lib }:
-rec {
+{ lib }: rec {
 
   # Add `n` hours (mod 24) to a `"HH:MM"` time, preserving the minutes and
   # keeping a zero-padded 2-digit hour. Used to stagger the timers of several

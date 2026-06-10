@@ -298,50 +298,46 @@ rec {
   # Network reachability rules over blackbox probes. `probes` is a list of
   # `{ name; instance; severity; job; }` describing each blackbox target so the
   # rule can name what is unreachable. Used only when network probing is on.
-  mkNetworkRuleGroups =
-    { probes, zoneName }:
-    {
-      groups = optional (probes != [ ]) {
-        name = "dnf-network-${zoneName}";
-        rules = map (p: {
-          alert = p.alert or "ProbeFailed";
-          expr = ''probe_success{job="${p.job}",instance="${p.instance}"} == 0'';
-          "for" = p.for or "3m";
-          labels.severity = p.severity or "warning";
-          annotations = {
-            summary = "${p.name} unreachable";
-            description = "Blackbox probe to ${p.instance} (${p.name}) failed.";
-          };
-        }) probes;
-      };
+  mkNetworkRuleGroups = { probes, zoneName }: {
+    groups = optional (probes != [ ]) {
+      name = "dnf-network-${zoneName}";
+      rules = map (p: {
+        alert = p.alert or "ProbeFailed";
+        expr = ''probe_success{job="${p.job}",instance="${p.instance}"} == 0'';
+        "for" = p.for or "3m";
+        labels.severity = p.severity or "warning";
+        annotations = {
+          summary = "${p.name} unreachable";
+          description = "Blackbox probe to ${p.instance} (${p.name}) failed.";
+        };
+      }) probes;
     };
+  };
 
   # Maintenance rule: a node under rebuild exports `dnf_maintenance 1` via the
   # node_exporter textfile collector, firing this alert. Alertmanager routes it
   # to a silent receiver and uses it as an inhibition source so the node's own
   # alerts are muted for the duration. No remote API call, no Alertmanager
   # exposure: the node owns its maintenance window locally.
-  mkMaintenanceRuleGroups =
-    { zoneName }:
-    {
-      groups = [
-        {
-          name = "dnf-maintenance-${zoneName}";
-          rules = [
-            {
-              alert = "MaintenanceMode";
-              expr = "dnf_maintenance == 1";
-              "for" = "0m";
-              labels.severity = "none";
-              annotations = {
-                summary = "Maintenance on {{ $labels.instance }}";
-                description = "Node under maintenance (rebuild in progress); its alerts are inhibited.";
-              };
-            }
-          ];
-        }
-      ];
-    };
+  mkMaintenanceRuleGroups = { zoneName }: {
+    groups = [
+      {
+        name = "dnf-maintenance-${zoneName}";
+        rules = [
+          {
+            alert = "MaintenanceMode";
+            expr = "dnf_maintenance == 1";
+            "for" = "0m";
+            labels.severity = "none";
+            annotations = {
+              summary = "Maintenance on {{ $labels.instance }}";
+              description = "Node under maintenance (rebuild in progress); its alerts are inhibited.";
+            };
+          }
+        ];
+      }
+    ];
+  };
 
   # Merge several `{ groups = [...]; }` fragments into one rule document.
   mergeRuleGroups = fragments: { groups = lib.concatMap (f: f.groups) fragments; };

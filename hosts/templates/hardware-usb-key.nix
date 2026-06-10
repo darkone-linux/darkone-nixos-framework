@@ -1,7 +1,6 @@
 # Specific hardware configuration for usb keys
 
-{ lib, ... }:
-{
+{ lib, ... }: {
   boot = {
     initrd.availableKernelModules = [
       "ahci"
