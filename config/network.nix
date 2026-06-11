@@ -132,6 +132,9 @@
       8086 # oxicloud -- modules/service/oxicloud.nix
       9090 # prometheus -- modules/service/monitoring.nix
       11434 # ollama -- modules/service/ai.nix
+      29318 # mautrix-whatsapp appservice -- modules/service/matrix.nix
+      29319 # mautrix-meta appservice -- modules/service/matrix.nix
+      29334 # mautrix-discord appservice -- modules/service/matrix.nix
     ];
   };
 }

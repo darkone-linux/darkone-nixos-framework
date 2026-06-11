@@ -1,4 +1,16 @@
-# DNF matrix (synapse) server.
+# DNF matrix (synapse) server with mautrix bridges.
+#
+# Bridges (whatsapp, telegram, messenger, discord) are usable by every local
+# account: each user links its own remote account by talking to the bridge bot
+# (`@whatsappbot`, `@telegrambot`, ... then `login`); sessions are isolated per
+# user. The declared `network.matrix.admin` administrates the bridges.
+#
+# Double puppeting uses the official appservice method
+# (https://docs.mau.fi/bridges/general/double-puppeting.html): a shared
+# `doublepuppet` appservice token lets bridges send remote-originated messages
+# as the user's real matrix account. Required sops secrets:
+# `mautrix-doublepuppet-as-token` and `mautrix-doublepuppet-hs-token`
+# (`openssl rand -hex 32` each).
 
 # (TODO: Livekit -> https://wiki.nixos.org/wiki/Matrix#Livekit)
 # TODO: Synapse Admin -> https://wiki.nixos.org/wiki/Matrix#Synapse_Admin_with_Caddy
@@ -42,24 +54,31 @@ let
     fi
   '';
 
-  # Mautrix - TODO: auto permissions
+  # Mautrix settings shared by every bridge
   mautrixCommonSettings = {
     homeserver = {
       address = "http://localhost:${toString synapsePort}";
-      #address = "https://matrix.${network.domain}";
       domain = config.services.matrix-synapse.settings.server_name;
       verify_ssl = false;
     };
-    # appservice.public = {
-    #   hostname = "127.0.0.1";
-    # };
-    bridge = {
-      permissions = {
-        "@guillaume:${network.domain}" = "admin";
-        "${network.domain}" = "user";
-      };
-    };
   };
+
+  # Every local account may use a bridge with its own remote account; the
+  # declared matrix admin gets bridge administration. The user level differs
+  # per bridge generation: bridgev2/go expect "user", legacy telegram needs
+  # "full" to allow own-account login.
+  mkBridgePermissions =
+    userLevel:
+    {
+      "${network.domain}" = userLevel;
+    }
+    // lib.optionalAttrs (network ? matrix && network.matrix ? admin) {
+      "@${network.matrix.admin}:${network.domain}" = "admin";
+    };
+
+  # Official appservice double puppeting: one shared as_token for all bridges,
+  # substituted by envsubst from each bridge's environmentFile.
+  doublePuppetSecret = "as_token:$MAUTRIX_DOUBLEPUPPET_AS_TOKEN";
 
   defaultParams = {
     icon = "element";
@@ -79,7 +98,33 @@ let
 in
 {
   options = {
-    darkone.service.matrix.enable = lib.mkEnableOption "Enable matrix (synapse) service";
+    darkone.service.matrix = {
+      enable = lib.mkEnableOption "Enable matrix (synapse) service";
+
+      # Mautrix bridges, individually switchable
+      bridges = {
+        whatsapp.enable = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Mautrix WhatsApp bridge (login by QR code).";
+        };
+        telegram.enable = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Mautrix Telegram bridge (login by phone number).";
+        };
+        messenger.enable = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Mautrix Facebook Messenger bridge (login by cookies).";
+        };
+        discord.enable = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+          description = "Mautrix Discord bridge (login by QR code, experimental).";
+        };
+      };
+    };
   };
 
   config = lib.mkMerge [
@@ -159,51 +204,27 @@ in
         key = "turn-secret";
       };
 
-      # Mautrix Whatsapp Secrets
-      sops.secrets.mautrix-whatsapp-bridge-login-shared-secret = { };
-      sops.secrets.mautrix-whatsapp-encryption-pickle-key = { };
-      sops.templates.mautrix-whatsapp-env = {
+      # Double puppeting appservice: a single shared as_token allows every
+      # bridge to impersonate local users (official docs.mau.fi method). The
+      # hs_token is required by synapse but never used.
+      sops.secrets.mautrix-doublepuppet-as-token = { };
+      sops.secrets.mautrix-doublepuppet-hs-token = { };
+      sops.templates.doublepuppet-registration = {
         content = ''
-          MAUTRIX_WHATSAPP_BRIDGE_LOGIN_SHARED_SECRET=${config.sops.placeholder.mautrix-whatsapp-bridge-login-shared-secret}
-          ENCRYPTION_PICKLE_KEY=${config.sops.placeholder.mautrix-whatsapp-encryption-pickle-key}
+          id: doublepuppet
+          url:
+          as_token: ${config.sops.placeholder.mautrix-doublepuppet-as-token}
+          hs_token: ${config.sops.placeholder.mautrix-doublepuppet-hs-token}
+          sender_localpart: doublepuppet
+          rate_limited: false
+          namespaces:
+            users:
+              - regex: '@.*:${network.domain}'
+                exclusive: false
         '';
         mode = "0400";
-        owner = "mautrix-whatsapp";
-
-        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
-        restartUnits = [ "mautrix-whatsapp.service" ];
-      };
-
-      # Mautrix Meta
-      sops.secrets.mautrix-meta-as-token = { };
-      sops.templates.mautrix-meta-env = {
-        content = ''
-          MAUTRIX_META_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-meta-as-token}
-        '';
-        mode = "0400";
-        owner = "mautrix-meta-messenger";
-
-        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
-        restartUnits = [ "mautrix-meta-messenger.service" ];
-      };
-
-      # Mautrix Telegram -> https://my.telegram.org/
-      sops.secrets.mautrix-telegram-api-id = { };
-      sops.secrets.mautrix-telegram-api-hash = { };
-      sops.secrets.mautrix-telegram-as-token = { };
-      sops.secrets.mautrix-telegram-hs-token = { };
-      sops.templates.mautrix-telegram-env = {
-        content = ''
-          MAUTRIX_TELEGRAM_API_ID=${config.sops.placeholder.mautrix-telegram-api-id}
-          MAUTRIX_TELEGRAM_API_HASH=${config.sops.placeholder.mautrix-telegram-api-hash}
-          MAUTRIX_TELEGRAM_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-telegram-as-token}
-          MAUTRIX_TELEGRAM_APPSERVICE_HS_TOKEN=${config.sops.placeholder.mautrix-telegram-hs-token}
-        '';
-        mode = "0400";
-        owner = "mautrix-telegram";
-
-        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
-        restartUnits = [ "mautrix-telegram.service" ];
+        owner = "matrix-synapse";
+        restartUnits = [ "matrix-synapse.service" ];
       };
 
       #------------------------------------------------------------------------
@@ -229,91 +250,10 @@ in
       # PostgreSQL backup (all databases by default)
       services.postgresqlBackup.enable = true;
 
-      #------------------------------------------------------------------------
-      # Mautrix
-      #------------------------------------------------------------------------
-
-      # Facebook messenger (TODO: optimiser, conf instable)
-      services.mautrix-meta.instances.messenger = {
-        enable = true;
-        environmentFile = config.sops.templates.mautrix-meta-env.path;
-        settings = mautrixCommonSettings // {
-          network.mode = "messenger";
-          network.chat_sync_max_age = "168h"; # only sync active conversations from the last 7 days
-          appservice = {
-            id = "messenger";
-            as_token = "$MAUTRIX_META_APPSERVICE_AS_TOKEN";
-            bot = {
-              username = "messengerbot";
-              displayname = "Messenger bridge bot";
-              avatar = "mxc://maunium.net/ygtkteZsXnGJLJHRchUwYWak";
-            };
-          };
-        };
-      };
-
-      # TODO: Mautrix discord (need the discord mobile app)
-      # services.mautrix-discord = {
-      #   enable = true;
-      #   settings = mautrixCommonSettings;
-      # };
-
-      # Whatsapp
-      services.mautrix-whatsapp = {
-        enable = true;
-        environmentFile = config.sops.templates.mautrix-whatsapp-env.path;
-        settings = lib.mkMerge [
-          mautrixCommonSettings
-          {
-            encryption = {
-              allow = true;
-              default = true;
-              pickle_key = "$ENCRYPTION_PICKLE_KEY";
-              require = false;
-            };
-          }
-        ];
-      };
+      # Used by mautrix bridges for conversions; olm is required by legacy
+      # bridges and is flagged insecure upstream.
+      environment.systemPackages = [ pkgs.ffmpeg_7 ];
       nixpkgs.config.permittedInsecurePackages = [ "olm-3.2.16" ];
-
-      # Telegram
-      services.mautrix-telegram = {
-        enable = true;
-        environmentFile = config.sops.templates.mautrix-telegram-env.path;
-        settings = lib.mkMerge [
-          mautrixCommonSettings
-          {
-            telegram = {
-              api_id = "$MAUTRIX_TELEGRAM_API_ID";
-              api_hash = "$MAUTRIX_TELEGRAM_API_HASH";
-              bot_token = "disabled";
-              # device_info = {
-              #   lang_code = zone.lang;
-              #   system_lang_code = zone.lang;
-              # };
-            };
-            appservice = {
-              id = "telegram";
-              address = "http://localhost:${toString telegramPort}"; # 8080 by default already in use
-              port = telegramPort;
-              #bot_avatar = "remove"; # Error with the default avatar...
-              as_token = "$MAUTRIX_TELEGRAM_APPSERVICE_AS_TOKEN";
-              hs_token = "$MAUTRIX_TELEGRAM_APPSERVICE_HS_TOKEN";
-            };
-            bridge = {
-              encryption = {
-                allow = true;
-                default = true;
-                msc4190 = true;
-                require = false;
-              };
-            };
-          }
-        ];
-      };
-
-      # Used by mautrix bridges for conversions
-      environment.systemPackages = with pkgs; [ ffmpeg_7 ];
 
       #------------------------------------------------------------------------
       # Synapse Server
@@ -427,6 +367,10 @@ in
           registration_shared_secret_path = config.sops.secrets.matrix-rss-password.path;
           auto_join_rooms = [ ]; # TODO
 
+          # Double puppeting appservice for the mautrix bridges (the bridges'
+          # own registrations are appended by their nixpkgs modules)
+          app_service_config_files = [ config.sops.templates.doublepuppet-registration.path ];
+
           # DB
           database.args = {
             user = "matrix-synapse";
@@ -475,6 +419,188 @@ in
           # TODO: https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#registration
         };
       }; # matrix-synapse
+    })
+
+    #------------------------------------------------------------------------
+    # Mautrix bridge: Facebook Messenger (bridgev2)
+    #------------------------------------------------------------------------
+
+    (lib.mkIf (cfg.enable && cfg.bridges.messenger.enable) {
+
+      sops.secrets.mautrix-meta-as-token = { };
+      sops.templates.mautrix-meta-env = {
+        content = ''
+          MAUTRIX_META_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-meta-as-token}
+          MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
+        '';
+        mode = "0400";
+        owner = "mautrix-meta-messenger";
+
+        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
+        restartUnits = [ "mautrix-meta-messenger.service" ];
+      };
+
+      services.mautrix-meta.instances.messenger = {
+        enable = true;
+        environmentFile = config.sops.templates.mautrix-meta-env.path;
+        settings = mautrixCommonSettings // {
+          network.mode = "messenger";
+          network.chat_sync_max_age = "168h"; # only sync active conversations from the last 7 days
+          bridge.permissions = mkBridgePermissions "user";
+          double_puppet.secrets."${network.domain}" = doublePuppetSecret;
+          appservice = {
+            id = "messenger";
+            as_token = "$MAUTRIX_META_APPSERVICE_AS_TOKEN";
+            bot = {
+              username = "messengerbot";
+              displayname = "Messenger bridge bot";
+              avatar = "mxc://maunium.net/ygtkteZsXnGJLJHRchUwYWak";
+            };
+          };
+        };
+      };
+    })
+
+    #------------------------------------------------------------------------
+    # Mautrix bridge: WhatsApp (bridgev2)
+    #------------------------------------------------------------------------
+
+    (lib.mkIf (cfg.enable && cfg.bridges.whatsapp.enable) {
+
+      sops.secrets.mautrix-whatsapp-encryption-pickle-key = { };
+      sops.templates.mautrix-whatsapp-env = {
+        content = ''
+          ENCRYPTION_PICKLE_KEY=${config.sops.placeholder.mautrix-whatsapp-encryption-pickle-key}
+          MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
+        '';
+        mode = "0400";
+        owner = "mautrix-whatsapp";
+
+        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
+        restartUnits = [ "mautrix-whatsapp.service" ];
+      };
+
+      services.mautrix-whatsapp = {
+        enable = true;
+        environmentFile = config.sops.templates.mautrix-whatsapp-env.path;
+        settings = lib.mkMerge [
+          mautrixCommonSettings
+          {
+            bridge.permissions = mkBridgePermissions "user";
+            double_puppet.secrets."${network.domain}" = doublePuppetSecret;
+
+            # Do not bridge WhatsApp statuses: the default (true) keeps
+            # re-inviting every user to a "WhatsApp Status Broadcast" room.
+            network.enable_status_broadcast = false;
+
+            encryption = {
+              allow = true;
+              default = true;
+              pickle_key = "$ENCRYPTION_PICKLE_KEY";
+              require = false;
+            };
+          }
+        ];
+      };
+    })
+
+    #------------------------------------------------------------------------
+    # Mautrix bridge: Telegram (legacy python bridge)
+    #------------------------------------------------------------------------
+
+    (lib.mkIf (cfg.enable && cfg.bridges.telegram.enable) {
+
+      # API credentials -> https://my.telegram.org/
+      sops.secrets.mautrix-telegram-api-id = { };
+      sops.secrets.mautrix-telegram-api-hash = { };
+      sops.secrets.mautrix-telegram-as-token = { };
+      sops.secrets.mautrix-telegram-hs-token = { };
+      sops.templates.mautrix-telegram-env = {
+        content = ''
+          MAUTRIX_TELEGRAM_API_ID=${config.sops.placeholder.mautrix-telegram-api-id}
+          MAUTRIX_TELEGRAM_API_HASH=${config.sops.placeholder.mautrix-telegram-api-hash}
+          MAUTRIX_TELEGRAM_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-telegram-as-token}
+          MAUTRIX_TELEGRAM_APPSERVICE_HS_TOKEN=${config.sops.placeholder.mautrix-telegram-hs-token}
+          MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
+        '';
+        mode = "0400";
+        owner = "mautrix-telegram";
+
+        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
+        restartUnits = [ "mautrix-telegram.service" ];
+      };
+
+      services.mautrix-telegram = {
+        enable = true;
+        environmentFile = config.sops.templates.mautrix-telegram-env.path;
+        settings = lib.mkMerge [
+          mautrixCommonSettings
+          {
+            telegram = {
+              api_id = "$MAUTRIX_TELEGRAM_API_ID";
+              api_hash = "$MAUTRIX_TELEGRAM_API_HASH";
+              bot_token = "disabled";
+            };
+            appservice = {
+              id = "telegram";
+              address = "http://localhost:${toString telegramPort}"; # 8080 by default already in use
+              port = telegramPort;
+              as_token = "$MAUTRIX_TELEGRAM_APPSERVICE_AS_TOKEN";
+              hs_token = "$MAUTRIX_TELEGRAM_APPSERVICE_HS_TOKEN";
+            };
+            bridge = {
+
+              # Legacy levels: "full" (not "user") is required so that local
+              # accounts can log into their own telegram account.
+              permissions = mkBridgePermissions "full";
+              login_shared_secret_map."${network.domain}" = doublePuppetSecret;
+              encryption = {
+                allow = true;
+                default = true;
+                msc4190 = true;
+                require = false;
+              };
+            };
+          }
+        ];
+      };
+    })
+
+    #------------------------------------------------------------------------
+    # Mautrix bridge: Discord (legacy go bridge, optional)
+    #------------------------------------------------------------------------
+
+    (lib.mkIf (cfg.enable && cfg.bridges.discord.enable) {
+
+      sops.templates.mautrix-discord-env = {
+        content = ''
+          MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
+        '';
+        mode = "0400";
+        owner = "mautrix-discord";
+
+        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
+        restartUnits = [ "mautrix-discord.service" ];
+      };
+
+      services.mautrix-discord = {
+        enable = true;
+        environmentFile = config.sops.templates.mautrix-discord-env.path;
+        settings = {
+          homeserver = mautrixCommonSettings.homeserver;
+
+          # Intentionally partial: missing keys (templates, command prefix,
+          # appservice tokens...) are filled at startup by the bridge's
+          # embedded config upgrader, and registration tokens are generated
+          # by the nixpkgs module.
+          bridge = {
+            permissions = mkBridgePermissions "user" // {
+              "*" = "relay";
+            };
+            login_shared_secret_map."${network.domain}" = doublePuppetSecret;
+          };
+        };
+      };
     })
   ];
 }
