@@ -1,9 +1,10 @@
 # DNF matrix (synapse) server with mautrix bridges.
 #
-# Bridges (whatsapp, telegram, messenger, discord) are usable by every local
-# account: each user links its own remote account by talking to the bridge bot
-# (`@whatsappbot`, `@telegrambot`, ... then `login`); sessions are isolated per
-# user. The declared `network.matrix.admin` administrates the bridges.
+# Bridges (whatsapp, signal, telegram, messenger, discord) are usable by every
+# local account: each user links its own remote account by talking to the
+# bridge bot (`@whatsappbot`, `@signalbot`, ... then `login`); sessions are
+# isolated per user. The declared `network.matrix.admin` administrates the
+# bridges.
 #
 # Double puppeting uses the official appservice method
 # (https://docs.mau.fi/bridges/general/double-puppeting.html): a shared
@@ -107,6 +108,11 @@ in
           type = lib.types.bool;
           default = true;
           description = "Mautrix WhatsApp bridge (login by QR code).";
+        };
+        signal.enable = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Mautrix Signal bridge (login by QR code).";
         };
         telegram.enable = lib.mkOption {
           type = lib.types.bool;
@@ -492,6 +498,45 @@ in
             # Do not bridge WhatsApp statuses: the default (true) keeps
             # re-inviting every user to a "WhatsApp Status Broadcast" room.
             network.enable_status_broadcast = false;
+
+            encryption = {
+              allow = true;
+              default = true;
+              pickle_key = "$ENCRYPTION_PICKLE_KEY";
+              require = false;
+            };
+          }
+        ];
+      };
+    })
+
+    #------------------------------------------------------------------------
+    # Mautrix bridge: Signal (bridgev2)
+    #------------------------------------------------------------------------
+
+    (lib.mkIf (cfg.enable && cfg.bridges.signal.enable) {
+
+      sops.secrets.mautrix-signal-encryption-pickle-key = { };
+      sops.templates.mautrix-signal-env = {
+        content = ''
+          ENCRYPTION_PICKLE_KEY=${config.sops.placeholder.mautrix-signal-encryption-pickle-key}
+          MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
+        '';
+        mode = "0400";
+        owner = "mautrix-signal";
+
+        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
+        restartUnits = [ "mautrix-signal.service" ];
+      };
+
+      services.mautrix-signal = {
+        enable = true;
+        environmentFile = config.sops.templates.mautrix-signal-env.path;
+        settings = lib.mkMerge [
+          mautrixCommonSettings
+          {
+            bridge.permissions = mkBridgePermissions "user";
+            double_puppet.secrets."${network.domain}" = doublePuppetSecret;
 
             encryption = {
               allow = true;
