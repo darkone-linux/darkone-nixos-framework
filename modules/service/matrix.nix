@@ -12,6 +12,12 @@
 # as the user's real matrix account. Required sops secrets:
 # `mautrix-doublepuppet-as-token` and `mautrix-doublepuppet-hs-token`
 # (`openssl rand -hex 32` each).
+#
+# Every bridge's appservice as/hs tokens are sops-provided rather than
+# auto-generated: the registration file becomes a pure function of the
+# secrets, so resetting a bridge's state dir never invalidates the
+# registration synapse has loaded (which would otherwise require a registration
+# wipe + synapse restart and produce "as_token was not accepted" errors).
 
 # (TODO: Livekit -> https://wiki.nixos.org/wiki/Matrix#Livekit)
 # TODO: Synapse Admin -> https://wiki.nixos.org/wiki/Matrix#Synapse_Admin_with_Caddy
@@ -33,6 +39,7 @@ let
   srv = config.services.matrix-synapse;
   synapsePort = dnfConfig.network.ports.matrix;
   telegramPort = dnfConfig.network.ports.matrixTelegram;
+  discordPort = dnfConfig.network.ports.matrixDiscord;
 
   # VoIP
   inherit (config.services) coturn;
@@ -434,10 +441,12 @@ in
     (lib.mkIf (cfg.enable && cfg.bridges.messenger.enable) {
 
       sops.secrets.mautrix-meta-as-token = { };
+      sops.secrets.mautrix-meta-hs-token = { };
       sops.secrets.mautrix-meta-encryption-pickle-key = { };
       sops.templates.mautrix-meta-env = {
         content = ''
           MAUTRIX_META_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-meta-as-token}
+          MAUTRIX_META_APPSERVICE_HS_TOKEN=${config.sops.placeholder.mautrix-meta-hs-token}
           ENCRYPTION_PICKLE_KEY=${config.sops.placeholder.mautrix-meta-encryption-pickle-key}
           MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
         '';
@@ -488,7 +497,10 @@ in
           };
           appservice = {
             id = "messenger";
+
+            # Deterministic registration tokens (cf. file header)
             as_token = "$MAUTRIX_META_APPSERVICE_AS_TOKEN";
+            hs_token = "$MAUTRIX_META_APPSERVICE_HS_TOKEN";
             bot = {
               username = "messengerbot";
               displayname = "Messenger bridge bot";
@@ -505,9 +517,13 @@ in
 
     (lib.mkIf (cfg.enable && cfg.bridges.whatsapp.enable) {
 
+      sops.secrets.mautrix-whatsapp-as-token = { };
+      sops.secrets.mautrix-whatsapp-hs-token = { };
       sops.secrets.mautrix-whatsapp-encryption-pickle-key = { };
       sops.templates.mautrix-whatsapp-env = {
         content = ''
+          MAUTRIX_WHATSAPP_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-whatsapp-as-token}
+          MAUTRIX_WHATSAPP_APPSERVICE_HS_TOKEN=${config.sops.placeholder.mautrix-whatsapp-hs-token}
           ENCRYPTION_PICKLE_KEY=${config.sops.placeholder.mautrix-whatsapp-encryption-pickle-key}
           MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
         '';
@@ -526,6 +542,12 @@ in
           {
             bridge.permissions = mkBridgePermissions "user";
             double_puppet.secrets."${network.domain}" = doublePuppetSecret;
+
+            # Deterministic registration tokens (cf. file header)
+            appservice = {
+              as_token = "$MAUTRIX_WHATSAPP_APPSERVICE_AS_TOKEN";
+              hs_token = "$MAUTRIX_WHATSAPP_APPSERVICE_HS_TOKEN";
+            };
 
             # Do not bridge WhatsApp statuses: the default (true) keeps
             # re-inviting every user to a "WhatsApp Status Broadcast" room.
@@ -548,9 +570,13 @@ in
 
     (lib.mkIf (cfg.enable && cfg.bridges.signal.enable) {
 
+      sops.secrets.mautrix-signal-as-token = { };
+      sops.secrets.mautrix-signal-hs-token = { };
       sops.secrets.mautrix-signal-encryption-pickle-key = { };
       sops.templates.mautrix-signal-env = {
         content = ''
+          MAUTRIX_SIGNAL_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-signal-as-token}
+          MAUTRIX_SIGNAL_APPSERVICE_HS_TOKEN=${config.sops.placeholder.mautrix-signal-hs-token}
           ENCRYPTION_PICKLE_KEY=${config.sops.placeholder.mautrix-signal-encryption-pickle-key}
           MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
         '';
@@ -569,6 +595,12 @@ in
           {
             bridge.permissions = mkBridgePermissions "user";
             double_puppet.secrets."${network.domain}" = doublePuppetSecret;
+
+            # Deterministic registration tokens (cf. file header)
+            appservice = {
+              as_token = "$MAUTRIX_SIGNAL_APPSERVICE_AS_TOKEN";
+              hs_token = "$MAUTRIX_SIGNAL_APPSERVICE_HS_TOKEN";
+            };
 
             encryption = {
               allow = true;
@@ -649,8 +681,12 @@ in
 
     (lib.mkIf (cfg.enable && cfg.bridges.discord.enable) {
 
+      sops.secrets.mautrix-discord-as-token = { };
+      sops.secrets.mautrix-discord-hs-token = { };
       sops.templates.mautrix-discord-env = {
         content = ''
+          MAUTRIX_DISCORD_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-discord-as-token}
+          MAUTRIX_DISCORD_APPSERVICE_HS_TOKEN=${config.sops.placeholder.mautrix-discord-hs-token}
           MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
         '';
         mode = "0400";
@@ -666,10 +702,36 @@ in
         settings = {
           homeserver = mautrixCommonSettings.homeserver;
 
-          # Intentionally partial: missing keys (templates, command prefix,
-          # appservice tokens...) are filled at startup by the bridge's
-          # embedded config upgrader, and registration tokens are generated
-          # by the nixpkgs module.
+          # Deterministic registration tokens (cf. file header). The module's
+          # appservice option is a non-merging attrs: setting the tokens
+          # replaces its default wholesale, so the upstream values must be
+          # restated here.
+          appservice = {
+            address = "http://localhost:${toString discordPort}";
+            hostname = "0.0.0.0";
+            port = discordPort;
+            database = {
+              type = "sqlite3";
+              uri = "file:/var/lib/mautrix-discord/mautrix-discord.db?_txlock=immediate";
+              max_open_conns = 20;
+              max_idle_conns = 2;
+              max_conn_idle_time = null;
+              max_conn_lifetime = null;
+            };
+            id = "discord";
+            bot = {
+              username = "discordbot";
+              displayname = "Discord bridge bot";
+              avatar = "mxc://maunium.net/nIdEykemnwdisvHbpxflpDlC";
+            };
+            ephemeral_events = true;
+            async_transactions = false;
+            as_token = "$MAUTRIX_DISCORD_APPSERVICE_AS_TOKEN";
+            hs_token = "$MAUTRIX_DISCORD_APPSERVICE_HS_TOKEN";
+          };
+
+          # Intentionally partial: missing keys (templates, command prefix...)
+          # are filled at startup by the bridge's embedded config upgrader.
           bridge = {
             permissions = mkBridgePermissions "user" // {
               "*" = "relay";

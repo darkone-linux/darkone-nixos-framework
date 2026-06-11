@@ -121,6 +121,10 @@
     # Mautrix-Telegram appservice. modules/service/matrix.nix
     matrixTelegram = 29317;
 
+    # Mautrix-Discord appservice (upstream default restated because the
+    # module's appservice option does not merge). modules/service/matrix.nix
+    matrixDiscord = 29334;
+
     # Ports owned by an upstream module (inherited via `config.services.<x>.port`):
     # DNF does not bind them, but a new `ports.*` value must steer clear.
     # Format: value # service -- source module.
@@ -135,7 +139,6 @@
       29318 # mautrix-whatsapp appservice -- modules/service/matrix.nix
       29319 # mautrix-meta appservice -- modules/service/matrix.nix
       29328 # mautrix-signal appservice -- modules/service/matrix.nix
-      29334 # mautrix-discord appservice -- modules/service/matrix.nix
     ];
   };
 }
