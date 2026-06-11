@@ -434,9 +434,11 @@ in
     (lib.mkIf (cfg.enable && cfg.bridges.messenger.enable) {
 
       sops.secrets.mautrix-meta-as-token = { };
+      sops.secrets.mautrix-meta-encryption-pickle-key = { };
       sops.templates.mautrix-meta-env = {
         content = ''
           MAUTRIX_META_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-meta-as-token}
+          ENCRYPTION_PICKLE_KEY=${config.sops.placeholder.mautrix-meta-encryption-pickle-key}
           MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
         '';
         mode = "0400";
@@ -454,6 +456,36 @@ in
           network.chat_sync_max_age = "168h"; # only sync active conversations from the last 7 days
           bridge.permissions = mkBridgePermissions "user";
           double_puppet.secrets."${network.domain}" = doublePuppetSecret;
+
+          # The nixpkgs mautrix-meta defaults are stricter than the other
+          # bridges: `require = true` makes the bot ignore unencrypted rooms
+          # and `cross-signed-tofu` silently drops messages from unverified
+          # sessions — the bot never answers. Align on whatsapp/signal
+          # (mautrix upstream defaults). Changing pickle_key from the module
+          # default requires a bridge state reset (/var/lib/mautrix-meta-*).
+          encryption = {
+            allow = true;
+            default = true;
+            require = false;
+            pickle_key = "$ENCRYPTION_PICKLE_KEY";
+            verification_levels = {
+              receive = "unverified";
+              send = "unverified";
+              share = "cross-signed-tofu";
+            };
+
+            # Aggressive key deletion is only sensible with enforced
+            # verification; back to mautrix defaults like the other bridges.
+            delete_keys = {
+              dont_store_outbound = false;
+              ratchet_on_decrypt = false;
+              delete_fully_used_on_decrypt = false;
+              delete_prev_on_new_session = false;
+              delete_on_device_delete = false;
+              periodically_delete_expired = false;
+              delete_outdated_inbound = false;
+            };
+          };
           appservice = {
             id = "messenger";
             as_token = "$MAUTRIX_META_APPSERVICE_AS_TOKEN";
