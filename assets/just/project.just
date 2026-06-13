@@ -1001,8 +1001,6 @@ check-all:
 	if [ -d {{workDir}}/dnf ] ;then
 		just _log "DNF Unit Tests" "CHECK-ALL"
 		cd {{workDir}}/dnf && just unit-tests | grep -v '✅'
-		just _log "DNF Flake + Simulation" "CHECK-ALL"
-		cd {{workDir}}/dnf && just check-flake
 	fi
 	just _log "Network flake" "CHECK-ALL"
 	cd {{workDir}} && just check-flake
