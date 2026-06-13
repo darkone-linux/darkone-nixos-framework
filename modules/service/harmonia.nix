@@ -96,7 +96,8 @@ in
         enable = true;
         signKeyPaths = [ config.sops.secrets.harmonia-secret-key.path ];
         settings = {
-          bind = "[::]:${toString harmoniaPort}";
+          bind = "${host.ip}:${toString harmoniaPort}";
+          workers = 4;
 
           # Lower value = higher priority than the public caches.
           priority = 30;
