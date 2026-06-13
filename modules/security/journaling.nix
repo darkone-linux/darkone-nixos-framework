@@ -68,6 +68,7 @@ in
         (lib.mkIf (isActive "R72" "reinforced" "base" [ ]) {
 
           # TODO: generate rsyslogd rules per registered DNF service
+          # NOTE: bind services in system/services.nix
           # services.rsyslogd.extraConfig = ''
           #   if $programname == 'nginx'  then -/var/log/nginx.log
           #   if $programname == 'sshd'   then -/var/log/sshd.log

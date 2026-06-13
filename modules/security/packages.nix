@@ -46,6 +46,32 @@ in
       default = [ "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=" ];
       description = "Public keys for authorized binary caches (R59).";
     };
+
+    darkone.security.packages.allowedUris = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      example = [
+        "https://github.com/NixOS"
+        "https://cache.nixos.org"
+      ];
+
+      # Empty list = no restriction (allowed-uris left unset).
+      description = ''
+        Prefix allowlist of URIs fetchable during evaluation (R59).
+        Restricts builtins.fetch* / flake inputs to internal mirrors.
+        Empty list disables the restriction.
+      '';
+    };
+
+    darkone.security.packages.maxSystemPackages = lib.mkOption {
+      type = lib.types.nullOr lib.types.int;
+      default = null;
+      example = 200;
+      description = ''
+        Soft threshold on the number of system packages (R58).
+        Emits an evaluation warning when exceeded; null disables the check.
+      '';
+    };
   };
 
   config = lib.mkMerge [
@@ -64,8 +90,14 @@ in
           # man documentation remains useful over SSH
           documentation.man.enable = lib.mkDefault true;
 
-          # TODO: soft warning assertion if systemPackages exceeds a threshold
-          # (option darkone.security.packages.maxSystemPackages to add if desired)
+          # Soft warning (non-blocking): too many system packages widen the attack surface
+          warnings =
+            lib.optional
+              (
+                cfg.maxSystemPackages != null
+                && lib.length config.environment.systemPackages > cfg.maxSystemPackages
+              )
+              "R58: ${toString (lib.length config.environment.systemPackages)} system packages installed, above the configured threshold of ${toString cfg.maxSystemPackages}.";
         })
 
         # R59 — Trusted repositories (minimal, base)
@@ -80,10 +112,10 @@ in
 
             # Restrict imports from derivations
             allow-import-from-derivation = false;
+          }
 
-            # TODO: option to restrict allowed-uris to internal mirrors
-            # allowed-uris = [ "https://cache.nixos.org" ];
-          };
+          # Restrict fetches to internal mirrors only when an allowlist is set
+          // lib.optionalAttrs (cfg.allowedUris != [ ]) { allowed-uris = cfg.allowedUris; };
         })
 
         # R60 — Hardened repositories: linux_hardened kernel (reinforced, base)

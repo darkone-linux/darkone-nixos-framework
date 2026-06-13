@@ -96,6 +96,13 @@ in
       description = "Users allowed to schedule cron jobs (C12).";
     };
 
+    darkone.security.complement.atAllowedUsers = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = cfg.cronAllowedUsers;
+      defaultText = lib.literalExpression "config.darkone.security.complement.cronAllowedUsers";
+      description = "Users allowed to schedule at jobs (C12). Mirrors cronAllowedUsers by default.";
+    };
+
     darkone.security.complement.egressAllowlist = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
@@ -299,14 +306,20 @@ in
         # C12 — cron/at restriction (minimal, base)
         # sideEffects: unlisted users can no longer schedule jobs
         (lib.mkIf (isActive "C12" "minimal" "base" [ ]) {
+          environment.etc = lib.mkMerge [
+            {
 
-          # cron allowlist
-          environment.etc."cron.allow".text = lib.concatStringsSep "\n" cfg.cronAllowedUsers + "\n";
+              # cron allowlist, block everyone else
+              "cron.allow".text = lib.concatStringsSep "\n" cfg.cronAllowedUsers + "\n";
+              "cron.deny".text = "ALL\n";
+            }
 
-          # Block everyone else
-          environment.etc."cron.deny".text = "ALL\n";
-
-          # TODO: at.allow via services.atd if enabled
+            # Same allowlist policy for at/batch, only when the atd service is enabled
+            (lib.mkIf config.services.atd.enable {
+              "at.allow".text = lib.concatStringsSep "\n" cfg.atAllowedUsers + "\n";
+              "at.deny".text = "ALL\n";
+            })
+          ];
         })
       ]
     ))
