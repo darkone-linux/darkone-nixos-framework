@@ -106,7 +106,15 @@ in
     darkone.security.complement.egressAllowlist = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
-      description = "IP/CIDR allowed outbound for strict nftables egress filtering (C4).";
+      example = [
+        "10.0.0.0/8"
+        "2001:db8::/32"
+      ];
+      description = ''
+        IPv4/IPv6 addresses or CIDRs allowed outbound under the C4 reinforced
+        egress deny-by-default policy. Empty list keeps the policy but only
+        loopback and established/related traffic pass (proxy required).
+      '';
     };
   };
 
@@ -166,10 +174,43 @@ in
 
           # Deny-by-default policy: no port open unless explicitly declared
           networking.firewall.allowedTCPPorts = lib.mkDefault [ 22 ];
-
-          # Egress filtering (reinforced level only)
-          # TODO: output deny chain + allowlist via cfg.egressAllowlist
         })
+
+        # C4 (egress) — outbound deny-by-default + destination allowlist (reinforced, base)
+        # sideEffects: blocks all egress except loopback/established/allowlist; an outbound proxy is required
+        # Dedicated inet table: the firewall's nixos-fw table has no output hook, so no conflict
+        (lib.mkIf (isActive "C4" "reinforced" "base" [ ]) (
+          let
+            isV6 = addr: lib.hasInfix ":" addr;
+            v4 = lib.filter (addr: !isV6 addr) cfg.egressAllowlist;
+            v6 = lib.filter isV6 cfg.egressAllowlist;
+
+            # One accept rule per address family, only when that family is populated
+            allowRules =
+              lib.optional (v4 != [ ]) "ip daddr { ${lib.concatStringsSep ", " v4} } accept"
+              ++ lib.optional (v6 != [ ]) "ip6 daddr { ${lib.concatStringsSep ", " v6} } accept";
+          in
+          {
+            networking.nftables.tables.dnf-egress = {
+              family = "inet";
+              content = ''
+                chain output {
+                  type filter hook output priority 0; policy drop;
+
+                  # Allow loopback and replies to established/related connections
+                  oifname "lo" accept
+                  ct state established,related accept
+
+                  # Destination allowlist (cfg.egressAllowlist)
+                  ${lib.concatStringsSep "\n      " allowRules}
+
+                  # Deny-by-default: log before the chain's policy drop
+                  log prefix "C4-egress-drop: " level warn
+                }
+              '';
+            };
+          }
+        ))
 
         # C5 — OpenSSH hardening (intermediary, base)
         # sideEffects: tunnels, agent forwarding, and X11 disabled
