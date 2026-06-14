@@ -71,11 +71,13 @@ in
             };
           };
 
-          # login.defs: force yescrypt
-          environment.etc."login.defs".text = lib.mkAfter ''
-            ENCRYPT_METHOD YESCRYPT
-            YESCRYPT_COST_FACTOR 11
-          '';
+          # login.defs: force yescrypt via the canonical loginDefs API.
+          # (programs/shadow.nix owns /etc/login.defs; writing environment.etc
+          # directly would conflict on the .source/.text of that entry.)
+          security.loginDefs.settings = {
+            ENCRYPT_METHOD = "YESCRYPT";
+            YESCRYPT_COST_FACTOR = 11;
+          };
         })
       ]
     ))

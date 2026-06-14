@@ -191,11 +191,11 @@ in
             serviceConfig = {
               Type = "oneshot";
               ExecStart = pkgs.writeShellScript "anssi-orphan-scan" ''
-                find / -xdev \( -nouser -o -nogroup \) \
+                ${pkgs.findutils}/bin/find / -xdev \( -nouser -o -nogroup \) \
                   -not -path '/nix/store/*' \
                   -not -path '/proc/*' \
                   -ls 2>/dev/null \
-                  | logger -t anssi-r53 -p security.warning
+                  | ${pkgs.util-linux}/bin/logger -t anssi-r53 -p security.warning
               '';
             };
           };
@@ -236,12 +236,12 @@ in
               Type = "oneshot";
               ExecStart = pkgs.writeShellScript "anssi-setuid-scan" ''
                 ALLOWED="${lib.concatStringsSep " " cfg.allowedSetuid}"
-                find / -xdev -type f -perm /6000 -ls 2>/dev/null | while read -r line; do
-                  bin=$(echo "$line" | awk '{print $NF}')
-                  base=$(basename "$bin")
+                ${pkgs.findutils}/bin/find / -xdev -type f -perm /6000 -ls 2>/dev/null | while read -r line; do
+                  bin=$(echo "$line" | ${pkgs.gawk}/bin/awk '{print $NF}')
+                  base=$(${pkgs.coreutils}/bin/basename "$bin")
                   found=0
                   for a in $ALLOWED; do [ "$base" = "$a" ] && found=1 && break; done
-                  [ $found -eq 0 ] && echo "WARNING: unexpected setuid: $bin" | logger -t anssi-r56 -p security.warning
+                  [ $found -eq 0 ] && echo "WARNING: unexpected setuid: $bin" | ${pkgs.util-linux}/bin/logger -t anssi-r56 -p security.warning
                 done
               '';
             };

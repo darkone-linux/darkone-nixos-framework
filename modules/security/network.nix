@@ -132,14 +132,14 @@ in
               Type = "oneshot";
               ExecStart = pkgs.writeShellScript "anssi-listeners-check" ''
                 ALLOWED="${lib.escapeShellArgs cfg.publicListeners}"
-                ss -lntp | awk 'NR>1 && $4 ~ /^(0\.0\.0\.0|\*|\[::\]):/' | while read -r line; do
-                  port=$(echo "$line" | awk '{print $4}' | awk -F: '{print $NF}')
-                  proc=$(echo "$line" | awk '{print $NF}')
+                ${pkgs.iproute2}/bin/ss -lntp | ${pkgs.gawk}/bin/awk 'NR>1 && $4 ~ /^(0\.0\.0\.0|\*|\[::\]):/' | while read -r line; do
+                  port=$(echo "$line" | ${pkgs.gawk}/bin/awk '{print $4}' | ${pkgs.gawk}/bin/awk -F: '{print $NF}')
+                  proc=$(echo "$line" | ${pkgs.gawk}/bin/awk '{print $NF}')
                   found=0
-                  for svc in $ALLOWED; do echo "$proc" | grep -q "$svc" && found=1; done
+                  for svc in $ALLOWED; do echo "$proc" | ${pkgs.gnugrep}/bin/grep -q "$svc" && found=1; done
                   [ $found -eq 0 ] && \
                     echo "WARNING: undeclared listener on 0.0.0.0:$port ($proc)" | \
-                    logger -t anssi-r80 -p security.warning
+                    ${pkgs.util-linux}/bin/logger -t anssi-r80 -p security.warning
                 done
               '';
             };
