@@ -37,6 +37,11 @@ in
           hardware.enable = true;
           core.enableFirewall = lib.mkDefault true;
           i18n.enable = lib.mkDefault true;
+
+          # ANSSI hardening: minimal/base tier on every host. level and category
+          # come from darkone.system.security defaults; higher levels and the
+          # per-profile category will be set later (cf. mixin/profile/).
+          security.enable = lib.mkDefault true;
         };
 
         # Minimum console features

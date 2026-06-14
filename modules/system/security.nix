@@ -75,7 +75,13 @@
 # raising the level on a production system.
 # :::
 
-{ lib, network, ... }: {
+{
+  lib,
+  network,
+  host,
+  ...
+}:
+{
   options = {
     darkone.system.security = {
       enable = lib.mkEnableOption "Enable the ANSSI BP-028 v2.0 hardening module.";
@@ -150,8 +156,14 @@
 
       allowedActiveUsers = lib.mkOption {
         type = lib.types.listOf lib.types.str;
-        default = [ ];
-        description = "Exhaustive list of active user accounts (R30 validation).";
+        default = lib.unique (host.users ++ [ "nix" ]);
+        defaultText = lib.literalExpression ''lib.unique (host.users ++ [ "nix" ])'';
+        description = ''
+          Human accounts allowed to authenticate (R30). Defaults to every user
+          declared in config.yaml (host.users) plus the framework deploy
+          account `nix`. Disabled accounts (no password credential) and service
+          accounts (not normal users) need not be listed.
+        '';
       };
     };
   };

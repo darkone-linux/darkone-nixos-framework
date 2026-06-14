@@ -59,27 +59,12 @@ let
   );
 
   # Active human accounts missing from the explicit allowlist.
-  r30Offenders = lib.subtractLists cfg.allowedActiveUsers activeNormalUsers;
+  # The allowlist is the cross-cutting darkone.system.security.allowedActiveUsers.
+  r30Offenders = lib.subtractLists mainSecurityCfg.allowedActiveUsers activeNormalUsers;
 in
 {
   options = {
     darkone.security.users.enable = lib.mkEnableOption "Enable ANSSI account management (R30–R36).";
-
-    darkone.security.users.allowedActiveUsers = lib.mkOption {
-      type = lib.types.listOf lib.types.str;
-      default = [ "nix" ];
-      example = [
-        "alice"
-        "bob"
-      ];
-      description = ''
-        Allowlist of human accounts permitted to authenticate (R30).
-        Any normal user holding a password credential must appear here, else
-        an assertion fails. The framework deploy account `nix` is allowed by
-        default; root and service accounts are out of scope (not normal users).
-        Disabled accounts (no credential) need not be listed.
-      '';
-    };
   };
 
   config = lib.mkMerge [
@@ -104,7 +89,7 @@ in
               message =
                 "R30: active user account(s) not allowlisted: "
                 + lib.concatStringsSep ", " r30Offenders
-                + ". Add them to darkone.security.users.allowedActiveUsers, "
+                + ". Add them to darkone.system.security.allowedActiveUsers, "
                 + "or disable the account (remove its password credential).";
             }
           ];
@@ -117,6 +102,10 @@ in
             rules.password.pwquality = {
               control = "required";
               modulePath = "${pkgs.libpwquality}/lib/security/pam_pwquality.so";
+
+              # Run quality checks just before pam_unix stores the password.
+              # Relative offset (not a constant) per the nixpkgs rules guidance.
+              order = config.security.pam.services.passwd.rules.password.unix.order - 10;
               settings = {
                 minlen = 12;
                 minclass = 3;
