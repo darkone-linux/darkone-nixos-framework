@@ -32,10 +32,54 @@ let
   mainSecurityCfg = config.darkone.system.security;
   cfg = config.darkone.security.users;
   isActive = dnfLib.mkIsActive (mainSecurityCfg // { inherit (cfg) enable; });
+
+  # R30 — locked/empty password hashes do not grant authentication.
+  lockedHashes = [
+    ""
+    "!"
+    "*"
+    "!!"
+  ];
+
+  # A password credential able to open a session (shadow-equivalent of the
+  # ANSSI R30 check). SSH-key-only access is out of scope here, matching the
+  # spec's /etc/shadow-based control.
+  hasPasswordCredential =
+    user:
+    user.hashedPasswordFile != null
+    || user.password != null
+    || user.initialPassword != null
+    || (user.hashedPassword != null && !(lib.elem user.hashedPassword lockedHashes))
+    || (user.initialHashedPassword != null && !(lib.elem user.initialHashedPassword lockedHashes));
+
+  # Human accounts that can actually authenticate. Service/system accounts
+  # (isNormalUser = false) and credential-less accounts are out of R30 scope.
+  activeNormalUsers = lib.sort (a: b: a < b) (
+    lib.attrNames (lib.filterAttrs (_: u: u.isNormalUser && hasPasswordCredential u) config.users.users)
+  );
+
+  # Active human accounts missing from the explicit allowlist.
+  r30Offenders = lib.subtractLists cfg.allowedActiveUsers activeNormalUsers;
 in
 {
   options = {
     darkone.security.users.enable = lib.mkEnableOption "Enable ANSSI account management (R30–R36).";
+
+    darkone.security.users.allowedActiveUsers = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ "nix" ];
+      example = [
+        "alice"
+        "bob"
+      ];
+      description = ''
+        Allowlist of human accounts permitted to authenticate (R30).
+        Any normal user holding a password credential must appear here, else
+        an assertion fails. The framework deploy account `nix` is allowed by
+        default; root and service accounts are out of scope (not normal users).
+        Disabled accounts (no credential) need not be listed.
+      '';
+    };
   };
 
   config = lib.mkMerge [
@@ -47,11 +91,23 @@ in
         # R30 — Disable unused user accounts (minimal, base)
         # sideEffects: mutableUsers=false prevents ad-hoc passwd/useradd
         (lib.mkIf (isActive "R30" "minimal" "base" [ ]) {
+
+          # DNF already sets this in core.nix; enforced here for standalone use
           users.mutableUsers = lib.mkForce false;
 
-          # Disable accounts not listed in allowedActiveUsers
-          # Note: DNF already sets users.mutableUsers=false in core.nix
-          # TODO: assertion on allowedActiveUsers vs actual users.users
+          # mutableUsers=false freezes *which* accounts exist; this assertion
+          # checks *which* can open a session: every human account holding a
+          # password credential must be explicitly allowlisted.
+          assertions = [
+            {
+              assertion = r30Offenders == [ ];
+              message =
+                "R30: active user account(s) not allowlisted: "
+                + lib.concatStringsSep ", " r30Offenders
+                + ". Add them to darkone.security.users.allowedActiveUsers, "
+                + "or disable the account (remove its password credential).";
+            }
+          ];
         })
 
         # R31 — Strong passwords (minimal, base) — implemented via PAM (R67/R68)
