@@ -52,6 +52,24 @@ in
       ];
       description = "Allowlist of tolerated setuid/setgid binaries (R56, R57).";
     };
+
+    darkone.security.filesystem.extraMountHardening = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      example = [
+        "/var/log"
+        "/srv"
+        "/home"
+      ];
+      description = ''
+        Mount points to harden with `nosuid,nodev,noexec` (R28). Each listed
+        path MUST be a separate partition declared elsewhere (hardware-
+        configuration / disko); the options are merged into its existing
+        `fileSystems` entry. An explicit list (rather than a global flag)
+        avoids guessing the layout and never creates phantom mounts. Do not
+        list `/home` if users run scripts there — `noexec` would break them.
+      '';
+    };
   };
 
   config = lib.mkMerge [
@@ -68,18 +86,35 @@ in
           boot.tmp.useTmpfs = lib.mkDefault true;
           boot.tmp.tmpfsSize = lib.mkDefault "25%";
 
-          # Mount options for /tmp
-          fileSystems."/tmp" = lib.mkIf config.boot.tmp.useTmpfs {
-            device = "tmpfs";
-            fsType = "tmpfs";
-            options = [
-              "nosuid"
-              "nodev"
-              "noexec"
-              "size=25%"
-              "mode=1777"
-            ];
-          };
+          # Mount options for /tmp and any operator-declared extra partitions
+          # (R28). A single `fileSystems` definition: mixing dotted-path and
+          # whole-attr forms in one attrset is illegal, so everything goes
+          # through `mkMerge`. Extra paths only add `options` to filesystems
+          # the operator already declared — never a phantom mount.
+          fileSystems = lib.mkMerge (
+            [
+              (lib.mkIf config.boot.tmp.useTmpfs {
+                "/tmp" = {
+                  device = "tmpfs";
+                  fsType = "tmpfs";
+                  options = [
+                    "nosuid"
+                    "nodev"
+                    "noexec"
+                    "size=25%"
+                    "mode=1777"
+                  ];
+                };
+              })
+            ]
+            ++ map (mountPoint: {
+              ${mountPoint}.options = [
+                "nosuid"
+                "nodev"
+                "noexec"
+              ];
+            }) cfg.extraMountHardening
+          );
 
           # /proc with hidepid=2 (hides non-root processes)
           # proc group required for legitimate tools (ps, htop as root)
@@ -104,10 +139,6 @@ in
           systemd.tmpfiles.rules = [
             "d /var/tmp 1777 root root -" # sticky bit
           ];
-
-          # TODO: nosuid,nodev,noexec options on /var/log, /home, /srv, /opt
-          # via fileSystems if these mount points are separate partitions.
-          # On NixOS, these options only apply if the partition exists.
         })
 
         # R29 — Restrict /boot (reinforced, base)
@@ -147,31 +178,37 @@ in
         # sideEffects: cannot deploy without access to the sops-nix vault
         (lib.mkIf (isActive "R51" "reinforced" "base" [ ]) {
 
-          # Assertion: forbid plaintext hashedPassword in the Nix store
-          # Passwords must transit through sops-nix (core.nix integration)
-          assertions = [
-            {
-              assertion = lib.all (
-                _user: true
-
-                # TODO: verify hashedPassword is not a plaintext hash
-                # The real check requires inspecting users.users.*.hashedPassword
-                # and comparing to a blocklist (p4ssw0rd, empty hash, default Debian hashes)
-              ) (lib.attrValues config.users.users);
-              message = "R51: Passwords must be managed via sops-nix, not in plaintext.";
-            }
-          ];
+          # Assertion: forbid cleartext passwords landing in the Nix store.
+          # Only `hashedPassword`/`hashedPasswordFile` are acceptable; the
+          # cleartext `password`/`initialPassword` attrs must transit through
+          # sops-nix instead (core.nix integration).
+          assertions =
+            let
+              cleartextUsers = lib.attrNames (
+                lib.filterAttrs (_: u: u.password != null || u.initialPassword != null) config.users.users
+              );
+            in
+            [
+              {
+                assertion = cleartextUsers == [ ];
+                message =
+                  "R51: cleartext password(s) in the Nix store for: "
+                  + lib.concatStringsSep ", " cleartextUsers
+                  + ". Use hashedPasswordFile via sops-nix instead.";
+              }
+            ];
         })
 
         # R52 — Sockets and named pipes (intermediary, base)
         # sideEffects: legacy services (X11 abstract socket) must migrate
         (lib.mkIf (isActive "R52" "intermediary" "base" [ ]) {
 
-          # Enforce RuntimeDirectoryMode=0750 by default for systemd services
-          systemd.services = lib.mkDefault { };
-
-          # TODO: apply `serviceConfig.RuntimeDirectoryMode = "0750"` to all services
-          # via a systemd overlay module — requires an explicit list or a global hook
+          # 0750 runtime dirs on opted-in units (shared list with R55/R63).
+          # Full coverage of every unit would need a global systemd hook;
+          # the hardenedUnits allowlist keeps it explicit and auditable.
+          systemd.services = lib.genAttrs config.darkone.security.services.hardenedUnits (_: {
+            serviceConfig.RuntimeDirectoryMode = lib.mkDefault "0750";
+          });
         })
 
         # R53 — No orphan files (minimal, base)
@@ -213,9 +250,13 @@ in
         # sideEffects: pam_namespace requires /etc/security/namespace.conf
         (lib.mkIf (isActive "R55" "intermediary" "base" [ ]) {
 
-          # systemd-native alternative: PrivateTmp=true at service level (cf. R63)
-          # pam_namespace is more complete but more complex to configure
-          # TODO: configure pam_namespace or document PrivateTmp as alternative
+          # Per-service private /tmp on opted-in units. PrivateTmp is the
+          # systemd-native equivalent of pam_namespace and far simpler to
+          # operate; pam_namespace (/etc/security/namespace.conf) stays a
+          # documented alternative for login-session isolation.
+          systemd.services = lib.genAttrs config.darkone.security.services.hardenedUnits (_: {
+            serviceConfig.PrivateTmp = lib.mkDefault true;
+          });
         })
 
         # R56 — Avoid arbitrary setuid/setgid (minimal, base)

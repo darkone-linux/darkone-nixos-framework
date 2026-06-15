@@ -129,8 +129,21 @@ in
             export TMOUT
           '';
 
-          # Graphical console: handled by home-manager modules (swayidle, GNOME)
-          # TODO: integration with darkone.graphic.* for auto-lock
+          # Graphical console: GNOME idle-lock defaults when the DNF GNOME
+          # profile is active. Shipped as a non-locked dconf database (own
+          # layer, merged with graphic/gnome.nix) so a user may still adjust
+          # the delay. Other WMs (Sway, etc.) lock from their home profile.
+          programs.dconf.profiles.user.databases = lib.mkIf config.darkone.graphic.gnome.enable [
+            {
+              settings = {
+                "org/gnome/desktop/session".idle-delay = lib.gvariant.mkUint32 600;
+                "org/gnome/desktop/screensaver" = {
+                  lock-enabled = true;
+                  lock-delay = lib.gvariant.mkUint32 0;
+                };
+              };
+            }
+          ];
         })
 
         # R33 — Admin action accountability (intermediary, base)
@@ -156,21 +169,35 @@ in
         # sideEffects: none major, NixOS already compliant by default
         (lib.mkIf (isActive "R34" "intermediary" "base" [ ]) {
 
-          # NixOS sets isSystemUser=true by default for services
-          # Assertion: verify system accounts have nologin shell
-          assertions = [
-            {
-              assertion = lib.all (
+          # A service account is "disabled" when it cannot open an interactive
+          # session: a non-human account must not BOTH keep a real login shell
+          # AND hold a password credential. The credential conjunction (reusing
+          # the R30 helper) keeps false positives near zero — almost no system
+          # account carries a password.
+          assertions =
+            let
+              hasLoginShell =
                 user:
-                !(!user.isNormalUser && user.uid or 1000 < 1000)
-                || user.shell == pkgs.shadow or null
-                || user.shell == "/run/current-system/sw/bin/nologin"
-                || user.shell == null
-              ) (lib.attrValues config.users.users);
-              message = "R34: Service accounts must have a nologin shell.";
-            }
-          ];
-          # TODO: strengthen assertion to cover all cases (shadow, false, nologin)
+                let
+                  s = if user.shell == null then "" else toString user.shell;
+                in
+                s != "" && !(lib.hasInfix "nologin" s) && !(lib.hasSuffix "/false" s) && !(lib.hasInfix "shadow" s);
+              r34Offenders = lib.attrNames (
+                lib.filterAttrs (
+                  _: u: !u.isNormalUser && hasPasswordCredential u && hasLoginShell u
+                ) config.users.users
+              );
+            in
+            [
+              {
+                assertion = r34Offenders == [ ];
+                message =
+                  "R34: service account(s) with both a login shell and a password "
+                  + "credential: "
+                  + lib.concatStringsSep ", " r34Offenders
+                  + ". Set shell = nologin/false or remove the password credential.";
+              }
+            ];
         })
 
         # R35 — Unique service accounts (intermediary, base)
@@ -205,8 +232,9 @@ in
             }
           ];
 
-          # systemd services: UMask=0027 (less strict but reasonable for services)
-          # TODO: apply UMask=0027 to services via a mkHardenedService helper (R63)
+          # systemd services: UMask=0027 is part of the R63 hardening baseline
+          # (dnfLib.mkHardenedServiceConfig), applied to darkone.security.
+          # services.hardenedUnits. Nothing to add here.
         })
       ]
     ))

@@ -31,9 +31,6 @@ let
   cfg = config.darkone.security.services;
   isActive = dnfLib.mkIsActive (mainSecurityCfg // { inherit (cfg) enable; });
 
-  # Helper: produces systemd hardening options for a service (R63, R65)
-  # To be applied via `systemd.services.<name>.serviceConfig`
-
   # List of services to disable in the server category (R62)
   serverDisabledServices = [
     "cups"
@@ -63,12 +60,27 @@ in
       default = [ ];
       description = "systemd services allowed to run as root without CapabilityBoundingSet (R64).";
     };
+
+    darkone.security.services.hardenedUnits = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      example = [
+        "nginx"
+        "gitea"
+      ];
+      description = ''
+        systemd units to which the ANSSI hardening baseline is applied
+        (R52 RuntimeDirectoryMode, R55 PrivateTmp, R63 full sandbox via
+        `dnfLib.mkHardenedServiceConfig`). Empty by default: blanket
+        sandboxing can break services that need write access or extra
+        syscalls, so units are opt-in. List framework-owned units known to
+        tolerate confinement; per-unit `serviceConfig` overrides still win.
+      '';
+    };
   };
 
-  # Expose mkHardenedServiceConfig to other DNF modules.
-  # ARCHITECTURAL DECISION: to share this helper with DNF service modules,
-  # we could add it to dnfLib. For now, it stays local to security.
-  # TODO: migrate to dnfLib.mkHardenedServiceConfig if adoption is broad
+  # The systemd hardening helper now lives in dnfLib.mkHardenedServiceConfig
+  # (shared with DNF service modules); R52/R55/R63 apply it per hardenedUnits.
 
   config = lib.mkMerge [
     { darkone.security.services.enable = lib.mkDefault mainSecurityCfg.enable; }
@@ -99,11 +111,16 @@ in
         # sideEffects: MemoryDenyWriteExecute breaks JIT (just-in-time compilation), ProtectSystem=strict enforces ReadWritePaths
         (lib.mkIf (isActive "R63" "intermediary" "base" [ ]) {
 
-          # TODO: apply mkHardenedServiceConfig to registered DNF services
-          # via darkone.system.services.service.<name> (services.nix integration)
-          # For now: individual services apply the helper manually.
-          # Example:
-          # systemd.services.myservice.serviceConfig = mkHardenedServiceConfig { };
+          # Apply the full sandbox baseline to opted-in units. `needs-jit` in
+          # excludes drops MemoryDenyWriteExecute so JIT runtimes keep working.
+          # Each value is mkDefault: the baseline is a *floor* that fills gaps
+          # without fighting a unit's own deliberate serviceConfig (e.g. a
+          # daemon that already sets ProtectSystem or its own ReadWritePaths).
+          systemd.services = lib.genAttrs cfg.hardenedUnits (_: {
+            serviceConfig = lib.mapAttrs (_: lib.mkDefault) (
+              dnfLib.mkHardenedServiceConfig { needsJit = lib.elem "needs-jit" mainSecurityCfg.excludes; }
+            );
+          });
         })
 
         # R64 — Service privileges (reinforced, base)
