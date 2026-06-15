@@ -34,7 +34,7 @@ in
     ;
   inherit (dateTime) shiftHour;
   inherit (networking) extractReversePrefix;
-  inherit (security) mkIsActive levelMapping;
+  inherit (security) mkIsActive levelMapping mkHardenedServiceConfig;
   inherit (hive) getHostArch mkNodeArgs;
   inherit (paths) resolveProfile resolveNixosProfile;
   inherit (serviceActivation) triggerProfileServices mkHostProfileServicesAssertions;

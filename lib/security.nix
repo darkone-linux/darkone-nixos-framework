@@ -27,4 +27,51 @@ in
     && (category == "base" || category == cfg.category)
     && lib.all (tag: !(lib.elem tag cfg.excludes)) tags
     && !(lib.hasAttr ruleId cfg.exceptions);
+
+  # ANSSI systemd hardening baseline (R63), reused by R52/R55 too.
+  #
+  # Returns a `serviceConfig` attrset to merge into a unit. Covers
+  # ProtectSystem/ProtectHome confinement, RuntimeDirectoryMode=0750 (R52),
+  # PrivateTmp (R55), a `@system-service` syscall filter and an empty
+  # capability set. `MemoryDenyWriteExecute` is the only W^X knob that breaks
+  # JIT runtimes (Java, V8, .NET, LuaJIT, Wasm); `needsJit = true` (or the
+  # `needs-jit` exclude tag, resolved by the caller) drops it.
+  mkHardenedServiceConfig =
+    {
+      needsJit ? false,
+    }:
+    {
+      NoNewPrivileges = true;
+      ProtectSystem = "strict";
+      ProtectHome = true;
+      PrivateTmp = true;
+      RuntimeDirectoryMode = "0750";
+      PrivateDevices = true;
+      ProtectKernelTunables = true;
+      ProtectKernelModules = true;
+      ProtectKernelLogs = true;
+      ProtectControlGroups = true;
+      ProtectClock = true;
+      ProtectHostname = true;
+      ProtectProc = "invisible";
+      ProcSubset = "pid";
+      RestrictNamespaces = true;
+      RestrictRealtime = true;
+      RestrictSUIDSGID = true;
+      LockPersonality = true;
+      RestrictAddressFamilies = [
+        "AF_UNIX"
+        "AF_INET"
+        "AF_INET6"
+      ];
+      SystemCallArchitectures = "native";
+      SystemCallFilter = [
+        "@system-service"
+        "~@privileged"
+        "~@resources"
+      ];
+      CapabilityBoundingSet = "";
+      UMask = "0027";
+    }
+    // lib.optionalAttrs (!needsJit) { MemoryDenyWriteExecute = true; };
 }

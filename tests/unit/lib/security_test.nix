@@ -97,4 +97,26 @@ in
       && dnfLib.levelMapping."reinforced" < dnfLib.levelMapping."high";
     expected = true;
   };
+
+  # mkHardenedServiceConfig: baseline R52/R55/R63 keys present
+  testHardenedBaseline = {
+    expr =
+      let
+        c = dnfLib.mkHardenedServiceConfig { };
+      in
+      c.ProtectSystem == "strict" && c.RuntimeDirectoryMode == "0750" && c.PrivateTmp == true;
+    expected = true;
+  };
+
+  # W^X enabled by default (no JIT runtime)
+  testHardenedMemoryDenyDefault = {
+    expr = (dnfLib.mkHardenedServiceConfig { }).MemoryDenyWriteExecute or false;
+    expected = true;
+  };
+
+  # needs-jit drops MemoryDenyWriteExecute (key absent)
+  testHardenedNeedsJit = {
+    expr = (dnfLib.mkHardenedServiceConfig { needsJit = true; }) ? MemoryDenyWriteExecute;
+    expected = false;
+  };
 }
