@@ -33,6 +33,31 @@ let
   isActive = dnfLib.mkIsActive (mainSecurityCfg // { inherit (cfg) enable; });
 
   adminMail = mainSecurityCfg.adminMailbox;
+
+  # sudoers introspection (R40, R42, R44). A command entry is either a bare
+  # string or a `{ command, options }` submodule; normalise both to strings.
+  extraRules = config.security.sudo.extraRules or [ ];
+  extraConfig = config.security.sudo.extraConfig or "";
+  ruleCommandStrings =
+    rule: map (c: if lib.isString c then c else c.command or "") (rule.commands or [ ]);
+  allCommandStrings = lib.concatMap ruleCommandStrings extraRules;
+  allRunAs = map (rule: toString (rule.runAs or "")) extraRules;
+
+  # Direct invocation of an interactive editor via sudo bypasses sudoedit (R44).
+  editors = [
+    "vi"
+    "vim"
+    "nvim"
+    "view"
+    "nano"
+    "emacs"
+    "ed"
+    "pico"
+    "joe"
+  ];
+  firstToken = c: lib.head (lib.splitString " " c);
+  commandBaseName = c: lib.last (lib.splitString "/" (firstToken c));
+  isEditorCmd = c: c != "" && lib.elem (commandBaseName c) editors;
 in
 {
   options = {
@@ -86,8 +111,8 @@ in
               assertion = lib.all (
                 rule:
                 rule.runAs or "" != "root"
-                || lib.elem (lib.concatStringsSep "," (rule.commands or [ ])) cfg.allowedRootRules
-              ) (config.security.sudo.extraRules or [ ]);
+                || lib.elem (lib.concatStringsSep "," (ruleCommandStrings rule)) cfg.allowedRootRules
+              ) extraRules;
               message =
                 "R40: sudo rules targeting root must be listed in " + "darkone.security.sudo.allowedRootRules.";
             }
@@ -111,9 +136,12 @@ in
         (lib.mkIf (isActive "R42" "intermediary" "base" [ ]) {
           assertions = [
             {
-              # TODO: ensure no `!` in security.sudo.extraRules and extraConfig
-              assertion = true;
-              message = "R42: Negations (!) are forbidden in sudo rules.";
+              # Negations defeat exhaustive allowlists: reject `!` in raw config,
+              # in command specs and in runAs targets.
+              assertion =
+                !(lib.hasInfix "!" extraConfig)
+                && lib.all (c: !(lib.hasInfix "!" c)) (allCommandStrings ++ allRunAs);
+              message = "R42: Negations (!) are forbidden in sudo rules; use an exhaustive allowlist.";
             }
           ];
         })
@@ -127,8 +155,9 @@ in
         (lib.mkIf (isActive "R44" "intermediary" "base" [ ]) {
           assertions = [
             {
-              # TODO: ensure vi/vim/nano/emacs are not targeted directly in sudoers
-              assertion = true;
+              # Best-effort: reject a command whose basename is an interactive
+              # editor. Deeper parsing (cvtsudoers -f json) is checkScript work.
+              assertion = !(lib.any isEditorCmd allCommandStrings);
               message = "R44: Use sudoedit instead of calling vi/vim/nano/emacs via sudo.";
             }
           ];
