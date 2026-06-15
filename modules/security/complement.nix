@@ -249,12 +249,14 @@ in
                 "hmac-sha2-512-etm@openssh.com"
                 "hmac-sha2-256-etm@openssh.com"
               ];
-              HostKeyAlgorithms = [
+              # Unlike Ciphers/KexAlgorithms/Macs (list-typed in the openssh
+              # module), HostKeyAlgorithms is freeform and must be a string.
+              HostKeyAlgorithms = lib.concatStringsSep "," [
                 "ssh-ed25519"
                 "rsa-sha2-512"
               ];
+              Banner = "/etc/issue.net";
             };
-            banner = "/etc/issue.net";
           };
         })
 
@@ -262,17 +264,19 @@ in
         # sideEffects: disk performance -5-15%, cannot extract without the key
         (lib.mkIf (isActive "C6" "intermediary" "base" [ ]) {
 
-          # LUKS configuration is declared in disko.nix (out of scope for this module)
-          # This module only ensures swap is encrypted if present
-          swapDevices = lib.mkIf (config.swapDevices != [ ]) (
-            map (
-              swap:
-              swap
-              // lib.optionalAttrs (!(swap.randomEncryption.enable or false)) { randomEncryption.enable = true; }
-            ) config.swapDevices
-          );
-
-          # TODO: assertion verifying / or /home is on LUKS (via blkid in checkScript)
+          # LUKS / swap encryption is declared in disko.nix (out of scope here).
+          # We do NOT reassign swapDevices from config.swapDevices: that is a
+          # self-reference and recurses infinitely. Per the "warn, do not force"
+          # decision, C6 only surfaces advisories; enforcement stays declarative
+          # in the host's disk layout. The checkScript confirms / or /home (blkid).
+          warnings =
+            lib.optional (config.boot.initrd.luks.devices == { }) (
+              "C6: no LUKS device declared (boot.initrd.luks.devices is empty). "
+              + "ANSSI recommends full-disk encryption of / or /home."
+            )
+            ++ lib.optional (lib.any (s: !(s.randomEncryption.enable or false)) config.swapDevices) (
+              "C6: a swap device has no randomEncryption; enable it in the swap declaration."
+            );
         })
 
         # C7 — NTS time synchronization (intermediary, base)
@@ -290,10 +294,10 @@ in
         # C8 — Secure DNS resolver DNSSEC + DoT (intermediary, base)
         # sideEffects: non-DNSSEC internal zones need Domains=~example.internal
         (lib.mkIf (isActive "C8" "intermediary" "base" [ ]) {
-          services.resolved = {
-            dnssec = "true";
-            dnsovertls = "true";
-            fallbackDns = [ ]; # No cleartext DNS fallback
+          services.resolved.settings.Resolve = {
+            DNSSEC = "true";
+            DNSOverTLS = "true";
+            FallbackDNS = ""; # No cleartext DNS fallback
           };
         })
 

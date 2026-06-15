@@ -54,8 +54,11 @@ in
             };
           };
 
-          # Assertion: pam_ldap must use TLS if present
-          # TODO: verify the nslcd/sssd config if services.sssd.enable or services.nslcd.enable
+          # Remote PAM/LDAP TLS enforcement is deferred: DNF does not ship a
+          # remote directory (no SSSD/nslcd), so there is nothing to validate
+          # here yet. The planned direction is Kanidm + PAM (see nss.nix). When
+          # a remote backend lands, the TLS check belongs in the checkScript,
+          # which can parse the raw sssd/nslcd config (ssl=on, tls_reqcert).
         })
 
         # R68 — Encrypted password storage (minimal, base)

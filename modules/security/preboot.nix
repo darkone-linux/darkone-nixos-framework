@@ -82,6 +82,14 @@ in
           # Lanzaboote is recommended for full R3 but requires physical key
           # enrollment. To configure via darkone.system.security.secureBootImpl
           # (option to add if needed). For now, systemd-boot by default.
+
+          # Advisory: at intermediary we do not rearchitect the bootloader, so
+          # signal that Secure Boot is not actually enforced unless lanzaboote
+          # is wired up. Runtime SecureBoot state is verified by the checkScript.
+          warnings = lib.optional (!(config.boot.lanzaboote.enable or false)) (
+            "R3: UEFI Secure Boot is not enforced (lanzaboote disabled). "
+            + "Enrol keys and enable boot.lanzaboote, or accept the residual risk."
+          );
         })
 
         # R4 — Replace pre-loaded keys (high, base)
@@ -97,7 +105,15 @@ in
           # Implemented via Secure Boot (R3+R4): signed cmdline = menu cannot be modified.
           # For GRUB: boot.loader.grub.users."admin".hashedPasswordFile = ...;
           # Standard NixOS uses systemd-boot without a native password → R3 mandatory.
-          # TODO: add option darkone.system.security.bootloaderImpl = "secureboot" | "grub"
+          # checkScript / future darkone.system.security.bootloaderImpl =
+          # "secureboot" | "grub" would carry the real enforcement.
+
+          # Advisory: systemd-boot has no native password; without Secure Boot
+          # (signed cmdline) the boot menu stays editable. GRUB users can set
+          # boot.loader.grub.users.<admin>.hashedPasswordFile instead.
+          warnings = lib.optional (
+            config.boot.loader.systemd-boot.enable && !(config.boot.lanzaboote.enable or false)
+          ) ("R5: bootloader entries are not password/Secure-Boot protected (editable boot menu).");
         })
 
         # R6 — Protect kernel cmdline and initramfs (high, base)

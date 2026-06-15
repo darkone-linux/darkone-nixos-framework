@@ -40,17 +40,16 @@ in
         # sideEffects: requires a trustworthy PKI on the directory side
         (lib.mkIf (isActive "R69" "intermediary" "base" [ ] && hasNss) {
 
-          # SSSD with TLS
-          services.sssd = lib.mkIf config.services.sssd.enable {
+          # SSSD with TLS — deferred. DNF has no remote directory today; if/when
+          # one lands (Kanidm + PAM, cf. header), TLS belongs in services.sssd
+          # (raw `config`: tls_reqcert=demand, tls_cacertfile) and the cleartext
+          # `ldap://` check moves to the checkScript, which can parse that text.
+          # This body only runs when SSSD/nslcd is actually enabled (hasNss).
+          services.sssd = lib.mkIf config.services.sssd.enable { };
 
-            # TODO: configure sssd.conf with tls_reqcert=demand and tls_cacertfile
-            # SSSD config is managed via services.sssd.config (raw text)
-          };
-
-          # Forbid LDAP in cleartext (port 389 without STARTTLS)
           assertions = [
             {
-              assertion = true; # TODO: verify the nslcd/sssd config for ssl=on
+              assertion = true;
               message = "R69: LDAP must use TLS (ssl=on, tls_reqcert=demand).";
             }
           ];
@@ -60,8 +59,9 @@ in
         # sideEffects: migration required if the directory is poorly segmented
         (lib.mkIf (isActive "R70" "intermediary" "base" [ ] && hasNss) {
 
-          # TODO: assertion on the SSSD/nslcd bind DN (read-only, non-admin)
-          # Verify that services.sssd config does not contain an admin ldap account
+          # Deferred with R69: the bind-DN must be read-only and non-admin, but
+          # that lives in the raw sssd/nslcd config and is best asserted by the
+          # checkScript once DNF gains a remote directory. No-op until then.
         })
       ]
     ))

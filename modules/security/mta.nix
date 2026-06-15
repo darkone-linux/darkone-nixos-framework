@@ -40,7 +40,7 @@ in
         # sideEffects: loopback-only forbids receiving external mail
         (lib.mkIf (isActive "R74" "intermediary" "base" [ ] && hasMta) {
           services.postfix = lib.mkIf config.services.postfix.enable {
-            config = {
+            settings.main = {
               inet_interfaces = "loopback-only";
               mydestination = "$myhostname, localhost";
               smtpd_relay_restrictions = "reject_unauth_destination";
@@ -50,24 +50,31 @@ in
               smtp_tls_loglevel = "1";
             };
           };
-          # TODO: equivalent config for OpenSMTPD
+
+          # OpenSMTPD is intentionally not configured here: Postfix is the DNF
+          # default MTA. The hasMta guard already covers opensmtpd presence;
+          # the equivalent loopback-only hardening would be added when/if a
+          # host opts into OpenSMTPD.
         })
 
         # R75 — Mail aliases (intermediary, base)
         # sideEffects: none if the outbound SMTP gateway is trustworthy
         (lib.mkIf (isActive "R75" "intermediary" "base" [ ] && hasMta && adminMail != "") {
 
-          # Generate aliases for all system accounts toward adminMailbox
+          # Route root and every system account toward adminMailbox. `root` is
+          # set explicitly (it is the most important alias) and filtered out of
+          # the generated list to avoid a duplicate newaliases entry.
           services.postfix.extraAliases = lib.mkIf config.services.postfix.enable (
             lib.concatStringsSep "\n" (
-              lib.mapAttrsToList (
+              [ "root: ${adminMail}" ]
+              ++ lib.mapAttrsToList (
                 name: user:
-                lib.optionalString (user.isSystemUser or false || (user.uid or 1000) < 1000) "${name}: ${adminMail}"
+                lib.optionalString (
+                  name != "root" && (user.isSystemUser or false || (user.uid != null && user.uid < 1000))
+                ) "${name}: ${adminMail}"
               ) config.users.users
             )
           );
-
-          # TODO: alias for root
         })
       ]
     ))

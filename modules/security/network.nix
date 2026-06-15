@@ -118,7 +118,24 @@ in
             '';
           };
 
-          # TODO: equivalent config for Caddy (already partially handled by services.nix)
+          # Caddy has no global header directive (unlike nginx commonHttpConfig),
+          # so expose the ANSSI headers as an importable snippet. DNF Caddy
+          # vhosts add `import dnf-security-headers;` to opt in. Reuses the
+          # shared dnfLib helper for a single source of truth.
+          services.caddy = lib.mkIf (config.services.caddy.enable && cfg.httpsHeaders) {
+            extraConfig = ''
+              (dnf-security-headers) {
+                ${dnfLib.mkCaddySecurityHeaders {
+                  extraHeaders = ''
+                    X-Content-Type-Options "nosniff"
+                    X-Frame-Options "DENY"
+                    Content-Security-Policy "default-src 'self'"
+                    Referrer-Policy "no-referrer"
+                  '';
+                }}
+              }
+            '';
+          };
         })
 
         # R80 — Reduced network surface (minimal, base)
