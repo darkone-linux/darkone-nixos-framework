@@ -13,7 +13,11 @@
 - [ ] Linux durci selon les [recommandations ANSSI](https://messervices.cyber.gouv.fr/guides/recommandations-de-securite-relatives-un-systeme-gnulinux).
   - [x] [Architecture modulaire](https://darkone-linux.github.io/en/ref/modules/#security-modules) pour l'activation et le paramétrage des règles.
   - [ ] Gestion de noyaux durcis avec paramètres statiques durcis (profils, mise en cache)
-  - [ ] Implémentation des règles.
+  - [x] Documentation.
+  - [x] Règles pour niveau minimal + déploiement.
+  - [ ] Règles pour niveau intermédiaire + déploiement.
+  - [ ] Règles pour niveau renforcé + déploiement.
+  - [ ] Règles pour niveau high + déploiement.
 - [ ] SSO avec [Kanidm](https://kanidm.com/) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.idm))
   - [x] Implémentation du module IDM.
   - [x] Configuration paramétrable pour chaque service (config inconditionnelle) et instance de service (config conditionnelle).
@@ -43,6 +47,9 @@
   - [ ] "Getting Started" très simple, rapide et efficace.
   - [ ] ISO NixOS + DNF facile à installer.
   - [ ] Documentation user-friendly.
+- [ ] Compléter et améliorer les alertes.
+  - [ ] Plus d'internet : il me dit que hcs est "down" -> faire plutôt une alerte sur hcs qui dit que la zone AG n'est plus accessible.
+  - [ ] Pas d'alerte pour les workstations sans service critique.
 
 ### Axes d'amélioration
 
