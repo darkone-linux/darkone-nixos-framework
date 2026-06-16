@@ -9,8 +9,9 @@
 # One cache endpoint fronts exactly **one** upstream. A `narinfo` and its `nar`
 # are two separate requests and the `nar` URL is upstream-agnostic, so a
 # multi-upstream proxy must rewrite `narinfo` URLs into its own namespace and
-# track them in a database (what `ncps` does — and the source of its recurring
-# HTTP 500 "invalid nar hash"). With a single upstream there is no ambiguity:
+# track them in a database (the approach the former `ncps` proxy took — and the
+# source of its recurring HTTP 500 "invalid nar hash"). With a single upstream
+# there is no ambiguity:
 # nginx caches `narinfo` + `nar` verbatim, signatures pass through untouched and
 # clients verify them. No rewrite, no database, no such bug by construction.
 # :::
@@ -198,8 +199,8 @@ in
         );
 
         # Fail fast when the zone cache is down or degraded: a broken cache must
-        # never be slower than no cache at all. mkDefault keeps these compatible
-        # with the legacy ncps module while it coexists.
+        # never be slower than no cache at all. mkDefault so a consumer can
+        # override them per host.
         connect-timeout = lib.mkDefault 5;
         download-attempts = lib.mkDefault 2;
         fallback = lib.mkDefault true;

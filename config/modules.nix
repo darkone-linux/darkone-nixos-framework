@@ -8,11 +8,6 @@
 # };
 
 {
-  ncps = {
-    reverseProxy = false;
-    uniquePerZone = true;
-    description = "";
-  };
   nix-cache = {
     reverseProxy = false;
     uniquePerZone = true;

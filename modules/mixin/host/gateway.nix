@@ -2,7 +2,7 @@
 #
 # :::tip[A ready-to-use gateway!]
 # The gateway is configured in `usr/config.yaml` file.
-# Additional enabled services (homepage, adguardhome, forgejo, ncps...)
+# Additional enabled services (homepage, adguardhome, forgejo, nix-cache...)
 # are automatically configured with consistent network plumbing on the
 # gateway and all machines on the local network.
 # :::

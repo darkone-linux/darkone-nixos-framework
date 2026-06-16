@@ -4,19 +4,22 @@
 # signed with the deployment-wide binary-cache key. Enable per host from
 # `usr/config.yaml` (services.harmonia), like any other DNF service.
 #
-# :::note[How Harmonia Services Work with NCPS]
-# Harmonia is a *source* of packages; `ncps` is the per-zone caching proxy that
-# clients actually talk to. Each zone's `ncps` server automatically adds, as
-# upstreams:
+# :::note[How harmonia works with the nix-cache proxy]
+# Harmonia is a *source* of packages, served **directly** to clients over the
+# LAN (in-zone) or the tailnet (when flagged `global`). The per-zone `nix-cache`
+# proxy is a separate concern: it caches the *public* binary cache
+# (`cache.nixos.org`), never harmonia.
 #
-# - the harmonia instances of *its own zone* (highest priority), then
-# - any harmonia flagged `global` (typically on the HCS),
+# Each local-zone host's substituters become, in priority order:
 #
-# and never the harmonia of *other* (non-global) zones. Clients fetch only
-# through `ncps`; harmonia's signature is passed through unchanged, so every
-# host trusts the deployment-wide harmonia public key
-# (`usr/secrets/harmonia.pub`). Transport is plain HTTP on the trusted LAN /
-# VPN: integrity comes from the NAR signature, not from TLS.
+# - the harmonia instances of *its own zone* (highest priority, LAN), then
+# - any harmonia flagged `global` (typically on the HCS, over the tailnet), then
+# - the zone's `nix-cache` proxy (public cache).
+#
+# Other zones' non-global harmonia are never used. Harmonia's signature is
+# passed through unchanged, so every host trusts the deployment-wide harmonia
+# public key (`usr/secrets/harmonia.pub`). Transport is plain HTTP on the
+# trusted LAN / VPN: integrity comes from the NAR signature, not from TLS.
 # :::
 #
 # :::tip[Signing key provisioning]
@@ -108,9 +111,10 @@ in
       # Firewall
       #------------------------------------------------------------------------
 
-      # Open the cache port on the internal interface so the zone's ncps can
-      # reach it. A globally-exposed harmonia is also reached cross-zone over
-      # the tailnet, so open the VPN interface as well.
+      # Open the cache port on the internal interface so the zone's hosts can
+      # reach it directly (clients use harmonia as a substituter). A
+      # globally-exposed harmonia is also reached cross-zone over the tailnet,
+      # so open the VPN interface as well.
       networking.firewall = lib.mkMerge [
         (lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
           allowedTCPPorts = [ harmoniaPort ];

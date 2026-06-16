@@ -77,7 +77,6 @@ in
       # 53 -> DNS
       # 67, 68 -> DHCP
       # 80 -> homepage / caddy
-      # 8501 -> packages proxy (ncps, legacy)
       # 8502 -> packages proxy (nix-cache, nginx)
       firewall = {
         enable = true;
@@ -90,7 +89,6 @@ in
             53
           ]
           ++ lib.optional config.services.caddy.enable 80
-          ++ lib.optional config.darkone.service.ncps.enable dnfConfig.network.ports.ncps
           ++ lib.optional config.darkone.service.nix-cache.enable dnfConfig.network.ports.nixCache;
           allowedUDPPorts = [
             53

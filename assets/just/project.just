@@ -169,7 +169,7 @@ configure-admin-host:
 
 	# Harmonia binary-cache signing key: when the public key is missing,
 	# (re)generate the keypair, store the private key in sops and keep the
-	# public key committed (read by ncps to trust harmonia-signed paths).
+	# public key committed (read by nix-cache to trust harmonia-signed paths).
 	if [ ! -f "{{secretsDir}}/harmonia.pub" ] ;then
 		just _log "Generating Harmonia binary-cache signing key..." "SOPS"
 		DOMAIN=$(yq '.network.domain // "harmonia"' {{workDir}}/etc/config.yaml 2>/dev/null || echo "harmonia")

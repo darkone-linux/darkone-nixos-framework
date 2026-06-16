@@ -3,7 +3,7 @@
 # When enabled, neutralizes the irreducibly external/runtime bits so a node
 # can be exercised in a VM: headscale/tailscale become no-ops and a fixed
 # TLS cert can stub ACME. It also lets workDir-only config (nix.pub,
-# harmonia.pub) be skipped by core/ncps. sops stays REAL (high fidelity).
+# harmonia.pub) be skipped by core/nix-cache. sops stays REAL (high fidelity).
 #
 # :::caution[Tests only]
 # Enabled only via `tests/lib/test-tuning.nix`. This module never references
