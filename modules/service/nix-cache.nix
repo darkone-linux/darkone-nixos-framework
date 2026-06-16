@@ -159,7 +159,11 @@ in
               # Collapse concurrent misses for one path into a single fetch.
               proxy_cache_lock on;
 
-              # HTTPS upstream behind a CDN: force SNI + Host so it routes.
+              # HTTPS upstream behind a CDN (Fastly): the TLS SNI *and* the Host
+              # header must both be the upstream name, else Fastly serves the
+              # wrong cert and answers 421. proxy_ssl_server_name alone is not
+              # enough — pin proxy_ssl_name explicitly.
+              proxy_ssl_name ${upstreamHost};
               proxy_ssl_server_name on;
               proxy_set_header Host ${upstreamHost};
 
