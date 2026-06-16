@@ -144,6 +144,13 @@ in
           ];
           locations."/" = {
             proxyPass = upstreamUrl;
+
+            # NixOS appends its recommended proxy headers *after* extraConfig,
+            # ending with `proxy_set_header Host $host` — which would override the
+            # upstream Host set below and make Fastly answer 421. This cache
+            # wants none of those headers, so drop them on this location.
+            recommendedProxySettings = false;
+
             extraConfig = ''
               proxy_cache nixcache;
 
@@ -159,10 +166,9 @@ in
               # Collapse concurrent misses for one path into a single fetch.
               proxy_cache_lock on;
 
-              # HTTPS upstream behind a CDN (Fastly): the TLS SNI *and* the Host
-              # header must both be the upstream name, else Fastly serves the
-              # wrong cert and answers 421. proxy_ssl_server_name alone is not
-              # enough — pin proxy_ssl_name explicitly.
+              # HTTPS upstream behind a CDN (Fastly): send the TLS SNI and the
+              # Host header as the upstream name so Fastly serves the matching
+              # cert and routes the request (otherwise 421).
               proxy_ssl_name ${upstreamHost};
               proxy_ssl_server_name on;
               proxy_set_header Host ${upstreamHost};
