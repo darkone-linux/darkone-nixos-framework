@@ -84,8 +84,11 @@
     # modules/service/idm.nix
     kanidmReplication = 8444;
 
-    # ncps Nix cache proxy. modules/service/ncps.nix
+    # ncps Nix cache proxy (legacy). modules/service/ncps.nix
     ncps = 8501;
+
+    # Nix binary-cache proxy (nginx). modules/service/nix-cache.nix
+    nixCache = 8502;
 
     # Restic REST server. modules/service/restic.nix
     restic = 8888;

@@ -61,6 +61,7 @@
     ./service/ncps.nix
     ./service/nextcloud.nix
     ./service/nfs.nix
+    ./service/nix-cache.nix
     ./service/outline.nix
     ./service/oxicloud.nix
     ./service/postfix.nix

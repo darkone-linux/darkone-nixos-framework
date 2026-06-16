@@ -13,6 +13,11 @@
     uniquePerZone = true;
     description = "";
   };
+  nix-cache = {
+    reverseProxy = false;
+    uniquePerZone = true;
+    description = "";
+  };
   adguardhome = {
     uniquePerZone = true;
     activation.profiles.gateway.triggers.keys.adguardhome = [ "enable" ];

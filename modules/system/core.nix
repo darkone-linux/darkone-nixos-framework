@@ -238,6 +238,11 @@ in
     # Enable NCPS -> server and clients are automatically found by the service
     darkone.service.ncps.enable = true;
 
+    # Enable the nginx Nix binary-cache proxy -> server and clients are
+    # automatically found by the service (coexists with the legacy ncps above;
+    # a zone uses whichever it lists in config.yaml).
+    darkone.service.nix-cache.enable = true;
+
     # Enable flatpak
     services.flatpak.enable = cfg.enableFlatpak && config.darkone.graphic.gnome.enable;
 

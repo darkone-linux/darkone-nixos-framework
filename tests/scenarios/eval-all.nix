@@ -10,6 +10,7 @@
     ../workspaces/node/configs/server-geneweb
     ../workspaces/node/configs/server-immich
     ../workspaces/node/configs/server-ncps
+    ../workspaces/node/configs/server-nix-cache
     ../workspaces/node/configs/disko-server
     ../workspaces/network/configs/dns
     ../workspaces/vpn/configs/multizone
