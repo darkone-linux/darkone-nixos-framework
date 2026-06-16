@@ -90,6 +90,7 @@
 
 ### Fait
 
+- [x] Supression de NCPS (trop d'erreurs) -> remplacement par un proxy nginx (nix-cache).
 - [x] Remontée d'information et alertes avec Alertmanager + Prometheus.
 - [x] Cache de store harmonia.
 - [x] Gestion optimale des traductions FR <-> EN ~~avec fichiers MO~~ avec un mécanisme de taguage + agent IA dédié.
