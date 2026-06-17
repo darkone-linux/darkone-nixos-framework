@@ -148,7 +148,10 @@ in
           set -eu
 
           secret=$(${pkgs.coreutils}/bin/cat ${config.sops.secrets."${secret}-service".path})
-          bin=${fjCfg.package}/bin/gitea
+
+          # forgejo-lts 15.x ships the binary as `forgejo` (no `gitea` alias);
+          # resolve the main program instead of hardcoding the name.
+          bin=${lib.getExe fjCfg.package}
 
           # Reuse the existing "idm" source if present (update), else create it.
           if "$bin" admin auth list | ${pkgs.gnugrep}/bin/grep -qw idm; then
