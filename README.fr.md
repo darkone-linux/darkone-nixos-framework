@@ -122,6 +122,7 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 - PKCE = prend en charge PKCE
 - Déclaratif = tous les paramètres peuvent être déclarés dans la configuration
 - OK = implémentation fonctionnelle
+- ☑️ = appliqué par un script / démon idempotent (pas du pur déclaratif)
 
 | Application | Oauth2 | Natif | PKCE | Déclaratif | OK | Commentaires |
 | -------------- | ------ | ----- | ---- | ---------- | --- | ----------------------------------- |
@@ -132,9 +133,9 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 | [Open WebUI](https://openwebui.com) | ✅ | ✅ | ✅ | ✅ | ✅ | Marche bien (+Ollama) |
 | [Grafana](https://grafana.com) | ✅ | ✅ |  ✅ |  ✅ |  ✅ | Marche bien |
 | [LaSuite Docs](https://lasuite.numerique.gouv.fr) | ✅ | ✅ | ⚠️ | ✅ | ✅ | Bien, PKCE Challenge introuvable |
-| [Immich](https://immich.app) | ✅ | ✅ | ✅ | ⚠️ | ✅ | Configuration manuelle |
-| [Forgejo](https://forgejo.org) | ✅ | ✅ | ✅ | ❌ | ✅ | Configuration manuelle |
-| [Nextcloud](https://nextcloud.com) | ✅ | ❌ | ❌ | ❌ | ✅ | Plugin + configuration manuelle |
+| [Immich](https://immich.app) | ✅ | ✅ | ✅ | ✅ | ✅ | Déclaratif (settings) |
+| [Forgejo](https://forgejo.org) | ✅ | ✅ | ✅ | ☑️ | ✅ | Déclaratif via oneshot add-oauth |
+| [Nextcloud](https://nextcloud.com) | ✅ | ✅ | ✅ | ☑️ | ✅ | user_oidc, provisionné via occ |
 | [Oauth2 Proxy](https://oauth2-proxy.github.io/oauth2-proxy/) | ✅ | ✅ | ✅ | ✅ | ✅ | Lié à Caddy et Kanidm |
 | [Homepage](https://gethomepage.dev/) | 🔁 | 🔁 | 🔁 | 🔁 | ✅ | Via OAuth2 Proxy |
 | [Prometheus](https://prometheus.io/) | 🔁 | 🔁 | 🔁 | 🔁 | ✅ | Via OAuth2 Proxy |

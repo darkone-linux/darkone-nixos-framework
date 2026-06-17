@@ -13,6 +13,7 @@
   zone,
   network,
   host,
+  hosts,
   dnfLib,
   dnfConfig,
   ...
@@ -25,6 +26,20 @@ let
     description = "Local personal cloud";
   };
   params = dnfLib.extractServiceParams host network "nextcloud" defaultParams;
+
+  inherit
+    (dnfLib.mkOidcContext {
+      name = "nextcloud";
+      inherit params network hosts;
+    })
+    clientId
+    secret
+    idmUrl
+    ;
+  oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
+
+  # No Kanidm on this network ⇒ skip the user_oidc provisioning.
+  hasIdm = idmUrl != null;
 in
 {
   options = {
@@ -64,18 +79,23 @@ in
         };
       };
 
-      # Kanidm OAuth2 client template (consumer wiring is TODO — see user_oidc / sociallogin)
+      # Kanidm OAuth2 client template. Consumer side is wired declaratively
+      # below via the first-party `user_oidc` app, provisioned with `occ`.
       darkone.service.idm.oauth2.nextcloud = {
         displayName = "Nextcloud";
         imageFile = ./../../assets/app-icons/nextcloud.svg;
+
+        # user_oidc callbacks (code flow). `/login` is the post-auth landing.
         redirectPaths = [
           "/login"
-          "/apps/sociallogin/custom_oauth2/IDM"
-          "/apps/sociallogin/custom_oidc/IDM"
-          "/ui/oauth2"
+          "/apps/user_oidc/code"
+          "/apps/user_oidc/login"
         ];
         landingPath = "/";
-        allowInsecureClientDisablePkce = true;
+
+        # user_oidc negotiates PKCE automatically when the provider supports
+        # it (Kanidm does), so keep PKCE enforced on this client.
+        allowInsecureClientDisablePkce = false;
       };
     }
 
@@ -93,6 +113,15 @@ in
       sops.secrets."nextcloud-admin-password" = {
         mode = "0400";
         owner = "nextcloud";
+      };
+
+      # Re-encrypted alias of the kanidm-owned OAuth2 secret, read by the
+      # `occ` provisioning unit (runs as the nextcloud user) via
+      # `--clientsecret-file`, so the secret stays out of argv and the store.
+      sops.secrets."${secret}-service" = lib.mkIf hasIdm {
+        mode = "0400";
+        owner = "nextcloud";
+        key = secret;
       };
 
       # Internal nginx
@@ -186,8 +215,9 @@ in
             notes
             richdocuments
             spreed
-            #user_oidc # Ne marche pas
-            sociallogin
+
+            # First-party Nextcloud OIDC backend (provisioned via occ below).
+            user_oidc
             ;
         };
 
@@ -226,12 +256,6 @@ in
           mail_smtpsecure = lib.optionalString network.smtp.tls "ssl";
           mail_smtptimeout = 30;
           mail_from_address = "noreply";
-
-          # user_oidc = {
-          #   "httpclient.allowselfsigned" = true;
-          #   "default_token_endpoint_auth_method" = "client_secret_post";
-          #   "login_label" = "Login with IDM";
-          # };
         };
       };
 
@@ -242,6 +266,35 @@ in
 
       # PostgreSQL backup (all databases by default)
       services.postgresqlBackup.enable = true;
+
+      #------------------------------------------------------------------------
+      # OIDC provider (Kanidm, via the first-party user_oidc app)
+      #------------------------------------------------------------------------
+
+      # `user_oidc:provider <id>` is an upsert, so this is idempotent: it
+      # creates the "IDM" provider on first boot and updates it afterwards.
+      # Runs as the nextcloud user (occ wrapper expects it); the client secret
+      # is read from the sops alias file, never passed on the command line.
+      systemd.services.nextcloud-oidc-setup = lib.mkIf hasIdm {
+        after = [ "nextcloud-setup.service" ];
+        requires = [ "nextcloud-setup.service" ];
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          User = "nextcloud";
+        };
+        script = ''
+          ${lib.getExe config.services.nextcloud.occ} user_oidc:provider IDM \
+            --clientid=${clientId} \
+            --clientsecret-file=${config.sops.secrets."${secret}-service".path} \
+            --discoveryuri=${oidc.openidConfigUrl} \
+            --scope="openid email profile" \
+            --unique-uid=0 \
+            --mapping-uid=preferred_username \
+            --mapping-email=email \
+            --mapping-display-name=name
+        '';
+      };
     })
   ];
 }

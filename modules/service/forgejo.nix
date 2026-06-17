@@ -7,6 +7,7 @@
   config,
   network,
   host,
+  hosts,
   pkgs,
   ...
 }:
@@ -15,6 +16,24 @@ let
   fjCfg = config.services.forgejo;
   srv = fjCfg.settings.server;
   params = dnfLib.extractServiceParams host network "forgejo" { };
+
+  # OIDC context. The historical client name (`forgejo`) is preserved via the
+  # template override; mirror it here so clientId/secret/endpoints match the
+  # provisioned Kanidm client.
+  inherit
+    (dnfLib.mkOidcContext {
+      name = "forgejo";
+      clientName = "forgejo";
+      inherit params network hosts;
+    })
+    clientId
+    secret
+    idmUrl
+    ;
+  oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
+
+  # No Kanidm on this network ⇒ skip the OIDC auth-source provisioning.
+  hasIdm = idmUrl != null;
 in
 {
   options = {
@@ -94,6 +113,58 @@ in
       };
 
       #------------------------------------------------------------------------
+      # OIDC auth source (Kanidm)
+      #------------------------------------------------------------------------
+
+      # Re-encrypted alias of the kanidm-owned OAuth2 secret, readable by the
+      # forgejo user that runs the provisioning CLI below.
+      sops.secrets."${secret}-service" = lib.mkIf hasIdm {
+        mode = "0400";
+        owner = fjCfg.user;
+        key = secret;
+      };
+
+      # Forgejo exposes no declarative NixOS option for OAuth2 auth sources, so
+      # we provision one idempotently via its admin CLI. Runs after the main
+      # service (DB ready); add-on first boot, update on every later run.
+      systemd.services.forgejo-oauth-setup = lib.mkIf hasIdm {
+        description = "Provision Forgejo OIDC auth source (Kanidm)";
+        after = [ "forgejo.service" ];
+        requires = [ "forgejo.service" ];
+        wantedBy = [ "multi-user.target" ];
+
+        # The CLI resolves its config/data from these (same as forgejo.service).
+        environment = {
+          GITEA_WORK_DIR = fjCfg.stateDir;
+          GITEA_CUSTOM = fjCfg.customDir;
+        };
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          User = fjCfg.user;
+          Group = fjCfg.group;
+        };
+        script = ''
+          set -eu
+
+          secret=$(${pkgs.coreutils}/bin/cat ${config.sops.secrets."${secret}-service".path})
+          bin=${fjCfg.package}/bin/gitea
+
+          # Reuse the existing "idm" source if present (update), else create it.
+          if "$bin" admin auth list | ${pkgs.gnugrep}/bin/grep -qw idm; then
+            id=$("$bin" admin auth list | ${pkgs.gawk}/bin/awk '$2=="idm"{print $1}')
+            "$bin" admin auth update-oauth --id "$id" \
+              --provider openidConnect --key ${clientId} --secret "$secret" \
+              --auto-discover-url ${oidc.openidConfigUrl} --scopes "openid email profile"
+          else
+            "$bin" admin auth add-oauth --name idm \
+              --provider openidConnect --key ${clientId} --secret "$secret" \
+              --auto-discover-url ${oidc.openidConfigUrl} --scopes "openid email profile"
+          fi
+        '';
+      };
+
+      #------------------------------------------------------------------------
       # Forgejo Service
       #------------------------------------------------------------------------
 
@@ -134,7 +205,9 @@ in
             ENABLE_OPENID_SIGNUP = true;
           };
 
-          # TODO: declarative link to idm (currently must be done in the UI)
+          # The OIDC auth source itself is provisioned declaratively by the
+          # `forgejo-oauth-setup` oneshot below (Forgejo has no native NixOS
+          # option for it). Auto-register links Kanidm logins to new accounts.
           oauth2_client = {
             ENABLE_AUTO_REGISTRATION = true;
           };

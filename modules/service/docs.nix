@@ -84,11 +84,12 @@ in
         landingPath = "/";
         preferShortUsername = false;
 
-        # impress v4.x ships mozilla-django-oidc 4.0.1 (which can do
-        # PKCE) but does not set `OIDC_USE_PKCE = True` and does not
-        # expose the toggle as a django-configurations env value, so we
-        # cannot opt-in without patching. Disable PKCE enforcement on
-        # this client until upstream wires it up.
+        # impress exposes no PKCE toggle: neither the pinned 3.6.0 nor `main`
+        # ships an `OIDC_USE_PKCE` (or code-challenge) env var, and
+        # django-lasuite does not wire mozilla-django-oidc's PKCE support to a
+        # django-configurations value. We therefore cannot opt-in without
+        # patching upstream; disable PKCE enforcement on this client until
+        # upstream adds the toggle.
         allowInsecureClientDisablePkce = true;
       };
     }

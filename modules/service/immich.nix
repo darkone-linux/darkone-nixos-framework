@@ -6,13 +6,33 @@
   dnfConfig,
   config,
   pkgs,
+  network,
   host,
+  hosts,
   zone,
   ...
 }:
 let
   cfg = config.darkone.service.immich;
   srv = config.services.immich;
+  defaultParams = {
+    description = "Smart media manager";
+  };
+  params = dnfLib.extractServiceParams host network "immich" defaultParams;
+
+  inherit
+    (dnfLib.mkOidcContext {
+      name = "immich";
+      inherit params network hosts;
+    })
+    clientId
+    secret
+    idmUrl
+    ;
+  oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
+
+  # No Kanidm on this network ⇒ skip all SSO wiring.
+  hasIdm = idmUrl != null;
 in
 {
   options = {
@@ -37,9 +57,7 @@ in
 
     {
       darkone.system.services.service.immich = {
-        defaultParams = {
-          description = "Smart media manager";
-        };
+        inherit defaultParams;
         persist = {
           dirs = [
             "/var/lib/immich/profile"
@@ -61,7 +79,8 @@ in
         proxy.extraConfig = dnfLib.mkCaddySecurityHeaders { maxUploadSize = "4GB"; };
       };
 
-      # Kanidm OAuth2 client template (consumer wiring is TODO upstream)
+      # Kanidm OAuth2 client template. Consumer side is wired declaratively
+      # below via `services.immich.settings.oauth`.
       darkone.service.idm.oauth2.immich = {
         displayName = "Immich";
         imageFile = ./../../assets/app-icons/immich.svg;
@@ -81,6 +100,19 @@ in
 
       # Darkone service: enable
       darkone.system.services = dnfLib.enableBlock "immich";
+
+      #------------------------------------------------------------------------
+      # Secrets
+      #------------------------------------------------------------------------
+
+      # Re-encrypted alias of the kanidm-owned OAuth2 secret. The immich module
+      # injects it into /run/immich/config.json at runtime (via the settings
+      # `_secret` mechanism), so the secret never lands in the Nix store.
+      sops.secrets."${secret}-service" = lib.mkIf hasIdm {
+        mode = "0400";
+        owner = "immich";
+        key = secret;
+      };
 
       #------------------------------------------------------------------------
       # Immich dependencies
@@ -131,6 +163,28 @@ in
         port = dnfConfig.network.ports.immich;
         host = host.ip;
         openFirewall = false;
+
+        # Declarative Kanidm OIDC. Writing `settings` makes the OAuth panel
+        # read-only in the Immich UI (config owned by Nix). The client secret
+        # is merged in at runtime from a file via the `_secret` mechanism, so
+        # it never lands in the Nix store.
+        settings.oauth = lib.mkIf hasIdm {
+          enabled = true;
+          issuerUrl = oidc.issuerUrl;
+          clientId = clientId;
+          scope = "openid email profile";
+
+          # Kanidm signs with ES256 by default (enableLegacyCrypto = false).
+          signingAlgorithm = "ES256";
+          buttonText = "Login with IDM";
+          autoRegister = true;
+
+          # Mobile app deep-link callback (also declared in the idm template).
+          mobileOverrideEnabled = true;
+          mobileRedirectUri = "app.immich:///oauth-callback";
+
+          clientSecret._secret = config.sops.secrets."${secret}-service".path;
+        };
 
         # Redis configuration
         redis = lib.mkIf cfg.enableRedis {
