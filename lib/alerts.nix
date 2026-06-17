@@ -44,9 +44,16 @@ let
 in
 rec {
 
-  # Service name -> systemd unit. Only services whose unit name we are confident
-  # about are listed: an unmapped service is still covered by the generic
-  # `SystemdUnitFailed` rule, so this table favours precision over breadth.
+  # Service name -> primary systemd unit (the daemon whose loss means the
+  # service is down). Only units whose name we are confident about are listed:
+  # an unmapped service is still covered by the generic `SystemdUnitFailed`
+  # rule, so this table favours precision over breadth.
+  #
+  # :::note[Intentionally unmapped]
+  # nginx/static-fronted services (`nextcloud`, `nix-cache`, `element`,
+  # `homepage`, `docs`) share `nginx.service`/`caddy.service`: a per-service
+  # `ServiceDown` would be ambiguous, so they rely on the generic rule.
+  # :::
   serviceUnits = {
     headscale = "headscale.service";
     tailscale = "tailscaled.service";
@@ -60,6 +67,25 @@ rec {
     immich = "immich-server.service";
     loki = "loki.service";
     restic = "restic-rest-server.service";
+
+    # Standalone daemons with a single, stable upstream unit name.
+    postfix = "postfix.service";
+    dnsmasq = "dnsmasq.service";
+    turn = "coturn.service";
+    garage = "garage.service";
+    minio = "minio.service";
+    harmonia = "harmonia.service";
+    outline = "outline.service";
+    mealie = "mealie.service";
+    searx = "searx.service";
+    geneweb = "geneweb.service";
+    oxicloud = "oxicloud.service";
+    home-assistant = "home-assistant.service";
+    ai = "open-webui.service";
+
+    # Server role only; an NFS client exposes an automount, not this unit, so
+    # the rule simply yields no series (no false alert) on clients.
+    nfs = "nfs-server.service";
   };
 
   # Node alert class, in priority order: an explicit `alert-*` feature wins over
@@ -101,9 +127,27 @@ rec {
     in
     map (n: serviceUnits.${n}) (filter (n: hasAttr n serviceUnits) names);
 
+  # Whether a node emits node-level alerts at all. Selection is opt-out for
+  # infrastructure and must-stay-up workloads, opt-in for the rest: a host is
+  # watched only if it is a network node/server (`critical` class), carries an
+  # explicit `alert-non-critical` feature, or runs at least one mapped service.
+  # Bare laptops/desktops with no watched service stay silent. `alert-disabled`
+  # always wins (handled upstream by `nodeClass`).
+  nodeAlertEligible =
+    { services }:
+    host:
+    let
+      class = nodeClass host;
+      features = host.features or { };
+    in
+    class != "disabled"
+    && (
+      class == "critical" || features ? "alert-non-critical" || hostExpectedUnits services host != [ ]
+    );
+
   # Build the per-node rule groups (node up, systemd health, declared services).
-  # `nodes` is the list already scraped by this zone's Prometheus; disabled
-  # nodes are skipped entirely.
+  # `nodes` is the list already scraped by this zone's Prometheus; only nodes
+  # selected by `nodeAlertEligible` are kept.
   mkNodeRuleGroups =
     {
       nodes,
@@ -112,7 +156,7 @@ rec {
       zoneName,
     }:
     let
-      watched = filter (h: nodeClass h != "disabled") nodes;
+      watched = filter (h: nodeAlertEligible { inherit services; } h) nodes;
 
       mkNodeRules =
         host:
@@ -120,18 +164,28 @@ rec {
           class = nodeClass host;
           severity = severityForClass class;
           inst = nodeInstance nodeExporterPort host;
+
+          # `reach` distinguishes hosts on this Prometheus's own zone (LAN,
+          # internet-independent) from hosts joined only across the WAN/tailnet
+          # (other zones, e.g. the HCS). It lets Alertmanager inhibit the
+          # `wan` hosts' down-alerts when the zone's own internet is down,
+          # instead of misreporting them as individually down.
+          reach = if (host.zone or "") == zoneName then "local" else "wan";
+
           commonLabels = {
-            inherit severity;
+            inherit severity reach;
             zone = zoneName;
             hostname = host.hostname;
           };
 
           # A scraped target that stops answering: the node (or its exporter) is
-          # down. `up` is the canonical liveness signal.
+          # down. `up` is the canonical liveness signal. WAN-reached hosts wait
+          # a little longer so a concurrent `ZoneInternetDown` declares first
+          # and inhibits this (likely false) per-host alert.
           nodeDown = {
             alert = "NodeDown";
             expr = ''up{job="node",instance="${inst}"} == 0'';
-            "for" = "2m";
+            "for" = if reach == "wan" then "5m" else "2m";
             labels = commonLabels;
             annotations = {
               summary = "Node ${host.hostname} is down";
@@ -290,6 +344,60 @@ rec {
                 description = "1m load above ${toString t.load1PerCoreCrit} per core for 10m.";
               };
             }
+            {
+
+              # A filesystem remounted read-only is almost always I/O errors or
+              # corruption: page immediately.
+              alert = "FilesystemReadOnly";
+              expr = "node_filesystem_readonly{${fsSelector}} == 1";
+              "for" = "5m";
+              labels.severity = "critical";
+              annotations = {
+                summary = "Read-only filesystem on {{ $labels.instance }}";
+                description = "{{ $labels.mountpoint }} is mounted read-only (I/O errors?).";
+              };
+            }
+            {
+
+              # Trend-based early warning: at the current 6h slope the mount
+              # fills within 24h AND is already under 40% free. Catches slow
+              # leaks long before the static `DiskSpaceLow` threshold.
+              alert = "DiskWillFillSoon";
+              expr = "predict_linear(node_filesystem_avail_bytes{${fsSelector}}[6h], 24*3600) < 0 and node_filesystem_avail_bytes{${fsSelector}} / node_filesystem_size_bytes{${fsSelector}} < 0.4";
+              "for" = "1h";
+              labels.severity = "warning";
+              annotations = {
+                summary = "Disk filling up on {{ $labels.instance }}";
+                description = "{{ $labels.mountpoint }} is projected to fill within 24h.";
+              };
+            }
+            {
+
+              # NTP not synchronised: skews logs, certs and tokens across the
+              # fleet. The metric is absent without the timex collector, so this
+              # only fires where it is available.
+              alert = "ClockSkew";
+              expr = "node_timex_sync_status == 0";
+              "for" = "10m";
+              labels.severity = "warning";
+              annotations = {
+                summary = "Clock not synchronised on {{ $labels.instance }}";
+                description = "NTP sync lost; system clock may be drifting.";
+              };
+            }
+            {
+
+              # Conntrack table near saturation drops new connections. Only
+              # gateways/routers export this metric, so it no-ops elsewhere.
+              alert = "ConntrackNearFull";
+              expr = "node_nf_conntrack_entries / node_nf_conntrack_entries_limit > 0.8";
+              "for" = "10m";
+              labels.severity = "warning";
+              annotations = {
+                summary = "Conntrack table near full on {{ $labels.instance }}";
+                description = "Connection tracking table above 80% of its limit.";
+              };
+            }
           ];
         }
       ];
@@ -297,21 +405,124 @@ rec {
 
   # Network reachability rules over blackbox probes. `probes` is a list of
   # `{ name; instance; severity; job; }` describing each blackbox target so the
-  # rule can name what is unreachable. Used only when network probing is on.
+  # rule can name what is unreachable. Each probe may override `alert`, `for`,
+  # `expr`, `summary`, `description` and add `labels` (e.g. `reach = "wan"`).
+  # Every rule carries the zone, so Alertmanager can correlate/inhibit by zone.
+  # Used only when network probing is on.
   mkNetworkRuleGroups = { probes, zoneName }: {
     groups = optional (probes != [ ]) {
       name = "dnf-network-${zoneName}";
       rules = map (p: {
         alert = p.alert or "ProbeFailed";
-        expr = ''probe_success{job="${p.job}",instance="${p.instance}"} == 0'';
+        expr = p.expr or ''probe_success{job="${p.job}",instance="${p.instance}"} == 0'';
         "for" = p.for or "3m";
-        labels.severity = p.severity or "warning";
+        labels = {
+          severity = p.severity or "warning";
+          zone = zoneName;
+        }
+        // (p.labels or { });
         annotations = {
-          summary = "${p.name} unreachable";
-          description = "Blackbox probe to ${p.instance} (${p.name}) failed.";
+          summary = p.summary or "${p.name} unreachable";
+          description = p.description or "Blackbox probe to ${p.instance} (${p.name}) failed.";
         };
       }) probes;
     };
+  };
+
+  # HTTP service-endpoint health + TLS certificate expiry over blackbox HTTP
+  # probes. `probes` is a list of `{ name; instance(=url); labels?; }` (the
+  # `reach` label lets `ZoneInternetDown` inhibit WAN-served endpoints). Cert
+  # rules use a long `for` to ride out brief probe blips.
+  mkHttpRuleGroups =
+    { probes, zoneName }:
+    let
+      mkRules =
+        p:
+        let
+          selector = ''job="blackbox-http",instance="${p.instance}"'';
+          base = {
+            zone = zoneName;
+          }
+          // (p.labels or { });
+        in
+        [
+          {
+            alert = "ServiceEndpointDown";
+            expr = "probe_success{${selector}} == 0";
+            "for" = "5m";
+            labels = base // {
+              severity = "warning";
+            };
+            annotations = {
+              summary = "${p.name} endpoint unreachable";
+              description = "HTTP probe to ${p.instance} (${p.name}) failed for 5m.";
+            };
+          }
+          {
+            alert = "CertificateExpiringSoon";
+            expr = "probe_ssl_earliest_cert_expiry{${selector}} - time() < ${toString (14 * 24 * 3600)}";
+            "for" = "1h";
+            labels = base // {
+              severity = "warning";
+            };
+            annotations = {
+              summary = "TLS certificate for ${p.name} expiring";
+              description = "Certificate for ${p.instance} expires in under 14 days.";
+            };
+          }
+          {
+            alert = "CertificateExpiringCritical";
+            expr = "probe_ssl_earliest_cert_expiry{${selector}} - time() < ${toString (3 * 24 * 3600)}";
+            "for" = "1h";
+            labels = base // {
+              severity = "critical";
+            };
+            annotations = {
+              summary = "TLS certificate for ${p.name} expiring imminently";
+              description = "Certificate for ${p.instance} expires in under 3 days.";
+            };
+          }
+        ];
+    in
+    {
+      groups = optional (probes != [ ]) {
+        name = "dnf-http-${zoneName}";
+        rules = lib.concatMap mkRules probes;
+      };
+    };
+
+  # Backup freshness, driven by `dnf_restic_last_success_timestamp` (epoch of
+  # the last successful restic backup), exported by the restic module via the
+  # node_exporter textfile collector. Absent metric -> no series -> no alert,
+  # so a host without backups never trips this.
+  mkResticRuleGroups = { zoneName }: {
+    groups = [
+      {
+        name = "dnf-restic-${zoneName}";
+        rules = [
+          {
+            alert = "ResticBackupStale";
+            expr = "time() - max by (instance, job) (dnf_restic_last_success_timestamp) > ${toString (36 * 3600)}";
+            "for" = "0m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Restic backup stale on {{ $labels.instance }}";
+              description = "No successful restic backup ({{ $labels.job }}) for over 36h.";
+            };
+          }
+          {
+            alert = "ResticBackupCritical";
+            expr = "time() - max by (instance, job) (dnf_restic_last_success_timestamp) > ${toString (7 * 24 * 3600)}";
+            "for" = "0m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Restic backup critically stale on {{ $labels.instance }}";
+              description = "No successful restic backup ({{ $labels.job }}) for over 7 days.";
+            };
+          }
+        ];
+      }
+    ];
   };
 
   # Maintenance rule: a node under rebuild exports `dnf_maintenance 1` via the
@@ -343,7 +554,9 @@ rec {
   mergeRuleGroups = fragments: { groups = lib.concatMap (f: f.groups) fragments; };
 
   # Convenience: full rule document for a zone's monitoring host (everything but
-  # the network probes, which the caller adds when blackbox is enabled).
+  # the blackbox probes — network/HTTP — which the caller adds when blackbox is
+  # enabled). Restic freshness is always included: it is metric-driven and
+  # no-ops where no backup metric exists.
   mkAlertRuleGroups =
     {
       nodes,
@@ -362,5 +575,6 @@ rec {
           ;
       })
       (mkResourceRuleGroups { inherit thresholds zoneName; })
+      (mkResticRuleGroups { inherit zoneName; })
     ];
 }

@@ -106,8 +106,8 @@ in
   };
 
   # ----- mkAlertRuleGroups -----
-  # Two groups (nodes + resources); the disabled laptop is dropped, leaving a
-  # single watched node with the node-down + systemd-failed rules.
+  # Three groups (nodes + resources + restic); the disabled laptop is dropped,
+  # leaving a single watched node with the node-down + systemd-failed rules.
   testRuleGroupsCount = {
     expr =
       builtins.length
@@ -120,7 +120,7 @@ in
           nodeExporterPort = 9100;
           zoneName = "ag";
         }).groups;
-    expected = 2;
+    expected = 3;
   };
   testNodeGroupName = {
     expr =
@@ -206,5 +206,204 @@ in
       (builtins.head (builtins.head (dnfLib.mkMaintenanceRuleGroups { zoneName = "ag"; }).groups).rules)
       .expr;
     expected = "dnf_maintenance == 1";
+  };
+
+  # ----- serviceUnits (extended mapping) -----
+  testServiceUnitPostfix = {
+    expr = dnfLib.serviceUnits.postfix;
+    expected = "postfix.service";
+  };
+  testServiceUnitNfsServer = {
+    expr = dnfLib.serviceUnits.nfs;
+    expected = "nfs-server.service";
+  };
+
+  # ----- nodeAlertEligible -----
+  # Selection: infrastructure and must-stay-up hosts are watched; bare
+  # laptops/desktops are not, unless an explicit feature opts them in.
+  testEligibleServer = {
+    expr = dnfLib.nodeAlertEligible { services = [ ]; } {
+      hostname = "s";
+      profile = "server";
+      features = { };
+      services = { };
+    };
+    expected = true;
+  };
+  testEligibleBareLaptop = {
+    expr = dnfLib.nodeAlertEligible { services = [ ]; } {
+      hostname = "l";
+      profile = "laptop";
+      features = { };
+      services = { };
+    };
+    expected = false;
+  };
+  testEligibleLaptopWithService = {
+    expr = dnfLib.nodeAlertEligible { services = [ ]; } {
+      hostname = "l";
+      profile = "laptop";
+      features = { };
+      services = {
+        restic = { };
+      };
+    };
+    expected = true;
+  };
+  testEligibleDisabled = {
+    expr = dnfLib.nodeAlertEligible { services = [ ]; } {
+      hostname = "s";
+      profile = "server";
+      features = {
+        "alert-disabled" = "ag";
+      };
+      services = { };
+    };
+    expected = false;
+  };
+  testEligibleNonCriticalFeature = {
+    expr = dnfLib.nodeAlertEligible { services = [ ]; } {
+      hostname = "l";
+      profile = "laptop";
+      features = {
+        "alert-non-critical" = "ag";
+      };
+      services = { };
+    };
+    expected = true;
+  };
+
+  # ----- reach label (mkNodeRuleGroups) -----
+  # A same-zone host is `local`; a cross-zone host (reached over the WAN) is
+  # `wan`, which lets ZoneInternetDown inhibit its false down-alert.
+  testReachLocal = {
+    expr =
+      (builtins.head
+        (builtins.head
+          (dnfLib.mkNodeRuleGroups {
+            nodes = [
+              {
+                hostname = "a";
+                profile = "server";
+                ip = "10.0.0.9";
+                zone = "ag";
+                features = { };
+                services = { };
+              }
+            ];
+            services = [ ];
+            nodeExporterPort = 9100;
+            zoneName = "ag";
+          }).groups
+        ).rules
+      ).labels.reach;
+    expected = "local";
+  };
+  testReachWan = {
+    expr =
+      (builtins.head
+        (builtins.head
+          (dnfLib.mkNodeRuleGroups {
+            nodes = [
+              {
+                hostname = "hcs";
+                profile = "hcs";
+                ip = "1.2.3.4";
+                zone = "www";
+                features = { };
+                services = { };
+              }
+            ];
+            services = [ ];
+            nodeExporterPort = 9100;
+            zoneName = "ag";
+          }).groups
+        ).rules
+      ).labels.reach;
+    expected = "wan";
+  };
+
+  # ----- mkNetworkRuleGroups (zone label + custom expr) -----
+  testNetworkZoneLabel = {
+    expr =
+      (builtins.head
+        (builtins.head
+          (dnfLib.mkNetworkRuleGroups {
+            zoneName = "ag";
+            probes = [
+              {
+                name = "gw";
+                instance = "100.64.0.1";
+                job = "blackbox-icmp";
+                severity = "critical";
+              }
+            ];
+          }).groups
+        ).rules
+      ).labels.zone;
+    expected = "ag";
+  };
+  testNetworkInternetExpr = {
+    expr =
+      (builtins.head
+        (builtins.head
+          (dnfLib.mkNetworkRuleGroups {
+            zoneName = "ag";
+            probes = [
+              {
+                alert = "ZoneInternetDown";
+                name = "internet ag";
+                job = "blackbox-internet";
+                severity = "critical";
+                expr = ''min by (job) (probe_success{job="blackbox-internet"}) == 0'';
+              }
+            ];
+          }).groups
+        ).rules
+      ).expr;
+    expected = ''min by (job) (probe_success{job="blackbox-internet"}) == 0'';
+  };
+
+  # ----- mkHttpRuleGroups -----
+  # Three rules per endpoint: liveness + two cert-expiry thresholds.
+  testHttpRuleCount = {
+    expr =
+      builtins.length
+        (builtins.head
+          (dnfLib.mkHttpRuleGroups {
+            zoneName = "ag";
+            probes = [
+              {
+                name = "git";
+                instance = "https://git.ag";
+              }
+            ];
+          }).groups
+        ).rules;
+    expected = 3;
+  };
+  testHttpEndpointExpr = {
+    expr =
+      (builtins.head
+        (builtins.head
+          (dnfLib.mkHttpRuleGroups {
+            zoneName = "ag";
+            probes = [
+              {
+                name = "git";
+                instance = "https://git.ag";
+              }
+            ];
+          }).groups
+        ).rules
+      ).expr;
+    expected = ''probe_success{job="blackbox-http",instance="https://git.ag"} == 0'';
+  };
+
+  # ----- mkResticRuleGroups -----
+  testResticStaleExpr = {
+    expr =
+      (builtins.head (builtins.head (dnfLib.mkResticRuleGroups { zoneName = "ag"; }).groups).rules).expr;
+    expected = "time() - max by (instance, job) (dnf_restic_last_success_timestamp) > 129600";
   };
 }

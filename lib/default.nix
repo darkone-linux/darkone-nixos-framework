@@ -52,11 +52,14 @@ in
   inherit (alerts)
     serviceUnits
     nodeClass
+    nodeAlertEligible
     severityForClass
     hostExpectedUnits
     mkNodeRuleGroups
     mkResourceRuleGroups
     mkNetworkRuleGroups
+    mkHttpRuleGroups
+    mkResticRuleGroups
     mkMaintenanceRuleGroups
     mergeRuleGroups
     mkAlertRuleGroups

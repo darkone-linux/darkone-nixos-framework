@@ -201,6 +201,27 @@ let
     description = "Local backup strategy";
   };
   params = dnfLib.extractServiceParams host network "restic" defaultParams;
+
+  # Backup freshness metric for Prometheus. Each backup job, on success, stamps
+  # `dnf_restic_last_success_timestamp` into the node_exporter textfile
+  # collector dir (same dir as monitoring.nix's maintenance flag). Only emitted
+  # on monitored nodes — nowhere else would scrape it. The lib `mkResticRuleGroups`
+  # turns a stale stamp into ResticBackupStale/Critical.
+  textfileDir = "/var/lib/node-exporter-textfile";
+  isNode = host.features ? "monitoring-node";
+
+  # Run as ExecStartPost: oneshot ExecStartPost only fires when the backup
+  # itself succeeded, so the stamp tracks the last *successful* run. Full store
+  # paths: systemd units start with an empty PATH.
+  mkResticMetric =
+    name:
+    pkgs.writeShellScript "restic-metric-${name}" ''
+      set -eu
+      tmp="$(${pkgs.coreutils}/bin/mktemp "${textfileDir}/.restic-${name}.XXXXXX")"
+      ${pkgs.coreutils}/bin/printf 'dnf_restic_last_success_timestamp{job="%s"} %s\n' \
+        "${name}" "$(${pkgs.coreutils}/bin/date +%s)" > "$tmp"
+      ${pkgs.coreutils}/bin/mv -f "$tmp" "${textfileDir}/restic-${name}.prom"
+    '';
 in
 {
   options = {
@@ -354,6 +375,11 @@ in
       # Ordering & firewall
       #----------------------------------------------------------------------
 
+      # Backup-age metric: the textfile dir must exist and be writable from the
+      # (hardened) backup units. Harmless on a non-node, but only useful where a
+      # node_exporter scrapes it.
+      systemd.tmpfiles.rules = lib.mkIf isNode [ "d ${textfileDir} 0755 root root -" ];
+
       # Run backups only after remote filesystems are mounted.
       systemd.services = lib.mkMerge [
         (lib.mkIf cfg.enableWaitRemoteFs (
@@ -361,6 +387,20 @@ in
             after = [ "remote-fs.target" ];
             wants = [ "remote-fs.target" ];
           })
+        ))
+
+        # Stamp the success timestamp after each backup (see mkResticMetric).
+        # ReadWritePaths punches the textfile dir through ProtectSystem.
+        (lib.mkIf isNode (
+          lib.listToAttrs (
+            map (b: {
+              name = "restic-backups-${b.name}";
+              value = {
+                serviceConfig.ExecStartPost = lib.mkAfter [ (mkResticMetric b.name) ];
+                serviceConfig.ReadWritePaths = lib.mkAfter [ textfileDir ];
+              };
+            }) backupList
+          )
         ))
 
         # Server: assemble the multi-user htpasswd before the REST server starts.

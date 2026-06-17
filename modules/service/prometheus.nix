@@ -71,8 +71,19 @@ let
   hcsIp = hcsHost.vpnIp or "";
   dnsTarget = "${gwIp}:53";
 
+  # External targets pinged to tell "this zone lost internet" apart from "a
+  # specific WAN-reached host is down". When all fail, ZoneInternetDown fires.
+  internetTargets = alerting.network.internetProbeTargets;
+
+  # Opt-in HTTP(S) endpoints to probe for liveness + TLS certificate expiry.
+  # Empty by default: auto-probing every service URL would false-alert on
+  # non-web services and SSO-protected vhosts, so the admin lists real URLs.
+  httpUrls = alerting.network.httpProbeUrls;
+
   # One alert per probe target, named and severity-tagged: gateway/tailnet
-  # losses page, a DNS miss warns.
+  # losses page, a DNS miss warns. The tailnet coordination server (HCS) is
+  # reached across the WAN, so it is tagged `reach = "wan"` and inhibited when
+  # the zone's own internet is down (see ZoneInternetDown below).
   networkProbes =
     (lib.optional (gwIp != "") {
       name = "gateway ${zone.name} (${gwIp})";
@@ -85,6 +96,9 @@ let
       instance = hcsIp;
       job = "blackbox-icmp";
       severity = "critical";
+      labels = {
+        reach = "wan";
+      };
     })
     ++ (lib.optional (gwIp != "") {
       name = "DNS resolver ${gwIp}";
@@ -92,6 +106,20 @@ let
       job = "blackbox-dns";
       severity = "warning";
       "for" = "5m";
+    })
+
+    # Zone internet outage: fires only if EVERY external target is unreachable
+    # (a single dead resolver must not raise it). Drives the inhibition that
+    # silences the false per-host "down" alerts of WAN-reached hosts.
+    ++ (lib.optional (internetTargets != [ ]) {
+      alert = "ZoneInternetDown";
+      name = "internet ${zone.name}";
+      job = "blackbox-internet";
+      severity = "critical";
+      "for" = "2m";
+      expr = ''min by (job) (probe_success{job="blackbox-internet"}) == 0'';
+      summary = "Internet down in zone ${zone.name}";
+      description = "All external probes (${lib.concatStringsSep ", " internetTargets}) from the ${zone.name} gateway failed: the zone lost internet. WAN-reached hosts' down-alerts are inhibited.";
     });
 in
 {
@@ -160,6 +188,32 @@ in
         type = lib.types.bool;
         default = true;
         description = "Probe network reachability (gateway/tailnet/DNS) with blackbox_exporter";
+      };
+
+      network.internetProbeTargets = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [
+          "1.1.1.1"
+          "9.9.9.9"
+        ];
+        description = ''
+          External IPs the zone gateway pings to detect a WAN outage. When all
+          fail, `ZoneInternetDown` fires and inhibits the (false) down-alerts of
+          hosts reachable only across the WAN (e.g. the HCS). Empty disables it.
+        '';
+      };
+
+      network.httpProbeUrls = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        example = [ "https://git.ag.poncon.fr" ];
+        description = ''
+          HTTP(S) URLs probed for liveness (`ServiceEndpointDown`) and TLS
+          certificate expiry (`CertificateExpiringSoon`/`Critical`). Empty by
+          default: list the public web endpoints worth watching. Redirects to an
+          SSO login (3xx) count as up; cert expiry is read from the TLS
+          handshake regardless of HTTP status.
+        '';
       };
 
       silenceOnRebuild = lib.mkOption {
@@ -350,6 +404,18 @@ in
               source_matchers = [ ''alertname="MaintenanceMode"'' ];
               target_matchers = [ ''severity=~".+"'' ];
               equal = [ "instance" ];
+            }
+
+            # A zone internet outage mutes the (false) down-alerts of hosts
+            # reachable only across the WAN (same zone). The outage alert itself
+            # is excluded so it still notifies.
+            ++ lib.optional (alerting.network.enable && internetTargets != [ ]) {
+              source_matchers = [ ''alertname="ZoneInternetDown"'' ];
+              target_matchers = [
+                ''reach="wan"''
+                ''alertname!="ZoneInternetDown"''
+              ];
+              equal = [ "zone" ];
             };
 
           receivers = lib.optional alerting.silenceOnRebuild { name = "null"; } ++ [
@@ -412,6 +478,15 @@ in
                 probes = networkProbes;
               }
             )
+            ++ lib.optional (alerting.network.enable && httpUrls != [ ]) (
+              dnfLib.mkHttpRuleGroups {
+                zoneName = zone.name;
+                probes = map (u: {
+                  name = u;
+                  instance = u;
+                }) httpUrls;
+              }
+            )
           )
         ))
       ];
@@ -434,7 +509,9 @@ in
           hcsIp
         ];
 
-        # Blackbox prober definitions (ICMP reachability + DNS resolution).
+        # Blackbox prober definitions (ICMP reachability + DNS resolution + HTTP
+        # liveness/TLS). The HTTP module accepts 2xx and 3xx so an SSO redirect
+        # counts as "up"; cert expiry is read from the TLS handshake regardless.
         blackboxConfig = (pkgs.formats.yaml { }).generate "blackbox.yml" {
           modules = {
             icmp = {
@@ -448,6 +525,22 @@ in
               dns = {
                 query_name = controlName;
                 query_type = "A";
+                preferred_ip_protocol = "ip4";
+              };
+            };
+            http = {
+              prober = "http";
+              timeout = "5s";
+              http = {
+                valid_status_codes = [
+                  200
+                  301
+                  302
+                  303
+                  307
+                  308
+                ];
+                follow_redirects = false;
                 preferred_ip_protocol = "ip4";
               };
             };
@@ -489,7 +582,11 @@ in
 
         services.prometheus.scrapeConfigs =
           (lib.optional (icmpTargets != [ ]) (mkBlackboxJob "blackbox-icmp" "icmp" icmpTargets))
-          ++ (lib.optional (gwIp != "") (mkBlackboxJob "blackbox-dns" "dns" [ dnsTarget ]));
+          ++ (lib.optional (gwIp != "") (mkBlackboxJob "blackbox-dns" "dns" [ dnsTarget ]))
+          ++ (lib.optional (internetTargets != [ ]) (
+            mkBlackboxJob "blackbox-internet" "icmp" internetTargets
+          ))
+          ++ (lib.optional (httpUrls != [ ]) (mkBlackboxJob "blackbox-http" "http" httpUrls));
       }
     ))
   ];
