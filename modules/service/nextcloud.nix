@@ -231,6 +231,12 @@ in
         # Additional settings
         settings = {
           overwriteprotocol = "https";
+
+          # user_oidc fetches the OIDC discovery doc back-channel from the idm
+          # host, which resolves to a tailnet IP (100.64.0.0/10). Nextcloud's
+          # SSRF guard (DnsPinMiddleware) blocks local/private targets by
+          # default; allow them so OIDC discovery succeeds on the VPN.
+          allow_local_remote_servers = lib.mkIf hasIdm true;
           trusted_domains = [
             "localhost"
             params.domain
