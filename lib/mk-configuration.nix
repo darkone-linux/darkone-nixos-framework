@@ -62,6 +62,10 @@ let
   # sinon sur CPU plus ancien). À retirer si le paquet nixpkgs le corrige.
   oxicloudOverlay = import ./overlays/oxicloud.nix;
 
+  # Overlay compat : force `__structuredAttrs = false` sur `gimp` (build cassé
+  # sinon). À retirer dès qu'amont rend `gimp` compatible `__structuredAttrs`.
+  gimpOverlay = import ./overlays/gimp.nix;
+
   # Per-system nixpkgs instances
   nixpkgsFor = forAllSystems (
     system:
@@ -165,11 +169,13 @@ let
         #
         # - geneweb   : injecte `pkgs.geneweb` depuis la PR nixpkgs#522751 ;
         # - oxicloud  : neutralise `target-cpu=native` pour un binaire portable
-        #               entre nœuds (cf. oxicloudOverlay ci-dessus).
+        #               entre nœuds (cf. oxicloudOverlay ci-dessus) ;
+        # - gimp      : force `__structuredAttrs = false` (build cassé sinon).
         {
           nixpkgs.overlays = [
             (genewebOverlay system)
             oxicloudOverlay
+            gimpOverlay
           ];
         }
 
