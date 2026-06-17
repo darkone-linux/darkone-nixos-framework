@@ -115,6 +115,15 @@
     # Prometheus blackbox exporter (network probes). modules/service/monitoring.nix
     blackboxExporter = 9115;
 
+    # Synapse Prometheus metrics listener. modules/service/matrix.nix
+    matrixMetrics = 9148;
+
+    # Prometheus postfix exporter (mail queue). modules/service/postfix.nix
+    postfixExporter = 9154;
+
+    # Prometheus smartctl exporter (disk SMART health). modules/service/monitoring.nix
+    smartctlExporter = 9633;
+
     # Open WebUI (AI front-end, reverse-proxy target). modules/service/ai.nix
     ai = 9758;
 

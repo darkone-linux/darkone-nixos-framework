@@ -106,8 +106,8 @@ in
   };
 
   # ----- mkAlertRuleGroups -----
-  # Three groups (nodes + resources + restic); the disabled laptop is dropped,
-  # leaving a single watched node with the node-down + systemd-failed rules.
+  # Four groups (nodes + resources + restic + smartctl); the disabled laptop is
+  # dropped, leaving a single watched node with node-down + systemd-failed rules.
   testRuleGroupsCount = {
     expr =
       builtins.length
@@ -120,7 +120,7 @@ in
           nodeExporterPort = 9100;
           zoneName = "ag";
         }).groups;
-    expected = 3;
+    expected = 4;
   };
   testNodeGroupName = {
     expr =
@@ -405,5 +405,27 @@ in
     expr =
       (builtins.head (builtins.head (dnfLib.mkResticRuleGroups { zoneName = "ag"; }).groups).rules).expr;
     expected = "time() - max by (instance, job) (dnf_restic_last_success_timestamp) > 129600";
+  };
+
+  # ----- mkSmartctlRuleGroups -----
+  testSmartctlFailingExpr = {
+    expr =
+      (builtins.head (builtins.head (dnfLib.mkSmartctlRuleGroups { zoneName = "ag"; }).groups).rules)
+      .expr;
+    expected = "smartctl_device_smart_status == 0";
+  };
+
+  # ----- mkPostfixRuleGroups -----
+  testPostfixUpExpr = {
+    expr =
+      (builtins.head (builtins.head (dnfLib.mkPostfixRuleGroups { zoneName = "ag"; }).groups).rules).expr;
+    expected = "postfix_up == 0";
+  };
+
+  # ----- mkSynapseRuleGroups -----
+  testSynapseRestartExpr = {
+    expr =
+      (builtins.head (builtins.head (dnfLib.mkSynapseRuleGroups { zoneName = "ag"; }).groups).rules).expr;
+    expected = ''changes(process_start_time_seconds{job="synapse"}[30m]) > 2'';
   };
 }

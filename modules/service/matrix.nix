@@ -30,6 +30,7 @@
   network,
   host,
   hosts,
+  zone,
   pkgs,
   ...
 }:
@@ -40,6 +41,13 @@ let
   synapsePort = dnfConfig.network.ports.matrix;
   telegramPort = dnfConfig.network.ports.matrixTelegram;
   discordPort = dnfConfig.network.ports.matrixDiscord;
+
+  # Native Prometheus metrics, exposed only where a zone Prometheus scrapes
+  # this host. Bound to the scrapeable IP (like the node exporter), not the
+  # loopback the HTTP listener may use on the HCS.
+  isNode = host.features ? "monitoring-node";
+  metricsPort = dnfConfig.network.ports.matrixMetrics;
+  metricsIp = dnfLib.preferredIp host;
 
   # VoIP
   inherit (config.services) coturn;
@@ -191,6 +199,10 @@ in
       # Darkone service: enable
       darkone.system.services = dnfLib.enableBlock "matrix";
 
+      # Expose the Synapse metrics listener to the zone Prometheus over the
+      # internal interface (no-op on a gateway, scraped locally there).
+      networking.firewall = lib.mkIf isNode (dnfLib.mkInternalFirewall host zone [ metricsPort ]);
+
       #------------------------------------------------------------------------
       # Sops
       #------------------------------------------------------------------------
@@ -327,7 +339,8 @@ in
           #ip_range_blacklist
           #ip_range_whitelist
 
-          # Listeners
+          # Listeners. The metrics listener is appended last so the proxy's
+          # `listeners[0]` reference keeps pointing at the HTTP listener.
           listeners = [
             {
               port = synapsePort;
@@ -345,7 +358,14 @@ in
                 }
               ];
             }
-          ];
+          ]
+          ++ lib.optional isNode {
+            port = metricsPort;
+            bind_addresses = [ metricsIp ];
+            type = "metrics";
+            tls = false;
+            resources = [ { names = [ "metrics" ]; } ];
+          };
 
           # TODO: https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#email
           #email = { };
@@ -374,7 +394,7 @@ in
             show_locked_users = true;
           };
 
-          enable_metrics = false;
+          enable_metrics = isNode;
           enable_registration = false;
           suppress_key_server_warning = true;
           registration_shared_secret_path = config.sops.secrets.matrix-rss-password.path;

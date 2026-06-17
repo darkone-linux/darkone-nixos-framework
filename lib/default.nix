@@ -60,6 +60,9 @@ in
     mkNetworkRuleGroups
     mkHttpRuleGroups
     mkResticRuleGroups
+    mkSmartctlRuleGroups
+    mkPostfixRuleGroups
+    mkSynapseRuleGroups
     mkMaintenanceRuleGroups
     mergeRuleGroups
     mkAlertRuleGroups

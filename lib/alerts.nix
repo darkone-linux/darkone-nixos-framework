@@ -550,6 +550,119 @@ rec {
     ];
   };
 
+  # Disk SMART health, from the per-node smartctl_exporter. Absent metric (no
+  # SMART-capable disk, e.g. a VPS) -> no series -> no alert.
+  mkSmartctlRuleGroups = { zoneName }: {
+    groups = [
+      {
+        name = "dnf-smart-${zoneName}";
+        rules = [
+          {
+
+            # Overall-health self-assessment flipped to failed: the drive is
+            # predicting its own death. Page.
+            alert = "DiskSmartFailing";
+            expr = "smartctl_device_smart_status == 0";
+            "for" = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "SMART failure on {{ $labels.instance }}";
+              description = "Device {{ $labels.device }} reports a failing SMART overall-health status.";
+            };
+          }
+          {
+            alert = "DiskTemperatureHigh";
+            expr = ''smartctl_device_temperature{temperature_type="current"} > 60'';
+            "for" = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Disk temperature high on {{ $labels.instance }}";
+              description = "Device {{ $labels.device }} above 60°C for 15m.";
+            };
+          }
+        ];
+      }
+    ];
+  };
+
+  # Postfix relay health, from the postfix_exporter. Emitted only for zones that
+  # actually run a relay (gated by the caller).
+  mkPostfixRuleGroups = { zoneName }: {
+    groups = [
+      {
+        name = "dnf-postfix-${zoneName}";
+        rules = [
+          {
+
+            # The exporter reached its target but Postfix is not answering:
+            # the relay is down (mail escalation would silently fail).
+            alert = "PostfixRelayUnhealthy";
+            expr = "postfix_up == 0";
+            "for" = "5m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Postfix relay unhealthy on {{ $labels.instance }}";
+              description = "postfix_up == 0: the SMTP relay is not responding.";
+            };
+          }
+          {
+
+            # Deferred mail piling up: relay/credentials/upstream issue. The
+            # metric name follows postfix_exporter's showq histogram.
+            alert = "PostfixDeferredQueueHigh";
+            expr = ''postfix_showq_message_size_bytes_count{queue="deferred"} > 50'';
+            "for" = "30m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Postfix deferred queue high on {{ $labels.instance }}";
+              description = "More than 50 deferred messages for 30m (upstream/relay problem?).";
+            };
+          }
+        ];
+      }
+    ];
+  };
+
+  # Matrix Synapse health, from its native Prometheus metrics. Uses the
+  # prometheus_client standard `process_start_time_seconds` (stable across
+  # versions) and the HTTP response counters. Emitted only for zones running a
+  # homeserver (gated by the caller). `job="synapse"` isolates the listener.
+  mkSynapseRuleGroups = { zoneName }: {
+    groups = [
+      {
+        name = "dnf-synapse-${zoneName}";
+        rules = [
+          {
+
+            # Crash loop: more than two process starts in 30m, beyond what a
+            # single planned restart explains.
+            alert = "SynapseRestarting";
+            expr = ''changes(process_start_time_seconds{job="synapse"}[30m]) > 2'';
+            "for" = "0m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Synapse restarting repeatedly on {{ $labels.instance }}";
+              description = "matrix-synapse restarted more than twice in 30m.";
+            };
+          }
+          {
+
+            # Elevated server-side errors. The ratio is NaN without traffic, so
+            # it stays silent on an idle homeserver.
+            alert = "SynapseHighErrorRate";
+            expr = ''sum by (instance) (rate(synapse_http_server_responses_total{job="synapse",code=~"5.."}[15m])) / sum by (instance) (rate(synapse_http_server_responses_total{job="synapse"}[15m])) > 0.05'';
+            "for" = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Synapse high 5xx error rate on {{ $labels.instance }}";
+              description = "Over 5% of Synapse HTTP responses are 5xx for 15m.";
+            };
+          }
+        ];
+      }
+    ];
+  };
+
   # Merge several `{ groups = [...]; }` fragments into one rule document.
   mergeRuleGroups = fragments: { groups = lib.concatMap (f: f.groups) fragments; };
 
@@ -576,5 +689,6 @@ rec {
       })
       (mkResourceRuleGroups { inherit thresholds zoneName; })
       (mkResticRuleGroups { inherit zoneName; })
+      (mkSmartctlRuleGroups { inherit zoneName; })
     ];
 }

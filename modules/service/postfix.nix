@@ -4,12 +4,20 @@
   lib,
   config,
   network,
+  dnfLib,
+  dnfConfig,
+  host,
+  zone,
   pkgs,
   ...
 }:
 let
   cfg = config.darkone.service.postfix;
   inherit (network) smtp;
+
+  # Run/scrape the exporter only where a zone Prometheus collects this host.
+  isNode = host.features ? "monitoring-node";
+  postfixExporterPort = dnfConfig.network.ports.postfixExporter;
 
   # Match addresses without a dot in the domain (e.g. user@host) -> noreply@domain.tld
   senderCanonicalFile = pkgs.writeText "postfix-sender-canonical" ''
@@ -73,5 +81,22 @@ in
         smtputf8_enable = "no";
       };
     };
+
+    #--------------------------------------------------------------------------
+    # Prometheus exporter (mail queue / relay health)
+    #--------------------------------------------------------------------------
+
+    # https://github.com/kumina/postfix_exporter — reads the showq socket and
+    # the journal. Only on monitored hosts (where a zone Prometheus scrapes it).
+    services.prometheus.exporters.postfix = lib.mkIf isNode {
+      enable = true;
+      port = postfixExporterPort;
+      openFirewall = false;
+      listenAddress = dnfLib.preferredIp host;
+    };
+
+    # Expose the exporter to the zone Prometheus over the internal interface
+    # (no-op on a gateway, where Prometheus scrapes it locally).
+    networking.firewall = lib.mkIf isNode (dnfLib.mkInternalFirewall host zone [ postfixExporterPort ]);
   };
 }

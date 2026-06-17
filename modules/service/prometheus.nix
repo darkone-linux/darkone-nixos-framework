@@ -47,12 +47,31 @@ let
     alertmanager = dnfConfig.network.ports.alertmanager;
     matrixReceiver = dnfConfig.network.ports.matrixAlertReceiver;
     blackbox = dnfConfig.network.ports.blackboxExporter;
+    smartctl = dnfConfig.network.ports.smartctlExporter;
+    postfix = dnfConfig.network.ports.postfixExporter;
+    synapse = dnfConfig.network.ports.matrixMetrics;
   };
 
   # Nodes supervised by the current zone (scrape targets).
   nodes = lib.filter (
     h: lib.hasAttr "monitoring-node" h.features && h.features.monitoring-node == zone.name
   ) hosts;
+
+  # Subsets running a service exporter we scrape on a dedicated job. Reuses the
+  # serviceUnits mapping so a host counts only when it actually runs the daemon.
+  hostRunsUnit = unit: h: lib.elem unit (dnfLib.hostExpectedUnits network.services h);
+  synapseHosts = lib.filter (hostRunsUnit "matrix-synapse.service") nodes;
+
+  # Postfix is infrastructure (SMTP relay), enabled per-host rather than via the
+  # service registry, so registry detection alone misses it. The relay is
+  # conventionally co-located with alerting, so also count the local monitoring
+  # host when it runs Postfix. Deduplicated by hostname.
+  postfixCandidates =
+    (lib.filter (hostRunsUnit "postfix.service") nodes)
+    ++ lib.optional (config.darkone.service.postfix.enable && (host.features ? "monitoring-node")) host;
+  postfixHosts = lib.foldl' (
+    acc: h: if lib.any (x: x.hostname == h.hostname) acc then acc else acc ++ [ h ]
+  ) [ ] postfixCandidates;
 
   # Service params: drive the protected vhost and, via `href`, the external URL
   # Prometheus stamps into alert links (`generatorURL`).
@@ -283,7 +302,31 @@ in
             ];
             scrape_interval = "15s";
           }
-        ];
+          {
+
+            # Disk SMART health, per node like the node exporter (slower: SMART
+            # data barely changes).
+            job_name = "smartctl";
+            static_configs = [
+              { targets = map (h: "${dnfLib.preferredIp h}:${toString port.smartctl}") nodes; }
+            ];
+            scrape_interval = "60s";
+          }
+        ]
+        ++ lib.optional (postfixHosts != [ ]) {
+          job_name = "postfix";
+          static_configs = [
+            { targets = map (h: "${dnfLib.preferredIp h}:${toString port.postfix}") postfixHosts; }
+          ];
+          scrape_interval = "30s";
+        }
+        ++ lib.optional (synapseHosts != [ ]) {
+          job_name = "synapse";
+          static_configs = [
+            { targets = map (h: "${dnfLib.preferredIp h}:${toString port.synapse}") synapseHosts; }
+          ];
+          scrape_interval = "30s";
+        };
         globalConfig = {
           scrape_interval = "15s";
           evaluation_interval = "15s";
@@ -487,6 +530,8 @@ in
                 }) httpUrls;
               }
             )
+            ++ lib.optional (postfixHosts != [ ]) (dnfLib.mkPostfixRuleGroups { zoneName = zone.name; })
+            ++ lib.optional (synapseHosts != [ ]) (dnfLib.mkSynapseRuleGroups { zoneName = zone.name; })
           )
         ))
       ];

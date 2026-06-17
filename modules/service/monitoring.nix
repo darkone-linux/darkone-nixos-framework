@@ -32,6 +32,7 @@ let
   port = {
     grafana = dnfConfig.network.ports.grafana;
     nodeExporter = dnfConfig.network.ports.nodeExporter;
+    smartctlExporter = dnfConfig.network.ports.smartctlExporter;
   };
 
   # Service params
@@ -206,9 +207,22 @@ in
         ];
       };
 
-      # Open the node explorer port if needed
+      # https://github.com/prometheus-community/smartctl_exporter
+      # Disk SMART health, scraped per node like the node exporter. On a host
+      # without SMART-capable disks (e.g. a VPS) it simply exports no device.
+      services.prometheus.exporters.smartctl = lib.mkIf cfg.isNode {
+        enable = true;
+        port = port.smartctlExporter;
+        openFirewall = false;
+        listenAddress = dnfLib.preferredIp host;
+      };
+
+      # Open the node explorer + smartctl ports if needed
       networking.firewall = lib.mkIf cfg.isNode (
-        dnfLib.mkInternalFirewall host zone [ port.nodeExporter ]
+        dnfLib.mkInternalFirewall host zone [
+          port.nodeExporter
+          port.smartctlExporter
+        ]
       );
 
       # Additional packages
