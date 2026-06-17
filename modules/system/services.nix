@@ -69,7 +69,11 @@ let
   # This avoids a synthetic `auth.<zone>` host (no cert in the HCS->gateway sync).
   # Every protected service sends the login flow here; the shared `.<zone>` cookie
   # keeps SSO across services.
-  authAnchor = findFirst (s: s.name == "homepage") null services;
+  #
+  # Must be the homepage of THIS zone: oauth2-proxy's whitelist-domain and cookie
+  # are scoped to `.<zone>` (see below), so anchoring on another zone's homepage
+  # drops the post-login `rd` and strands the user on the wrong zone's homepage.
+  authAnchor = findFirst (s: s.name == "homepage" && s.params.zone == zone.name) null services;
   authHost = if authAnchor != null then authAnchor.params.fqdn else null;
 
   # Forward auth: checks auth on every request. When groups are supplied, the
