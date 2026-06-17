@@ -61,8 +61,11 @@ let
     inherit (cfg.service.${service.name}) proxy;
   }) network.services;
 
-  # Need Oauth2 proxy if has protected service
-  hasProtectedServices = any (s: s.proxy.isProtected) services;
+  # Need Oauth2 proxy if has protected service in THIS zone. Scoped like
+  # `authAnchor` below: the anchor (and oauth2-proxy) is per-zone, so a zone
+  # without a protected service must not require a homepage anchor just because
+  # another zone has one.
+  hasProtectedServices = any (s: s.proxy.isProtected && s.params.zone == zone.name) services;
 
   # Single auth anchor per zone: oauth2-proxy's public `/oauth2/*` endpoints are
   # hosted on the homepage FQDN, which already has a provisioned TLS certificate.
