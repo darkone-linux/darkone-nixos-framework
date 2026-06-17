@@ -62,7 +62,7 @@ This project is constantly evolving according to my needs. If you'd like to be i
 | [Matrix Synapse](https://matrix.org) | ✅ |  ✅ |  ✅ |  ✅ |  ✅ | Works fine (+Element +Coturn) |
 | [Open WebUI](https://openwebui.com) | ✅ |  ✅ |  ✅ |  ✅ |  ✅ | Works fine (+Ollama) |
 | [Grafana](https://grafana.com) | ✅ | ✅ |  ✅ |  ✅ |  ✅ | Works fine |
-| [LaSuite Docs](https://lasuite.numerique.gouv.fr) | ✅ | ✅ | ⚠️ | ✅ | ✅ | Upstream exposes no OIDC_USE_PKCE (impress) |
+| [LaSuite Docs](https://lasuite.numerique.gouv.fr) | ✅ | ✅ | ✅ | ✅ | ✅ | Works fine |
 | [Immich](https://immich.app) | ✅ | ✅ | ✅ | ✅ | ✅ | Declarative (settings + secretSettings) |
 | [Forgejo](https://forgejo.org) | ✅ | ✅ | ✅ | ☑️ | ✅ | Declarative via auth add-oauth oneshot |
 | [Nextcloud](https://nextcloud.com) | ✅ | ✅ | ✅ | ☑️ | ✅ | user_oidc, occ-provisioned |

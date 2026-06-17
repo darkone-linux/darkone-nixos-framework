@@ -132,7 +132,7 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 | [Matrix Synapse](https://matrix.org) | ✅ | ✅ | ✅ | ✅ | ✅ | Marche bien (+Element +Coturn) |
 | [Open WebUI](https://openwebui.com) | ✅ | ✅ | ✅ | ✅ | ✅ | Marche bien (+Ollama) |
 | [Grafana](https://grafana.com) | ✅ | ✅ |  ✅ |  ✅ |  ✅ | Marche bien |
-| [LaSuite Docs](https://lasuite.numerique.gouv.fr) | ✅ | ✅ | ⚠️ | ✅ | ✅ | Bien, PKCE Challenge introuvable |
+| [LaSuite Docs](https://lasuite.numerique.gouv.fr) | ✅ | ✅ | ✅ | ✅ | ✅ | Marche bien |
 | [Immich](https://immich.app) | ✅ | ✅ | ✅ | ✅ | ✅ | Déclaratif (settings) |
 | [Forgejo](https://forgejo.org) | ✅ | ✅ | ✅ | ☑️ | ✅ | Déclaratif via oneshot add-oauth |
 | [Nextcloud](https://nextcloud.com) | ✅ | ✅ | ✅ | ☑️ | ✅ | user_oidc, provisionné via occ |

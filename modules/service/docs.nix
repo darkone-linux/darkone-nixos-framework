@@ -84,13 +84,10 @@ in
         landingPath = "/";
         preferShortUsername = false;
 
-        # impress exposes no PKCE toggle: neither the pinned 3.6.0 nor `main`
-        # ships an `OIDC_USE_PKCE` (or code-challenge) env var, and
-        # django-lasuite does not wire mozilla-django-oidc's PKCE support to a
-        # django-configurations value. We therefore cannot opt-in without
-        # patching upstream; disable PKCE enforcement on this client until
-        # upstream adds the toggle.
-        allowInsecureClientDisablePkce = true;
+        # PKCE enforced: impress exposes the `OIDC_USE_PKCE` toggle (set in the
+        # service settings below) and django-lasuite preserves mozilla-django-oidc's
+        # PKCE flow (its OIDCAuthenticationRequestView calls super().get()).
+        allowInsecureClientDisablePkce = false;
       };
     }
 
@@ -262,6 +259,11 @@ in
           OIDC_RP_SIGN_ALGO = "ES256";
           OIDC_RP_SCOPES = "openid email profile";
           OIDC_CREATE_USER = "true";
+
+          # Enable PKCE (S256 by default). Nix `true` -> Python `True`, parsed
+          # by django-configurations BooleanValue. Kanidm enforces PKCE on this
+          # client (allowInsecureClientDisablePkce = false in the template).
+          OIDC_USE_PKCE = true;
           OIDC_REDIRECT_ALLOWED_HOSTS = params.fqdn;
           LOGIN_REDIRECT_URL = params.href;
           LOGIN_REDIRECT_URL_FAILURE = "${params.href}?login_failed=1";
