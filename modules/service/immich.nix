@@ -179,9 +179,10 @@ in
           buttonText = "Login with IDM";
           autoRegister = true;
 
-          # Mobile app deep-link callback (also declared in the idm template).
-          mobileOverrideEnabled = true;
-          mobileRedirectUri = "app.immich:///oauth-callback";
+          # No mobile override: Kanidm accepts the app deep-link redirect
+          # (`app.immich:///oauth-callback`, declared in the idm template), so
+          # the server-side mobile-redirect endpoint is not needed. Setting it
+          # to the custom scheme fails immich's `isUrl` validation anyway.
 
           clientSecret._secret = config.sops.secrets."${secret}-service".path;
         };
