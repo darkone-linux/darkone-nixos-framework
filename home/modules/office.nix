@@ -221,6 +221,18 @@ in
       example = "en-us";
       description = "[Huntspell Lang](https://mynixos.com/nixpkgs/packages/hunspellDicts)";
     };
+
+    # Matrix desktop client auto-start (Element stays the default, see below).
+    darkone.home.office.enableElementAutoStart = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Auto-start Element Desktop on login when a local Matrix server is present";
+    };
+    darkone.home.office.enableFractalAutoStart = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Auto-start Fractal on login when a local Matrix server is present (opt-in, see caveats below)";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -289,8 +301,22 @@ in
     ];
 
     #--------------------------------------------------------------------------
-    # Matrix element desktop
+    # Matrix desktop clients
     #--------------------------------------------------------------------------
+
+    # Element is the default Matrix client and the only one we can pre-configure.
+    #
+    # Fractal cannot replace it as a declarative/OIDC default because:
+    #
+    # - Auth mismatch: our Synapse uses legacy `oidc_providers` (`m.login.sso`,
+    #   no MAS). Element supports `m.login.sso`; Fractal only supports native
+    #   OIDC (MSC3861/MAS) and would need a MAS migration to authenticate.
+    # - No declarative config: Element accepts a config (homeserver + OIDC);
+    #   Fractal's GSettings exposes nothing equivalent, so server/OIDC cannot
+    #   be pre-seeded and each user must log in interactively.
+    # - No background mode: Fractal has no `--hidden`/tray, so an auto-start
+    #   pops a visible window every login (hence `enableFractalAutoStart` is
+    #   opt-in and off by default).
 
     # TODO: complete, factorize with element.nix
     programs.element-desktop = mkIf hasMatrixClient {
@@ -321,8 +347,8 @@ in
       };
     };
 
-    # Auto-start
-    systemd.user.services.element-desktop = mkIf hasMatrixClient {
+    # Auto-start Element (hidden, background-friendly client)
+    systemd.user.services.element-desktop = mkIf (hasMatrixClient && cfg.enableElementAutoStart) {
       Unit = {
         Description = "Element Desktop (autostart)";
       };
@@ -331,6 +357,20 @@ in
       };
       Service = {
         ExecStart = "${pkgs.element-desktop}/bin/element-desktop --no-update --hidden";
+        Restart = "on-failure";
+      };
+    };
+
+    # Auto-start Fractal (opt-in: no --hidden, opens a visible window)
+    systemd.user.services.fractal = mkIf (hasMatrix && cfg.enableFractalAutoStart) {
+      Unit = {
+        Description = "Fractal (autostart)";
+      };
+      Install = {
+        WantedBy = [ "graphical-session.target" ];
+      };
+      Service = {
+        ExecStart = "${pkgs.fractal}/bin/fractal";
         Restart = "on-failure";
       };
     };
