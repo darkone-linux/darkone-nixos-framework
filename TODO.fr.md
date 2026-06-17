@@ -3,19 +3,13 @@
 ### En cours
 
 - [x] Correction des déclarations de partitions disko (swap trop petit + améliorations). (en test)
-- [ ] Stratégie de test globale en 3 niveaux : tests unitaires, tests simulés (VMs légères), lab de staging complet (tests + introspection manuelle).
-  - [x] [Cahier des charges](.specs/FULL-TEST-STRATEGY.fr.md).
-  - [x] Tests unitaires (lib).
-  - [x] Migration vers [nix-unit](https://nix-community.github.io/nix-unit/).
-  - [x] Déplacement dans lib/ de tout algorithme un peu complexe ou comportant de possibles effets de bords, sous forme de fonctions durcies et testées, simplifiant le code utile des modules.
-  - [x] Tests simulés (pkgs.testers.runNixOSTest) -> peu viable...
-  - [ ] Lab de staging (microvm.nix ou nixos.vm)
+- [ ] Lab de staging (microvm.nix ou nixos.vm)
 - [ ] Linux durci selon les [recommandations ANSSI](https://messervices.cyber.gouv.fr/guides/recommandations-de-securite-relatives-un-systeme-gnulinux).
   - [x] [Architecture modulaire](https://darkone-linux.github.io/en/ref/modules/#security-modules) pour l'activation et le paramétrage des règles.
   - [ ] Gestion de noyaux durcis avec paramètres statiques durcis (profils, mise en cache)
   - [x] Documentation.
   - [x] Règles pour niveau minimal + déploiement.
-  - [ ] Règles pour niveau intermédiaire + déploiement.
+  - [x] Règles pour niveau intermédiaire + déploiement.
   - [ ] Règles pour niveau renforcé + déploiement.
   - [ ] Règles pour niveau high + déploiement.
 - [ ] SSO avec [Kanidm](https://kanidm.com/) ([module nix](https://search.nixos.org/options?channel=unstable&query=services.idm))
@@ -25,10 +19,6 @@
   - [ ] Réplicats de zone (activation auto selon les services idm déclarés). -> FAIL
     - [x] Mécanisme de réplication : auto par scénario (idm/HCS seul = instance unique ; idm/passerelle sans HCS = autonome ; idm/HCS + passerelles = réplication). HCS supplier (WriteReplica), passerelles WriteReplicaNoUI puis ReadOnlyReplica, bootstrap 2 phases (`just idm-sync-certs`).
     - [ ] Joignabilité locale du réplicat pour le login hors-ligne : vhost Caddy servant le FQDN global `idm.<network.domain>` sur la passerelle + bascule DNS dnsmasq → IP passerelle. À câbler/valider en déploiement réel multi-hôtes.
-- [ ] Ponts Mautrix pour Matrix (whatsapp, telegram, messenger, discord).
-  - [x] POC -> implémentation locale.
-  - [ ] Généralisation -> implémentation paramétrable pour chaque user.
-  - [ ] Stabilisation et simplification -> certains ponts (whatsapp, discord) sont compliqués et instables.
 - [ ] Module d'IA générative self-hosted + agents.
   - [x] Interface Open WebUI + Ollama + Modèles locaux.
   - [x] Comptes OIDC, cloisonnés pour chaque utilisateur.
@@ -90,6 +80,17 @@
 
 ### Fait
 
+- [x] Full-OIDC -> immich, nextcloud, forgejo, lasuite docs
+- [x] Ponts Mautrix pour Matrix (whatsapp, telegram, messenger, discord).
+  - [x] POC -> implémentation locale.
+  - [x] Généralisation -> implémentation paramétrable pour chaque user.
+  - [x] Stabilisation et simplification -> certains ponts (whatsapp, discord) sont compliqués et instables.
+- [x] Stratégie de test globale en 3 niveaux : tests unitaires, tests simulés (VMs légères), lab de staging complet (tests + introspection manuelle).
+  - [x] [Cahier des charges](.specs/FULL-TEST-STRATEGY.fr.md).
+  - [x] Tests unitaires (lib).
+  - [x] Migration vers [nix-unit](https://nix-community.github.io/nix-unit/).
+  - [x] Déplacement dans lib/ de tout algorithme un peu complexe ou comportant de possibles effets de bords, sous forme de fonctions durcies et testées, simplifiant le code utile des modules.
+  - [x] Tests simulés (pkgs.testers.runNixOSTest) -> peu viable...
 - [x] Supression de NCPS (trop d'erreurs) -> remplacement par un proxy nginx (nix-cache).
 - [x] Remontée d'information et alertes avec Alertmanager + Prometheus.
 - [x] Cache de store harmonia.
