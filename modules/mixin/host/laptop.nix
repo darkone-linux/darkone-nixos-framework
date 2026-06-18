@@ -35,6 +35,9 @@ in
         # suspend, sleep, hibernates are deactivated by default: activation
         darkone.system.core.enableAutoSuspend = lib.mkDefault true;
 
+        # Blank the screen earlier on laptops (battery saving): 15 min
+        darkone.graphic.gnome.screenBlankDelay = lib.mkDefault 900;
+
         # Temperature management daemon
         services.thermald.enable = lib.mkDefault true;
       }

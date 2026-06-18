@@ -27,6 +27,11 @@ in
       default = "oss";
       description = "Keyboard variant. Layout is extracted from console keymap.";
     };
+    darkone.graphic.gnome.screenBlankDelay = mkOption {
+      type = types.ints.unsigned;
+      default = 1800;
+      description = "Screen-blank delay in seconds (0 = never). Laptops override it to 900 (15 min).";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -249,6 +254,11 @@ in
               };
               "org/gnome/desktop/screensaver" = {
                 logout-enabled = true;
+
+                # Lock the session as soon as the screen blanks: re-login
+                # is required to wake it (display off only, not system suspend)
+                lock-enabled = true;
+                lock-delay = gvariant.mkUint32 0;
               };
               "org/gnome/shell" = {
                 disable-user-extensions = false;
@@ -342,6 +352,18 @@ in
                   "*.ts"
                   "*.mts"
                 ];
+              };
+            };
+          }
+
+          # User-overridable defaults (no lockAll): lets the user change or
+          # disable the screen-blank delay in Settings > Power > Blank Screen
+          {
+            settings = {
+
+              # Blank the screen after screenBlankDelay seconds (0 = never)
+              "org/gnome/desktop/session" = {
+                idle-delay = gvariant.mkUint32 cfg.screenBlankDelay;
               };
             };
           }
