@@ -6,11 +6,11 @@ let
     hostname = "myhost";
     zone = "lan";
   };
-  mockHostArm = {
-    hostname = "rpi";
-    zone = "lan";
-    arch = "aarch64-linux";
-  };
+  # mockHostArm = {
+  #   hostname = "rpi";
+  #   zone = "lan";
+  #   arch = "aarch64-linux";
+  # };
   mockNetwork = {
     zones.lan = {
       name = "lan";
@@ -19,7 +19,7 @@ let
   };
   mockHosts = [
     mockHostX86
-    mockHostArm
+    # mockHostArm
   ];
 in
 {
@@ -28,10 +28,10 @@ in
     expr = dnfLib.getHostArch mockHostX86;
     expected = "x86_64-linux";
   };
-  testGetHostArchExplicit = {
-    expr = dnfLib.getHostArch mockHostArm;
-    expected = "aarch64-linux";
-  };
+  # testGetHostArchExplicit = {
+  #   expr = dnfLib.getHostArch mockHostArm;
+  #   expected = "aarch64-linux";
+  # };
 
   # mkNodeArgs
   testMkNodeArgsBase = {

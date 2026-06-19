@@ -22,7 +22,6 @@ let
     colmena
     sops-nix
     disko
-    nixos-hardware
     ;
 
   # NixOS state version applied to fresh hosts/homes
@@ -227,7 +226,7 @@ let
           };
         }
       ]
-      ++ nixpkgs.lib.optional (system == "aarch64-linux") nixos-hardware.nixosModules.raspberry-pi-5
+      # ++ nixpkgs.lib.optional (system == "aarch64-linux") nixos-hardware.nixosModules.raspberry-pi-5
       ++ nixpkgs.lib.optional (builtins.pathExists (workDir + "/usr/machines/${host.hostname}")) (
         workDir + "/usr/machines/${host.hostname}"
       );
