@@ -18,6 +18,27 @@
 # secrets, so resetting a bridge's state dir never invalidates the
 # registration synapse has loaded (which would otherwise require a registration
 # wipe + synapse restart and produce "as_token was not accepted" errors).
+#
+# ## Federation
+#
+# Federation is configurable via `darkone.service.matrix.federation`:
+#
+# - `enable = false`: blocks all federation (empty domain whitelist).
+# - `enable = true; whitelist = [ ]`: open federation with every server.
+# - `enable = true; whitelist = [ "ami.org" ]`: allowlist (inbound + outbound).
+#
+# Discovery stays locked regardless (rooms absent from remote directories,
+# profiles private over federation), so the network is reachable but not
+# searchable.
+#
+# :::caution[Safe-for-kids]
+# Open federation lets any federated server DM/invite local users. For a
+# family network, fill `whitelist` with trusted servers only.
+# :::
+#
+# Friend self-registration (`friendRegistration.enable`) opens token-gated
+# local password accounts alongside Kanidm OIDC users. Minting a token needs a
+# server admin (Synapse admin API / Synapse-Admin UI).
 
 # (TODO: Livekit -> https://wiki.nixos.org/wiki/Matrix#Livekit)
 # TODO: Synapse Admin -> https://wiki.nixos.org/wiki/Matrix#Synapse_Admin_with_Caddy
@@ -38,6 +59,15 @@ let
   inherit network;
   cfg = config.darkone.service.matrix;
   srv = config.services.matrix-synapse;
+
+  # federation_domain_whitelist: absent = open; [] = block all; list =
+  # allowlist. Synapse treats an empty list as a full federation block.
+  federationSettings =
+    lib.optionalAttrs (!cfg.federation.enable) { federation_domain_whitelist = [ ]; }
+    // lib.optionalAttrs (cfg.federation.enable && cfg.federation.whitelist != [ ]) {
+      federation_domain_whitelist = cfg.federation.whitelist;
+    };
+
   synapsePort = dnfConfig.network.ports.matrix;
   telegramPort = dnfConfig.network.ports.matrixTelegram;
   discordPort = dnfConfig.network.ports.matrixDiscord;
@@ -116,6 +146,30 @@ in
   options = {
     darkone.service.matrix = {
       enable = lib.mkEnableOption "Enable matrix (synapse) service";
+
+      # Server-to-server federation. Active by default but without allowlist
+      # (open). Filling `whitelist` restricts inbound AND outbound to the listed
+      # domains only (safest for a family network); `enable = false` blocks all.
+      federation = {
+        enable = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Allow server-to-server federation. False blocks all federation.";
+        };
+        whitelist = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [ ];
+          description = "Empty = federate with all servers; non-empty = only these domains (inbound + outbound).";
+        };
+      };
+
+      # Local password accounts for friends, in addition to the Kanidm (OIDC)
+      # users. Token-gated: no open registration without an invite token.
+      friendRegistration.enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Allow friends to self-register with an invite token (token-gated).";
+      };
 
       # Mautrix bridges, individually switchable
       bridges = {
@@ -395,7 +449,12 @@ in
           };
 
           enable_metrics = isNode;
-          enable_registration = false;
+
+          # Token-gated friend registration. `registration_requires_token`
+          # satisfies Synapse's guard against open registration and coexists
+          # with Kanidm OIDC login.
+          enable_registration = cfg.friendRegistration.enable;
+          registration_requires_token = cfg.friendRegistration.enable;
           suppress_key_server_warning = true;
           registration_shared_secret_path = config.sops.secrets.matrix-rss-password.path;
           auto_join_rooms = [ ]; # TODO
@@ -453,6 +512,11 @@ in
         };
       }; # matrix-synapse
     })
+
+    # Federation scope. Kept in a dedicated block: `settings` is an option, so
+    # we complete it here to add/omit `federation_domain_whitelist` cleanly
+    # (open federation requires the key to be absent, not an empty list).
+    (lib.mkIf cfg.enable { services.matrix-synapse.settings = federationSettings; })
 
     #------------------------------------------------------------------------
     # Mautrix bridge: Facebook Messenger (bridgev2)

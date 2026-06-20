@@ -31,7 +31,7 @@ Pour tous ces services, une seule connexion suffit ! (pas besoin de rentrer 36 f
 | 🔐 | [Vaultwarden](https://vaultwarden.net) | Mon coffre-fort à mots de passe, clés et données critiques. Avec les plugins Bitwarden (navigateur, smartphones), je génère et utilise des mots de passe forts pour tous mes comptes. |
 | ☁️ | [Nextcloud](https://nextcloud.com) | Mon cloud personnel dans lequel je peux déposer tous mes fichiers et données, les partager comme je veux, les synchroniser avec mes ordinateurs et smartphones. |
 | 🖼️ | [Immich](https://immich.app) | Mes photos et vidéos personnelles, une interface fluide et conviviale avec reconnaissance faciale et recherche IA totalement auto-hébergée. |
-| 💬 | [Matrix](https://matrix.org) | Application type « WhatsApp » de messagerie et visio, que les enfants peuvent utiliser en toute sécurité (réseau Matrix non fédéré), avec possibilité d’agréger WhatsApp, Telegram, Messenger, etc. |
+| 💬 | [Matrix](https://matrix.org) | Application type « WhatsApp » de messagerie et visio, que les enfants peuvent utiliser en toute sécurité (fédération configurable, liste blanche recommandée pour un réseau familial), avec possibilité d’agréger WhatsApp, Telegram, Messenger, etc. |
 | 🎬 | [Jellyfin](https://jellyfin.org) | Une médiathèque à la « Netflix » pour les films et la musique, avec une interface très conviviale. |
 | 🧑‍💻 | [Forgejo](https://forgejo.org) | Au service de ceux qui utilisent Git pour leurs sources et données (versionnage de documents). |
 | 🛑 | [AdGuardHome](https://adguard.com/en/adguard-home/overview.html) | Un filtre anti-publicité et anti-malware qui accélère sensiblement la navigation sur Internet et renforce la sécurité. |
