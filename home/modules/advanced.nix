@@ -552,7 +552,10 @@ in
     programs.difftastic = lib.mkIf cfg.enableEssentials {
       enable = true;
       git.enable = true;
-      git.diffToolMode = true;
+
+      # "both" = difftastic as git's diff.external AND a difftool
+      # (replaces the removed boolean git.diffToolMode = true).
+      git.mode = "both";
       options = {
         sort-paths = true;
         tab-width = 8;
