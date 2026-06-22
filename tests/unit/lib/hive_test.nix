@@ -55,6 +55,20 @@ in
       board = null;
     };
   };
+  testParseArchRpi02 = {
+    expr = dnfLib.parseArch "aarch64:rpi02";
+    expected = {
+      system = "aarch64-linux";
+      board = "raspberry-pi-02";
+    };
+  };
+  testParseArchRpi3 = {
+    expr = dnfLib.parseArch "aarch64:rpi3";
+    expected = {
+      system = "aarch64-linux";
+      board = "raspberry-pi-3";
+    };
+  };
   testParseArchRpi4 = {
     expr = dnfLib.parseArch "aarch64:rpi4";
     expected = {

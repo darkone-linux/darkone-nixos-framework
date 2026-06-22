@@ -11,6 +11,8 @@ let
   # whitelist (dnf-generator) is the primary guard; unknown tokens fall through
   # to `board = null` here (host then treated as plain `system`).
   boardModuleNames = {
+    rpi02 = "raspberry-pi-02";
+    rpi3 = "raspberry-pi-3";
     rpi4 = "raspberry-pi-4";
     rpi5 = "raspberry-pi-5";
   };
