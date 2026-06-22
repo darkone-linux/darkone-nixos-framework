@@ -551,10 +551,10 @@ in
     # Ensure xterm-ghostty is unknown to remote servers
     programs.ssh = lib.mkIf cfg.enableEssentials {
       enable = true;
-      extraConfig = ''
-        Host *
-          SetEnv TERM=xterm-256color
-      '';
+      enableDefaultConfig = false;
+      settings."*".SetEnv = {
+        TERM = "xterm-256color";
+      };
     };
 
     # Used by git
