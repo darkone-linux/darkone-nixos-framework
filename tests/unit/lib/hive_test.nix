@@ -9,8 +9,7 @@ let
   mockHostArm = {
     hostname = "rpi";
     zone = "lan";
-    arch = "aarch64-linux";
-    board = "raspberry-pi-5";
+    arch = "aarch64:rpi5";
   };
   mockNetwork = {
     zones.lan = {
@@ -34,6 +33,43 @@ let
   };
 in
 {
+  # parseArch — compact `cpu[:board]` field
+  testParseArchDefault = {
+    expr = dnfLib.parseArch null;
+    expected = {
+      system = "x86_64-linux";
+      board = null;
+    };
+  };
+  testParseArchX86 = {
+    expr = dnfLib.parseArch "x86_64";
+    expected = {
+      system = "x86_64-linux";
+      board = null;
+    };
+  };
+  testParseArchX86LegacyFull = {
+    expr = dnfLib.parseArch "x86_64-linux";
+    expected = {
+      system = "x86_64-linux";
+      board = null;
+    };
+  };
+  testParseArchRpi4 = {
+    expr = dnfLib.parseArch "aarch64:rpi4";
+    expected = {
+      system = "aarch64-linux";
+      board = "raspberry-pi-4";
+    };
+  };
+  testParseArchRpi5 = {
+    expr = dnfLib.parseArch "aarch64:rpi5";
+    expected = {
+      system = "aarch64-linux";
+      board = "raspberry-pi-5";
+    };
+  };
+
   # getHostArch
   testGetHostArchDefault = {
     expr = dnfLib.getHostArch mockHostX86;

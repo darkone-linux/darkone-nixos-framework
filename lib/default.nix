@@ -36,6 +36,7 @@ in
   inherit (networking) extractReversePrefix;
   inherit (security) mkIsActive levelMapping mkHardenedServiceConfig;
   inherit (hive)
+    parseArch
     getHostArch
     getHostBoard
     mkNodeArgs
