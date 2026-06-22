@@ -35,7 +35,12 @@ in
   inherit (dateTime) shiftHour;
   inherit (networking) extractReversePrefix;
   inherit (security) mkIsActive levelMapping mkHardenedServiceConfig;
-  inherit (hive) getHostArch mkNodeArgs;
+  inherit (hive)
+    getHostArch
+    getHostBoard
+    mkNodeArgs
+    rpiBoardModules
+    ;
   inherit (paths) resolveProfile resolveNixosProfile;
   inherit (serviceActivation) triggerProfileServices mkHostProfileServicesAssertions;
   inherit (configSchema) checkSchema;

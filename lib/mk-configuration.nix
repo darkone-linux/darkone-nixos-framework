@@ -22,6 +22,7 @@ let
     colmena
     sops-nix
     disko
+    nixos-raspberrypi
     ;
 
   # NixOS state version applied to fresh hosts/homes
@@ -36,7 +37,12 @@ let
 
   # Pure helpers; needed before mkDnfLib (arch-independent)
   hiveLib = import ./hive.nix { inherit (nixpkgs) lib; };
-  inherit (hiveLib) getHostArch mkNodeArgs;
+  inherit (hiveLib)
+    getHostArch
+    getHostBoard
+    mkNodeArgs
+    rpiBoardModules
+    ;
 
   # Path-resolution helpers (unit-tested in `tests/unit/lib/paths_test.nix`)
   pathsLib = import ./paths.nix { inherit (nixpkgs) lib; };
@@ -124,6 +130,10 @@ let
       ;
     pkgs-stable = nixpkgsStableFor.${system};
     dnfLib = mkDnfLib system;
+
+    # Required by nixos-raspberrypi board modules to locate the flake (the same
+    # specialArg its `lib.nixosSystem` wrapper would inject).
+    inherit nixos-raspberrypi;
   };
 
   mkNodeSpecialArgs = host: {
@@ -226,7 +236,13 @@ let
           };
         }
       ]
-      # ++ nixpkgs.lib.optional (system == "aarch64-linux") nixos-hardware.nixosModules.raspberry-pi-5
+
+      # Raspberry Pi boards: import nixos-raspberrypi board modules (vendor
+      # kernel/firmware/bootloader). Gated on `board`, not `arch`, so non-RPi
+      # aarch64 hosts stay free to use their own hardware profile.
+      ++ nixpkgs.lib.optionals (getHostBoard host != null) (
+        rpiBoardModules nixos-raspberrypi (getHostBoard host)
+      )
       ++ nixpkgs.lib.optional (builtins.pathExists (workDir + "/usr/machines/${host.hostname}")) (
         workDir + "/usr/machines/${host.hostname}"
       );
@@ -278,13 +294,25 @@ let
     };
   };
 
+  # Per-node nixpkgs override for non-default architectures. `meta.nixpkgs` below
+  # pins x86_64; aarch64 hosts need their own pkgs instance or colmena would
+  # cross-build them under x86. RPi vendor packages come from the board modules'
+  # overlays (cf. rpiBoardModules), so a plain aarch64 nixpkgs is enough here.
+  aarch64Hosts = builtins.filter (host: getHostArch host == "aarch64-linux") hosts;
+  nodeNixpkgs = builtins.listToAttrs (
+    map (host: {
+      name = host.hostname;
+      value = nixpkgsFor.aarch64-linux;
+    }) aarch64Hosts
+  );
+
   # Colmena hive description (consumed both by `colmena` CLI and the derived
   # nixosConfigurations).
   colmenaSet = {
     meta = {
       description = "Darkone Framework Network";
       nixpkgs = nixpkgsFor.x86_64-linux;
-      inherit nodeSpecialArgs;
+      inherit nodeSpecialArgs nodeNixpkgs;
     };
     defaults.deployment = {
       buildOnTarget = nixpkgs.lib.mkDefault false;
@@ -330,6 +358,28 @@ let
     }) supportedSystems
   );
 
+  # Bootable Raspberry Pi SD images (first-install media, aarch64). Built via the
+  # nixos-raspberrypi wrapper (no colmena here), which applies the RPi overlays
+  # and injects the `nixos-raspberrypi` specialArg. The `sd-image` module yields
+  # `config.system.build.sdImage`; `workDir` forwards the consumer admin pubkey.
+  rpiBoards = [
+    "raspberry-pi-5"
+    "raspberry-pi-4"
+  ];
+  sdImageNixosConfigurations = builtins.listToAttrs (
+    map (board: {
+      name = "sd-image-${board}";
+      value = nixos-raspberrypi.lib.nixosSystem {
+        specialArgs = { inherit workDir nixos-raspberrypi; };
+        modules = [
+          nixos-raspberrypi.nixosModules.${board}.base
+          nixos-raspberrypi.nixosModules.sd-image
+          ../hosts/sd-image.nix
+        ];
+      };
+    }) rpiBoards
+  );
+
   # Multi-arch devshell (cargo / nix-unit / sops / colmena / ...)
   mkDevShell =
     system:
@@ -370,7 +420,8 @@ in
   colmena = colmenaSet;
   colmenaHive = colmena.lib.makeHive colmenaSet;
 
-  nixosConfigurations = isoNixosConfigurations // consumerNixosConfigurations;
+  nixosConfigurations =
+    isoNixosConfigurations // sdImageNixosConfigurations // consumerNixosConfigurations;
 
   devShells = forAllSystems (system: {
     default = mkDevShell system;

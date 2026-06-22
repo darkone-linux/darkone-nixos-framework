@@ -57,6 +57,10 @@
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     nixos-hardware.inputs.nixpkgs.follows = "nixpkgs";
 
+    # Full Raspberry Pi support (vendor kernel/firmware, bootloader, SD images).
+    # No `nixpkgs.follows`: the flake pins its own nixpkgs (RPi kernel patches).
+    nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
+
     # Geneweb : suivi de la PR nixpkgs#522751 (module + paquetage `geneweb`
     # en attente de merge). Voir `lib/overlays/geneweb.nix`.
     #
@@ -111,7 +115,7 @@
       # only exposes framework-owned outputs.
       supportedSystems = [
         "x86_64-linux"
-        # "aarch64-linux"
+        "aarch64-linux"
       ];
 
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;

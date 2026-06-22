@@ -6,11 +6,12 @@ let
     hostname = "myhost";
     zone = "lan";
   };
-  # mockHostArm = {
-  #   hostname = "rpi";
-  #   zone = "lan";
-  #   arch = "aarch64-linux";
-  # };
+  mockHostArm = {
+    hostname = "rpi";
+    zone = "lan";
+    arch = "aarch64-linux";
+    board = "raspberry-pi-5";
+  };
   mockNetwork = {
     zones.lan = {
       name = "lan";
@@ -19,8 +20,18 @@ let
   };
   mockHosts = [
     mockHostX86
-    # mockHostArm
+    mockHostArm
   ];
+
+  # Minimal stand-in for the nixos-raspberrypi flake (only the attrs read by
+  # rpiBoardModules), with sentinel values to assert selection/order.
+  mockRpi = {
+    lib.inject-overlays = "inject-overlays";
+    nixosModules = {
+      trusted-nix-caches = "trusted-nix-caches";
+      raspberry-pi-5.base = "rpi5-base";
+    };
+  };
 in
 {
   # getHostArch
@@ -28,10 +39,30 @@ in
     expr = dnfLib.getHostArch mockHostX86;
     expected = "x86_64-linux";
   };
-  # testGetHostArchExplicit = {
-  #   expr = dnfLib.getHostArch mockHostArm;
-  #   expected = "aarch64-linux";
-  # };
+  testGetHostArchExplicit = {
+    expr = dnfLib.getHostArch mockHostArm;
+    expected = "aarch64-linux";
+  };
+
+  # getHostBoard
+  testGetHostBoardDefault = {
+    expr = dnfLib.getHostBoard mockHostX86;
+    expected = null;
+  };
+  testGetHostBoardExplicit = {
+    expr = dnfLib.getHostBoard mockHostArm;
+    expected = "raspberry-pi-5";
+  };
+
+  # rpiBoardModules — selection + order (overlays, cache, board base)
+  testRpiBoardModules = {
+    expr = dnfLib.rpiBoardModules mockRpi "raspberry-pi-5";
+    expected = [
+      "inject-overlays"
+      "trusted-nix-caches"
+      "rpi5-base"
+    ];
+  };
 
   # mkNodeArgs
   testMkNodeArgsBase = {
