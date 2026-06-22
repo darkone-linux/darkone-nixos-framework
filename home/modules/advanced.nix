@@ -548,6 +548,15 @@ in
       signing.format = "ssh";
     };
 
+    # Ensure xterm-ghostty is unknown to remote servers
+    programs.ssh = lib.mkIf cfg.enableEssentials {
+      enable = true;
+      extraConfig = ''
+        Host *
+          SetEnv TERM=xterm-256color
+      '';
+    };
+
     # Used by git
     programs.difftastic = lib.mkIf cfg.enableEssentials {
       enable = true;
