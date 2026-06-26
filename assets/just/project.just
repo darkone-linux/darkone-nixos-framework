@@ -16,6 +16,12 @@ sopsInfraTargetFile := sopsInfraTargetDir + '/infra.key'
 generatedConfigFile := workDir + '/var/generated/config.yaml'
 dnfInstallDir := '/mnt/dnf-install'
 
+# Deploy build location. Empty (default): build each node closure on the host
+# running just, then push it — a derivation compiles once and the deployer's
+# harmonia re-serves it to the whole fleet. Non-empty: build on each target
+# (use for an arch the deployer cannot build natively, e.g. aarch64 rpi hosts).
+buildOnTarget := ''
+
 alias a := apply
 alias al := apply-local
 alias av := apply-verbose
@@ -863,7 +869,9 @@ _rotate-infra-finalize:
 # Apply (colmena)
 #==============================================================================
 #
-# TODO: Binary cache keys + remove --build-on-target -> https://nixos.wiki/wiki/Binary_Cache
+# Central build by default (see `buildOnTarget`): the deployer builds every
+# closure once and harmonia shares it across the fleet. Set `buildOnTarget=1`
+# to restore per-target builds. Ref: https://nixos.wiki/wiki/Binary_Cache
 
 # Apply configuration using colmena
 [group('apply')]
@@ -872,10 +880,13 @@ apply on what='switch':
 	set -euo pipefail
 	just update-dnf
 	just _log "Applying nix configuration on {{on}} ({{what}})..."
+
+	# Per-target build only when buildOnTarget is set; central build otherwise.
+	bot=""; [ -n "{{buildOnTarget}}" ] && bot="--build-on-target"
 	if [ "${USER:-}" = "nix" ] ;then
-		colmena apply --build-on-target --on "{{on}}" {{what}}
+		colmena apply ${bot} --on "{{on}}" {{what}}
 	else
-		sudo -i -u nix colmena apply --config "{{workDir}}/flake.nix" --build-on-target --on "{{on}}" {{what}}
+		sudo -i -u nix colmena apply --config "{{workDir}}/flake.nix" ${bot} --on "{{on}}" {{what}}
 	fi
 
 # Apply force with verbose options
@@ -885,10 +896,13 @@ apply-verbose on what='switch':
 	set -euo pipefail
 	just update-dnf
 	just _log "Applying (verbose) nix configuration on {{on}} ({{what}})..."
+
+	# Per-target build only when buildOnTarget is set; central build otherwise.
+	bot=""; [ -n "{{buildOnTarget}}" ] && bot="--build-on-target"
 	if [ "${USER:-}" = "nix" ] ;then
-		colmena apply --build-on-target --verbose --show-trace --on "{{on}}" {{what}}
+		colmena apply ${bot} --verbose --show-trace --on "{{on}}" {{what}}
 	else
-		sudo -i -u nix colmena apply --config "{{workDir}}/flake.nix" --build-on-target --verbose --show-trace --on "{{on}}" {{what}}
+		sudo -i -u nix colmena apply --config "{{workDir}}/flake.nix" ${bot} --verbose --show-trace --on "{{on}}" {{what}}
 	fi
 
 # Apply the local host configuration
