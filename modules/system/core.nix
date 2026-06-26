@@ -5,7 +5,8 @@
 # It is required for the proper functioning of every NixOS computer on the local network.
 # :::
 #
-# Sets up the systemd-boot loader, the LTS kernel, JetBrains Mono Nerd
+# Sets up the systemd-boot loader, the LTS kernel (or latest mainline via
+# `enableLatestKernel`), JetBrains Mono Nerd
 # Font (with `kmscon` for the TTY), nightly Nix store optimisation and
 # weekly garbage collection (30 d retention, or keep-last-N via
 # `gcKeepGenerations` on disk-constrained hosts), the firewall, suspend
@@ -40,6 +41,11 @@ in
       type = lib.types.bool;
       default = true;
       description = "Enable the default boot loader";
+    };
+    darkone.system.core.enableLatestKernel = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Use the latest mainline kernel (linuxPackages_latest) instead of the LTS one";
     };
     darkone.system.core.enableFstrim = lib.mkOption {
       type = lib.types.bool;
@@ -89,8 +95,8 @@ in
     boot = lib.mkMerge [
       (lib.mkIf cfg.enableSystemdBoot {
 
-        # Linux kernel (LTS by default)
-        kernelPackages = pkgs.linuxPackages;
+        # Linux kernel: LTS by default, latest mainline via enableLatestKernel
+        kernelPackages = if cfg.enableLatestKernel then pkgs.linuxPackages_latest else pkgs.linuxPackages;
 
         loader = {
           timeout = lib.mkDefault 3;
