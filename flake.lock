@@ -111,11 +111,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1782124999,
-        "narHash": "sha256-wWVP1FIaCk2TOlDm7ai4tiJCs7Ki/+zodB89sNEq1gs=",
+        "lastModified": 1782167405,
+        "narHash": "sha256-eSSwo1Hdipof6pKbIYRLQVC3HlSDQwqeFyTQWTRhv8Y=",
         "owner": "darkone-linux",
         "repo": "dnf-generator",
-        "rev": "340d11c73ed24d26f9602bc63a8a74854228b812",
+        "rev": "a0bbf71f4410a16193e9d9116abac73dfc555f76",
         "type": "github"
       },
       "original": {
@@ -473,11 +473,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1781577229,
-        "narHash": "sha256-lrp67w8AulE9Ks53n27I45ADSzbOCn4H+CNW1Ck8B+8=",
+        "lastModified": 1782467914,
+        "narHash": "sha256-pGvFkM8N0xEkIIXDe5YYfbEAvHrk4IxBrjB/x8OomhE=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "567a49d1913ce81ac6e9582e3553dd90a955875f",
+        "rev": "e73de5be04e0eff4190a1432b946d469c794e7b4",
         "type": "github"
       },
       "original": {
