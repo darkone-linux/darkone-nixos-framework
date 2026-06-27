@@ -70,6 +70,7 @@ in
     mkPostfixRuleGroups
     mkSynapseRuleGroups
     mkMaintenanceRuleGroups
+    mkTailscaleRuleGroups
     mergeRuleGroups
     mkAlertRuleGroups
     ;

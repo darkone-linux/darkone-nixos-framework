@@ -106,8 +106,9 @@ in
   };
 
   # ----- mkAlertRuleGroups -----
-  # Four groups (nodes + resources + restic + smartctl); the disabled laptop is
-  # dropped, leaving a single watched node with node-down + systemd-failed rules.
+  # Five groups (nodes + resources + restic + smartctl + tailscale); the disabled
+  # laptop is dropped, leaving a single watched node with node-down +
+  # systemd-failed rules.
   testRuleGroupsCount = {
     expr =
       builtins.length
@@ -120,7 +121,7 @@ in
           nodeExporterPort = 9100;
           zoneName = "ag";
         }).groups;
-    expected = 4;
+    expected = 5;
   };
   testNodeGroupName = {
     expr =
@@ -427,5 +428,17 @@ in
     expr =
       (builtins.head (builtins.head (dnfLib.mkSynapseRuleGroups { zoneName = "ag"; }).groups).rules).expr;
     expected = ''changes(process_start_time_seconds{job="synapse"}[30m]) > 2'';
+  };
+
+  # ----- mkTailscaleRuleGroups -----
+  testTailscaleFlappingExpr = {
+    expr =
+      (builtins.head (builtins.head (dnfLib.mkTailscaleRuleGroups { zoneName = "ag"; }).groups).rules)
+      .expr;
+    expected = "increase(dnf_tailscale_selfheal_restarts_total[1h]) > 3";
+  };
+  testTailscaleGroupName = {
+    expr = (builtins.head (dnfLib.mkTailscaleRuleGroups { zoneName = "ag"; }).groups).name;
+    expected = "dnf-tailscale-ag";
   };
 }

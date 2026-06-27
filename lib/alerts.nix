@@ -663,6 +663,47 @@ rec {
     ];
   };
 
+  # Tailnet self-heal health, from the tailscale watchdog (tailscale.nix) via the
+  # node_exporter textfile collector. The watchdog already restarts a tailscaled
+  # that lost its headscale control connection; these rules surface the cases it
+  # cannot fix alone. Absent metric (node without the watchdog) -> no series ->
+  # no alert, like the restic/smartctl groups.
+  mkTailscaleRuleGroups = { zoneName }: {
+    groups = [
+      {
+        name = "dnf-tailscale-${zoneName}";
+        rules = [
+          {
+
+            # The auto-restart fired repeatedly: the disconnection keeps coming
+            # back, so the root cause is deeper than a stuck session. Page a human.
+            alert = "TailscaleFlapping";
+            expr = "increase(dnf_tailscale_selfheal_restarts_total[1h]) > 3";
+            "for" = "0m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Tailscale self-heal flapping on {{ $labels.instance }}";
+              description = "tailscaled was auto-restarted more than 3 times in 1h.";
+            };
+          }
+          {
+
+            # Still disconnected from headscale despite the watchdog: the restart
+            # did not restore the control connection.
+            alert = "TailscaleUnhealthy";
+            expr = "dnf_tailscale_healthy == 0";
+            "for" = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Tailscale unhealthy on {{ $labels.instance }}";
+              description = "tailscaled has been disconnected from headscale for 10m.";
+            };
+          }
+        ];
+      }
+    ];
+  };
+
   # Merge several `{ groups = [...]; }` fragments into one rule document.
   mergeRuleGroups = fragments: { groups = lib.concatMap (f: f.groups) fragments; };
 
@@ -690,5 +731,6 @@ rec {
       (mkResourceRuleGroups { inherit thresholds zoneName; })
       (mkResticRuleGroups { inherit zoneName; })
       (mkSmartctlRuleGroups { inherit zoneName; })
+      (mkTailscaleRuleGroups { inherit zoneName; })
     ];
 }

@@ -24,12 +24,29 @@ let
   hcsInternalFqdn = network.zones.${dnfLib.constants.globalZone}.gateway.vpn.ipv4;
   inherit (dnfLib.constants) caddyStorage;
   caddyStorTmp = "/tmp/caddy-storage-sync";
+
+  # Self-heal watchdog tunables. 3 failed ticks at 60s ≈ 3 min of sustained
+  # disconnection before acting (rides out WAN blips); one restart per 10 min
+  # max, so a deeper fault does not turn into a restart loop.
+  selfHealEnable = hasHeadscale && cfg.selfHeal.enable;
+  selfHealFailThreshold = 3;
+  selfHealCooldownSec = 600;
+  selfHealStateDir = "/run/tailscale-selfheal";
+
+  # node_exporter textfile collector dir (same value as monitoring.nix /
+  # restic.nix). Metric write is best-effort: only supervised nodes have it.
+  textfileDir = "/var/lib/node-exporter-textfile";
 in
 {
   options = {
     darkone.service.tailscale.enable = lib.mkEnableOption "Enable tailscale client to connect HCS";
     darkone.service.tailscale.isGateway = lib.mkEnableOption "This tailscale node is a subnet gateway";
     darkone.service.tailscale.isExitNode = lib.mkEnableOption "Configure this client as exit node";
+    darkone.service.tailscale.selfHeal.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Watchdog: detect headscale disconnection and restart tailscaled.";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -112,8 +129,10 @@ in
       openssl
     ];
 
-    # Caddy storage directory creation if needed
-    systemd.tmpfiles.rules = lib.mkIf isHcsSubnetGateway [ "d ${caddyStorage} 0750 caddy caddy -" ];
+    # Caddy storage dir (cert sync) + watchdog state dir, each behind its guard.
+    systemd.tmpfiles.rules =
+      lib.optionals isHcsSubnetGateway [ "d ${caddyStorage} 0750 caddy caddy -" ]
+      ++ lib.optionals selfHealEnable [ "d ${selfHealStateDir} 0755 root root -" ];
 
     # TLS certificates (caddy storage) sync service
     systemd.services.sync-caddy-certs = lib.mkIf isHcsSubnetGateway {
@@ -159,6 +178,83 @@ in
         OnBootSec = "2min";
         OnUnitActiveSec = "10min";
         Persistent = true;
+      };
+    };
+
+    #--------------------------------------------------------------------------
+    # Self-heal watchdog
+    #--------------------------------------------------------------------------
+    # Real incident: a gateway's tailscaled silently dropped its headscale
+    # control connection, cutting subnet access until a manual restart. Detect
+    # that state locally and restart tailscaled (its autoconnect oneshot re-runs
+    # `tailscale up`, re-registering the node).
+
+    systemd.services.tailscale-selfheal = lib.mkIf selfHealEnable {
+      description = "Restart tailscaled when it loses the headscale control connection";
+      after = [ "tailscaled.service" ];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = pkgs.writeShellScript "tailscale-selfheal" ''
+          set -u
+
+          fails="${selfHealStateDir}/fails"
+          last="${selfHealStateDir}/last-restart"
+          restarts="${selfHealStateDir}/restarts"
+
+          # Healthy only if the backend runs, control reports us online and no
+          # health warning is raised. A failed/empty status (socket down) is
+          # treated as unhealthy.
+          healthy=0
+          if status=$(${config.services.tailscale.package}/bin/tailscale status --json 2>/dev/null); then
+            backend=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.BackendState // "unknown"')
+            health=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.Health | length')
+            online=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.Self.Online // false')
+            if [ "$backend" = "Running" ] && [ "$health" = "0" ] && [ "$online" = "true" ]; then
+              healthy=1
+            fi
+          fi
+
+          if [ "$healthy" = "1" ]; then
+            echo 0 > "$fails"
+          else
+            n=$(( $(${pkgs.coreutils}/bin/cat "$fails" 2>/dev/null || echo 0) + 1 ))
+            echo "$n" > "$fails"
+            now=$(${pkgs.coreutils}/bin/date +%s)
+            lastRestart=$(${pkgs.coreutils}/bin/cat "$last" 2>/dev/null || echo 0)
+
+            # Act only on sustained loss, at most once per cooldown window.
+            if [ "$n" -ge ${toString selfHealFailThreshold} ] && [ "$(( now - lastRestart ))" -ge ${toString selfHealCooldownSec} ]; then
+              ${pkgs.util-linux}/bin/logger -t tailscale-selfheal "headscale disconnect ($n ticks), restarting tailscaled"
+              ${pkgs.systemd}/bin/systemctl restart tailscaled.service tailscaled-autoconnect.service
+              echo "$now" > "$last"
+              echo 0 > "$fails"
+              echo "$(( $(${pkgs.coreutils}/bin/cat "$restarts" 2>/dev/null || echo 0) + 1 ))" > "$restarts"
+            fi
+          fi
+
+          # Best-effort node_exporter metric (only where the collector dir exists).
+          if [ -d "${textfileDir}" ]; then
+            count=$(${pkgs.coreutils}/bin/cat "$restarts" 2>/dev/null || echo 0)
+            tmp=$(${pkgs.coreutils}/bin/mktemp "${textfileDir}/.tailscale.XXXXXX")
+            {
+              echo "dnf_tailscale_healthy $healthy"
+              echo "dnf_tailscale_selfheal_restarts_total $count"
+            } > "$tmp"
+
+            # mktemp creates 0600; node_exporter runs as a non-root user and must
+            # read it, so widen before the atomic rename.
+            ${pkgs.coreutils}/bin/chmod 0644 "$tmp"
+            ${pkgs.coreutils}/bin/mv -f "$tmp" "${textfileDir}/tailscale.prom"
+          fi
+        '';
+      };
+    };
+
+    systemd.timers.tailscale-selfheal = lib.mkIf selfHealEnable {
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnBootSec = "2min";
+        OnUnitActiveSec = "60s";
       };
     };
   };
