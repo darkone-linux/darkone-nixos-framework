@@ -11,6 +11,7 @@
 
 {
   lib,
+  pkgs,
   config,
   host,
   hosts,
@@ -78,6 +79,10 @@ let
   # drops the post-login `rd` and strands the user on the wrong zone's homepage.
   authAnchor = findFirst (s: s.name == "homepage" && s.params.zone == zone.name) null services;
   authHost = if authAnchor != null then authAnchor.params.fqdn else null;
+
+  # Kanidm OIDC issuer backing oauth2-proxy. Single source: both the service
+  # config and the start-up readiness gate (below) derive from it.
+  oidcIssuerUrl = "https://idm.${network.domain}/oauth2/openid/internal-service";
 
   # Forward auth: checks auth on every request. When groups are supplied, the
   # `allowed_groups` query param restricts access to those Kanidm groups, so a
@@ -640,7 +645,7 @@ in
       enable = true;
       httpAddress = "127.0.0.1:4180"; # Local listen only
       provider = "oidc";
-      oidcIssuerUrl = "https://idm.${network.domain}/oauth2/openid/internal-service";
+      inherit oidcIssuerUrl;
       clientID = "internal-service";
       redirectURL = "https://${authHost}/oauth2/callback"; # Must match Kanidm
       scope = "openid email groups"; # `groups` is required for allowed_groups
@@ -679,6 +684,44 @@ in
         # zone (the anchor hosts /oauth2 on homepage.<zone>, other protected
         # services live on their own <svc>.<zone>).
         whitelist-domain = ".${authDomain}";
+      };
+    };
+
+    # Harden the proxy against a momentarily unreachable OIDC issuer (kanidm on
+    # hcs), typical right after an hcs rebuild: gate the start until kanidm is
+    # reachable, and never latch failed, so the proxy self-heals without a manual
+    # redeploy.
+    systemd.services.oauth2-proxy = mkIf hasProtectedServices {
+
+      # Disable the start-rate limiter and pace retries: with the default 100ms
+      # RestartSec the proxy burns its 5-restart budget in under a second and
+      # gives up with start-limit-hit; here it retries every 10s until kanidm is
+      # back.
+      startLimitIntervalSec = 0;
+      serviceConfig = {
+        Restart = "always";
+        RestartSec = "10s";
+
+        # The gate below may legitimately wait its whole loop; keep this above it
+        # so systemd does not SIGTERM it as a start-pre timeout.
+        TimeoutStartSec = "150s";
+
+        # Readiness gate: wait until kanidm answers the discovery URL *at all*.
+        # Any HTTP status means reachable — kanidm 403s an unauthenticated GET,
+        # yet the daemon's own discovery still succeeds; only a connection failure
+        # (curl prints 000) keeps us waiting. Best-effort: on timeout we start
+        # anyway and rely on Restart above. Keeps the common case a clean first
+        # start (no failed flap, no SystemdUnitFailed noise).
+        ExecStartPre = pkgs.writeShellScript "oauth2-proxy-wait-issuer" ''
+          url="${oidcIssuerUrl}/.well-known/openid-configuration"
+          for _ in $(${pkgs.coreutils}/bin/seq 1 15); do
+            code=$(${pkgs.curl}/bin/curl -sS -o /dev/null -w '%{http_code}' --max-time 4 "$url" || true)
+            [ -n "$code" ] && [ "$code" != "000" ] && exit 0
+            ${pkgs.coreutils}/bin/sleep 3
+          done
+          echo "oauth2-proxy: issuer unreachable after ~100s, starting anyway" >&2
+          exit 0
+        '';
       };
     };
 
