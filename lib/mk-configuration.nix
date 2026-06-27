@@ -71,6 +71,10 @@ let
   # sinon). À retirer dès qu'amont rend `gimp` compatible `__structuredAttrs`.
   gimpOverlay = import ./overlays/gimp.nix;
 
+  # logseq overlay: official AppImage instead of the broken electron-forge
+  # build (nixpkgs#535206). Drop once upstream fixes the source build.
+  logseqOverlay = import ./overlays/logseq.nix;
+
   # Per-system nixpkgs instances
   nixpkgsFor = forAllSystems (
     system:
@@ -185,6 +189,7 @@ let
             (genewebOverlay system)
             oxicloudOverlay
             gimpOverlay
+            logseqOverlay
           ];
         }
 

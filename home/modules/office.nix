@@ -276,7 +276,7 @@ in
       (mkIf cfg.enableTools iotas) # Simple note taking with mobile-first design and Nextcloud sync
       (mkIf cfg.enableTools snapshot) # Webcam
       (mkIf cfg.enableProductivity obsidian)
-      (mkIf cfg.enableProductivity logseq) # unstable depends on electron 39 -> vulnerable & huge build
+      (mkIf cfg.enableProductivity logseq) # official AppImage via overlay (source build broken: nixpkgs#535206)
       (mkIf cfg.enableBrave brave)
       (mkIf cfg.enableSecurity keepassxc)
       (mkIf cfg.enableSecurity keepmenu) # Dmenu/Rofi frontend for Keepass databases
