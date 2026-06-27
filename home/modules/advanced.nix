@@ -69,6 +69,12 @@ in
       TERM = "xterm-256color"; # Avoid "can't find terminal definition for xterm-ghostty"
     };
 
+    # Personal binaries in PATH (~/.local/bin already global, cf. minimal profile).
+    home.sessionPath = [
+      "$HOME/.local/bin"
+      "$HOME/bin"
+    ];
+
     #============================================================================
     # PACKAGES
     #============================================================================
