@@ -220,6 +220,10 @@ let
       tmp="$(${pkgs.coreutils}/bin/mktemp "${textfileDir}/.restic-${name}.XXXXXX")"
       ${pkgs.coreutils}/bin/printf 'dnf_restic_last_success_timestamp{job="%s"} %s\n' \
         "${name}" "$(${pkgs.coreutils}/bin/date +%s)" > "$tmp"
+
+      # mktemp creates 0600; node_exporter runs as a non-root user and must read
+      # the file, so widen before the atomic rename.
+      ${pkgs.coreutils}/bin/chmod 0644 "$tmp"
       ${pkgs.coreutils}/bin/mv -f "$tmp" "${textfileDir}/restic-${name}.prom"
     '';
 in

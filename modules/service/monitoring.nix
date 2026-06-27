@@ -70,6 +70,10 @@ let
           # Atomic write so node_exporter never reads a half-written file.
           tmp="$(mktemp "${textfileDir}/.maintenance.XXXXXX")"
           printf 'dnf_maintenance 1\n' > "$tmp"
+
+          # mktemp creates 0600; node_exporter runs as a non-root user and must
+          # read the file, so widen before the atomic rename.
+          chmod 0644 "$tmp"
           mv -f "$tmp" "$flag"
           ;;
         off)
