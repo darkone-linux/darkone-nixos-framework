@@ -107,6 +107,12 @@ in
         };
       };
 
+      # The socket binds a specific host IP, which may arrive late (DHCP lease,
+      # even a fixed reservation, is configured after the socket unit starts) ->
+      # bind fails with EADDRNOTAVAIL and the socket stays `failed` for good.
+      # IP_FREEBIND lets it bind a not-yet-present address, closing the race.
+      systemd.sockets.harmonia.socketConfig.FreeBind = true;
+
       #------------------------------------------------------------------------
       # Firewall
       #------------------------------------------------------------------------
