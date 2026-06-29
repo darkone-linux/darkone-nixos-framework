@@ -41,10 +41,12 @@ in
         darkone.system.core.gcKeepGenerations = lib.mkDefault 5;
 
         # Tailscale as a VPN gateway when headscale coordination is active.
+        # Subnet router only: exit-node stays opt-in per host. Advertising it
+        # here conflicted with `--snat-subnet-routes=false` (needed for clean
+        # subnet source IPs) and only produced a permanent health warning.
         darkone.service.tailscale = lib.mkIf hasHeadscale {
           enable = true;
           isGateway = true;
-          isExitNode = true;
         };
 
         #--------------------------------------------------------------------------
