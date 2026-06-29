@@ -201,15 +201,18 @@ in
           last="${selfHealStateDir}/last-restart"
           restarts="${selfHealStateDir}/restarts"
 
-          # Healthy only if the backend runs, control reports us online and no
-          # health warning is raised. A failed/empty status (socket down) is
-          # treated as unhealthy.
+          # Healthy iff the backend runs and control reports us online. Health
+          # warnings are deliberately NOT a restart trigger: most are static
+          # config notes (exit-node SNAT, SSH ACLs) a restart can never clear, so
+          # gating on them pinned the node unhealthy and looped restarts forever.
+          # The count is still exported (warn-only) for dashboard visibility.
           healthy=0
+          warnings=0
           if status=$(${config.services.tailscale.package}/bin/tailscale status --json 2>/dev/null); then
             backend=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.BackendState // "unknown"')
-            health=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.Health | length')
+            warnings=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.Health | length')
             online=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.Self.Online // false')
-            if [ "$backend" = "Running" ] && [ "$health" = "0" ] && [ "$online" = "true" ]; then
+            if [ "$backend" = "Running" ] && [ "$online" = "true" ]; then
               healthy=1
             fi
           fi
@@ -238,6 +241,7 @@ in
             tmp=$(${pkgs.coreutils}/bin/mktemp "${textfileDir}/.tailscale.XXXXXX")
             {
               echo "dnf_tailscale_healthy $healthy"
+              echo "dnf_tailscale_health_warnings $warnings"
               echo "dnf_tailscale_selfheal_restarts_total $count"
             } > "$tmp"
 
