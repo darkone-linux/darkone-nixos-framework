@@ -95,7 +95,6 @@ in
         # dnsmasq that manages DNS behind AGH. But this is complicated and not very clean.
         # Solution to investigate: tailscale manages DNS with AGH as intermediary.
         (lib.mkIf cfg.isGateway "false")
-        "--ssh" # Usefull to sync TLS certificates with HCS caddy.
         "--reset" # Reload.
       ]
       ++ lib.optionals cfg.isGateway [
