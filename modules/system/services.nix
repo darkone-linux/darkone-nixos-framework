@@ -639,8 +639,12 @@ in
         # public TLS cert for the zone FQDN and reverse-proxies the whole host
         # (incl. `/oauth2/*`) to the zone gateway over the tailnet. The gateway
         # then serves its own vhost (SSO + real backend), so no oauth2 lives
-        # here. `Host` is preserved so the gateway matches its zone vhost; the
-        # gateway's on-demand self-signed cert is not verified.
+        # here. `Host` is preserved so the gateway matches its zone vhost.
+        #
+        # `tls_server_name` forces the upstream SNI to the FQDN: the gateway
+        # dial address is a tailnet IP, but its on-demand TLS keys certs by SNI
+        # and would reject the IP (`tls: internal error`). With the FQDN it
+        # finds the cert synced from the HCS; skip-verify covers the sync window.
         ++ map (e: {
           "${e.fqdn}" = {
             logFormat = mkIf accessLogEnabled (mkLogFormat e.fqdn);
@@ -648,6 +652,7 @@ in
               reverse_proxy https://${e.target} {
                 transport http {
                   tls_insecure_skip_verify
+                  tls_server_name {http.request.host}
                 }
                 header_up Host {host}
               }
