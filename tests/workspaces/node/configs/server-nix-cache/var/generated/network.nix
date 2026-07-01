@@ -37,6 +37,7 @@
       timezone = "Etc/UTC";
       name = "www";
       tls-builder-hosts = [ "nix-cache.z1.test.local" ];
+      external-hosts = [ ];
     };
     z1 = {
       description = "Test zone 1";

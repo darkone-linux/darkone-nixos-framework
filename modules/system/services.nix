@@ -202,6 +202,11 @@ let
   # Hosts to expose in order to generate TLS certificates
   hostsForTls = if isHcs then zone.tls-builder-hosts else [ ];
 
+  # Zone services exposed to the internet through the HCS. Each entry is
+  # `{ fqdn; target; }` where `target` is the zone gateway tailnet IP the HCS
+  # reverse-proxies to (see the generator's `external-hosts`).
+  externalHosts = if isHcs then (zone.external-hosts or [ ]) else [ ];
+
   # Full list of registered services for the local zone
   localZoneServices =
     if inLocalZone then filter (s: s.params.zone == zone.name && s.proxy.enable) services else [ ];
@@ -620,6 +625,26 @@ in
             '';
           };
         }) hostsForTls
+
+        # Externally-exposed zone services on the HCS. The HCS terminates the
+        # public TLS cert for the zone FQDN and reverse-proxies the whole host
+        # (incl. `/oauth2/*`) to the zone gateway over the tailnet. The gateway
+        # then serves its own vhost (SSO + real backend), so no oauth2 lives
+        # here. `Host` is preserved so the gateway matches its zone vhost; the
+        # gateway's on-demand self-signed cert is not verified.
+        ++ map (e: {
+          "${e.fqdn}" = {
+            logFormat = mkIf accessLogEnabled (mkLogFormat e.fqdn);
+            extraConfig = ''
+              reverse_proxy https://${e.target} {
+                transport http {
+                  tls_insecure_skip_verify
+                }
+                header_up Host {host}
+              }
+            '';
+          };
+        }) externalHosts
       );
     };
 
@@ -754,20 +779,29 @@ in
         443
       ];
 
-      # Open HTTP port only for lan interface(s)
-      interfaces = mkIf (isGateway && config.services.dnsmasq.enable && hasServicesToExpose) (
-        listToAttrs (
-          map (iface: {
-            name = iface;
-            value = {
-              allowedTCPPorts = [
-                80
-                443
-              ];
-            };
-          }) config.services.dnsmasq.settings.interface
-        )
-      );
+      interfaces = mkMerge [
+
+        # Open HTTP port only for lan interface(s)
+        (mkIf (isGateway && config.services.dnsmasq.enable && hasServicesToExpose) (
+          listToAttrs (
+            map (iface: {
+              name = iface;
+              value = {
+                allowedTCPPorts = [
+                  80
+                  443
+                ];
+              };
+            }) config.services.dnsmasq.settings.interface
+          )
+        ))
+
+        # Let the HCS reach this gateway's reverse proxy over the tailnet to
+        # front externally-exposed zone services (see externalHosts).
+        (mkIf (isGateway && hasHeadscale) {
+          ${config.services.tailscale.interfaceName}.allowedTCPPorts = [ 443 ];
+        })
+      ];
     };
   };
 }

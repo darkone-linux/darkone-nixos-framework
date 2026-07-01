@@ -23,6 +23,7 @@
       timezone = "Etc/UTC";
       name = "www";
       tls-builder-hosts = [ ];
+      external-hosts = [ ];
     };
     z1 = {
       description = "Test zone 1";
