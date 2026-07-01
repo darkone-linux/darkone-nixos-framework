@@ -40,11 +40,6 @@ in
       default = true;
       description = "Restrict homepage to authenticated Kanidm users (oauth2-proxy forward auth)";
     };
-    darkone.service.homepage.protectExternalOnly = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = "When protected, let internal LAN/tailnet clients in without login; only challenge external clients";
-    };
     darkone.service.homepage.localServices = lib.mkOption {
       type = lib.types.listOf lib.types.attrs;
       default = [ ];
@@ -91,7 +86,6 @@ in
         # provisioned user, so this means "any authenticated Kanidm user".
         proxy.isProtected = cfg.protect;
         proxy.allowedGroups = lib.optionals cfg.protect [ "users" ];
-        proxy.protectExternalOnly = cfg.protect && cfg.protectExternalOnly;
       };
     }
 

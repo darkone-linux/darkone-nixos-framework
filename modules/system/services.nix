@@ -88,7 +88,7 @@ let
   # `allowed_groups` query param restricts access to those Kanidm groups, so a
   # single oauth2-proxy can guard several services with distinct group policies.
   mkForwardAuth =
-    allowedGroups: externalOnly:
+    allowedGroups:
     let
 
       # Kanidm emits groups in the `groups` claim as SPNs (`name@<domain>`), not
@@ -96,17 +96,9 @@ let
       # single Caddyfile token; oauth2-proxy decodes it back.
       spns = map (g: "${g}%40${network.domain}") allowedGroups;
       query = optionalString (allowedGroups != [ ]) "?allowed_groups=${concatStringsSep "," spns}";
-
-      # When externalOnly, gate the auth on a matcher so internal callers (LAN
-      # private ranges + tailnet) reach the backend without logging in; only
-      # external clients are challenged. Otherwise the auth applies to everyone.
-      extMatcher = optionalString externalOnly ''
-        @external not remote_ip private_ranges 100.64.0.0/10
-      '';
-      authGuard = optionalString externalOnly "@external ";
     in
     ''
-      ${extMatcher}forward_auth ${authGuard}http://127.0.0.1:4180 {
+      forward_auth http://127.0.0.1:4180 {
         uri /oauth2/auth${query}
         copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
 
@@ -121,9 +113,12 @@ let
       }
     '';
 
-  # Bind internal IP for internal access services
+  # Bind internal IP for internal access services. `client_ip` (not `remote_ip`)
+  # resolves the real client through trusted proxies (X-Forwarded-For), so a
+  # request relayed by a trusted upstream is judged on the origin IP, not the
+  # proxy's. `trusted_proxies` is set globally below.
   internalServiceBindSection = ''
-    @external not remote_ip private_ranges 100.64.0.0/10
+    @external not client_ip private_ranges 100.64.0.0/10
     abort @external
   '';
 
@@ -185,9 +180,9 @@ let
   # - isInternal -> abort external access
   # - isProtected -> forward to oauth2-proxy (must be logged with kanidm + member of allowedGroups)
   mkPrefix =
-    isInternal: isProtected: allowedGroups: externalOnly:
+    isInternal: isProtected: allowedGroups:
     (optionalString isInternal internalServiceBindSection)
-    + (optionalString isProtected (mkForwardAuth allowedGroups externalOnly));
+    + (optionalString isProtected (mkForwardAuth allowedGroups));
 
   # Global services to expose to internet, only for HCS
   globalServices =
@@ -206,6 +201,14 @@ let
   # `{ fqdn; target; }` where `target` is the zone gateway tailnet IP the HCS
   # reverse-proxies to (see the generator's `external-hosts`).
   externalHosts = if isHcs then (zone.external-hosts or [ ]) else [ ];
+
+  # `proxy.isInternal` binds a service to the LAN (abort external callers), so
+  # exposing it to the internet via `externalAccess` is contradictory. Service
+  # modules set `isInternal` unconditionally, so the HCS (where externalHosts is
+  # populated) sees the real value for every service and can catch the clash.
+  externalInternalConflicts = filter (
+    s: s.proxy.isInternal && any (e: e.fqdn == s.params.fqdn) externalHosts
+  ) services;
 
   # Full list of registered services for the local zone
   localZoneServices =
@@ -394,11 +397,6 @@ in
               default = [ ];
               description = "Kanidm groups allowed on this protected service (empty = any authenticated user)";
             };
-            proxy.protectExternalOnly = mkOption {
-              type = types.bool;
-              default = false;
-              description = "Only require auth for external clients; internal LAN/tailnet callers bypass the login";
-            };
             proxy.isInternal = mkOption {
               type = types.bool;
               default = false;
@@ -455,6 +453,12 @@ in
         assertion = !hasProtectedServices || authHost != null;
         message = "darkone.system.services: a protected service requires the homepage service (auth anchor) enabled in the same zone.";
       }
+      {
+        assertion = externalInternalConflicts == [ ];
+        message = "darkone.system.services: internal-only services (proxy.isInternal) cannot be externalAccess: ${
+          concatMapStringsSep ", " (s: s.name) externalInternalConflicts
+        }.";
+      }
     ];
 
     #--------------------------------------------------------------------------
@@ -482,6 +486,15 @@ in
       # No HTTPS redirection if no tailnet
       + optionalString (!hasHeadscale) ''
         auto_https off
+      ''
+
+      # Trust X-Forwarded-For from the tailnet + LAN so `client_ip` matchers
+      # (see internalServiceBindSection) resolve the real origin behind the HCS
+      # front. Only meaningful when there is a tailnet relaying requests.
+      + optionalString hasHeadscale ''
+        servers {
+          trusted_proxies static private_ranges 100.64.0.0/10
+        }
       '';
 
       # Extra global config from services
@@ -550,9 +563,7 @@ in
 
             # Protected services wrap auth + backend in a catch-all handle so the
             # anchor's `/oauth2/*` handle is excluded from the forward-auth check.
-            prefix =
-              mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups
-                srv.proxy.protectExternalOnly;
+            prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups;
             body =
               if srv.proxy.isProtected then
                 ''
@@ -597,9 +608,7 @@ in
           srv:
           let
             sPort = config.darkone.system.services.service.${srv.name}.proxy.servicePort;
-            prefix =
-              mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups
-                srv.proxy.protectExternalOnly;
+            prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups;
             noRobots = optionalString srv.params.noRobots badBotsSection;
             reverseProxy = lib.optionalString srv.proxy.hasReverseProxy "reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString sPort}";
           in
