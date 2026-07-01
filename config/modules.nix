@@ -32,6 +32,7 @@
   };
   homepage = {
     uniquePerZone = true;
+    externalAccess = true;
     activation.profiles.minimal.triggers.keys.homepage = [ "enable" ];
   };
   idm = {
@@ -70,15 +71,19 @@
     activation.profiles.minimal.triggers.keys.turn = [ "enable" ];
   };
   ai = {
+    externalAccess = true;
     activation.profiles.minimal.triggers.keys.ai = [ "enable" ];
   };
   docs = {
+    externalAccess = true;
     activation.profiles.minimal.triggers.keys.docs = [ "enable" ];
   };
   element = {
+    externalAccess = true;
     activation.profiles.minimal.triggers.keys.element = [ "enable" ];
   };
   forgejo = {
+    externalAccess = true;
     activation.profiles.minimal.triggers.keys.forgejo = [ "enable" ];
   };
   garage = {
@@ -88,6 +93,7 @@
     activation.profiles.minimal.triggers.keys.geneweb = [ "enable" ];
   };
   immich = {
+    externalAccess = true;
     activation.profiles.minimal.triggers.keys.immich = [ "enable" ];
   };
   jellyfin = {
@@ -97,9 +103,11 @@
     activation.profiles.minimal.triggers.keys.jitsi-meet = [ "enable" ];
   };
   matrix = {
+    externalAccess = true;
     activation.profiles.minimal.triggers.keys.matrix = [ "enable" ];
   };
   mealie = {
+    externalAccess = true;
     activation.profiles.minimal.triggers.keys.mealie = [ "enable" ];
   };
   monitoring = {
@@ -113,15 +121,19 @@
     activation.profiles.minimal.triggers.keys.prometheus = [ "enable" ];
   };
   nextcloud = {
+    externalAccess = true;
     activation.profiles.minimal.triggers.keys.nextcloud = [ "enable" ];
   };
   outline = {
+    externalAccess = true;
     activation.profiles.minimal.triggers.keys.outline = [ "enable" ];
   };
   oxicloud = {
+    externalAccess = true;
     activation.profiles.minimal.triggers.keys.oxicloud = [ "enable" ];
   };
   vaultwarden = {
+    externalAccess = true;
     activation.profiles.minimal.triggers.keys.vaultwarden = [ "enable" ];
   };
   dnsmasq = {
