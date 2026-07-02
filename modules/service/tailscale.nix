@@ -36,6 +36,57 @@ let
   # node_exporter textfile collector dir (same value as monitoring.nix /
   # restic.nix). Metric write is best-effort: only supervised nodes have it.
   textfileDir = "/var/lib/node-exporter-textfile";
+
+  # Auto-pause (roaming client). On a home zone LAN, --accept-dns hijacks
+  # resolv.conf (kills local dnsmasq/AGH) and --accept-routes collides with the
+  # directly-connected zone subnet. A NM dispatcher pauses tailscale there and
+  # resumes it elsewhere; a shared state file lets the self-heal watchdog stand
+  # down while paused.
+  autoPauseEnable = cfg.autoPauseOnLan.enable;
+  autoPauseStateDir = "/run/tailscale-autopause";
+  autoPauseStateFile = "${autoPauseStateDir}/state";
+
+  # DNF zones are all /16; match on the two-octet ipPrefix. The external
+  # global/HCS zone has no LAN prefix, so it is filtered out.
+  zoneLanPrefixes = lib.pipe network.zones [
+    (lib.filterAttrs (name: _: name != dnfLib.constants.globalZone))
+    (lib.mapAttrsToList (_: z: z.ipPrefix))
+  ];
+
+  autoPauseDispatcher = pkgs.writeShellScript "tailscale-autopause" ''
+    set -u
+
+    state="${autoPauseStateFile}"
+
+    # IPv4s currently held on physical interfaces (exclude tailscale0 + lo).
+    addrs=$(${pkgs.iproute2}/bin/ip -o -4 addr show 2>/dev/null \
+      | ${pkgs.gawk}/bin/awk '$2 != "lo" && $2 != "tailscale0" { print $4 }')
+
+    # Home iff one of them sits in a known DNF zone /16 (two-octet prefix).
+    desired=away
+    for prefix in ${lib.concatStringsSep " " zoneLanPrefixes}; do
+      if echo "$addrs" | ${pkgs.gnugrep}/bin/grep -q "^$prefix\."; then
+        desired=home
+        break
+      fi
+    done
+
+    prev=$(${pkgs.coreutils}/bin/cat "$state" 2>/dev/null || echo away)
+
+    # Act only on transitions: the dispatcher fires on many events.
+    [ "$desired" = "$prev" ] && exit 0
+
+    if [ "$desired" = home ]; then
+      ${pkgs.util-linux}/bin/logger -t tailscale-autopause "on DNF zone LAN, pausing tailscale"
+      ${config.services.tailscale.package}/bin/tailscale down
+    else
+      ${pkgs.util-linux}/bin/logger -t tailscale-autopause "off DNF zone LAN, resuming tailscale"
+
+      # Re-run autoconnect to reapply the exact configured flags (+ --reset).
+      ${pkgs.systemd}/bin/systemctl restart tailscaled-autoconnect.service
+    fi
+    echo "$desired" > "$state"
+  '';
 in
 {
   options = {
@@ -46,6 +97,14 @@ in
       type = lib.types.bool;
       default = true;
       description = "Watchdog: detect headscale disconnection and restart tailscaled.";
+    };
+    darkone.service.tailscale.autoPauseOnLan.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Roaming client: pause tailscale (down) while plugged into a known DNF
+        zone LAN, resume it elsewhere. Non-gateway NetworkManager clients only.
+      '';
     };
   };
 
@@ -116,6 +175,22 @@ in
       interfaces.${wanInterface}.allowedUDPPorts = [ config.services.tailscale.port ];
     };
 
+    # Auto-pause dispatcher (roaming client on a home zone LAN).
+    networking.networkmanager.dispatcherScripts = lib.mkIf autoPauseEnable [
+      {
+        source = autoPauseDispatcher;
+        type = "basic";
+      }
+    ];
+
+    # Dispatcher-based; NetworkManager must own the interfaces.
+    assertions = lib.optionals autoPauseEnable [
+      {
+        assertion = config.networking.networkmanager.enable;
+        message = "darkone.service.tailscale.autoPauseOnLan requires networking.networkmanager.enable.";
+      }
+    ];
+
     #--------------------------------------------------------------------------
     # Certificat sync
     #--------------------------------------------------------------------------
@@ -131,7 +206,8 @@ in
     # Caddy storage dir (cert sync) + watchdog state dir, each behind its guard.
     systemd.tmpfiles.rules =
       lib.optionals isHcsSubnetGateway [ "d ${caddyStorage} 0750 caddy caddy -" ]
-      ++ lib.optionals selfHealEnable [ "d ${selfHealStateDir} 0755 root root -" ];
+      ++ lib.optionals selfHealEnable [ "d ${selfHealStateDir} 0755 root root -" ]
+      ++ lib.optionals autoPauseEnable [ "d ${autoPauseStateDir} 0755 root root -" ];
 
     # TLS certificates (caddy storage) sync service
     systemd.services.sync-caddy-certs = lib.mkIf isHcsSubnetGateway {
@@ -195,7 +271,13 @@ in
         Type = "oneshot";
         ExecStart = pkgs.writeShellScript "tailscale-selfheal" ''
           set -u
+          ${lib.optionalString autoPauseEnable ''
 
+            # Intentionally paused on a home LAN (autopause) → stand down.
+            if [ "$(${pkgs.coreutils}/bin/cat ${autoPauseStateFile} 2>/dev/null || echo away)" = "home" ]; then
+              exit 0
+            fi
+          ''}
           fails="${selfHealStateDir}/fails"
           last="${selfHealStateDir}/last-restart"
           restarts="${selfHealStateDir}/restarts"
