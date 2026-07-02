@@ -472,6 +472,99 @@ passwd user:
 	just _log "OK, password updated for {{user}}" "SOPS"
 	just _log "Now deploy with 'just apply @user-{{user}}'" "SOPS"
 
+# YubiKey enrollment: ONE physical enrollment per (user, key), fleet-wide.
+#
+# With the key plugged into this admin host (~3 touches), captures:
+#   - the pam_u2f credential -> usr/secrets/yubikeys.json (public, committed):
+#     a touch replaces the session password on every host of the user;
+#   - a FIDO2 hmac-secret credential -> derived secret in sops: encrypted
+#     hosts self-enroll their LUKS headers at next apply (no key needed there).
+# Ensures the shared `luks-passphrase` sops secret exists (authorizes keyslot
+# management on hosts), then prints the Kanidm passkey procedure (WebAuthn is
+# an interactive web ceremony by design; Vaultwarden 2FA is self-service).
+# `action=revoke` removes the (user, key) everywhere at next apply.
+[group('install')]
+yubikey user key='main' action='enroll':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just yubikey "{{user}}" "{{key}}" "{{action}}"
+	registry={{secretsDir}}/yubikeys.json
+	case "{{key}}" in main|backup) ;; *) just _fail "key must be 'main' or 'backup'" ;; esac
+	yq -e '.users."{{user}}"' {{workDir}}/etc/config.yaml >/dev/null 2>&1 \
+		|| just _fail "Unknown user '{{user}}' (see etc/config.yaml)."
+	[ -f {{sopsSecretsFile}} ] || just _fail "No sops secrets file: run 'just configure-admin-host' first."
+	just _sops_before_edit
+	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
+
+	# Revocation is declarative: dropping the registry entry + the sops secret
+	# removes the PAM credential and prunes the LUKS keyslots at next apply.
+	if [ "{{action}}" = "revoke" ] ;then
+		[ -f "$registry" ] || just _fail "No registry ($registry)."
+		yq -i -p=json -o=json 'del(."{{user}}"."{{key}}")' "$registry"
+		yq -i -p=json -o=json 'del(."{{user}}" | select(length == 0))' "$registry"
+		sops unset {{sopsSecretsFile}} '["yubikey"]["{{user}}"]["{{key}}"]' || true
+		just _fix_fs_permissions
+		just _log "Revoked {{user}}/{{key}}. Commit and 'just apply' to propagate." "YUBIKEY"
+		exit 0
+	fi
+	[ "{{action}}" = "enroll" ] || just _fail "Unknown action '{{action}}' — valid: enroll, revoke"
+	domain=$(yq -r '.network.domain' {{workDir}}/etc/config.yaml)
+	origin="pam://$domain"
+
+	# FIDO2 tools come from a transient nix shell (nothing to install first)
+	# and run as root (direct hidraw access to the key).
+	fido() { sudo {{nix}} shell nixpkgs#pam_u2f nixpkgs#libfido2 --command "$@" ; }
+	dev=$(fido fido2-token -L | head -n1 | cut -d: -f1)
+	[ -n "$dev" ] || just _fail "No FIDO2 key detected: plug the '{{key}}' YubiKey of {{user}}."
+
+	# Fixed origin/appid: one PAM credential is valid on the whole fleet.
+	just _log "PAM credential: touch the key..." "YUBIKEY"
+	pamline=$(fido pamu2fcfg -u "{{user}}" -o "$origin" -i "$origin")
+	pamcred="${pamline#*:}"
+	[ -n "$pamcred" ] || just _fail "pamu2fcfg failed."
+
+	# LUKS: non-discoverable hmac-secret credential bound to the
+	# systemd-cryptsetup relying party. The derived secret (HMAC of a fixed
+	# salt) is only reproducible with the physical key; it goes to sops and
+	# becomes the keyslot passphrase on every encrypted host of the user.
+	just _log "LUKS credential: touch the key..." "YUBIKEY"
+	cred=$(printf '%s\n%s\n%s\n%s\n' "$(openssl rand -base64 32)" io.systemd.cryptsetup "{{user}}" \
+		"$(openssl rand -base64 16)" | fido fido2-cred -M -h "$dev")
+	credid=$(printf '%s\n' "$cred" | sed -n 5p)
+	salt=$(openssl rand -base64 32)
+	just _log "LUKS secret derivation: touch the key..." "YUBIKEY"
+	secret=$(printf '%s\n%s\n%s\n%s\n' "$(openssl rand -base64 32)" io.systemd.cryptsetup "$credid" "$salt" \
+		| fido fido2-assert -G -h "$dev" | sed -n 5p)
+	{ [ -n "$credid" ] && [ -n "$secret" ] ; } || just _fail "FIDO2 hmac-secret capture failed."
+
+	# Shared LUKS install passphrase: asked once (only if missing from sops),
+	# hosts use it to authorize new keyslots. Never displayed nor stored in clear.
+	if ! sops -d --extract '["luks-passphrase"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
+		echo -n "LUKS passphrase typed at hosts install (disko): "
+		read -s LP ; echo
+		[ -n "$LP" ] || just _fail "Empty passphrase."
+		sops set {{sopsSecretsFile}} '["luks-passphrase"]' "\"$LP\""
+	fi
+	sops set {{sopsSecretsFile}} '["yubikey"]["{{user}}"]["{{key}}"]["luks-secret"]' "\"$secret\""
+
+	# Public registry consumed by dnf/modules/system/yubikey.nix.
+	[ -f "$registry" ] || echo '{}' > "$registry"
+	PAM="$pamcred" CID="$credid" SALT="$salt" yq -i -p=json -o=json \
+		'."{{user}}"."{{key}}" = {"pam": strenv(PAM), "credId": strenv(CID), "salt": strenv(SALT)}' "$registry"
+	just _fix_fs_permissions
+	just _log "Enrolled {{user}}/{{key}}." "YUBIKEY"
+	just _log "Now: git add usr/secrets/yubikeys.json && just commit ... && just apply" "YUBIKEY"
+
+	# Kanidm passkey: interactive web ceremony (once for the whole SSO). Mint
+	# the reset link now if possible, else print the manual procedure.
+	if [ "$(yq -r '.network.coordination.enable' {{workDir}}/etc/config.yaml)" = "true" ] ;then
+		hcs=$(yq -r '.network.coordination.hostname' {{workDir}}/etc/config.yaml)
+		just _log "Kanidm reset link for the passkey (idm_admin login):" "YUBIKEY"
+		ssh -t nix@"$hcs" "kanidm person credential create-reset-token {{user}} --name idm_admin" \
+			|| just _warn "Token not created — run: just enter $hcs ; kanidm person credential create-reset-token {{user}} --name idm_admin"
+	fi
+	just _info "Vaultwarden: add the key in the web vault (Settings > Security > Two-step login, WebAuthn)." "YUBIKEY"
+
 # Edit sops secrets
 [group('install')]
 sops:

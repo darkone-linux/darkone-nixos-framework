@@ -80,6 +80,7 @@
     ./system/sops.nix
     ./system/srv-dirs.nix
     ./system/testing.nix
+    ./system/yubikey.nix
     ./user/build.nix
     ./user/root.nix
   ];
