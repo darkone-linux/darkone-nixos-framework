@@ -42,7 +42,15 @@ let
     }).config.system.build.toplevel.drvPath;
 
   loaded = map load workspaces;
-  drvs = lib.concatMap (w: map (h: toplevelDrv (w.nodeOf h)) w.hostNames) loaded;
+
+  # `drvPath` carries a "derivation deep" string context (`=/nix/store/….drv`):
+  # interpolated as-is into runCommand, it forces nix to BUILD every output of
+  # every host closure (gigabytes of substitutions), not just to evaluate.
+  # Discarding the output dependency keeps only the .drv files as references:
+  # full module evaluation is still forced, realization is not.
+  drvs = lib.concatMap (
+    w: map (h: builtins.unsafeDiscardOutputDependency (toplevelDrv (w.nodeOf h))) w.hostNames
+  ) loaded;
 in
 pkgs.runCommand name { } ''
   cat > "$out" <<'EOF'
