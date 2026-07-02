@@ -53,10 +53,16 @@ let
     (lib.mapAttrsToList (_: z: z.ipPrefix))
   ];
 
-  autoPauseDispatcher = pkgs.writeShellScript "tailscale-autopause" ''
+  # Shared decision, invoked from both the NM dispatcher (roaming) and a boot
+  # oneshot (already in a zone at startup). Idempotent against the *real* backend
+  # state rather than a stored transition, so it is safe on every event and
+  # closes the boot race where tailscaled-autoconnect brings the VPN up before
+  # any dispatcher event fires.
+  autoPauseScript = pkgs.writeShellScript "tailscale-autopause" ''
     set -u
 
     state="${autoPauseStateFile}"
+    ts="${config.services.tailscale.package}/bin/tailscale"
 
     # IPv4s currently held on physical interfaces (exclude tailscale0 + lo).
     addrs=$(${pkgs.iproute2}/bin/ip -o -4 addr show 2>/dev/null \
@@ -71,21 +77,29 @@ let
       fi
     done
 
-    prev=$(${pkgs.coreutils}/bin/cat "$state" 2>/dev/null || echo away)
+    # Record intent first so the self-heal watchdog stands down without racing.
+    echo "$desired" > "$state"
 
-    # Act only on transitions: the dispatcher fires on many events.
-    [ "$desired" = "$prev" ] && exit 0
+    # unknown while tailscaled is not up yet (early boot): the boot oneshot,
+    # ordered after autoconnect, re-runs and enforces once the backend exists.
+    backend=unknown
+    if s=$($ts status --json 2>/dev/null); then
+      backend=$(echo "$s" | ${pkgs.jq}/bin/jq -r '.BackendState // "unknown"')
+    fi
 
     if [ "$desired" = home ]; then
-      ${pkgs.util-linux}/bin/logger -t tailscale-autopause "on DNF zone LAN, pausing tailscale"
-      ${config.services.tailscale.package}/bin/tailscale down
+      if [ "$backend" != Stopped ] && [ "$backend" != unknown ]; then
+        ${pkgs.util-linux}/bin/logger -t tailscale-autopause "on DNF zone LAN, pausing tailscale"
+        $ts down
+      fi
     else
-      ${pkgs.util-linux}/bin/logger -t tailscale-autopause "off DNF zone LAN, resuming tailscale"
+      if [ "$backend" = Stopped ]; then
+        ${pkgs.util-linux}/bin/logger -t tailscale-autopause "off DNF zone LAN, resuming tailscale"
 
-      # Re-run autoconnect to reapply the exact configured flags (+ --reset).
-      ${pkgs.systemd}/bin/systemctl restart tailscaled-autoconnect.service
+        # Re-run autoconnect to reapply the exact configured flags (+ --reset).
+        ${pkgs.systemd}/bin/systemctl restart tailscaled-autoconnect.service
+      fi
     fi
-    echo "$desired" > "$state"
   '';
 in
 {
@@ -175,13 +189,29 @@ in
       interfaces.${wanInterface}.allowedUDPPorts = [ config.services.tailscale.port ];
     };
 
-    # Auto-pause dispatcher (roaming client on a home zone LAN).
+    # Roaming transitions: NM dispatcher re-evaluates on every network event.
     networking.networkmanager.dispatcherScripts = lib.mkIf autoPauseEnable [
       {
-        source = autoPauseDispatcher;
+        source = autoPauseScript;
         type = "basic";
       }
     ];
+
+    # Boot in a zone: enforce once tailscaled-autoconnect ran and the LAN has an
+    # IP, otherwise the autoconnect `up` leaves the VPN active on the home LAN.
+    systemd.services.tailscale-autopause = lib.mkIf autoPauseEnable {
+      description = "Pause tailscale at boot while on a home zone LAN";
+      after = [
+        "tailscaled-autoconnect.service"
+        "network-online.target"
+      ];
+      wants = [ "network-online.target" ];
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = autoPauseScript;
+      };
+    };
 
     # Dispatcher-based; NetworkManager must own the interfaces.
     assertions = lib.optionals autoPauseEnable [

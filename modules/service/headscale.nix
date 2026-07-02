@@ -143,19 +143,17 @@ in
             #   client_secret_path = "/var/lib/headscale/oidc_secret";
             # };
 
-            # DNS servers for clients (fallback only...)
-            # -> We do not resolve external domains on headscale for now.
             nameservers = {
-              global = [
-                hcsTailnetIpv4
-                # "1.1.1.1"
-                # "1.0.0.1"
-                # "2606:4700:4700::1111"
-                # "2606:4700:4700::1001"
-              ];
 
-              # Tailscale clients address 100.100.100.100.
-              # -> Everything under the network domain must be handled by HCS unbound DNS.
+              # No global resolver: roaming clients keep the DNS of the network
+              # they are plugged into (box/café) for public names. Forcing global
+              # through HCS unbound tunneled *all* DNS over the VPN, so any flaky
+              # data-path (DERP-only, UDP-blocked) surfaced tailscale's "can't
+              # reach the configured DNS servers" and broke resolution entirely.
+              global = [ ];
+
+              # Split-DNS: only internal names reach HCS unbound (100.100.100.100
+              # stub → hcsTailnetIpv4), which then pivots to each zone gateway.
               split.${network.domain} = [ hcsTailnetIpv4 ];
 
               # Each zone suffix gets its own DNS server...
