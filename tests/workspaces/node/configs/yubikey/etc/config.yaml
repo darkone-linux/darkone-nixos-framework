@@ -1,0 +1,65 @@
+# node variant: yubikey module coverage.
+#
+# Two hosts, two code paths of `modules/system/yubikey.nix`:
+#   - node1 (minimal, no disk layout): PAM u2f side, booted by the L2
+#     scenario `modules/node-yubikey.nix`;
+#   - server1 (disko LUKS): declarative FIDO2 LUKS side (initrd, sops
+#     secrets, enroll unit), covered by the L1 `eval-all` tier.
+# The registry fixture lives in `usr/secrets/yubikeys.json` (fake but
+# well-formed credentials).
+
+network:
+  domain: "test.local"
+  default:
+    locale: "en_US.UTF-8"
+    timezone: "Etc/UTC"
+  coordination:
+    enable: false
+    hostname: "hcs"
+    domain: "headscale"
+  smtp:
+    protocol: "submissions"
+    server: "smtp.test.local"
+    port: 465
+    username: "noreply@test.local"
+    sender: "Test <noreply@test.local>"
+    tls: true
+
+zones:
+  z1:
+    description: "Test zone 1"
+    ipPrefix: "10.10"
+    gateway:
+      wan:
+        interface: "eth0"
+      lan:
+        interfaces: ["eth1"]
+      vpn:
+        ipv4: "100.64.0.1"
+
+users:
+  darkone:
+    uid: 1000
+    name: "Darkone"
+    email: "darkone@test.local"
+    profile: "nix-admin"
+    groups: ["global"]
+
+hosts:
+  - hostname: "node1"
+    name: "Yubikey PAM node"
+    zone: "z1:1.1"
+    profile: "minimal"
+    users: ["darkone"]
+  - hostname: "server1"
+    name: "Yubikey LUKS server (disko)"
+    zone: "z1:1.2"
+
+    # Minimal on purpose: the yubikey module ignores the host profile, and a
+    # server profile would drag heavy closures into the eval-all tier.
+    profile: "minimal"
+    users: ["darkone"]
+    disko:
+      profile: "luks-btrfs-1-disk"
+      devices:
+        main: "/dev/vda"

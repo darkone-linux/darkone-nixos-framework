@@ -11,6 +11,7 @@
     ../workspaces/node/configs/server-immich
     ../workspaces/node/configs/server-nix-cache
     ../workspaces/node/configs/disko-server
+    ../workspaces/node/configs/yubikey
     ../workspaces/network/configs/dns
     ../workspaces/vpn/configs/multizone
   ];

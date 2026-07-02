@@ -190,6 +190,11 @@ _fixtures_gen_secrets:
 		echo "    password-hash: \"${HASH}\""
 		echo "smtp:"
 		echo "  password: test"
+		echo "luks-passphrase: test"
+		echo "yubikey:"
+		echo "  darkone:"
+		echo "    main:"
+		echo "      luks-secret: dGVzdHNlY3JldA=="
 	} > "$SEC/secrets.yaml"
 
 	# In-place encrypt: cwd = $SEC so sops finds .sops.yaml and the filename
