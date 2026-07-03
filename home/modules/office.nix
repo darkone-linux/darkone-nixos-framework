@@ -385,7 +385,12 @@ in
     programs.firefox = mkIf cfg.enableFirefox {
       enable = true;
       package = pkgs.firefox-esr;
-      configPath = "${config.xdg.configHome}/mozilla/firefox";
+
+      # Firefox only reads ~/.mozilla/firefox (no XDG support in ESR 140, and
+      # the nixpkgs wrapper forces MOZ_LEGACY_PROFILES=1). Pin the legacy path
+      # explicitly: the HM 26.05 XDG default would provision a profile the
+      # browser never opens (declarative extensions silently ignored).
+      configPath = ".mozilla/firefox";
 
       # Lang https://releases.mozilla.org/pub/firefox/releases/140.7.0esr/linux-x86_64/
       languagePacks = [ "${lang}" ];
