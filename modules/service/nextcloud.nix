@@ -40,6 +40,74 @@ let
 
   # No Kanidm on this network ⇒ skip the user_oidc provisioning.
   hasIdm = idmUrl != null;
+
+  # Apps fetched from the appstore and bundled by nixpkgs, i.e. every
+  # package under `services.nextcloud.package.packages.apps` for this
+  # release. Installed (and occ-enabled) only when listed in `cfg.plugins`.
+  appstoreApps = [
+    "bookmarks"
+    "calendar"
+    "checksum"
+    "collectives"
+    "contacts"
+    "cookbook"
+    "cospend"
+    "dav_push"
+    "deck"
+    "end_to_end_encryption"
+    "files_automatedtagging"
+    "files_linkeditor"
+    "files_retention"
+    "forms"
+    "gpoddersync"
+    "groupfolders"
+    "guests"
+    "hmr_enabler"
+    "impersonate"
+    "integration_deepl"
+    "integration_openai"
+    "integration_paperless"
+    "mail"
+    "memories"
+    "music"
+    "news"
+    "nextpod"
+    "notes"
+    "notify_push"
+    "oidc"
+    "oidc_login"
+    "onlyoffice"
+    "phonetrack"
+    "polls"
+    "previewgenerator"
+    "qownnotesapi"
+    "quota_warning"
+    "recognize"
+    "registration"
+    "repod"
+    "richdocuments"
+    "sociallogin"
+    "spreed"
+    "tables"
+    "tasks"
+    "theming_customcss"
+    "twofactor_webauthn"
+    "unroundedcorners"
+    "uppush"
+    "user_oidc"
+    "user_saml"
+    "whiteboard"
+  ];
+
+  # Apps shipped inside Nextcloud core (`core/shipped.json`) that are
+  # enabled out of the box but safe to turn off (unlike e.g. `files_sharing`
+  # or `password_policy`, which stay untouched). Toggled via `occ
+  # app:enable|disable` below since they never go through `extraApps`.
+  shippedToggleableApps = [
+    "activity"
+    "dashboard"
+    "photos"
+  ];
 in
 {
   options = {
@@ -48,6 +116,22 @@ in
       type = lib.types.str;
       default = "admin";
       description = "Admin username for Nextcloud";
+    };
+    darkone.service.nextcloud.plugins = lib.mkOption {
+      type = lib.types.listOf (lib.types.enum (appstoreApps ++ shippedToggleableApps));
+      default = [
+        "calendar"
+        "contacts"
+      ];
+      example = appstoreApps ++ shippedToggleableApps;
+      description = ''
+        Nextcloud apps to enable. Only `calendar` and `contacts` are on by
+        default; Talk (`spreed`), the dashboard, activity feed, photos, and
+        every other app stay disabled until listed here.
+
+        `user_oidc` is required for Kanidm SSO and is force-included
+        regardless of this list.
+      '';
     };
   };
 
@@ -200,26 +284,15 @@ in
         appstoreEnable = false;
 
         # Default applications
-        extraApps = with config.services.nextcloud.package.packages.apps; {
-
-          # List of apps we want to install and are already packaged in
-          # https://github.com/NixOS/nixpkgs/blob/master/pkgs/servers/nextcloud/packages/32.json
-          inherit
-            calendar
-            contacts
-            cospend
-            #deck
-            groupfolders
-            #memories
-            music
-            notes
-            richdocuments
-            spreed
-
-            # First-party Nextcloud OIDC backend (provisioned via occ below).
-            user_oidc
-            ;
-        };
+        # `user_oidc` is force-included (required for Kanidm SSO); other
+        # apps come from `cfg.plugins`, intersected with the appstore
+        # catalogue so shipped-only entries (e.g. `photos`) are ignored here.
+        extraApps =
+          let
+            inherit (config.services.nextcloud.package.packages) apps;
+            enabled = lib.unique (lib.intersectLists cfg.plugins appstoreApps ++ [ "user_oidc" ]);
+          in
+          lib.genAttrs enabled (name: apps.${name});
 
         # Apps config
         autoUpdateApps.enable = true;
@@ -272,6 +345,29 @@ in
 
       # PostgreSQL backup (all databases by default)
       services.postgresqlBackup.enable = true;
+
+      #------------------------------------------------------------------------
+      # Shipped app toggles (dashboard, activity, photos...)
+      #------------------------------------------------------------------------
+
+      # `occ app:enable|disable` is an upsert, so this is idempotent: it
+      # re-asserts the desired state (from `cfg.plugins`) on every activation,
+      # since these apps ship enabled by default and aren't part of `extraApps`.
+      systemd.services.nextcloud-plugins-setup = {
+        after = [ "nextcloud-setup.service" ];
+        requires = [ "nextcloud-setup.service" ];
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          User = "nextcloud";
+        };
+        script = lib.concatMapStringsSep "\n" (
+          name:
+          "${lib.getExe config.services.nextcloud.occ} app:${
+            if lib.elem name cfg.plugins then "enable" else "disable"
+          } ${name}"
+        ) shippedToggleableApps;
+      };
 
       #------------------------------------------------------------------------
       # OIDC provider (Kanidm, via the first-party user_oidc app)
