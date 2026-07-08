@@ -38,7 +38,34 @@
 #
 # Friend self-registration (`friendRegistration.enable`) opens token-gated
 # local password accounts alongside Kanidm OIDC users. Minting a token needs a
-# server admin (Synapse admin API / Synapse-Admin UI).
+# server admin (Synapse admin API / Synapse-Admin UI); with MAS enabled, mint
+# with `mas-cli manage issue-user-registration-token` on the host instead.
+#
+# ## Next-gen auth (MAS)
+#
+# `mas.enable` delegates all authentication to Matrix Authentication Service
+# (required by Element X, QR login, `/account` self-service portal). Kanidm
+# stays the identity source: MAS becomes the OIDC client instead of synapse,
+# and synapse only asks MAS to introspect tokens. Served on the same vhost:
+# MAS owns the root + compat auth endpoints, synapse keeps `/_matrix/*` and
+# `/_synapse/*`; client discovery is automatic (synapse serves
+# `auth_metadata` itself), so no well-known change.
+#
+# Required sops secrets (`openssl rand -hex 32` unless stated):
+# `mas-encryption-secret`, `mas-synapse-secret`, and `mas-rsa-private-key`
+# (`openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096`).
+#
+# :::danger[Immutable once started]
+# `mas-encryption-secret` and the Kanidm provider ULID must never change
+# after MAS's first start (encrypted DB data / upstream account links).
+# :::
+#
+# :::caution[Migrating an existing instance]
+# Enabling `mas.enable` on a live homeserver requires the `mas-cli syn2mas`
+# migration (accounts, sessions, external ids) and a bridge registration
+# regen (the `io.element.msc4190` flag is only written at generation time):
+# procedure in `.specs/matrix-authentication-service.md`.
+# :::
 
 # (TODO: Livekit -> https://wiki.nixos.org/wiki/Matrix#Livekit)
 # TODO: Synapse Admin -> https://wiki.nixos.org/wiki/Matrix#Synapse_Admin_with_Caddy
@@ -71,6 +98,16 @@ let
   synapsePort = dnfConfig.network.ports.matrix;
   telegramPort = dnfConfig.network.ports.matrixTelegram;
   discordPort = dnfConfig.network.ports.matrixDiscord;
+  masPort = dnfConfig.network.ports.matrixAuth;
+
+  # Stable ULID naming the Kanidm provider inside MAS. Kanidm redirect URIs
+  # and every upstream account link embed it: changing it orphans all linked
+  # accounts (cf. header).
+  masKanidmUlid = "01JDNF0000000000000KAN1DM0";
+
+  # Sops files are root-owned and MAS runs with DynamicUser: LoadCredential
+  # bridges the gap. Absolute form of systemd's %d, usable in MAS settings.
+  masCreds = "/run/credentials/matrix-authentication-service.service";
 
   # Native Prometheus metrics, exposed only where a zone Prometheus scrapes
   # this host. Bound to the scrapeable IP (like the node exporter), not the
@@ -163,6 +200,15 @@ in
         };
       };
 
+      # Next-gen auth: synapse delegates every auth decision to MAS (cf.
+      # header). Default off: flipping it on a live server needs the syn2mas
+      # migration first.
+      mas.enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Delegate all authentication to Matrix Authentication Service (Element X support).";
+      };
+
       # Local password accounts for friends, in addition to the Kanidm (OIDC)
       # users. Token-gated: no open registration without an invite token.
       friendRegistration.enable = lib.mkOption {
@@ -214,8 +260,14 @@ in
         displayName = "Matrix Synapse";
         imageFile = ./../../assets/app-icons/synapse.svg;
 
+        # Both callbacks are always registered: this template is evaluated on
+        # the IDM host, which cannot see the matrix host's `mas.enable`. The
+        # unused one is inert (same trusted vhost).
         # -> https://element-hq.github.io/synapse/latest/openid.html
-        redirectPaths = [ "/_synapse/client/oidc/callback" ];
+        redirectPaths = [
+          "/_synapse/client/oidc/callback"
+          "/upstream/callback/${masKanidmUlid}"
+        ];
         landingPath = "/";
         preferShortUsername = true;
       };
@@ -224,12 +276,26 @@ in
         inherit defaultParams;
         displayOnHomepage = false;
         persist.dirs = [ srv.dataDir ];
-        proxy.servicePort = (builtins.elemAt srv.settings.listeners 0).port;
+
+        # With MAS the vhost root belongs to MAS (login pages, `/account`,
+        # `/oauth2/*`, `/upstream/callback/*`); synapse keeps its prefixes.
+        proxy.servicePort =
+          if cfg.mas.enable then masPort else (builtins.elemAt srv.settings.listeners 0).port;
         proxy.extraConfig = ''
 
           # Redirect to Synapse
           reverse_proxy /_matrix/* http://127.0.0.1:${toString synapsePort}
           reverse_proxy /_synapse/client/* http://127.0.0.1:${toString synapsePort}
+        ''
+        + lib.optionalString cfg.mas.enable ''
+
+          # Next-gen auth: MAS owns the compat auth endpoints. Longer path
+          # matchers, so they win over /_matrix/* (Caddy specificity order).
+          reverse_proxy /_matrix/client/*/login http://127.0.0.1:${toString masPort}
+          reverse_proxy /_matrix/client/*/logout http://127.0.0.1:${toString masPort}
+          reverse_proxy /_matrix/client/*/refresh http://127.0.0.1:${toString masPort}
+        ''
+        + ''
 
           # Helps mobile clients to find the server
           handle /.well-known/matrix/client {
@@ -452,11 +518,14 @@ in
 
           # Token-gated friend registration. `registration_requires_token`
           # satisfies Synapse's guard against open registration and coexists
-          # with Kanidm OIDC login.
-          enable_registration = cfg.friendRegistration.enable;
-          registration_requires_token = cfg.friendRegistration.enable;
+          # with Kanidm OIDC login. With MAS, registration moves to MAS
+          # (`account.*` below) and synapse must keep it off.
+          enable_registration = !cfg.mas.enable && cfg.friendRegistration.enable;
+          registration_requires_token = !cfg.mas.enable && cfg.friendRegistration.enable;
           suppress_key_server_warning = true;
-          registration_shared_secret_path = config.sops.secrets.matrix-rss-password.path;
+          registration_shared_secret_path = lib.mkIf (
+            !cfg.mas.enable
+          ) config.sops.secrets.matrix-rss-password.path;
           auto_join_rooms = [ ]; # TODO
 
           # Double puppeting appservice for the mautrix bridges (the bridges'
@@ -469,8 +538,10 @@ in
             database = "matrix-synapse";
           };
 
-          # Kanidm
-          oidc_providers = [
+          # Kanidm. Legacy direct OIDC: superseded by the MAS upstream
+          # provider when `mas.enable` (synapse rejects auth config in
+          # delegated mode).
+          oidc_providers = lib.mkIf (!cfg.mas.enable) [
             {
               idp_id = "kanidm";
               idp_name = "IDM";
@@ -519,6 +590,146 @@ in
     (lib.mkIf cfg.enable { services.matrix-synapse.settings = federationSettings; })
 
     #------------------------------------------------------------------------
+    # Matrix Authentication Service (next-gen auth, cf. header)
+    #------------------------------------------------------------------------
+
+    (lib.mkIf (cfg.enable && cfg.mas.enable) {
+
+      # Immutable after first start (cf. header)
+      sops.secrets.mas-encryption-secret.restartUnits = [ "matrix-authentication-service.service" ];
+
+      # OIDC token signing keys (PEM)
+      sops.secrets.mas-rsa-private-key.restartUnits = [ "matrix-authentication-service.service" ];
+
+      # Shared MAS <-> synapse secret: synapse reads the file directly
+      # (`secret_path`), MAS gets it as a root-read credential.
+      sops.secrets.mas-synapse-secret = {
+        mode = "0400";
+        owner = "matrix-synapse";
+        restartUnits = [
+          "matrix-authentication-service.service"
+          "matrix-synapse.service"
+        ];
+      };
+
+      services.matrix-authentication-service = {
+        enable = true;
+        createDatabase = true;
+        settings = {
+          http.public_base = params.href + "/";
+          http.listeners = [
+            {
+              name = "web";
+              resources = [
+                { name = "discovery"; }
+                { name = "human"; }
+                { name = "oauth"; }
+                { name = "compat"; }
+                { name = "graphql"; }
+                { name = "assets"; }
+                { name = "health"; }
+              ];
+              binds = [
+                {
+                  host = params.ip;
+                  port = masPort;
+                }
+              ];
+            }
+          ];
+
+          # Token introspection + user provisioning against synapse, over
+          # loopback (both live on the same host, like the Caddy routes).
+          matrix = {
+            kind = "synapse";
+            homeserver = srv.settings.server_name;
+            endpoint = "http://localhost:${toString synapsePort}";
+            secret_file = "${masCreds}/synapse-secret";
+          };
+
+          secrets = {
+            encryption_file = "${masCreds}/encryption";
+            keys = [
+              {
+                kid = "dnf-rsa";
+                key_file = "${masCreds}/rsa-key";
+              }
+            ];
+          };
+
+          # bcrypt v1 mirrors the synapse hashes imported by syn2mas
+          # (upgraded to argon2id on next login); harmless on a fresh
+          # install where no v1 hash ever exists.
+          passwords = {
+            enabled = true;
+            schemes = [
+              {
+                version = 1;
+                algorithm = "bcrypt";
+                unicode_normalization = true;
+              }
+              {
+                version = 2;
+                algorithm = "argon2id";
+              }
+            ];
+          };
+
+          # friendRegistration parity: token-gated local password accounts.
+          # No email requirement: the stack has no user-facing SMTP.
+          account = {
+            password_registration_enabled = cfg.friendRegistration.enable;
+            password_registration_token_required = cfg.friendRegistration.enable;
+            password_registration_email_required = false;
+          };
+
+          upstream_oauth2.providers = [
+            {
+              id = masKanidmUlid;
+              human_name = "IDM";
+              issuer = oidc.issuerUrl;
+              client_id = clientId;
+              client_secret_file = "${masCreds}/oidc-client-secret";
+              scope = "openid profile";
+              token_endpoint_auth_method = "client_secret_basic";
+
+              # syn2mas maps the synapse-era external ids through this key
+              # (synapse `idp_id = "kanidm"` -> `oidc-kanidm`)
+              synapse_idp_id = "oidc-kanidm";
+              claims_imports = {
+
+                # Must yield the same localparts as the legacy synapse
+                # `localpart_template` (account continuity across migration)
+                localpart = {
+                  action = "require";
+                  template = "{{ user.preferred_username | split('@') | first | lower }}";
+                };
+                displayname = {
+                  action = "suggest";
+                  template = "{{ user.name }}";
+                };
+              };
+            }
+          ];
+        };
+      };
+
+      systemd.services.matrix-authentication-service.serviceConfig.LoadCredential = [
+        "encryption:${config.sops.secrets.mas-encryption-secret.path}"
+        "rsa-key:${config.sops.secrets.mas-rsa-private-key.path}"
+        "synapse-secret:${config.sops.secrets.mas-synapse-secret.path}"
+        "oidc-client-secret:${config.sops.secrets.${secret}.path}"
+      ];
+
+      # Synapse in delegated mode: every auth decision goes through MAS
+      services.matrix-synapse.settings.matrix_authentication_service = {
+        enabled = true;
+        endpoint = "http://localhost:${toString masPort}/";
+        secret_path = config.sops.secrets.mas-synapse-secret.path;
+      };
+    })
+
+    #------------------------------------------------------------------------
     # Mautrix bridge: Facebook Messenger (bridgev2)
     #------------------------------------------------------------------------
 
@@ -561,6 +772,11 @@ in
             default = true;
             require = false;
             pickle_key = "$ENCRYPTION_PICKLE_KEY";
+
+            # Appservice device management: mandatory with MAS (no /login).
+            # Written into the registration at generation time -> flipping it
+            # requires a registration regen (cf. header).
+            msc4190 = cfg.mas.enable;
             verification_levels = {
               receive = "unverified";
               send = "unverified";
@@ -642,6 +858,10 @@ in
               default = true;
               pickle_key = "$ENCRYPTION_PICKLE_KEY";
               require = false;
+
+              # Mandatory with MAS; needs a registration regen when flipped
+              # (cf. header)
+              msc4190 = cfg.mas.enable;
             };
           }
         ];
@@ -691,6 +911,10 @@ in
               default = true;
               pickle_key = "$ENCRYPTION_PICKLE_KEY";
               require = false;
+
+              # Mandatory with MAS; needs a registration regen when flipped
+              # (cf. header)
+              msc4190 = cfg.mas.enable;
             };
           }
         ];
@@ -821,6 +1045,10 @@ in
               "*" = "relay";
             };
             login_shared_secret_map."${network.domain}" = doublePuppetSecret;
+
+            # Mandatory with MAS; needs a registration regen when flipped
+            # (cf. header)
+            encryption.msc4190 = cfg.mas.enable;
           };
         };
       };

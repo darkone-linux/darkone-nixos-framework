@@ -65,6 +65,9 @@
     # Nextcloud internal nginx vhost. modules/service/nextcloud.nix
     nextcloud = 8089;
 
+    # Matrix Authentication Service (next-gen auth). modules/service/matrix.nix
+    matrixAuth = 8090;
+
     # Jellyfin HTTP (jellyfin's fixed default). modules/service/jellyfin.nix
     jellyfin = 8096;
 
