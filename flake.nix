@@ -28,6 +28,12 @@
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
+    # Prebuilt, weekly-refreshed nix-index database + `comma` (`,`) integration.
+    # Flake-only hosts have no channel for `command-not-found`; this gives
+    # working `nix-locate` and `,` without a costly local `nix-index` run.
+    nix-index-database.url = "github:nix-community/nix-index-database";
+    nix-index-database.inputs.nixpkgs.follows = "nixpkgs";
+
     colmena.url = "github:zhaofengli/colmena/main";
     colmena.inputs.nixpkgs.follows = "nixpkgs";
 
