@@ -273,6 +273,9 @@
             ]
             ++ (with pkgs; [
               age
+
+              # astro-ls: doc/ (Astro/Starlight) LSP
+              astro-language-server
               cargo
               colmena
               d2
@@ -283,7 +286,11 @@
               nix-output-monitor
               nix-unit
               nixfmt
+
+              # doc/ toolchain: astro/starlight build + rsync deploy
+              nodejs_24
               openssl
+              rsync
               rustc
               treefmt
               sops

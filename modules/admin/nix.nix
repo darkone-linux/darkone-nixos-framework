@@ -1,6 +1,11 @@
 # NixOS configuration for the local LAN administrator computer.
 
-{ lib, config, ... }:
+{
+  lib,
+  config,
+  pkgs,
+  ...
+}:
 let
   cfg = config.darkone.admin.nix;
 in
@@ -14,6 +19,11 @@ in
 
     # Allow unfree packages
     nixpkgs.config.allowUnfree = true;
+
+    # Legacy `<nixpkgs>` on the search path for `nix-shell` expressions
+    # (e.g. `doc/shell.nix`). Flake-only admin hosts define no channel, so
+    # pin `<nixpkgs>` to the exact revision that built this system.
+    nix.nixPath = [ "nixpkgs=${pkgs.path}" ];
 
     # Large updates / downloads
     # https://nix.dev/manual/nix/2.22/command-ref/conf-file.html?highlight=substit#conf-download-buffer-size

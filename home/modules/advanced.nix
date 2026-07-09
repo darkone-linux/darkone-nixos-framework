@@ -103,6 +103,7 @@ in
       (lib.mkIf (hasRestic && cfg.enableAdmin) restic) # Already in nixos configuration...
       (lib.mkIf (hasRestic && cfg.enableAdmin) restic-browser)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) age)
+      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) astro-language-server) # astro-ls: doc/ (Astro/Starlight) LSP
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) cargo)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) colmena)
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) d2) # doc diagrams
