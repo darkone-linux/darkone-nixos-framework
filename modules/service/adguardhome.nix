@@ -105,6 +105,9 @@ in
               # Local names
               ("[/" + network.domain + "/]" + dnsmasqAddr)
 
+              # Zone-neutral roaming names (cache services), answered by dnsmasq
+              ("[/" + dnfLib.constants.roamingDomain + "/]" + dnsmasqAddr)
+
               # Local dns reverse
               ("[/" + (extractReversePrefix zone.ipPrefix) + ".in-addr.arpa/]" + dnsmasqAddr)
             ]

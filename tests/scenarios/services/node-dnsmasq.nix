@@ -6,7 +6,7 @@
 #   - systemd-resolved disabled (dnsmasq owns :53)
 #   - the daemon binds UDP/53 (no adguardhome → no shift to 5353)
 #   - the rendered config carries the hardening flags + the
-#     `local=/<zone.domain>/` non-forward rule
+#     `local=/<zone.domain>/` and `local=/dnf.internal/` non-forward rules
 #   - generated host record (from `zone.extraDnsmasqSettings.host-record`)
 #     resolves through dnsmasq itself
 #   - NAT MASQUERADE rule installed for the zone subnet
@@ -75,6 +75,13 @@
 
     # Zone domain must not be forwarded upstream.
     node1.succeed(f"grep -qE '^local=/z1.test.local/' {conf}")
+
+    # Roaming pseudo-domain answered locally too: NXDOMAIN here (no cache
+    # service declared in the _smoke zone), never a forward upstream.
+    node1.succeed(f"grep -qE '^local=/dnf.internal/' {conf}")
+    node1.wait_until_succeeds(
+        "dig +time=2 +tries=2 @10.10.1.1 nix-cache.dnf.internal | grep -q NXDOMAIN"
+    )
 
     # NAT for the zone subnet — nftables table ip nixos-nat, chain post.
     node1.succeed("nft list chain ip nixos-nat post | grep -q '10.10.0.0/16'")

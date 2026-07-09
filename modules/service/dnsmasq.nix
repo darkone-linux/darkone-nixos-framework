@@ -9,17 +9,34 @@
   lib,
   config,
   dnfConfig,
+  dnfLib,
   network,
+  hosts,
   zone,
   ...
 }:
 let
+  inherit (dnfLib) findHost;
+  inherit (dnfLib.constants) roamingDomain nixCacheRoamingFqdn harmoniaRoamingFqdn;
   cfg = config.darkone.service.dnsmasq;
   wanInterface = zone.gateway.wan.interface;
   lanInterface = "lan0"; # bridge for internal interfaces
   lanIpRange = zone.networkIp + "/" + toString zone.prefixLength;
   hasAdguardHome = config.darkone.service.adguardhome.enable;
   isTailscaleSubnet = network.coordination.enable && config.services.tailscale.enable;
+
+  # Zone-neutral cache records: publish this zone's nix-cache proxy and
+  # harmonia instances under fixed names, identical in every zone, so a
+  # roaming client always resolves them to the caches of the zone it is
+  # plugged into (see `service/nix-cache.nix`, option `roaming`).
+  cacheService = lib.findFirst (
+    s: s.zone == zone.name && s.name == "nix-cache"
+  ) null network.services;
+  harmoniaInZone = lib.filter (s: s.name == "harmonia" && s.zone == zone.name) network.services;
+  roamingAddresses =
+    lib.optional (cacheService != null)
+      "/${nixCacheRoamingFqdn}/${(findHost cacheService.host zone.name hosts).ip}"
+    ++ map (s: "/${harmoniaRoamingFqdn}/${(findHost s.host zone.name hosts).ip}") harmoniaInZone;
 in
 {
   options = {
@@ -199,9 +216,16 @@ in
             "9.9.9.9"
           ];
 
-          # Queries for these domains are only answered from /etc/hosts or DHCP.
-          # They are not forwarded to upstream servers.
-          local = "/${zone.domain}/";
+          # Queries for these domains are only answered from /etc/hosts, DHCP
+          # or local `address` records. They are not forwarded to upstream
+          # servers; unknown roaming names get an authoritative NXDOMAIN.
+          local = [
+            "/${zone.domain}/"
+            "/${roamingDomain}/"
+          ];
+
+          # Zone-neutral cache names (see `roamingAddresses` above).
+          address = roamingAddresses;
 
           # Register the IP of gateway
           #address = [ "/${zone.gateway.hostname}.${zone.domain}/${zone.gateway.lan.ip}" ];

@@ -20,4 +20,19 @@
     expr = dnfLib.constants.vpnInterface;
     expected = "tailscale0";
   };
+
+  testRoamingDomain = {
+    expr = dnfLib.constants.roamingDomain;
+    expected = "dnf.internal";
+  };
+
+  testNixCacheRoamingFqdn = {
+    expr = dnfLib.constants.nixCacheRoamingFqdn;
+    expected = "nix-cache.dnf.internal";
+  };
+
+  testHarmoniaRoamingFqdn = {
+    expr = dnfLib.constants.harmoniaRoamingFqdn;
+    expected = "harmonia.dnf.internal";
+  };
 }

@@ -21,6 +21,10 @@
 #   zone). Runs nginx on the internal IP, port `network.ports.nixCache`.
 # - clients: every local-zone host. Their substituters become the zone's
 #   harmonia instances (direct, LAN/tailnet) plus this proxy.
+# - roaming clients (`roaming = true`): nomadic hosts moved between zones.
+#   Their substituters are the zone-neutral names (`harmonia.dnf.internal`,
+#   `nix-cache.dnf.internal`) that each zone's DNS resolves to its own cache
+#   services (see `service/dnsmasq.nix`), so the cache follows the laptop.
 # :::
 
 {
@@ -48,7 +52,12 @@ let
   serverName = if cacheService == null then null else cacheService.host;
   hasServer = hostIsLocal && serverName != null;
   isServer = hostIsLocal && host.hostname == serverName;
-  isClient = hostIsLocal && hasServer;
+
+  # A roaming host ignores its declared zone: zone-pinned substituters would
+  # point at unreachable caches as soon as the machine moves. It relies on the
+  # zone-neutral names instead, whatever zone (if any) it is plugged into.
+  isRoaming = hostIsLocal && cfg.roaming;
+  isClient = hostIsLocal && hasServer && !isRoaming;
   cachePort = dnfConfig.network.ports.nixCache;
   harmoniaPort = dnfConfig.network.ports.harmonia;
 
@@ -66,6 +75,16 @@ let
     ++ (map (
       s: "http://${preferredIp (findHost s.host s.zone hosts)}:${toString harmoniaPort}"
     ) harmoniaGlobal);
+
+  # Roaming substituters: zone-neutral names served by each zone's DNS (see
+  # `service/dnsmasq.nix`). Outside any DNF zone both names NXDOMAIN instantly
+  # and Nix falls through to cache.nixos.org — no cross-zone (tailnet) harmonia
+  # here on purpose: from inside another zone it would be a dead substituter
+  # (tailscale may be paused on zone LANs) eating connect-timeouts.
+  roamingUrls = [
+    "http://${dnfLib.constants.harmoniaRoamingFqdn}:${toString harmoniaPort}"
+    "http://${dnfLib.constants.nixCacheRoamingFqdn}:${toString cachePort}"
+  ];
 
   # Deployment-wide harmonia public key (committed like nix.pub). Present only
   # once the admin has provisioned the binary-cache key; absent in standalone
@@ -91,6 +110,16 @@ in
       type = lib.types.str;
       default = "40g";
       description = "Maximum on-disk cache size; nginx evicts least-recently-used entries beyond it.";
+    };
+    darkone.service.nix-cache.roaming = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Nomadic host (laptop moved between zones): replace the zone-pinned
+        substituters with the zone-neutral names every zone's DNS resolves to
+        its own cache services. Outside any DNF zone the names NXDOMAIN
+        instantly and Nix falls back to cache.nixos.org.
+      '';
     };
   };
 
@@ -182,23 +211,37 @@ in
         };
       };
 
+      # A server's substituters must stay zone-pinned: it *is* the zone cache.
+      assertions = [
+        {
+          assertion = !(isServer && cfg.roaming);
+          message = "darkone.service.nix-cache: host '${host.hostname}' cannot be both the zone cache server and a roaming client.";
+        }
+      ];
+
       #----------------------------------------------------------------------
       # Clients: substituters (harmonia direct + this proxy)
       #----------------------------------------------------------------------
 
       nix.settings = {
-        substituters = lib.mkIf isClient (
-          harmoniaUrls
-          ++ [
-            "http://${zone.gateway.hostname}.${zone.domain}:${toString cachePort}"
+        substituters = lib.mkMerge [
+          (lib.mkIf isClient (
+            harmoniaUrls
+            ++ [
+              "http://${zone.gateway.hostname}.${zone.domain}:${toString cachePort}"
 
-            # Optional direct (not LAN-cached) upstream. cache.nixos.org covers a
-            # standard nixpkgs fleet, so cachix stays off; re-enable here if a
-            # nix-community-only path starts building from source.
-            # "https://nix-community.cachix.org"
-          ]
-        );
-        trusted-public-keys = lib.mkIf isClient (
+              # Optional direct (not LAN-cached) upstream. cache.nixos.org covers a
+              # standard nixpkgs fleet, so cachix stays off; re-enable here if a
+              # nix-community-only path starts building from source.
+              # "https://nix-community.cachix.org"
+            ]
+          ))
+          (lib.mkIf isRoaming roamingUrls)
+        ];
+
+        # Keys are zone-independent (deployment-wide harmonia key, upstream
+        # signatures relayed verbatim by the proxy), so roaming needs no more.
+        trusted-public-keys = lib.mkIf (isClient || isRoaming) (
           harmoniaKeys
           ++ [
             upstreamKey
