@@ -45,6 +45,7 @@ let
   autoPauseEnable = cfg.autoPauseOnLan.enable;
   autoPauseStateDir = "/run/tailscale-autopause";
   autoPauseStateFile = "${autoPauseStateDir}/state";
+  tsBin = "${config.services.tailscale.package}/bin/tailscale";
 
   # DNF zones are all /16; match on the two-octet ipPrefix. The external
   # global/HCS zone has no LAN prefix, so it is filtered out.
@@ -176,6 +177,75 @@ in
         "--snat-subnet-routes" # source NAT traffic to local routes advertised with --advertise-routes
         "false"
       ];
+    };
+
+    # Upstream autoconnect is fragile: Type=notify, endless poll loop, `up`
+    # without --timeout. Whenever the backend cannot reach Running within the
+    # 90s unit timeout (headscale unreachable, backend pinned in NoState,
+    # autopause `down`), the unit fails → monitoring alert + deploy abort.
+    # Replaced by a bounded oneshot that never fails: reaching Running is the
+    # self-heal watchdog's job, not the boot/deploy critical path.
+    # NOTE: services.tailscale.authKeyParameters is not supported here.
+    systemd.services.tailscaled-autoconnect = lib.mkIf hasHeadscale {
+      serviceConfig = {
+        Type = lib.mkForce "oneshot";
+
+        # Script self-bounds at ~75s (30s backend wait + 45s up); safety net.
+        TimeoutStartSec = 120;
+      };
+      script = lib.mkForce ''
+        ${lib.optionalString autoPauseEnable ''
+
+          # Autopaused on a home zone LAN: re-upping would fight the NM
+          # dispatcher and hijack local DNS (--accept-dns).
+          if [ "$(${pkgs.coreutils}/bin/cat ${autoPauseStateFile} 2>/dev/null || echo away)" = home ]; then
+            echo "autopause: on a home zone LAN, not connecting"
+            exit 0
+          fi
+        ''}
+        getState() {
+          ${tsBin} status --json --peers=false 2>/dev/null \
+            | ${pkgs.jq}/bin/jq -r '.BackendState // "unknown"' 2>/dev/null || echo unknown
+        }
+
+        # Let tailscaled leave its transient startup states; upstream waited
+        # on these passively until the unit timeout (NoState incident, agate).
+        state=$(getState)
+        tries=0
+        while [ "$tries" -lt 30 ]; do
+          case "$state" in
+            NoState|Starting|unknown|"") ;;
+            *) break ;;
+          esac
+          ${pkgs.coreutils}/bin/sleep 1
+          tries=$((tries + 1))
+          state=$(getState)
+        done
+
+        case "$state" in
+          Running)
+            echo "tailscale already running"
+            exit 0
+            ;;
+          NeedsLogin|NeedsMachineAuth|Stopped)
+            echo "backend is $state, sending auth key"
+
+            # file: keeps the key off the cmdline; --timeout replaces the
+            # forever-blocking `up` that got SIGTERMed on fl-01.
+            if ${tsBin} up \
+              --auth-key "file:${config.services.tailscale.authKeyFile}" \
+              --timeout 45s \
+              ${lib.escapeShellArgs config.services.tailscale.extraUpFlags}; then
+              echo "tailscale is running"
+              exit 0
+            fi
+            ;;
+        esac
+
+        # Warn, do not fail: boots and deploys must not hinge on headscale
+        # reachability; the self-heal watchdog converges within minutes.
+        echo "backend not Running (state: $state), deferring to self-heal" >&2
+      '';
     };
 
     #--------------------------------------------------------------------------
