@@ -479,6 +479,8 @@ passwd user:
 #     a touch replaces the session password on every host of the user;
 #   - a FIDO2 hmac-secret credential -> derived secret in sops: encrypted
 #     hosts self-enroll their LUKS headers at next apply (no key needed there).
+# Sets a FIDO2 PIN beforehand if the key has none: Kanidm passkeys require
+# user verification (PAM and LUKS never request UV, they stay touch-only).
 # Ensures the shared `luks-passphrase` sops secret exists (authorizes keyslot
 # management on hosts), then prints the Kanidm passkey procedure (WebAuthn is
 # an interactive web ceremony by design; Vaultwarden 2FA is self-service).
@@ -516,6 +518,14 @@ yubikey user key='main' action='enroll':
 	fido() { sudo {{nix}} shell nixpkgs#pam_u2f nixpkgs#libfido2 --command "$@" ; }
 	dev=$(fido fido2-token -L | head -n1 | cut -d: -f1)
 	[ -n "$dev" ] || just _fail "No FIDO2 key detected: plug the '{{key}}' YubiKey of {{user}}."
+
+	# Kanidm passkeys need WebAuthn user verification, which the key satisfies
+	# with its FIDO2 PIN: create it if missing. Once set, the captures below
+	# prompt for it (CTAP2 requires PIN auth to mint credentials).
+	if fido fido2-token -I "$dev" | grep -q noclientPin ;then
+		just _log "Kanidm (WebAuthn) requires a FIDO2 PIN and this key has none: set it now." "YUBIKEY"
+		fido fido2-token -S "$dev"
+	fi
 
 	# Fixed origin/appid: one PAM credential is valid on the whole fleet.
 	just _log "PAM credential: touch the key..." "YUBIKEY"
@@ -562,6 +572,7 @@ yubikey user key='main' action='enroll':
 		just _log "Kanidm reset link for the passkey (idm_admin login):" "YUBIKEY"
 		ssh -t nix@"$hcs" "kanidm person credential create-reset-token {{user}} --name idm_admin" \
 			|| just _warn "Token not created — run: just enter $hcs ; kanidm person credential create-reset-token {{user}} --name idm_admin"
+		just _info "Web ceremony: refuse the password-manager popup (Bitwarden/KeePassXC), the passkey must land on the physical key (FIDO2 PIN + touch)." "YUBIKEY"
 	fi
 	just _info "Vaultwarden: add the key in the web vault (Settings > Security > Two-step login, WebAuthn)." "YUBIKEY"
 
