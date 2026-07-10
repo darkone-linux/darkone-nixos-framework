@@ -252,10 +252,11 @@ develop:
 # Installation (framework-only)
 #==============================================================================
 
-# Build DNF iso image
+# Build DNF iso image (ISO configs live in the framework flake, hence dnfDir;
+# works from both the consumer root and a standalone dnf/ checkout).
 [group('install')]
 build-iso arch="x86_64-linux":
 	@just _log "Building local DNF ISO image..."
-	sudo -i -u nix {{nix}} build .#nixosConfigurations.iso-{{arch}}.config.system.build.isoImage
+	{{nix}} build {{dnfDir}}#nixosConfigurations.iso-{{arch}}.config.system.build.isoImage
 
 
