@@ -485,6 +485,12 @@ passwd user:
 # management on hosts), then prints the Kanidm passkey procedure (WebAuthn is
 # an interactive web ceremony by design; Vaultwarden 2FA is self-service).
 # `action=revoke` removes the (user, key) everywhere at next apply.
+#
+# Re-running is idempotent: the plugged key is identity-checked (silent FIDO2
+# assertion against the registered credId). Same key = nothing to do; different
+# key = full replacement, the old credential is pruned fleet-wide at next apply
+# (old Kanidm/Vaultwarden passkeys must be removed by hand). Requires exactly
+# ONE plugged key: with several, each capture could target a different device.
 [group('install')]
 yubikey user key='main' action='enroll':
 	#!/usr/bin/env bash
@@ -516,8 +522,41 @@ yubikey user key='main' action='enroll':
 	# FIDO2 tools come from a transient nix shell (nothing to install first)
 	# and run as root (direct hidraw access to the key).
 	fido() { sudo {{nix}} shell nixpkgs#pam_u2f nixpkgs#libfido2 --command "$@" ; }
-	dev=$(fido fido2-token -L | head -n1 | cut -d: -f1)
-	[ -n "$dev" ] || just _fail "No FIDO2 key detected: plug the '{{key}}' YubiKey of {{user}}."
+
+	# Exactly one plugged key: with several, pamu2fcfg and fido2-* each pick
+	# their own device and can silently capture the wrong key.
+	devs=$(fido fido2-token -L | cut -d: -f1)
+	[ -n "$devs" ] || just _fail "No FIDO2 key detected: plug the '{{key}}' YubiKey of {{user}}."
+	[ "$(printf '%s\n' "$devs" | wc -l)" = 1 ] \
+		|| just _fail "Several FIDO2 keys detected: plug only the '{{key}}' YubiKey of {{user}}."
+	dev=$devs
+
+	# Physical identity check: a credId only asserts on the key that minted it
+	# (up=false: silent, no touch nor PIN). Same key + intact sops secret =
+	# idempotent no-op; a key already enrolled under the other name is refused;
+	# any other mismatch (new or factory-reset key) = full replacement below.
+	assert_ok() {
+		printf '%s\n%s\n%s\n' "$(openssl rand -base64 32)" io.systemd.cryptsetup "$1" \
+			| fido fido2-assert -G -t up=false "$dev" >/dev/null 2>&1
+	}
+	if [ -f "$registry" ] ;then
+		for kname in main backup ;do
+			cred=$(yq -r ".\"{{user}}\".\"$kname\".credId // \"\"" "$registry")
+			[ -n "$cred" ] || continue
+			if assert_ok "$cred" ;then
+				[ "$kname" = "{{key}}" ] \
+					|| just _fail "This physical key is already enrolled as {{user}}/$kname."
+				if sops -d --extract '["yubikey"]["{{user}}"]["{{key}}"]["luks-secret"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
+					just _fix_fs_permissions
+					just _log "This key is already enrolled as {{user}}/{{key}}: nothing to do." "YUBIKEY"
+					exit 0
+				fi
+				just _log "Registry entry intact but sops secret missing: re-enrolling." "YUBIKEY"
+			elif [ "$kname" = "{{key}}" ] ;then
+				just _warn "Different physical key: replacing {{user}}/{{key}} (old credential pruned at next apply; remove old Kanidm/Vaultwarden passkeys by hand)."
+			fi
+		done
+	fi
 
 	# Kanidm passkeys need WebAuthn user verification, which the key satisfies
 	# with its FIDO2 PIN: create it if missing. Once set, the captures below
