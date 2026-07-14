@@ -155,6 +155,17 @@ in
       timeout = 30;
     };
 
+    # The gateway must own its LAN IP unconditionally. Without this, networkd
+    # holds lan0 in no-carrier (configuring) until a port has carrier, so a
+    # gateway with no client plugged in never gets 10.x.1.1 — every LAN-bound
+    # service (dnsmasq, nginx, prometheus...) then fails to bind and the box is
+    # unreachable at its own address. 40-lan0 is the name networkd derives from
+    # networking.interfaces.lan0; this merges into it.
+    systemd.network.networks."40-${lanInterface}" = {
+      networkConfig.ConfigureWithoutCarrier = true;
+      linkConfig.RequiredForOnline = "no";
+    };
+
     # No resolved service
     services.resolved.enable = false;
 

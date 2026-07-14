@@ -94,20 +94,25 @@ update-dnf:
 #==============================================================================
 
 # Copy pub key to the node (nix user must exist)
+#
+# `target` is the network address to reach the node; 'auto' = the host name.
+# A freshly installed host is often only reachable by IP (fresh DHCP lease), so
+# the bootstrap flow passes it explicitly while the machine identity stays {{host}}.
 [group('install')]
-copy-id host:
+copy-id host target='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	if sudo -i -u nix ssh -o PreferredAuthentications=publickey -o PasswordAuthentication=no -o BatchMode=yes nix@{{host}} "true"; then
+	t="{{target}}"; [ "$t" != "auto" ] || t="{{host}}"
+	if sudo -i -u nix ssh -o PreferredAuthentications=publickey -o PasswordAuthentication=no -o BatchMode=yes nix@"$t" "true"; then
 		just _info "SSH key already exists for {{host}}, continue..." "SSH"
 	else
-		just _log "Copying id to {{host}}..." "SSH"
-		sudo -i -u nix ssh-keygen -R {{host}}
-		sudo -i -u nix ssh-copy-id -o StrictHostKeyChecking=no -f nix@{{host}}
+		just _log "Copying id to {{host}} ($t)..." "SSH"
+		sudo -i -u nix ssh-keygen -R "$t"
+		sudo -i -u nix ssh-copy-id -o StrictHostKeyChecking=no -f nix@"$t"
 	fi
 	just _log "Cleaning authorized_keys..." "SSH"
-	sudo -i -u nix ssh nix@{{host}} "sort -u -o ~/.ssh/authorized_keys ~/.ssh/authorized_keys"
-	sudo -i -u nix ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@{{host}} 'echo "OK, it works!"'
+	sudo -i -u nix ssh nix@"$t" '[ -f ~/.ssh/authorized_keys ] && sort -u -o ~/.ssh/authorized_keys ~/.ssh/authorized_keys || true'
+	sudo -i -u nix ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@"$t" 'echo "OK, it works!"'
 
 # Framework installation on local machine (builder / admin)
 [group('install')]
@@ -194,28 +199,35 @@ configure-admin-host:
 	just _done
 
 # Extract hardware config from host
+#
+# `target`: network address to reach the node ('auto' = host name). The
+# extracted config is always stored under the machine identity {{host}}.
 [group('install')]
-copy-hw host:
+copy-hw host target='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
+	t="{{target}}"; [ "$t" != "auto" ] || t="{{host}}"
 	just _log "Extracting hardware information..."
 	mkdir -p usr/machines/{{host}}
-	sudo -i -u nix ssh nix@{{host}} "sudo nixos-generate-config --no-filesystems --show-hardware-config" > {{workDir}}/usr/machines/{{host}}/hardware-configuration.nix
+	sudo -i -u nix ssh nix@"$t" "sudo nixos-generate-config --no-filesystems --show-hardware-config" > {{workDir}}/usr/machines/{{host}}/hardware-configuration.nix
 	nixfmt -s usr/machines/{{host}}/hardware-configuration.nix
 
 # Push the infrastructure key to the host
+#
+# `target`: network address to reach the node ('auto' = host name).
 [group('install')]
-push-key host:
+push-key host target='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just push-key "{{host}}"
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just push-key "{{host}}" "{{target}}"
+	t="{{target}}"; [ "$t" != "auto" ] || t="{{host}}"
 	just _check_infra_admin
 	just _log "Pushing infra key file..." "SOPS"
-	ssh nix@{{host}} 'sudo mkdir -p {{sopsInfraTargetDir}}'
-	ssh nix@{{host}} 'sudo chown -R nix {{sopsInfraTargetDir}}'
-	scp {{sopsInfraKeyFile}} nix@{{host}}:{{sopsInfraTargetFile}}
-	ssh nix@{{host}} 'sudo chown -R root {{sopsInfraTargetDir}}'
-	ssh nix@{{host}} 'sudo chmod 600 {{sopsInfraTargetFile}}'
+	ssh nix@"$t" 'sudo mkdir -p {{sopsInfraTargetDir}}'
+	ssh nix@"$t" 'sudo chown -R nix {{sopsInfraTargetDir}}'
+	scp {{sopsInfraKeyFile}} nix@"$t":{{sopsInfraTargetFile}}
+	ssh nix@"$t" 'sudo chown -R root {{sopsInfraTargetDir}}'
+	ssh nix@"$t" 'sudo chmod 600 {{sopsInfraTargetFile}}'
 
 # Confirmation prompt is inlined (instead of using the `[confirm]` attribute)
 # so it fires only once, after the sudo re-exec.
@@ -309,14 +321,17 @@ _host-info host:
 # already inherit the nix user — their own guards short-circuit cleanly.
 #
 # New host: ssh cp id, extr. hw, push infra key, clean, info
+#
+# `ip`: network address to reach the node ('auto' = host name). Pass an explicit
+# IP when the freshly installed host is not yet resolvable by name.
 [group('install')]
-configure host:
+configure host ip='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	just _check_infra_admin
-	just copy-id "{{host}}"
-	just copy-hw "{{host}}"
-	just push-key "{{host}}"
+	just copy-id "{{host}}" "{{ip}}"
+	just copy-hw "{{host}}" "{{ip}}"
+	just push-key "{{host}}" "{{ip}}"
 	just _log "If no error occurs, do not forget to commit and apply:"
 	just _log "git add . && git commit -m 'Installing new host {{host}}'"
 	just _log "just apply-verbose {{host}}"
@@ -329,9 +344,21 @@ full-install host user='nixos' ip='auto':
 	set -euo pipefail
 	just install {{host}} {{user}} {{ip}}
 	just _log "Waiting for reboot..."
-	until ping -c1 -W1 {{host}} >/dev/null 2>&1; do sleep 1; done; echo "Oh, {{host}} is up, waiting 2s and continue... :)"
+
+	# The host can come back on a different IP (fresh DHCP lease once the real
+	# NixOS config boots) and stop resolving by name. While we poll, let the
+	# operator type the new address without breaking the flow; empty input (or a
+	# 5s idle timeout) just keeps waiting. `target` then feeds `configure`.
+	target="{{host}}"
+	until ping -c1 -W1 "$target" >/dev/null 2>&1; do
+		if read -t 5 -r -p "Waiting for $target — type a new IP to retarget (or Enter to keep waiting): " newip && [ -n "$newip" ] ;then
+			target="$newip"
+			just _log "Retargeting to $target..." "INSTALL"
+		fi
+	done
+	echo "Oh, $target is up, waiting 2s and continue... :)"
 	sleep 2
-	just configure {{host}}
+	just configure {{host}} "$target"
 	just _log "Let's do that automatically..."
 	#just _fix_fs_permissions
 	just _log "Adding and committing (amend)..." "GIT"

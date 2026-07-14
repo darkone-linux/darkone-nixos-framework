@@ -20,6 +20,10 @@ let
   wanInterface = zone.gateway.wan.interface;
   hasHeadscale = coord.enable;
   isHcsSubnetGateway = hasHeadscale && cfg.isGateway;
+
+  # Zone subnet a gateway advertises to the tailnet (same value as the
+  # --advertise-routes up flag below).
+  gatewaySubnet = "${zone.networkIp}/${toString zone.prefixLength}";
   hcsFqdn = "${coord.domain}.${network.domain}";
   hcsInternalFqdn = network.zones.${dnfLib.constants.globalZone}.gateway.vpn.ipv4;
   inherit (dnfLib.constants) caddyStorage;
@@ -225,6 +229,20 @@ in
         case "$state" in
           Running)
             echo "tailscale already running"
+            ${lib.optionalString cfg.isGateway ''
+
+              # Reconcile declared routing prefs even when already Running. A
+              # node first registered with a bare `up` keeps these at their
+              # defaults forever otherwise (the `up` branch below never re-runs):
+              # no AdvertiseRoutes (its zone unreachable from the tailnet) and no
+              # accept-routes (no return path to the other zones, so replies leak
+              # out the WAN). `set` is idempotent and only touches these flags.
+              ${tsBin} set \
+                --accept-routes \
+                --advertise-routes=${gatewaySubnet} \
+                --snat-subnet-routes=false \
+                || echo "route reconcile failed, deferring to self-heal" >&2
+            ''}
             exit 0
             ;;
           NeedsLogin|NeedsMachineAuth|Stopped)
