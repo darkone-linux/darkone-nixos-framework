@@ -114,6 +114,18 @@ copy-id host target='auto':
 	sudo -i -u nix ssh nix@"$t" '[ -f ~/.ssh/authorized_keys ] && sort -u -o ~/.ssh/authorized_keys ~/.ssh/authorized_keys || true'
 	sudo -i -u nix ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@"$t" 'echo "OK, it works!"'
 
+	# Gateways pull TLS certs from the HCS over SSH as `nix` (sync-caddy-certs),
+	# so they need the shared deploy PRIVATE key, not just authorized_keys.
+	# Restrict it to gateways: admin hosts already hold it (configure-admin-host
+	# generates it locally), any other host must never carry it.
+	profile=$({{nix}} eval --impure --raw \
+		--expr '(builtins.head (builtins.filter (h: h.hostname == "{{host}}") (import {{workDir}}/var/generated/hosts.nix))).profile' 2>/dev/null || echo "")
+	if [ "$profile" = "gateway" ] ;then
+		just _log "Pushing nix deploy key (gateway TLS cert sync)..." "SSH"
+		sudo -i -u nix scp ~nix/.ssh/id_ed25519 ~nix/.ssh/id_ed25519.pub nix@"$t":.ssh/
+		sudo -i -u nix ssh nix@"$t" 'chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_ed25519 && chmod 644 ~/.ssh/id_ed25519.pub'
+	fi
+
 # Framework installation on local machine (builder / admin)
 [group('install')]
 configure-admin-host:
