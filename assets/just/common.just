@@ -252,11 +252,12 @@ develop:
 # Installation (framework-only)
 #==============================================================================
 
-# Build DNF iso image (ISO configs live in the framework flake, hence dnfDir;
-# works from both the consumer root and a standalone dnf/ checkout).
+# Build DNF iso image. Build from workDir (the consumer flake), whose
+# `mkConfigurations` injects the admin pubkey (`usr/secrets/nix.pub`) into the
+# ISO — this is what makes it passwordless-installable with `just full-install`.
+# A standalone dnf/ checkout has workDir == the framework root, so it falls back
+# to the framework's own (keyless) ISO.
 [group('install')]
 build-iso arch="x86_64-linux":
 	@just _log "Building local DNF ISO image..."
-	{{nix}} build {{dnfDir}}#nixosConfigurations.iso-{{arch}}.config.system.build.isoImage
-
-
+	{{nix}} build {{workDir}}#nixosConfigurations.iso-{{arch}}.config.system.build.isoImage
