@@ -82,6 +82,12 @@ in
         # https://forgejo.org/docs/next/user/oauth2-provider/#public-client-pkce
         allowInsecureClientDisablePkce = false;
 
+        # Forgejo derives the auto-registered username from `preferred_username`
+        # (goth NickName). Kanidm returns the SPN (`user@domain`) there by
+        # default, and `@` is rejected by Forgejo's username validator, which
+        # would break auto-registration. Force the short name (`user`).
+        preferShortUsername = true;
+
         # Path templates relative to params.href (https://git.<domain>).
         # idm.nix prefixes them with the resolved href to produce the final URLs.
         # These need to exactly match the OAuth2 redirect target on the consumer side.
@@ -154,15 +160,22 @@ in
           bin=${lib.getExe fjCfg.package}
 
           # Reuse the existing "idm" source if present (update), else create it.
+          # `--required-claim-name/value ""` is passed explicitly on BOTH paths:
+          # any Kanidm user may log in (no claim gate). `update-oauth` only
+          # overwrites fields whose flag is set, so without this a stale
+          # required-claim on the source would keep rejecting every login with
+          # "user is not allowed login" (ErrUserProhibitLogin) before auto-reg.
           if "$bin" admin auth list | ${pkgs.gnugrep}/bin/grep -qw idm; then
             id=$("$bin" admin auth list | ${pkgs.gawk}/bin/awk '$2=="idm"{print $1}')
             "$bin" admin auth update-oauth --id "$id" \
               --provider openidConnect --key ${clientId} --secret "$secret" \
-              --auto-discover-url ${oidc.openidConfigUrl} --scopes "openid email profile"
+              --auto-discover-url ${oidc.openidConfigUrl} --scopes "openid email profile" \
+              --required-claim-name "" --required-claim-value ""
           else
             "$bin" admin auth add-oauth --name idm \
               --provider openidConnect --key ${clientId} --secret "$secret" \
-              --auto-discover-url ${oidc.openidConfigUrl} --scopes "openid email profile"
+              --auto-discover-url ${oidc.openidConfigUrl} --scopes "openid email profile" \
+              --required-claim-name "" --required-claim-value ""
           fi
         '';
       };
