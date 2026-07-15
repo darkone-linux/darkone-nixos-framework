@@ -949,13 +949,6 @@ in
 
       services.mautrix-telegram = {
         enable = true;
-
-        # Pin the legacy python bridge to python3.13: nixpkgs' default
-        # python3 moved to 3.14, and tulir_telethon (1.99.0a6) is not yet
-        # supported on 3.14 ("not supported for interpreter python3.14").
-        # Drop this override once upstream tulir_telethon builds on 3.14.
-        package = pkgs.mautrix-telegram.override { python3 = pkgs.python313; };
-
         environmentFile = config.sops.templates.mautrix-telegram-env.path;
         settings = lib.mkMerge [
           mautrixCommonSettings
