@@ -95,13 +95,18 @@ let
   ) (lib.fileContents harmoniaPubFile);
 
   # The single public upstream this proxy caches.
-  upstreamUrl = "https://cache.nixos.org";
   upstreamHost = "cache.nixos.org";
   upstreamKey = "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=";
 
   # nginx-managed cache directory (path is `/var/cache/nginx/<name>`).
   cacheName = "nix-cache";
   cacheDir = "/var/cache/nginx/${cacheName}";
+
+  # Local resolver for the runtime upstream lookup below. The nix-cache server
+  # is always the zone gateway, which runs its own DNS (dnsmasq, or adguardhome
+  # in front of it) on this address — reachable regardless of the box's
+  # /etc/resolv.conf state.
+  resolverIp = zone.gateway.lan.ip;
 in
 {
   options = {
@@ -172,7 +177,18 @@ in
             }
           ];
           locations."/" = {
-            proxyPass = upstreamUrl;
+            # Upstream as an nginx variable (not a literal host): this defers the
+            # `cache.nixos.org` DNS lookup to request time instead of nginx
+            # startup. Without it, an nginx (re)start during activation — when
+            # networkd is briefly regenerating /etc/resolv.conf, e.g. after any
+            # gateway network change — fails hard with
+            # `[emerg] host not found in upstream "cache.nixos.org"` (activation
+            # code 4, unit stuck `degraded` on start-limit-hit). With the
+            # variable + `resolver` below the service always starts; the name is
+            # resolved (and re-resolved every `valid=`) when traffic arrives.
+            # `$request_uri` carries the original request path — mandatory once
+            # proxy_pass holds a variable.
+            proxyPass = "https://$nix_cache_upstream$request_uri";
 
             # NixOS appends its recommended proxy headers *after* extraConfig,
             # ending with `proxy_set_header Host $host` — which would override the
@@ -181,6 +197,12 @@ in
             recommendedProxySettings = false;
 
             extraConfig = ''
+              # Runtime resolver for the variable upstream above. ipv6=off: the
+              # gateway runs IPv4-only; valid=300s re-resolves to follow Fastly's
+              # rotating CDN IPs.
+              resolver ${resolverIp} ipv6=off valid=300s;
+              set $nix_cache_upstream ${upstreamHost};
+
               proxy_cache nixcache;
 
               # Content-addressed paths: the URI alone is a stable key, so cache
