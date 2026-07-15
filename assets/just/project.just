@@ -265,6 +265,8 @@ install host user='nix' ip='auto' do='install':
 	else
 		TARGET_HOST="{{ip}}"
 	fi
+	just _log "Sops updates..."
+	just passwd-restic
 	just _fix_fs_permissions
 	just _log "We need to add, commit and build..."
 	git add . && (git diff --cached --quiet || git commit -m "New host {{host}} dnf installation") && git reset
