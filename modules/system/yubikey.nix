@@ -186,17 +186,19 @@ in
           crypttabExtraOpts = [ "fido2-device=auto" ];
         });
 
-        # Derived secrets (one per enrolled key) + the install passphrase that
+        # Derived secrets (one per enrolled key) + the shared passphrase that
         # authorizes keyslot management. All created by `just yubikey`.
+        # restartUnits: a changed credential converges at the same apply
+        # instead of waiting for the next boot.
         sops.secrets =
           lib.listToAttrs (
             map (k: {
               name = k.secret;
-              value = { };
+              value.restartUnits = [ "yubikey-luks-enroll.service" ];
             }) luksKeys
           )
           // {
-            luks-passphrase = { };
+            luks-passphrase.restartUnits = [ "yubikey-luks-enroll.service" ];
           };
 
         # Idempotent sync of the LUKS2 headers with the declared credentials:

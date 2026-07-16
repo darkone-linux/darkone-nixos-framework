@@ -1,11 +1,14 @@
 # LUKS passphrase policy & remote unlock: shared + per-host passphrases, initrd SSH.
 #
 # Completes `modules/system/yubikey.nix` (FIDO2 keyslots) with the passphrase
-# side of the fleet LUKS policy. `just luks <host>` provisions a host: it
-# records it in the **public** manifest `usr/secrets/luks.json` (committed),
-# stores the per-host passphrase in sops (`luks/<host>/passphrase`), ensures
-# the shared `luks-passphrase` exists, and pre-generates the initrd SSH host
-# key on the target. The module then keeps everything converged at each apply:
+# side of the fleet LUKS policy. `just luks <host>` provisions a host
+# (idempotent, also called by `just configure`): it records it in the
+# **public** manifest `usr/secrets/luks.json` (committed), stores the
+# per-host passphrase in sops (`luks/<host>/passphrase`), ensures the shared
+# `luks-passphrase` exists, pre-generates the initrd SSH host key on the
+# target and, when no managed passphrase unlocks the volume yet, bootstraps
+# the shared keyslot with the install passphrase. The module then keeps
+# everything converged at each apply:
 #
 # - **keyslots**: a oneshot service syncs the shared and per-host passphrases
 #   into every disko-declared LUKS2 header. A changed sops value rotates the
@@ -17,8 +20,12 @@
 #   host key (`/var/lib/luks-initrd/`), root login with the `nix` deploy key
 #   (`usr/secrets/nix.pub`). `just enter <host>` detects a host waiting in
 #   initrd and answers the passphrase prompt via
-#   `systemd-tty-ask-password-agent`. DHCP on wired interfaces only: a laptop
-#   on Wi-Fi has no initrd network and falls back to console unlock.
+#   `systemd-tty-ask-password-agent`, falling back to the WAN IP recorded in
+#   the manifest when the VPN route died with the host. Regular hosts DHCP on
+#   wired interfaces (a laptop on Wi-Fi has no initrd network and falls back
+#   to console unlock); zone gateways replicate their production layout
+#   instead — static LAN IP on the lan0 bridge, DHCP on the WAN side — since
+#   they are themselves the DHCP server their initrd would otherwise wait on.
 #
 # :::note[Zero configuration]
 # Enabled by default but fully inert until the host appears in
@@ -47,6 +54,7 @@
   config,
   pkgs,
   host,
+  network,
   workDir,
   ...
 }:
@@ -67,6 +75,21 @@ let
   # Deploy key of the nix user: the only identity allowed into the initrd.
   nixPubFile = workDir + "/usr/secrets/nix.pub";
   hasNixPub = builtins.pathExists nixPubFile;
+
+  # A zone gateway serves the LAN DHCP itself and its VPN dies with it, so
+  # its initrd cannot rely on either: replicate the production addressing
+  # (bridge lan0, static LAN IP) and DHCP only on the WAN side.
+  gateway = lib.attrByPath [
+    "zones"
+    (host.zone or "")
+    "gateway"
+  ] { } network;
+  isGateway = (gateway.hostname or "") == host.hostname && gateway ? lan;
+  prefixLength = lib.attrByPath [
+    "zones"
+    (host.zone or "")
+    "prefixLength"
+  ] 24 network;
 
   # LUKS volume names, discovered from the host disko layout. Reading
   # `config.disko` (and not `config.boot.initrd.luks.devices`) avoids the
@@ -127,20 +150,50 @@ in
 
         # systemd stage 1 (already forced by the yubikey module on encrypted
         # hosts, restated here so the ssh unlock works without it) + networkd
-        # in the initrd, DHCP on wired interfaces.
+        # in the initrd.
         boot.initrd.systemd.enable = true;
         boot.initrd.systemd.network.enable = true;
-        boot.initrd.systemd.network.networks."99-dnf-initrd" = {
-          matchConfig.Name = [
-            "en*"
-            "eth*"
-          ];
-          networkConfig.DHCP = "yes";
+
+        # Regular hosts DHCP on wired interfaces; gateways replicate their
+        # production layout (they ARE the DHCP server): WAN side DHCP, LAN
+        # ports bridged into lan0 carrying the static zone IP.
+        boot.initrd.systemd.network.netdevs = lib.mkIf isGateway {
+          lan0.netdevConfig = {
+            Kind = "bridge";
+            Name = "lan0";
+          };
         };
+        boot.initrd.systemd.network.networks = lib.mkMerge [
+          (lib.mkIf isGateway {
+            "20-dnf-wan" = {
+              matchConfig.Name = gateway.wan.interface;
+              networkConfig.DHCP = "yes";
+            };
+            "30-dnf-lan-ports" = {
+              matchConfig.Name = gateway.lan.interfaces;
+              networkConfig.Bridge = "lan0";
+            };
+            "40-dnf-lan0" = {
+              matchConfig.Name = "lan0";
+              networkConfig.Address = "${gateway.lan.ip}/${toString prefixLength}";
+            };
+          })
+          (lib.mkIf (!isGateway) {
+            "99-dnf-initrd" = {
+              matchConfig.Name = [
+                "en*"
+                "eth*"
+              ];
+              networkConfig.DHCP = "yes";
+            };
+          })
+        ];
 
         # Hardware configs reliably carry storage modules but rarely NICs:
-        # ship the common wired drivers so DHCP works out of the box.
+        # ship the common wired drivers so DHCP works out of the box, plus
+        # the bridge module for the gateway lan0.
         boot.initrd.availableKernelModules = [
+          "bridge"
           "virtio_net"
           "e1000e"
           "igb"
@@ -185,9 +238,11 @@ in
 
         # Both provisioned by `just luks`; sops-nix fails the activation if a
         # key is missing from secrets.yaml, hence the manifest gating above.
+        # restartUnits: a rotated sops value converges at the same apply
+        # instead of waiting for the next boot.
         sops.secrets = {
-          luks-passphrase = { };
-          ${hostSecret} = { };
+          luks-passphrase.restartUnits = [ "luks-passphrase-sync.service" ];
+          ${hostSecret}.restartUnits = [ "luks-passphrase-sync.service" ];
         };
 
         warnings = lib.optional (projectedSlots >= 25) ''

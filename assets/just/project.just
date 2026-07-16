@@ -346,6 +346,10 @@ configure host ip='auto':
 	just copy-id "{{host}}" "{{ip}}"
 	just copy-hw "{{host}}" "{{ip}}"
 	just push-key "{{host}}" "{{ip}}"
+
+	# LUKS provisioning is a no-op on unencrypted hosts and idempotent on
+	# encrypted ones (secrets/manifest/initrd key created only when missing).
+	just luks "{{host}}" '' "{{ip}}"
 	just _log "If no error occurs, do not forget to commit and apply:"
 	just _log "git add . && git commit -m 'Installing new host {{host}}'"
 	just _log "just apply-verbose {{host}}"
@@ -656,68 +660,144 @@ yubikey user key='main' action='enroll':
 	fi
 	just _info "Vaultwarden: add the key in the web vault (Settings > Security > Two-step login, WebAuthn)." "YUBIKEY"
 
-# LUKS provisioning: per-host passphrase + remote unlock, one run per host.
+# LUKS provisioning: per-host passphrase + remote unlock. Fully idempotent
+# (safe from `just configure`); a host without LUKS volume is a logged no-op.
+# Each run converges, prompting only for what is missing:
 #
-# Records the host in the public manifest usr/secrets/luks.json (committed),
-# stores/rotates the per-host passphrase in sops (`luks/<host>/passphrase`,
-# empty input = random), ensures the shared `luks-passphrase` exists, and
-# pre-generates the initrd SSH host key on the target (it must exist before
-# the bootloader of the next apply embeds it). The dnf luks module then
-# converges the keyslots and enables initrd sshd (port 2222) at next apply.
-# Re-running is idempotent; entering a new passphrase rotates the keyslot.
+# - sops: shared `luks-passphrase` + per-host `luks/<host>/passphrase`
+#   (created if missing; rotated ONLY with the 'passwd' action);
+# - public manifest usr/secrets/luks.json (committed): registers the host for
+#   dnf/modules/system/luks.nix and records the gateway WAN IP so
+#   `just enter` still finds the initrd sshd when the VPN is down;
+# - on the target: initrd SSH host key (must exist before the bootloader of
+#   the next apply embeds it), and a valid shared keyslot — a host installed
+#   with a different passphrase gets its shared slot bootstrapped here, the
+#   install passphrase is asked once.
 [group('install')]
-luks host:
+luks host action='' ip='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just luks "{{host}}"
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just luks "{{host}}" "{{action}}" "{{ip}}"
+	case "{{action}}" in ''|passwd) ;; *) just _fail "Unknown action '{{action}}' — valid: passwd" ;; esac
 	manifest={{secretsDir}}/luks.json
+	target="{{host}}" ; [ "{{ip}}" = "auto" ] || target="{{ip}}"
 	yq -e '.hosts[] | select(.hostname == "{{host}}")' {{workDir}}/etc/config.yaml >/dev/null 2>&1 \
 		|| just _fail "Unknown host '{{host}}' (see etc/config.yaml)."
-	grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/disko.nix 2>/dev/null \
-		|| just _fail "Host '{{host}}' has no LUKS volume in usr/machines/{{host}}/disko.nix."
-	[ -f {{sopsSecretsFile}} ] || just _fail "No sops secrets file: run 'just configure-admin-host' first."
 
-	# Empty input degrades gracefully to a strong random passphrase: the host
-	# stays unlockable via the shared passphrase and the YubiKeys anyway.
-	echo -n "LUKS passphrase for {{host}} (empty = random): "
-	read -s PP ; echo
-	if [ -n "$PP" ]; then
-		echo -n "Confirm: "
-		read -s PP2 ; echo
-		[ "$PP" = "$PP2" ] || just _fail "Passphrases do not match."
-	else
-		PP=$(openssl rand -base64 32)
-		just _log "Random passphrase generated (kept in sops only)." "LUKS"
+	# No LUKS = no-op: keeps the recipe safely callable from `just configure`.
+	if ! grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/disko.nix 2>/dev/null ;then
+		just _log "No LUKS volume on {{host}}: nothing to do." "LUKS"
+		exit 0
 	fi
+	[ -f {{sopsSecretsFile}} ] || just _fail "No sops secrets file: run 'just configure-admin-host' first."
 	just _sops_before_edit
 	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
 
 	# Shared passphrase: asked once fleet-wide (same slot `just yubikey` uses
 	# to authorize keyslot management).
 	if ! sops -d --extract '["luks-passphrase"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
-		echo -n "Shared LUKS passphrase (typed at hosts install with disko): "
+		echo -n "Shared LUKS passphrase (unlocks every encrypted host): "
 		read -s LP ; echo
 		[ -n "$LP" ] || just _fail "Empty passphrase."
 		sops set {{sopsSecretsFile}} '["luks-passphrase"]' "\"$LP\""
 	fi
-	sops set {{sopsSecretsFile}} '["luks"]["{{host}}"]["passphrase"]' "\"$PP\""
 
-	# Public manifest consumed by dnf/modules/system/luks.nix.
+	# Per-host passphrase: created once, rotated only on explicit 'passwd'.
+	# Empty input degrades to a strong random value: the host stays
+	# unlockable via the shared passphrase and the YubiKeys anyway.
+	if [ "{{action}}" = "passwd" ] \
+		|| ! sops -d --extract '["luks"]["{{host}}"]["passphrase"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
+		echo -n "LUKS passphrase for {{host}} (empty = random): "
+		read -s PP ; echo
+		if [ -n "$PP" ]; then
+			echo -n "Confirm: "
+			read -s PP2 ; echo
+			[ "$PP" = "$PP2" ] || just _fail "Passphrases do not match."
+		else
+			PP=$(openssl rand -base64 32)
+			just _log "Random passphrase generated (kept in sops only)." "LUKS"
+		fi
+		sops set {{sopsSecretsFile}} '["luks"]["{{host}}"]["passphrase"]' "\"$PP\""
+	else
+		just _log "Per-host passphrase already in sops (rotate with 'just luks {{host}} passwd')." "LUKS"
+	fi
+
+	# Public manifest consumed by dnf/modules/system/luks.nix. Entry created
+	# once; existing fields (recorded wan IP) are preserved.
 	[ -f "$manifest" ] || echo '{}' > "$manifest"
-	yq -i -p=json -o=json '."{{host}}" = {}' "$manifest"
+	yq -e '."{{host}}"' "$manifest" >/dev/null 2>&1 \
+		|| yq -i -p=json -o=json '."{{host}}" = {}' "$manifest"
 	just _fix_fs_permissions
 
-	# The initrd sshd host key is appended to the initrd as a boot secret when
-	# the bootloader is installed, BEFORE any activation script could create
-	# it: pre-generate it on the target now. Best effort: an unreachable host
-	# just needs this re-run (or a manual keygen) before its next apply.
-	just _log "Generating the initrd SSH host key on {{host}}..." "LUKS"
-	ssh nix@{{host}} 'sudo mkdir -p /var/lib/luks-initrd \
+	# Everything below converges the target itself; a sleeping host only
+	# needs a re-run before its next apply (the initrd host key must exist
+	# there when the bootloader embeds it).
+	if ! ssh -o ConnectTimeout=5 nix@"$target" true 2>/dev/null ;then
+		just _warn "{{host}} unreachable: re-run 'just luks {{host}}' once it is up, BEFORE any apply."
+		exit 0
+	fi
+	ssh nix@"$target" 'sudo mkdir -p /var/lib/luks-initrd \
 		&& { sudo test -s /var/lib/luks-initrd/ssh_host_ed25519_key \
-		|| sudo ssh-keygen -t ed25519 -N "" -f /var/lib/luks-initrd/ssh_host_ed25519_key ; }' \
-		|| just _warn "Could not reach {{host}}: re-run 'just luks {{host}}' once it is up, BEFORE any apply."
+		|| sudo ssh-keygen -t ed25519 -N "" -q -f /var/lib/luks-initrd/ssh_host_ed25519_key ; }'
+
+	# Gateways: record the current WAN IP. The VPN route to a zone dies with
+	# its gateway, so `just enter` falls back to this address to reach the
+	# initrd sshd. Refreshed at each run (ISP renumbering needs a re-run).
+	zone=$(yq -r '.hosts[] | select(.hostname == "{{host}}").zone // ""' {{workDir}}/etc/config.yaml)
+	zone="${zone%%:*}"
+	wanif=$(yq -r ".zones.\"$zone\".gateway.wan.interface // \"\"" {{workDir}}/etc/config.yaml)
+	gwhost=$(yq -r ".zones.\"$zone\".gateway.hostname // \"\"" {{workDir}}/etc/config.yaml)
+	if [ -n "$wanif" ] && [ "$gwhost" = "{{host}}" ] ;then
+		wan=$(ssh nix@"$target" "ip -4 -o addr show dev '$wanif' scope global" 2>/dev/null \
+			| awk '{print $4}' | cut -d/ -f1 | head -1)
+		if [ -n "$wan" ] ;then
+			WAN="$wan" yq -i -p=json -o=json '."{{host}}".wan = strenv(WAN)' "$manifest"
+			just _fix_fs_permissions
+			just _log "WAN IP of {{host}} recorded: $wan" "LUKS"
+		fi
+	fi
+
+	# Keyslot bootstrap: the sync/enroll units can only authorize keyslot
+	# operations with a managed passphrase. A volume that accepts none of
+	# them (host installed with another passphrase) gets its shared slot
+	# added here, authorized by the install passphrase.
+	SHARED=$(sops -d --extract '["luks-passphrase"]' {{sopsSecretsFile}})
+	PERHOST=$(sops -d --extract '["luks"]["{{host}}"]["passphrase"]' {{sopsSecretsFile}})
+	test_slot() { printf '%s' "$1" | ssh nix@"$target" "sudo cryptsetup open --test-passphrase --key-file=- '$2'" >/dev/null 2>&1 ; }
+	devs=$(echo 'for p in /dev/disk/by-partlabel/*; do cryptsetup isLuks --type luks2 "$p" 2>/dev/null && echo "$p"; done' \
+		| ssh nix@"$target" sudo bash -s)
+	[ -n "$devs" ] || just _fail "No LUKS2 volume found on {{host}} (disko config out of sync?)."
+	fixed=""
+	for dev in $devs ;do
+		if test_slot "$SHARED" "$dev" || test_slot "$PERHOST" "$dev" ;then
+			just _log "$dev already accepts a managed passphrase." "LUKS"
+			continue
+		fi
+		if [ -z "${INSTALL:-}" ] ;then
+			echo -n "Install passphrase of {{host}} (typed at disko install): "
+			read -s INSTALL ; echo
+			[ -n "$INSTALL" ] || just _fail "Empty passphrase."
+		fi
+
+		# Old key on stdin, new key via a root-only tmpfs file, both wiped.
+		printf '%s\n%s\n' "$INSTALL" "$SHARED" | ssh nix@"$target" "sudo bash -c 'IFS= read -r cur; IFS= read -r new; t=\$(mktemp -p /run); chmod 600 \"\$t\"; printf %s \"\$new\" >\"\$t\"; rc=0; printf %s \"\$cur\" | cryptsetup luksAddKey --key-file=- $dev \"\$t\" >/dev/null 2>&1 || rc=1; rm -f \"\$t\"; exit \$rc'" \
+			|| just _fail "luksAddKey failed on $dev (wrong install passphrase?)."
+		just _log "Shared keyslot bootstrapped on $dev." "LUKS"
+		fixed=1
+	done
+
+	# A bootstrap unlocks the sync/enroll units: re-run them now so the
+	# per-host slot and the FIDO2 tokens land without waiting for a reboot.
+	if [ -n "$fixed" ] ;then
+		ssh nix@"$target" 'sudo systemctl restart luks-passphrase-sync.service yubikey-luks-enroll.service' \
+			|| just _warn "Sync units not deployed yet: run 'just apply {{host}}' to converge."
+	fi
+	for dev in $devs ;do
+		tokens=$(echo "cryptsetup luksDump $dev" | ssh nix@"$target" sudo bash -s | grep -c 'systemd-fido2' || true)
+		just _log "$dev: $tokens FIDO2 token(s) enrolled." "LUKS"
+	done
 	just _log "Provisioned {{host}}." "LUKS"
-	just _log "Now: git add usr/secrets/luks.json && just commit ... && just apply {{host}}" "LUKS"
+	just _log "If luks.json changed: git add usr/secrets/luks.json && just commit ... && just apply {{host}}" "LUKS"
 
 # Edit sops secrets
 [group('install')]
@@ -1190,32 +1270,46 @@ apply-silenced on what='switch':
 
 # Interactive shell to the host.
 #
-# A host waiting in initrd for its LUKS passphrase exposes sshd on port 2222
-# (dnf/modules/system/luks.nix): detect that state, log in as root with the
-# nix deploy key and answer the pending passphrase prompt. Normal ssh
-# otherwise. The initrd has its own persistent host key, hence the dedicated
-# known_hosts entry ([host]:2222) and accept-new.
+# When the host answers on port 22, plain ssh as usual. Otherwise it may be
+# waiting in initrd for its LUKS passphrase, where sshd listens on port 2222
+# (dnf/modules/system/luks.nix): probe the explicit ip (if given), the
+# hostname, then the WAN IP recorded in usr/secrets/luks.json — the VPN
+# route to a zone dies with its gateway, only the WAN side remains. On the
+# first hit, log in as root with the nix deploy key and answer the pending
+# passphrase prompt. The initrd has its own persistent host key, hence the
+# dedicated known_hosts entries ([target]:2222) and accept-new.
 [group('manage')]
-enter on:
+enter on ip='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	if timeout 2 bash -c 'exec 3<>/dev/tcp/{{on}}/2222' 2>/dev/null; then
-		just _log "{{on}} is waiting in initrd: answering the LUKS prompt..." "SSH"
-		if [ "${USER:-}" = "nix" ]; then
-			ssh -t -p 2222 -o StrictHostKeyChecking=accept-new root@{{on}} \
-				systemd-tty-ask-password-agent --query --watch
-		else
-			sudo -i -u nix ssh -t -p 2222 -o StrictHostKeyChecking=accept-new root@{{on}} \
-				systemd-tty-ask-password-agent --query --watch
-		fi
-	else
+	target="{{on}}" ; [ "{{ip}}" = "auto" ] || target="{{ip}}"
+	if timeout 2 bash -c "exec 3<>/dev/tcp/$target/22" 2>/dev/null ;then
 		just _log "Entering {{on}}..." "SSH"
 		if [ "${USER:-}" = "nix" ]; then
-			ssh nix@{{on}}
+			exec ssh nix@"$target"
 		else
-			sudo -i -u nix ssh nix@{{on}}
+			exec sudo -i -u nix ssh nix@"$target"
 		fi
 	fi
+
+	# Port 22 is down: look for an initrd sshd on every known address.
+	candidates="$target"
+	[ "$target" = "{{on}}" ] || candidates="$candidates {{on}}"
+	wan=$(yq -r '."{{on}}".wan // ""' {{secretsDir}}/luks.json 2>/dev/null || true)
+	{ [ -z "$wan" ] || [ "$wan" = "$target" ] ; } || candidates="$candidates $wan"
+	for c in $candidates ;do
+		if timeout 2 bash -c "exec 3<>/dev/tcp/$c/2222" 2>/dev/null ;then
+			just _log "{{on}} ($c) is waiting in initrd: answering the LUKS prompt..." "SSH"
+			if [ "${USER:-}" = "nix" ]; then
+				exec ssh -t -p 2222 -o StrictHostKeyChecking=accept-new root@"$c" \
+					systemd-tty-ask-password-agent --query --watch
+			else
+				exec sudo -i -u nix ssh -t -p 2222 -o StrictHostKeyChecking=accept-new root@"$c" \
+					systemd-tty-ask-password-agent --query --watch
+			fi
+		fi
+	done
+	just _fail "{{on}} unreachable on ports 22 and 2222 (tried: $candidates)."
 
 # Confirmation prompt is inlined (rather than via the `[confirm]` attribute)
 # so it fires only once, after the sudo re-exec (stdin is preserved by sudo).
