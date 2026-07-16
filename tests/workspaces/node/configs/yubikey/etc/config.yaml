@@ -4,7 +4,9 @@
 #   - node1 (minimal, no disk layout): PAM u2f side, booted by the L2
 #     scenario `modules/node-yubikey.nix`;
 #   - server1 (disko LUKS): declarative FIDO2 LUKS side (initrd, sops
-#     secrets, enroll unit), covered by the L1 `eval-all` tier.
+#     secrets, enroll unit), covered by the L1 `eval-all` tier. Also
+#     exercises `modules/system/luks.nix` via the fixture manifest
+#     `usr/secrets/luks.json` (initrd sshd on 2222, passphrase sync unit).
 # The registry fixture lives in `usr/secrets/yubikeys.json` (fake but
 # well-formed credentials).
 

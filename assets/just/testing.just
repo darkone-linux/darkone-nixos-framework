@@ -195,11 +195,23 @@ _fixtures_gen_secrets:
 		echo "  darkone:"
 		echo "    main:"
 		echo "      luks-secret: dGVzdHNlY3JldA=="
+		echo "luks:"
+		echo "  server1:"
+		echo "    passphrase: test"
 	} > "$SEC/secrets.yaml"
 
 	# In-place encrypt: cwd = $SEC so sops finds .sops.yaml and the filename
 	# matches the path_regex creation rule.
 	( cd "$SEC" && sops -e -i secrets.yaml )
+
+	# Throwaway deploy key + LUKS manifest: `server1` exercises the luks
+	# module eval path (initrd sshd, passphrase sync unit) in the L1 tier.
+	if [ ! -f "$SEC/nix.pub" ]; then
+		ssh-keygen -t ed25519 -N "" -q -f "$KEYS/test-nix" -C "test@dnf"
+		mv "$KEYS/test-nix.pub" "$SEC/nix.pub"
+		rm -f "$KEYS/test-nix"
+	fi
+	echo '{"server1": {}}' > "$SEC/luks.json"
 
 	# Fixed self-signed TLS cert (stub ACME).
 	if [ ! -f "$TLS/cert.pem" ]; then

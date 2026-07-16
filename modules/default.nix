@@ -75,6 +75,7 @@
     ./system/documentation.nix
     ./system/hardware.nix
     ./system/i18n.nix
+    ./system/luks.nix
     ./system/security.nix
     ./system/services.nix
     ./system/sops.nix

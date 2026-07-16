@@ -51,18 +51,21 @@ let
   hasRegistry = builtins.pathExists registryFile;
   registry = if hasRegistry then builtins.fromJSON (builtins.readFile registryFile) else { };
 
-  # Only keys of users declared on this host are wired here.
-  hostRegistry = lib.filterAttrs (login: _: lib.elem login host.users) registry;
+  # PAM only wires keys of users declared on this host; LUKS enrollment below
+  # deliberately takes the FULL registry: any enrolled key unlocks any
+  # encrypted host of the fleet (disk unlock is an admin capability, not a
+  # session credential).
+  pamRegistry = lib.filterAttrs (login: _: lib.elem login host.users) registry;
 
   # pam_u2f authfile, one line per user: `login:cred[:cred...]`. The pamu2fcfg
   # chunks are public key material.
   u2fMappings = lib.concatMapStrings (
     login:
     let
-      creds = lib.filter (c: c != "") (lib.mapAttrsToList (_: k: k.pam or "") hostRegistry.${login});
+      creds = lib.filter (c: c != "") (lib.mapAttrsToList (_: k: k.pam or "") pamRegistry.${login});
     in
     lib.optionalString (creds != [ ]) "${lib.concatStringsSep ":" ([ login ] ++ creds)}\n"
-  ) (lib.attrNames hostRegistry);
+  ) (lib.attrNames pamRegistry);
 
   # (user, key) pairs carrying a FIDO2 hmac-secret credential (LUKS-capable).
   luksKeys = lib.concatLists (
@@ -73,7 +76,7 @@ let
         owner = "${login}/${kname}";
         secret = "yubikey/${login}/${kname}/luks-secret";
       }) (lib.filterAttrs (_: k: (k.credId or "") != "") keys)
-    ) hostRegistry
+    ) registry
   );
 
   # LUKS volume names, discovered from the host disko layout. Reading

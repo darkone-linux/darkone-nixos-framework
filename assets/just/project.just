@@ -656,6 +656,69 @@ yubikey user key='main' action='enroll':
 	fi
 	just _info "Vaultwarden: add the key in the web vault (Settings > Security > Two-step login, WebAuthn)." "YUBIKEY"
 
+# LUKS provisioning: per-host passphrase + remote unlock, one run per host.
+#
+# Records the host in the public manifest usr/secrets/luks.json (committed),
+# stores/rotates the per-host passphrase in sops (`luks/<host>/passphrase`,
+# empty input = random), ensures the shared `luks-passphrase` exists, and
+# pre-generates the initrd SSH host key on the target (it must exist before
+# the bootloader of the next apply embeds it). The dnf luks module then
+# converges the keyslots and enables initrd sshd (port 2222) at next apply.
+# Re-running is idempotent; entering a new passphrase rotates the keyslot.
+[group('install')]
+luks host:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just luks "{{host}}"
+	manifest={{secretsDir}}/luks.json
+	yq -e '.hosts[] | select(.hostname == "{{host}}")' {{workDir}}/etc/config.yaml >/dev/null 2>&1 \
+		|| just _fail "Unknown host '{{host}}' (see etc/config.yaml)."
+	grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/disko.nix 2>/dev/null \
+		|| just _fail "Host '{{host}}' has no LUKS volume in usr/machines/{{host}}/disko.nix."
+	[ -f {{sopsSecretsFile}} ] || just _fail "No sops secrets file: run 'just configure-admin-host' first."
+
+	# Empty input degrades gracefully to a strong random passphrase: the host
+	# stays unlockable via the shared passphrase and the YubiKeys anyway.
+	echo -n "LUKS passphrase for {{host}} (empty = random): "
+	read -s PP ; echo
+	if [ -n "$PP" ]; then
+		echo -n "Confirm: "
+		read -s PP2 ; echo
+		[ "$PP" = "$PP2" ] || just _fail "Passphrases do not match."
+	else
+		PP=$(openssl rand -base64 32)
+		just _log "Random passphrase generated (kept in sops only)." "LUKS"
+	fi
+	just _sops_before_edit
+	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
+
+	# Shared passphrase: asked once fleet-wide (same slot `just yubikey` uses
+	# to authorize keyslot management).
+	if ! sops -d --extract '["luks-passphrase"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
+		echo -n "Shared LUKS passphrase (typed at hosts install with disko): "
+		read -s LP ; echo
+		[ -n "$LP" ] || just _fail "Empty passphrase."
+		sops set {{sopsSecretsFile}} '["luks-passphrase"]' "\"$LP\""
+	fi
+	sops set {{sopsSecretsFile}} '["luks"]["{{host}}"]["passphrase"]' "\"$PP\""
+
+	# Public manifest consumed by dnf/modules/system/luks.nix.
+	[ -f "$manifest" ] || echo '{}' > "$manifest"
+	yq -i -p=json -o=json '."{{host}}" = {}' "$manifest"
+	just _fix_fs_permissions
+
+	# The initrd sshd host key is appended to the initrd as a boot secret when
+	# the bootloader is installed, BEFORE any activation script could create
+	# it: pre-generate it on the target now. Best effort: an unreachable host
+	# just needs this re-run (or a manual keygen) before its next apply.
+	just _log "Generating the initrd SSH host key on {{host}}..." "LUKS"
+	ssh nix@{{host}} 'sudo mkdir -p /var/lib/luks-initrd \
+		&& { sudo test -s /var/lib/luks-initrd/ssh_host_ed25519_key \
+		|| sudo ssh-keygen -t ed25519 -N "" -f /var/lib/luks-initrd/ssh_host_ed25519_key ; }' \
+		|| just _warn "Could not reach {{host}}: re-run 'just luks {{host}}' once it is up, BEFORE any apply."
+	just _log "Provisioned {{host}}." "LUKS"
+	just _log "Now: git add usr/secrets/luks.json && just commit ... && just apply {{host}}" "LUKS"
+
 # Edit sops secrets
 [group('install')]
 sops:
@@ -1125,16 +1188,33 @@ apply-silenced on what='switch':
 # Same auto-switch pattern as the apply group: each recipe re-execs itself
 # under the `nix` user when the caller is somebody else.
 
-# Interactive shell to the host
+# Interactive shell to the host.
+#
+# A host waiting in initrd for its LUKS passphrase exposes sshd on port 2222
+# (dnf/modules/system/luks.nix): detect that state, log in as root with the
+# nix deploy key and answer the pending passphrase prompt. Normal ssh
+# otherwise. The initrd has its own persistent host key, hence the dedicated
+# known_hosts entry ([host]:2222) and accept-new.
 [group('manage')]
 enter on:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	just _log "Entering {{on}}..." "SSH"
-	if [ "${USER:-}" = "nix" ]; then
-		ssh nix@{{on}}
+	if timeout 2 bash -c 'exec 3<>/dev/tcp/{{on}}/2222' 2>/dev/null; then
+		just _log "{{on}} is waiting in initrd: answering the LUKS prompt..." "SSH"
+		if [ "${USER:-}" = "nix" ]; then
+			ssh -t -p 2222 -o StrictHostKeyChecking=accept-new root@{{on}} \
+				systemd-tty-ask-password-agent --query --watch
+		else
+			sudo -i -u nix ssh -t -p 2222 -o StrictHostKeyChecking=accept-new root@{{on}} \
+				systemd-tty-ask-password-agent --query --watch
+		fi
 	else
-		sudo -i -u nix ssh nix@{{on}}
+		just _log "Entering {{on}}..." "SSH"
+		if [ "${USER:-}" = "nix" ]; then
+			ssh nix@{{on}}
+		else
+			sudo -i -u nix ssh nix@{{on}}
+		fi
 	fi
 
 # Confirmation prompt is inlined (rather than via the `[confirm]` attribute)
