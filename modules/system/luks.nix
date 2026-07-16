@@ -270,6 +270,11 @@ in
           };
           script = ''
             set -euo pipefail
+
+            # slot_of parses cryptsetup's "Key slot N unlocked" message: force
+            # the C locale so a localized system (fr_FR, …) does not turn every
+            # successful unlock test into a silent mismatch.
+            export LC_ALL=C
             cs=${pkgs.cryptsetup}/bin/cryptsetup
             awk=${pkgs.gawk}/bin/awk
             grep=${pkgs.gnugrep}/bin/grep

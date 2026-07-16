@@ -743,14 +743,23 @@ luks host action='' ip='auto':
 	# Gateways: record the current WAN IP. The VPN route to a zone dies with
 	# its gateway, so `just enter` falls back to this address to reach the
 	# initrd sshd. Refreshed at each run (ISP renumbering needs a re-run).
-	zone=$(yq -r '.hosts[] | select(.hostname == "{{host}}").zone // ""' {{workDir}}/etc/config.yaml)
+	# The gateway hostname comes from var/generated/network.nix (same source
+	# as the luks module): the raw config.yaml does not carry it, the
+	# generator derives it from the host profiles.
+	# NB: the parentheses + explicit `| .zone` matter — `select(...).zone`
+	# makes yq emit one empty line per non-matching host, corrupting $zone.
+	zone=$(yq -r '(.hosts[] | select(.hostname == "{{host}}") | .zone) // ""' {{workDir}}/etc/config.yaml)
 	zone="${zone%%:*}"
 	wanif=$(yq -r ".zones.\"$zone\".gateway.wan.interface // \"\"" {{workDir}}/etc/config.yaml)
-	gwhost=$(yq -r ".zones.\"$zone\".gateway.hostname // \"\"" {{workDir}}/etc/config.yaml)
+	gwhost=$({{nix}} eval --impure --raw \
+		--expr "(import {{workDir}}/var/generated/network.nix).zones.\"$zone\".gateway.hostname or \"\"" 2>/dev/null || echo "")
 	if [ -n "$wanif" ] && [ "$gwhost" = "{{host}}" ] ;then
 		wan=$(ssh nix@"$target" "ip -4 -o addr show dev '$wanif' scope global" 2>/dev/null \
 			| awk '{print $4}' | cut -d/ -f1 | head -1)
 		if [ -n "$wan" ] ;then
+			# The earlier _fix_fs_permissions restored usr/secrets/ ownership:
+			# reopen it for the manifest write, restore right after.
+			just _sops_before_edit
 			WAN="$wan" yq -i -p=json -o=json '."{{host}}".wan = strenv(WAN)' "$manifest"
 			just _fix_fs_permissions
 			just _log "WAN IP of {{host}} recorded: $wan" "LUKS"

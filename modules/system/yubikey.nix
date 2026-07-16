@@ -210,6 +210,13 @@ in
         systemd.services.yubikey-luks-enroll = {
           description = "Sync FIDO2 credentials into LUKS headers";
           wantedBy = [ "multi-user.target" ];
+
+          # The enrollments below are authorized by the shared passphrase, so
+          # a (re)converged passphrase keyslot must re-trigger this unit:
+          # partOf propagates every luks-passphrase-sync restart (rotation,
+          # bootstrap after reinstall) here. Dangling when the luks module is
+          # inert, which systemd ignores.
+          partOf = [ "luks-passphrase-sync.service" ];
           serviceConfig = {
             Type = "oneshot";
             RemainAfterExit = true;
