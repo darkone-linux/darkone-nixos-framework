@@ -11,9 +11,12 @@
 let
   inherit (lib)
     optional
+    optionalString
     filter
     hasAttr
     elem
+    concatStringsSep
+    escapeRegex
     ;
 
   # Profiles considered critical by default when no explicit `alert-*` feature
@@ -115,6 +118,15 @@ rec {
   # scrape target built in monitoring.nix (`<preferredIp>:<port>`).
   nodeInstance = nodeExporterPort: host: "${topology.preferredIp host}:${toString nodeExporterPort}";
 
+  # Extra label matcher excluding known-broken units from a selector, built from
+  # the `ignoredUnits` denylist (`config/alerts.nix`). Returns a fragment meant
+  # to be appended inside an existing `{...}` selector, hence the leading comma;
+  # an empty denylist yields "" and leaves the selector untouched. `name!~` takes
+  # an RE2 regex which Prometheus anchors, so unit names are regex-escaped and
+  # match exactly.
+  ignoredUnitsMatcher =
+    units: optionalString (units != [ ]) '',name!~"${concatStringsSep "|" (map escapeRegex units)}"'';
+
   # Expected service names running on a host: union of the host's declared
   # `services` attrset keys and the network-level service instances pinned to
   # that host. Only those present in `serviceUnits` yield a targeted rule.
@@ -147,13 +159,15 @@ rec {
 
   # Build the per-node rule groups (node up, systemd health, declared services).
   # `nodes` is the list already scraped by this zone's Prometheus; only nodes
-  # selected by `nodeAlertEligible` are kept.
+  # selected by `nodeAlertEligible` are kept. `ignoredUnits` mutes the generic
+  # failed-unit rule for known-broken units (cf. `ignoredUnitsMatcher`).
   mkNodeRuleGroups =
     {
       nodes,
       services,
       nodeExporterPort,
       zoneName,
+      ignoredUnits ? [ ],
     }:
     let
       watched = filter (h: nodeAlertEligible { inherit services; } h) nodes;
@@ -193,11 +207,12 @@ rec {
             };
           };
 
-          # Any systemd unit in the failed state on this node. Catches crashes of
-          # services we do not explicitly map. The failing unit is in `name`.
+          # Any systemd unit in the failed state on this node, except the ones
+          # denylisted framework-wide. Catches crashes of services we do not
+          # explicitly map. The failing unit is in `name`.
           systemdFailed = {
             alert = "SystemdUnitFailed";
-            expr = ''node_systemd_unit_state{instance="${inst}",state="failed"} == 1'';
+            expr = ''node_systemd_unit_state{instance="${inst}",state="failed"${ignoredUnitsMatcher ignoredUnits}} == 1'';
             "for" = "2m";
             labels = commonLabels;
             annotations = {
@@ -718,6 +733,7 @@ rec {
       nodeExporterPort,
       zoneName,
       thresholds ? { },
+      ignoredUnits ? [ ],
     }:
     mergeRuleGroups [
       (mkNodeRuleGroups {
@@ -726,6 +742,7 @@ rec {
           services
           nodeExporterPort
           zoneName
+          ignoredUnits
           ;
       })
       (mkResourceRuleGroups { inherit thresholds zoneName; })

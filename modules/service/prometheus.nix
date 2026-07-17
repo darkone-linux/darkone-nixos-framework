@@ -512,6 +512,7 @@ in
                 nodeExporterPort = port.nodeExporter;
                 zoneName = zone.name;
                 inherit (alerting) thresholds;
+                inherit (dnfConfig.alerts) ignoredUnits;
               })
             ]
             ++ lib.optional alerting.silenceOnRebuild (dnfLib.mkMaintenanceRuleGroups { zoneName = zone.name; })

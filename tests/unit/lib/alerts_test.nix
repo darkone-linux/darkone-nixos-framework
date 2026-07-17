@@ -19,6 +19,29 @@ let
     };
     services = { };
   };
+
+  # Rules emitted for a single same-zone node, in order: nodeDown, systemdFailed,
+  # then the per-service rules (none here: no declared service).
+  nodeRules =
+    ignoredUnits:
+    (builtins.head
+      (dnfLib.mkNodeRuleGroups {
+        nodes = [
+          {
+            hostname = "a";
+            profile = "server";
+            ip = "10.0.0.9";
+            zone = "ag";
+            features = { };
+            services = { };
+          }
+        ];
+        services = [ ];
+        nodeExporterPort = 9100;
+        zoneName = "ag";
+        inherit ignoredUnits;
+      }).groups
+    ).rules;
 in
 {
 
@@ -322,6 +345,37 @@ in
         ).rules
       ).labels.reach;
     expected = "wan";
+  };
+
+  # ----- SystemdUnitFailed denylist (mkNodeRuleGroups) -----
+  # Empty denylist (the default): the selector is left untouched, so every failed
+  # unit still alerts.
+  testSystemdFailedNoDenylist = {
+    expr = (builtins.elemAt (nodeRules [ ]) 1).expr;
+    expected = ''node_systemd_unit_state{instance="10.0.0.9:9100",state="failed"} == 1'';
+  };
+
+  # A denylisted unit is excluded by an anchored, regex-escaped `name!~` matcher:
+  # `mautrix-telegram.service` is muted, `mautrix-telegramXservice` is not.
+  testSystemdFailedDenylistEscaped = {
+    expr = (builtins.elemAt (nodeRules [ "mautrix-telegram.service" ]) 1).expr;
+    expected = ''node_systemd_unit_state{instance="10.0.0.9:9100",state="failed",name!~"mautrix-telegram\.service"} == 1'';
+  };
+
+  # Several units share one alternation matcher.
+  testSystemdFailedDenylistMultiple = {
+    expr =
+      (builtins.elemAt (nodeRules [
+        "a.service"
+        "b.timer"
+      ]) 1).expr;
+    expected = ''node_systemd_unit_state{instance="10.0.0.9:9100",state="failed",name!~"a\.service|b\.timer"} == 1'';
+  };
+
+  # The denylist must not leak into the other node rules (NodeDown here).
+  testSystemdDenylistDoesNotTouchNodeDown = {
+    expr = (builtins.head (nodeRules [ "mautrix-telegram.service" ])).expr;
+    expected = ''up{job="node",instance="10.0.0.9:9100"} == 0'';
   };
 
   # ----- mkNetworkRuleGroups (zone label + custom expr) -----

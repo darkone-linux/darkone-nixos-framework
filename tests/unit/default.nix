@@ -21,6 +21,7 @@ in
   lib_paths = import ./lib/paths_test.nix { inherit dnfLib; };
   lib_service_activation = import ./lib/service-activation_test.nix { inherit dnfLib; };
   lib_config_schema = import ./lib/config-schema_test.nix { inherit dnfLib; };
+  config_alerts = import ./config/alerts_test.nix { inherit dnfLib lib; };
   config_network = import ./config/network_test.nix { inherit dnfLib lib; };
   config_modules = import ./config/modules_test.nix { inherit dnfLib lib; };
 }
