@@ -123,9 +123,12 @@ rec {
   # to be appended inside an existing `{...}` selector, hence the leading comma;
   # an empty denylist yields "" and leaves the selector untouched. `name!~` takes
   # an RE2 regex which Prometheus anchors, so unit names are regex-escaped and
-  # match exactly.
+  # match exactly. The regex backslashes are then doubled for the enclosing
+  # PromQL string literal: Prometheus 3's parser rejects `\.` as an unknown
+  # string escape, so the `.` in `foo.service` must reach RE2 as `\\.`.
   ignoredUnitsMatcher =
-    units: optionalString (units != [ ]) '',name!~"${concatStringsSep "|" (map escapeRegex units)}"'';
+    units:
+    optionalString (units != [ ]) '',name!~"${concatStringsSep "|" (map (u: lib.escape [ "\\" ] (escapeRegex u)) units)}"'';
 
   # Expected service names running on a host: union of the host's declared
   # `services` attrset keys and the network-level service instances pinned to
