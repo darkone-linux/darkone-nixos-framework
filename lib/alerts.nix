@@ -226,12 +226,16 @@ rec {
 
           # Declared services whose expected unit is not active: enabled but not
           # running. Complements the generic failed-unit rule for the services
-          # that matter most.
+          # that matter most. The `unit` label keeps each rule's identity unique:
+          # a host running several watched services yields one ServiceDown rule
+          # per unit, and without it they would collapse to the same
+          # name+labels signature (Alertmanager collision, and a promtool
+          # `duplicate rule` lint error).
           serviceRules = map (unit: {
             alert = "ServiceDown";
             expr = ''node_systemd_unit_state{instance="${inst}",name="${unit}",state="active"} == 0'';
             "for" = "3m";
-            labels = commonLabels;
+            labels = commonLabels // { inherit unit; };
             annotations = {
               summary = "${unit} not active on ${host.hostname}";
               description = "Expected service ${unit} is not active on ${host.hostname}.";
