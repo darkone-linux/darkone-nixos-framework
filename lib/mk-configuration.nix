@@ -23,6 +23,7 @@ let
     sops-nix
     disko
     nixos-raspberrypi
+    talon-nix
     ;
 
   # NixOS state version applied to fresh hosts/homes
@@ -74,6 +75,10 @@ let
   # logseq overlay: official AppImage instead of the broken electron-forge
   # build (nixpkgs#535206). Drop once upstream fixes the source build.
   logseqOverlay = import ./overlays/logseq.nix;
+
+  # Talon overlay: `pkgs.talon` from nix-community/talon-nix (x86_64 only,
+  # attribute absent elsewhere). Consumed by gaze-driven host profiles.
+  talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
 
   # Per-system nixpkgs instances
   nixpkgsFor = forAllSystems (
@@ -190,6 +195,7 @@ let
             oxicloudOverlay
             gimpOverlay
             logseqOverlay
+            (talonOverlay system)
           ];
         }
 
