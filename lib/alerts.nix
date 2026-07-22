@@ -123,9 +123,12 @@ rec {
   # to be appended inside an existing `{...}` selector, hence the leading comma;
   # an empty denylist yields "" and leaves the selector untouched. `name!~` takes
   # an RE2 regex which Prometheus anchors, so unit names are regex-escaped and
-  # match exactly.
+  # match exactly. The regex backslashes are then doubled for the enclosing
+  # PromQL string literal: Prometheus 3's parser rejects `\.` as an unknown
+  # string escape, so the `.` in `foo.service` must reach RE2 as `\\.`.
   ignoredUnitsMatcher =
-    units: optionalString (units != [ ]) '',name!~"${concatStringsSep "|" (map escapeRegex units)}"'';
+    units:
+    optionalString (units != [ ]) '',name!~"${concatStringsSep "|" (map (u: lib.escape [ "\\" ] (escapeRegex u)) units)}"'';
 
   # Expected service names running on a host: union of the host's declared
   # `services` attrset keys and the network-level service instances pinned to
@@ -223,12 +226,16 @@ rec {
 
           # Declared services whose expected unit is not active: enabled but not
           # running. Complements the generic failed-unit rule for the services
-          # that matter most.
+          # that matter most. The `unit` label keeps each rule's identity unique:
+          # a host running several watched services yields one ServiceDown rule
+          # per unit, and without it they would collapse to the same
+          # name+labels signature (Alertmanager collision, and a promtool
+          # `duplicate rule` lint error).
           serviceRules = map (unit: {
             alert = "ServiceDown";
             expr = ''node_systemd_unit_state{instance="${inst}",name="${unit}",state="active"} == 0'';
             "for" = "3m";
-            labels = commonLabels;
+            labels = commonLabels // { inherit unit; };
             annotations = {
               summary = "${unit} not active on ${host.hostname}";
               description = "Expected service ${unit} is not active on ${host.hostname}.";

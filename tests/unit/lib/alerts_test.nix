@@ -359,7 +359,7 @@ in
   # `mautrix-telegram.service` is muted, `mautrix-telegramXservice` is not.
   testSystemdFailedDenylistEscaped = {
     expr = (builtins.elemAt (nodeRules [ "mautrix-telegram.service" ]) 1).expr;
-    expected = ''node_systemd_unit_state{instance="10.0.0.9:9100",state="failed",name!~"mautrix-telegram\.service"} == 1'';
+    expected = ''node_systemd_unit_state{instance="10.0.0.9:9100",state="failed",name!~"mautrix-telegram\\.service"} == 1'';
   };
 
   # Several units share one alternation matcher.
@@ -369,13 +369,49 @@ in
         "a.service"
         "b.timer"
       ]) 1).expr;
-    expected = ''node_systemd_unit_state{instance="10.0.0.9:9100",state="failed",name!~"a\.service|b\.timer"} == 1'';
+    expected = ''node_systemd_unit_state{instance="10.0.0.9:9100",state="failed",name!~"a\\.service|b\\.timer"} == 1'';
   };
 
   # The denylist must not leak into the other node rules (NodeDown here).
   testSystemdDenylistDoesNotTouchNodeDown = {
     expr = (builtins.head (nodeRules [ "mautrix-telegram.service" ])).expr;
     expected = ''up{job="node",instance="10.0.0.9:9100"} == 0'';
+  };
+
+  # ----- ServiceDown per-unit label -----
+  # A host running several watched services yields one ServiceDown rule per unit,
+  # each tagged with a distinct `unit` label. Without it the rules would share the
+  # same name+labels signature (Alertmanager collision + promtool duplicate lint).
+  testServiceDownUnitLabels = {
+    expr =
+      map (r: r.labels.unit) (
+        builtins.filter (r: (r.alert or "") == "ServiceDown") (
+          (builtins.head
+            (dnfLib.mkNodeRuleGroups {
+              nodes = [
+                {
+                  hostname = "a";
+                  profile = "server";
+                  ip = "10.0.0.9";
+                  zone = "ag";
+                  features = { };
+                  services = {
+                    forgejo = { };
+                    headscale = { };
+                  };
+                }
+              ];
+              services = [ ];
+              nodeExporterPort = 9100;
+              zoneName = "ag";
+            }).groups
+          ).rules
+        )
+      );
+    expected = [
+      "forgejo.service"
+      "headscale.service"
+    ];
   };
 
   # ----- mkNetworkRuleGroups (zone label + custom expr) -----
