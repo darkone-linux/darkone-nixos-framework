@@ -255,10 +255,20 @@ in
                 picture-uri-dark = "${pkgs.nixos-artwork.wallpapers.simple-blue.gnomeFilePath}";
               };
               "org/gnome/desktop/wm/keybindings" = {
-                switch-applications = [ "<Super>Tab" ];
-                switch-applications-backward = [ "<Shift><Super>Tab" ];
-                switch-windows = [ "<Alt>Tab" ];
-                switch-windows-backward = [ "<Shift><Alt>Tab" ];
+
+                # Flat window switching only: every shortcut cycles individual
+                # windows. The app-grouped switcher hides instances behind one
+                # icon (must hover to reveal them), so it is disabled.
+                switch-applications = [ ];
+                switch-applications-backward = [ ];
+                switch-windows = [
+                  "<Super>Tab"
+                  "<Alt>Tab"
+                ];
+                switch-windows-backward = [
+                  "<Shift><Super>Tab"
+                  "<Shift><Alt>Tab"
+                ];
               };
               "org/gnome/desktop/peripherals/touchpad" = {
                 click-method = "areas";
