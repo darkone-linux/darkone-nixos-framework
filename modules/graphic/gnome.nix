@@ -259,8 +259,8 @@ in
                 # Flat window switching only: every shortcut cycles individual
                 # windows. The app-grouped switcher hides instances behind one
                 # icon (must hover to reveal them), so it is disabled.
-                switch-applications = [ ];
-                switch-applications-backward = [ ];
+                switch-applications = gvariant.mkEmptyArray gvariant.type.string;
+                switch-applications-backward = gvariant.mkEmptyArray gvariant.type.string;
                 switch-windows = [
                   "<Super>Tab"
                   "<Alt>Tab"
