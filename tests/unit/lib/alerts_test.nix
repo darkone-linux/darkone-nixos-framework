@@ -383,31 +383,30 @@ in
   # each tagged with a distinct `unit` label. Without it the rules would share the
   # same name+labels signature (Alertmanager collision + promtool duplicate lint).
   testServiceDownUnitLabels = {
-    expr =
-      map (r: r.labels.unit) (
-        builtins.filter (r: (r.alert or "") == "ServiceDown") (
-          (builtins.head
-            (dnfLib.mkNodeRuleGroups {
-              nodes = [
-                {
-                  hostname = "a";
-                  profile = "server";
-                  ip = "10.0.0.9";
-                  zone = "ag";
-                  features = { };
-                  services = {
-                    forgejo = { };
-                    headscale = { };
-                  };
-                }
-              ];
-              services = [ ];
-              nodeExporterPort = 9100;
-              zoneName = "ag";
-            }).groups
-          ).rules
-        )
-      );
+    expr = map (r: r.labels.unit) (
+      builtins.filter (r: (r.alert or "") == "ServiceDown") (
+        (builtins.head
+          (dnfLib.mkNodeRuleGroups {
+            nodes = [
+              {
+                hostname = "a";
+                profile = "server";
+                ip = "10.0.0.9";
+                zone = "ag";
+                features = { };
+                services = {
+                  forgejo = { };
+                  headscale = { };
+                };
+              }
+            ];
+            services = [ ];
+            nodeExporterPort = 9100;
+            zoneName = "ag";
+          }).groups
+        ).rules
+      )
+    );
     expected = [
       "forgejo.service"
       "headscale.service"

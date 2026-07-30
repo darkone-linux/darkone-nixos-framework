@@ -128,7 +128,8 @@ rec {
   # string escape, so the `.` in `foo.service` must reach RE2 as `\\.`.
   ignoredUnitsMatcher =
     units:
-    optionalString (units != [ ]) '',name!~"${concatStringsSep "|" (map (u: lib.escape [ "\\" ] (escapeRegex u)) units)}"'';
+    optionalString (units != [ ])
+      '',name!~"${concatStringsSep "|" (map (u: lib.escape [ "\\" ] (escapeRegex u)) units)}"'';
 
   # Expected service names running on a host: union of the host's declared
   # `services` attrset keys and the network-level service instances pinned to
@@ -235,7 +236,9 @@ rec {
             alert = "ServiceDown";
             expr = ''node_systemd_unit_state{instance="${inst}",name="${unit}",state="active"} == 0'';
             "for" = "3m";
-            labels = commonLabels // { inherit unit; };
+            labels = commonLabels // {
+              inherit unit;
+            };
             annotations = {
               summary = "${unit} not active on ${host.hostname}";
               description = "Expected service ${unit} is not active on ${host.hostname}.";
