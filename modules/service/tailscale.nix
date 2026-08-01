@@ -162,24 +162,27 @@ in
       # Register zone network addresses and connect to server
       # TODO: make these parameters set at tailscaled startup,
       #       for now must manually use "set" to apply settings.
+      # Boolean flags MUST be written `--flag=value`: Go's flag parser treats a
+      # space-separated `--accept-dns false` as flag + positional, stops parsing
+      # there and aborts with "too many non-flag arguments" — the whole `up`
+      # fails and the node never registers.
       extraUpFlags = [
         "--login-server"
         "https://${hcsFqdn}"
         (lib.mkIf cfg.isExitNode "--advertise-exit-node")
         "--accept-routes"
-        "--accept-dns"
 
         # NOTE: for now we can leave false but we no longer have MagicDNS, it is
         # dnsmasq that manages DNS behind AGH. But this is complicated and not very clean.
         # Solution to investigate: tailscale manages DNS with AGH as intermediary.
-        (lib.mkIf cfg.isGateway "false")
+        (if cfg.isGateway then "--accept-dns=false" else "--accept-dns")
         "--reset" # Reload.
       ]
       ++ lib.optionals cfg.isGateway [
-        "--advertise-routes"
-        "${zone.networkIp}/${toString zone.prefixLength}"
-        "--snat-subnet-routes" # source NAT traffic to local routes advertised with --advertise-routes
-        "false"
+        "--advertise-routes=${gatewaySubnet}"
+
+        # Source NAT traffic to local routes advertised with --advertise-routes.
+        "--snat-subnet-routes=false"
       ];
     };
 
