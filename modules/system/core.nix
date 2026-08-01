@@ -140,6 +140,24 @@ in
       (workDir + "/usr/secrets/nix.pub")
     ];
 
+    # Deploy account: never pin fleet host keys.
+    #
+    # Reinstalling a node re-keys it, and the new key then reads as a MITM
+    # attack: every deploy aborts on REMOTE HOST IDENTIFICATION HAS CHANGED
+    # until the stale entry is purged by hand, on each admin host — for an
+    # event that is routine here, not hostile. Recording nothing removes the
+    # failure mode instead of chasing its symptoms.
+    #
+    # Scoped to `nix@` (colmena's targetUser, and every `sudo -u nix ssh` of
+    # the Justfile): human sessions keep full host key verification.
+    # `extraConfig` is emitted before the generated `Host *`, so it wins.
+    programs.ssh.extraConfig = ''
+      Match user nix
+        StrictHostKeyChecking no
+        UserKnownHostsFile /dev/null
+        LogLevel ERROR
+    '';
+
     # Nix store optimize and GC
     nix.optimise.automatic = true;
     nix.optimise.dates = [ "03:45" ];

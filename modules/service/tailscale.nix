@@ -349,7 +349,7 @@ in
             -avz \
             --delete \
             --timeout=30 \
-            -e "${pkgs.openssh}/bin/ssh -o StrictHostKeyChecking=accept-new" \
+            -e "${pkgs.openssh}/bin/ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
             --rsync-path="sudo -u caddy rsync" \
             nix@${hcsInternalFqdn}:${caddyStorage}/ \
             ${caddyStorTmp}/
