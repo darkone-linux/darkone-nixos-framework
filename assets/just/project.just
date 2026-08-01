@@ -93,16 +93,155 @@ update-dnf:
 # Installation
 #==============================================================================
 
+# Address to reach {{host}} from the machine running just.
+#
+# Its own name when both sit in the same zone. Otherwise the address the local
+# zone reserves for it: every gateway holds a DHCP reservation for each known
+# fleet MAC that is not native to its zone (`zone.roaming`, generated), so a
+# machine plugged anywhere is predictable before it has even booted.
+#
+# The local zone is the one whose gateway actually routes this machine, NOT the
+# zone it is declared in — an admin laptop is precisely the thing that moves.
+# Declaration is only the fallback (deploying over the VPN, gateway itself).
+#
+# Falls back to the host name when nothing matches: a host with no declared MAC
+# is simply not reachable outside its zone.
+_target host:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	gw=$(ip -4 route show default 2>/dev/null | awk '{print $3; exit}' || true)
+	{{nix}} eval --raw --impure --expr '
+	  let
+	    hosts = import {{workDir}}/var/generated/hosts.nix;
+	    network = import {{workDir}}/var/generated/network.nix;
+	    findHost = n:
+	      let matches = builtins.filter (h: h.hostname == n) hosts;
+	      in if matches == [ ] then null else builtins.head matches;
+	    localZones = builtins.filter (z: z.name != "www") (builtins.attrValues network.zones);
+	    routedBy = builtins.filter (z: (z.gateway.lan.ip or "") == "'"$gw"'") localZones;
+	    me = findHost "'"$(hostname -s)"'";
+	    here =
+	      if routedBy != [ ] then builtins.head routedBy
+	      else if me != null then network.zones.${me.zone} or null
+	      else null;
+	    target = findHost "{{host}}";
+	  in
+	  if here == null || target == null || target.zone == here.name
+	  then "{{host}}"
+	  else here.roaming."{{host}}" or "{{host}}"
+	'
+
+# Resolve a recipe's `target`/`ip` parameter: 'auto' asks `_target`.
+_resolve host target:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	if [ "{{target}}" = "auto" ] ;then
+		just _target "{{host}}"
+	else
+		echo "{{target}}"
+	fi
+
+# Wait for a target to come up (or go down) on ssh.
+#
+# Deliberately not `ping`: a gateway drops ICMP everywhere but on its LAN
+# bridge (cf. `modules/service/dnsmasq.nix`), so a box reached from another
+# zone never answers a ping while its ssh port is wide open.
+_wait-ssh target state='up' timeout='600':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	deadline=$(( $(date +%s) + {{timeout}} ))
+	printf 'Waiting for {{target}} to be {{state}}'
+	while : ;do
+		if timeout 2 bash -c ': < /dev/tcp/{{target}}/22' 2>/dev/null ;then
+			current=up
+		else
+			current=down
+		fi
+		[ "$current" != "{{state}}" ] || break
+		if [ "$(date +%s)" -ge "$deadline" ] ;then
+			printf ' timeout\n'
+			just _fail "{{target}} is still not {{state}} after {{timeout}}s."
+		fi
+		printf '.'
+		sleep 2
+	done
+	printf ' OK\n'
+
+# Route ssh to a host that sits outside its own zone.
+#
+# Colmena addresses a node by its name, which DNS resolves to the host's HOME
+# address — deploying into the void while the machine is plugged elsewhere.
+# A stanza in the nix user's ssh config redirects it, and ssh, scp and colmena
+# all honour it without knowing anything about zones. `full-install` clears it
+# once the host is configured; call `roaming-clear` after a manual `configure`.
+#
+# No argument: show the current redirections.
+[group('install')]
+roaming host='' target='auto':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just roaming "{{host}}" "{{target}}"
+	conf=~/.ssh/dnf-roaming.conf
+	mkdir -p ~/.ssh
+	touch "$conf" && chmod 600 "$conf"
+	if [ -z "{{host}}" ] ;then
+		if [ -s "$conf" ] ;then
+			cat "$conf"
+		else
+			just _info "No roaming redirection." "SSH"
+		fi
+		exit 0
+	fi
+	t=$(just _resolve "{{host}}" "{{target}}")
+	[ "$t" != "{{host}}" ] || just _fail "{{host}} resolves to itself: nothing to redirect."
+	just roaming-clear "{{host}}"
+
+	# accept-new: the host key is bound to the alias, not to the address
+	# copy-id trusted, so the first colmena run would otherwise stop and ask.
+	cat >> "$conf" <<-EOF
+		Host {{host}}
+		  HostName $t
+		  StrictHostKeyChecking accept-new
+	EOF
+
+	# The `Include` that pulls this file in is declared by home-manager
+	# (`programs.ssh.includes`): on an admin host that predates it, the file is
+	# written but ssh never reads it — better said than silently ignored.
+	if [ "$(ssh -G "{{host}}" 2>/dev/null | awk '$1 == "hostname" { print $2; exit }')" != "$t" ] ;then
+		just _warn "ssh does not read dnf-roaming.conf: re-apply this admin host, then retry."
+	fi
+	just _log "{{host}} redirected to $t." "SSH"
+
+# Drop the roaming redirection of one host (or of all of them)
+[group('install')]
+roaming-clear host='':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just roaming-clear "{{host}}"
+	conf=~/.ssh/dnf-roaming.conf
+	[ -f "$conf" ] || exit 0
+	if [ -z "{{host}}" ] ;then
+		: > "$conf"
+		just _log "All roaming redirections dropped." "SSH"
+		exit 0
+	fi
+
+	# `skip` stays set until the next Host line, dropping the whole stanza.
+	tmp=$(mktemp)
+	awk -v h="{{host}}" '$1 == "Host" { skip = ($2 == h) } !skip' "$conf" > "$tmp"
+	mv "$tmp" "$conf"
+	chmod 600 "$conf"
+
 # Copy pub key to the node (nix user must exist)
 #
-# `target` is the network address to reach the node; 'auto' = the host name.
-# A freshly installed host is often only reachable by IP (fresh DHCP lease), so
-# the bootstrap flow passes it explicitly while the machine identity stays {{host}}.
+# `target` is the network address to reach the node; 'auto' asks `_target`,
+# which returns the host name in its own zone and the reserved roaming address
+# elsewhere. The machine identity stays {{host}} whatever the address used.
 [group('install')]
 copy-id host target='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	t="{{target}}"; [ "$t" != "auto" ] || t="{{host}}"
+	t=$(just _resolve "{{host}}" "{{target}}")
 	if sudo -i -u nix ssh -o PreferredAuthentications=publickey -o PasswordAuthentication=no -o BatchMode=yes nix@"$t" "true"; then
 		just _info "SSH key already exists for {{host}}, continue..." "SSH"
 	else
@@ -212,13 +351,13 @@ configure-admin-host:
 
 # Extract hardware config from host
 #
-# `target`: network address to reach the node ('auto' = host name). The
-# extracted config is always stored under the machine identity {{host}}.
+# `target`: network address to reach the node ('auto' = resolved by `_target`).
+# The extracted config is always stored under the machine identity {{host}}.
 [group('install')]
 copy-hw host target='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	t="{{target}}"; [ "$t" != "auto" ] || t="{{host}}"
+	t=$(just _resolve "{{host}}" "{{target}}")
 	just _log "Extracting hardware information..."
 	mkdir -p usr/machines/{{host}}
 	sudo -i -u nix ssh nix@"$t" "sudo nixos-generate-config --no-filesystems --show-hardware-config" > {{workDir}}/usr/machines/{{host}}/hardware-configuration.nix
@@ -226,13 +365,13 @@ copy-hw host target='auto':
 
 # Push the infrastructure key to the host
 #
-# `target`: network address to reach the node ('auto' = host name).
+# `target`: network address to reach the node ('auto' = resolved by `_target`).
 [group('install')]
 push-key host target='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just push-key "{{host}}" "{{target}}"
-	t="{{target}}"; [ "$t" != "auto" ] || t="{{host}}"
+	t=$(just _resolve "{{host}}" "{{target}}")
 	just _check_infra_admin
 	just _log "Pushing infra key file..." "SOPS"
 	ssh nix@"$t" 'sudo mkdir -p {{sopsInfraTargetDir}}'
@@ -260,11 +399,7 @@ install host user='nix' ip='auto' do='install':
 		just _fail "Host '{{host}}' not found. Check it exists and has a disko config in etc/config.yaml."
 	fi
 	echo "{ }" > ./usr/machines/{{host}}/hardware-configuration.nix
-	if [ "{{ip}}" == "auto" ]; then
-		TARGET_HOST="{{host}}"
-	else
-		TARGET_HOST="{{ip}}"
-	fi
+	TARGET_HOST=$(just _resolve "{{host}}" "{{ip}}")
 	just _log "Sops updates..."
 	just passwd-restic
 	just _fix_fs_permissions
@@ -325,10 +460,11 @@ install-key host:
 	just _log "End of key installation"
 
 # Get a mac address
-_host-info host:
+_host-info host target='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	MAC_ADDR=`sudo -i -u nix ssh -o StrictHostKeyChecking=no -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@{{host}} "ip -o link show up | grep -v 'lo:' | head -n 1 | sed 's/^.* \([0-9a-f:]*\) brd .*$/\1/'"`
+	t=$(just _resolve "{{host}}" "{{target}}")
+	MAC_ADDR=`sudo -i -u nix ssh -o StrictHostKeyChecking=no -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@"$t" "ip -o link show up | grep -v 'lo:' | head -n 1 | sed 's/^.* \([0-9a-f:]*\) brd .*$/\1/'"`
 	just _log "You can register the mac address in etc/config.yaml: {{GREEN}}$MAC_ADDR{{NORMAL}}"
 
 # Auto-switching here means the chained `copy-id` / `copy-hw` / `push-key`
@@ -336,46 +472,54 @@ _host-info host:
 #
 # New host: ssh cp id, extr. hw, push infra key, clean, info
 #
-# `ip`: network address to reach the node ('auto' = host name). Pass an explicit
-# IP when the freshly installed host is not yet resolvable by name.
+# `ip`: network address to reach the node ('auto' = resolved by `_target`).
+# Configuring a host that sits outside its own zone also installs the ssh
+# redirection, so the `apply` that follows reaches it instead of its home
+# address; `just roaming-clear {{host}}` drops it once the host is back home.
 [group('install')]
 configure host ip='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	just _check_infra_admin
-	just copy-id "{{host}}" "{{ip}}"
-	just copy-hw "{{host}}" "{{ip}}"
-	just push-key "{{host}}" "{{ip}}"
+	t=$(just _resolve "{{host}}" "{{ip}}")
+	just copy-id "{{host}}" "$t"
+	just copy-hw "{{host}}" "$t"
+	just push-key "{{host}}" "$t"
 
 	# LUKS provisioning is a no-op on unencrypted hosts and idempotent on
 	# encrypted ones (secrets/manifest/initrd key created only when missing).
-	just luks "{{host}}" '' "{{ip}}"
+	just luks "{{host}}" '' "$t"
+	[ "$t" = "{{host}}" ] || just roaming "{{host}}" "$t"
 	just _log "If no error occurs, do not forget to commit and apply:"
 	just _log "git add . && git commit -m 'Installing new host {{host}}'"
 	just _log "just apply-verbose {{host}}"
-	just _host-info "{{host}}"
+	just _host-info "{{host}}" "$t"
 
 # New host: full installation (install, configure, apply)
+#
+# One address for the whole run: `_target` gives the host name when it is
+# installed at home, and the address its host zone reserves for it otherwise.
+# The reservation is a DHCP one, keyed on the MAC, so the installer and the
+# installed system land on the very same address — nothing to type, nothing to
+# guess. Requires the local gateway to be up to date (`just apply <gateway>`)
+# when the host has just been declared in etc/config.yaml.
 [group('install')]
 full-install host user='nixos' ip='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	just install {{host}} {{user}} {{ip}}
+	target=$(just _resolve "{{host}}" "{{ip}}")
+	if [ "$target" != "{{host}}" ] ;then
+		just _log "{{host}} sits outside its own zone, reachable at $target." "INSTALL"
+	fi
+	just install {{host}} {{user}} "$target"
 	just _log "Waiting for reboot..."
 
-	# The host can come back on a different IP (fresh DHCP lease once the real
-	# NixOS config boots) and stop resolving by name. While we poll, let the
-	# operator type the new address without breaking the flow; empty input (or a
-	# 5s idle timeout) just keeps waiting. `target` then feeds `configure`.
-	target="{{host}}"
-	until ping -c1 -W1 "$target" >/dev/null 2>&1; do
-		if read -t 5 -r -p "Waiting for $target — type a new IP to retarget (or Enter to keep waiting): " newip && [ -n "$newip" ] ;then
-			target="$newip"
-			just _log "Retargeting to $target..." "INSTALL"
-		fi
-	done
-	echo "Oh, $target is up, waiting 2s and continue... :)"
-	sleep 2
+	# nixos-anywhere returns while the installer still answers on ssh: watch the
+	# machine go down before waiting for it to come back, or `configure` would
+	# talk to a system about to vanish. Non-fatal — a fast reboot can be over
+	# before the first poll.
+	just _wait-ssh "$target" down 180 || true
+	just _wait-ssh "$target" up
 	just configure {{host}} "$target"
 	just _log "Let's do that automatically..."
 	#just _fix_fs_permissions
@@ -386,6 +530,10 @@ full-install host user='nixos' ip='auto':
 	just gc {{host}}
 	just _log "Last reboot..."
 	sudo -i -u nix colmena exec --config "{{workDir}}/flake.nix" --on "{{host}}" "nohup bash -c 'sleep 1; systemctl reboot' >/dev/null 2>&1 &"
+
+	# The redirection was only meant to survive the install: from here the host
+	# answers under its own name, at home or wherever it is next plugged in.
+	just roaming-clear "{{host}}"
 	just _done
 	just _log "Don't forget to comment or remove disko config in etc/config.yaml."
 
@@ -680,7 +828,7 @@ luks host action='' ip='auto':
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just luks "{{host}}" "{{action}}" "{{ip}}"
 	case "{{action}}" in ''|passwd) ;; *) just _fail "Unknown action '{{action}}' — valid: passwd" ;; esac
 	manifest={{secretsDir}}/luks.json
-	target="{{host}}" ; [ "{{ip}}" = "auto" ] || target="{{ip}}"
+	target=$(just _resolve "{{host}}" "{{ip}}")
 	yq -e '.hosts[] | select(.hostname == "{{host}}")' {{workDir}}/etc/config.yaml >/dev/null 2>&1 \
 		|| just _fail "Unknown host '{{host}}' (see etc/config.yaml)."
 

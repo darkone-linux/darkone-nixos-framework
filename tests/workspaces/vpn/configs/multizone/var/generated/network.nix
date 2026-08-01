@@ -61,6 +61,7 @@
         server = [ ];
         host-record = [ "hcs,hcs.z1.test.local,10.10.1.5" ];
       };
+      roaming = { };
     };
     z2 = {
       description = "Test zone 2";
@@ -90,6 +91,7 @@
         server = [ ];
         host-record = [ "hcs,hcs.z1.test.local,10.10.1.5" ];
       };
+      roaming = { };
     };
   };
 }

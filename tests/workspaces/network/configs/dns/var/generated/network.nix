@@ -66,6 +66,7 @@
           "node2,node2.z1.test.local,10.10.1.2"
         ];
       };
+      roaming = { };
     };
   };
 }

@@ -4,6 +4,16 @@
 # This configuration reads the `network` conf in `config.yaml` file.
 # It is the essential functionality of the local gateway.
 # :::
+#
+# :::tip[Hosts visiting from another zone]
+# Every zone reserves `<ipPrefix>.6.0/24` for hosts whose home is elsewhere.
+# The generator emits, in `zone.extraDnsmasqSettings`, one `dhcp-host` per
+# known fleet MAC that is not native here, plus a `host-record` binding
+# `<host>.<this-zone-domain>` to that address — so a machine plugged into the
+# wrong zone (installing a gateway, a roaming laptop) still gets a predictable
+# lease and a name. Its short name keeps resolving to its home address.
+# `zone.roaming` exposes the same table to the install tooling.
+# :::
 
 {
   lib,
@@ -196,6 +206,13 @@ in
           # https://man.archlinux.org/man/dnsmasq.8.fr#K,
           dhcp-authoritative = true;
           no-dhcp-interface = "lo";
+
+          # Key leases on the MAC address, never on the DHCP client identifier
+          # (option 61). An install ISO (dhcpcd) and the installed system
+          # (networkd) advertise different identifiers for the same NIC:
+          # dnsmasq would see two machines and hand out two addresses, so a
+          # freshly installed host silently changed IP at its first real boot.
+          dhcp-ignore-clid = true;
 
           # Use headscale DNS if we are a tailnet subnet (null)
           #server = lib.optional isTailscaleSubnet "100.100.100.100";

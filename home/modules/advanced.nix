@@ -562,6 +562,12 @@ in
       settings."*".SetEnv = {
         TERM = "xterm-256color";
       };
+
+      # Redirections written by `just roaming` for hosts plugged outside their
+      # own zone. Included first so it wins over the settings below; a missing
+      # file is silently ignored by ssh, so this costs nothing to the users who
+      # never install anything.
+      includes = [ "dnf-roaming.conf" ];
     };
 
     # Used by git

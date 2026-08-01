@@ -55,6 +55,7 @@
         server = [ ];
         host-record = [ "node1,node1.z1.test.local,10.10.1.1" ];
       };
+      roaming = { };
     };
   };
 }
