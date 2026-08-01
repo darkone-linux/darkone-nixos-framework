@@ -206,6 +206,13 @@ in
         };
       };
 
+      # On SIGTERM, Loki flushes its in-memory chunks and index to disk, which
+      # can hold the shutdown for the full systemd default (90s) and shows up
+      # as "a stop job is running for Loki Service" at halt/reboot. Access logs
+      # are non-critical observability data: cap the wait, the last seconds of
+      # unflushed chunks are replayed/re-ingested from the WAL on next start.
+      systemd.services.loki.serviceConfig.TimeoutStopSec = 5;
+
       services.grafana.provision.datasources.settings = {
 
         # `deleteDatasources` purges any pre-existing "Loki" entry from the
