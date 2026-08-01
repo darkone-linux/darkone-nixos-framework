@@ -354,6 +354,12 @@ in
         # systemd's StateDirectory does not chown recursively and tmpfiles only
         # runs at boot (not on switch).
         ExecStartPre = [ "+${pkgs.coreutils}/bin/chown -R caddy:caddy /var/lib/alloy" ];
+
+        # Same rationale as Loki: on SIGTERM Alloy drains its pending batches
+        # towards Loki, which stalls halt/reboot when the monitoring host is
+        # already down or unreachable. Unsent lines are re-tailed from the
+        # positions file on next start.
+        TimeoutStopSec = 5;
       };
     })
   ];
