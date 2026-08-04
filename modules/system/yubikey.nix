@@ -167,6 +167,15 @@ in
           pkgs.libfido2
           pkgs.yubikey-personalization
         ];
+
+        # libfido2 ships 70-u2f.rules, whose 101 rules each end with
+        # `TAG+="uaccess", GROUP="plugdev"`. `plugdev` is a Debian convention
+        # NixOS never creates, so udev logs one "Failed to resolve group" warning
+        # per rule on every reload. Purely cosmetic — access is actually granted
+        # by the uaccess tag, which makes logind set an ACL for the active local
+        # session; the group is only the legacy fallback for non-systemd
+        # distributions. Declaring it empty just silences the noise.
+        users.groups.plugdev = { };
       }
 
       #========================================================================
