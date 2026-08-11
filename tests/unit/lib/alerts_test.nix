@@ -491,10 +491,12 @@ in
   };
 
   # ----- mkResticRuleGroups -----
+  # `host` is part of the `by (...)` clause: an aggregation drops every label it
+  # does not group on, which would cost the alert its hostname in Matrix.
   testResticStaleExpr = {
     expr =
       (builtins.head (builtins.head (dnfLib.mkResticRuleGroups { zoneName = "ag"; }).groups).rules).expr;
-    expected = "time() - max by (instance, job) (dnf_restic_last_success_timestamp) > 129600";
+    expected = "time() - max by (instance, job, host) (dnf_restic_last_success_timestamp) > 129600";
   };
 
   # ----- mkSmartctlRuleGroups -----
@@ -529,5 +531,153 @@ in
   testTailscaleGroupName = {
     expr = (builtins.head (dnfLib.mkTailscaleRuleGroups { zoneName = "ag"; }).groups).name;
     expected = "dnf-tailscale-ag";
+  };
+
+  # ----- host label -----
+  # Node rules carry the hostname under `host`, the label the Matrix bot renders
+  # on the title line ("<alert> at ms-a2") instead of the raw `<ip>:<port>`.
+  testNodeRuleHostLabel = {
+    expr = (builtins.head (nodeRules [ ])).labels.host;
+    expected = "a";
+  };
+
+  # Generic (zone-wide) rules cannot know the hostname at eval time: they get
+  # `host` from the scrape target. The instance therefore has to travel in the
+  # description, which is the only annotation the bot renders.
+  testResourceDescriptionCarriesInstance = {
+    expr =
+      (builtins.head
+        (builtins.head
+          (dnfLib.mkResourceRuleGroups {
+            zoneName = "ag";
+            thresholds = { };
+          }).groups
+        ).rules
+      ).annotations.description;
+    expected = "{{ $labels.mountpoint }} below 15% free on {{ $labels.instance }}.";
+  };
+
+  testSynapseErrorRateGroupsHost = {
+    expr =
+      (builtins.elemAt (builtins.head (dnfLib.mkSynapseRuleGroups { zoneName = "ag"; }).groups).rules 1)
+      .expr;
+    expected = ''sum by (instance, host) (rate(synapse_http_server_responses_total{job="synapse",code=~"5.."}[15m])) / sum by (instance, host) (rate(synapse_http_server_responses_total{job="synapse"}[15m])) > 0.05'';
+  };
+
+  # ----- mkSilenceRoutes -----
+  testSilenceRoutesEmpty = {
+    expr = dnfLib.mkSilenceRoutes [ ];
+    expected = [ ];
+  };
+
+  # Minimal entry: only `alertname` is constrained, so the alert is muted on
+  # every host and every label combination.
+  testSilenceRouteMinimal = {
+    expr = dnfLib.mkSilenceRoutes [
+      {
+        alert = "DiskSpaceLow";
+        reason = "documented elsewhere";
+      }
+    ];
+    expected = [
+      {
+        matchers = [ ''alertname="DiskSpaceLow"'' ];
+        receiver = "null";
+      }
+    ];
+  };
+
+  # Full entry: alertname first, then host, then the extra matchers sorted by
+  # label name (attrset iteration order). All ANDed by Alertmanager.
+  testSilenceRouteFull = {
+    expr = dnfLib.mkSilenceRoutes [
+      {
+        alert = "DiskSpaceLow";
+        host = "ms-a2";
+        matchers = {
+          mountpoint = "/mnt/backup";
+          device = "/dev/sdb";
+        };
+        reason = "backup disk intentionally near full";
+      }
+    ];
+    expected = [
+      {
+        matchers = [
+          ''alertname="DiskSpaceLow"''
+          ''host="ms-a2"''
+          ''device="/dev/sdb"''
+          ''mountpoint="/mnt/backup"''
+        ];
+        receiver = "null";
+      }
+    ];
+  };
+
+  # A null (or empty) host yields no `host` matcher: the silence stays fleet-wide
+  # instead of accidentally matching a host literally named "null".
+  testSilenceRouteNullHost = {
+    expr =
+      (builtins.head (
+        dnfLib.mkSilenceRoutes [
+          {
+            alert = "ClockSkew";
+            host = null;
+            reason = "r";
+          }
+        ]
+      )).matchers;
+    expected = [ ''alertname="ClockSkew"'' ];
+  };
+  testSilenceRouteEmptyHost = {
+    expr =
+      (builtins.head (
+        dnfLib.mkSilenceRoutes [
+          {
+            alert = "ClockSkew";
+            host = "";
+            reason = "r";
+          }
+        ]
+      )).matchers;
+    expected = [ ''alertname="ClockSkew"'' ];
+  };
+
+  # Values are interpolated into a quoted matcher string, so `"` and `\` must be
+  # escaped or the emitted Alertmanager config would not parse.
+  testSilenceRouteEscaping = {
+    expr =
+      (builtins.head (
+        dnfLib.mkSilenceRoutes [
+          {
+            alert = "SystemdUnitFailed";
+            matchers.name = ''a"b\c'';
+            reason = "r";
+          }
+        ]
+      )).matchers;
+    expected = [
+      ''alertname="SystemdUnitFailed"''
+      ''name="a\"b\\c"''
+    ];
+  };
+
+  # Several silences yield one independent route each.
+  testSilenceRoutesMultiple = {
+    expr = builtins.length (
+      dnfLib.mkSilenceRoutes [
+        {
+          alert = "DiskSpaceLow";
+          host = "ms-a2";
+          reason = "r";
+        }
+        {
+          alert = "ClockSkew";
+          host = "gw";
+          reason = "r";
+        }
+      ]
+    );
+    expected = 2;
   };
 }

@@ -1,4 +1,4 @@
-# DNF — Prometheus alert rule generation
+# DNF — Prometheus alert rule generation + Alertmanager routing fragments
 #
 # Pure helpers that turn the network topology (the hosts scraped by a zone's
 # Prometheus) into Prometheus rule groups, ready to be serialised to YAML/JSON
@@ -6,6 +6,10 @@
 # what is actually deployed: a node's class (critical/non-critical/disabled) and
 # the units it runs drive both the rules emitted and their severity. All
 # functions are total and side-effect free.
+#
+# `mkSilenceRoutes` is the odd one out: it emits Alertmanager child routes
+# rather than Prometheus rules. It lives here because it is the delivery-side
+# half of the same alerting story, and it is pure attrset/string logic.
 
 { lib, topology }:
 let
@@ -18,6 +22,12 @@ let
     concatStringsSep
     escapeRegex
     ;
+
+  # The Matrix bot renders the `host` label on the title line ("<alert> at
+  # <host>") and the `description` annotation right after; `summary` never
+  # reaches it, since every rule here defines a description. The raw
+  # `<ip>:<port>` must therefore travel in the description to stay visible.
+  instLabel = "{{ $labels.instance }}";
 
   # Profiles considered critical by default when no explicit `alert-*` feature
   # overrides the node class. A down gateway/HCS/server escalates; a laptop or
@@ -190,10 +200,13 @@ rec {
           # instead of misreporting them as individually down.
           reach = if (host.zone or "") == zoneName then "local" else "wan";
 
+          # `host` is also set on every scrape target (cf. prometheus.nix), so
+          # it is redundant here — but it keeps these rules self-sufficient and
+          # unit-testable, and both carry the same value (no override conflict).
           commonLabels = {
             inherit severity reach;
             zone = zoneName;
-            hostname = host.hostname;
+            host = host.hostname;
           };
 
           # A scraped target that stops answering: the node (or its exporter) is
@@ -221,7 +234,7 @@ rec {
             labels = commonLabels;
             annotations = {
               summary = "Failed systemd unit on ${host.hostname}";
-              description = "Unit {{ $labels.name }} is failed on ${host.hostname}.";
+              description = "Unit {{ $labels.name }} is failed on ${host.hostname} (${inst}).";
             };
           };
 
@@ -241,7 +254,7 @@ rec {
             };
             annotations = {
               summary = "${unit} not active on ${host.hostname}";
-              description = "Expected service ${unit} is not active on ${host.hostname}.";
+              description = "Expected service ${unit} is not active on ${host.hostname} (${inst}).";
             };
           }) (hostExpectedUnits services host);
         in
@@ -296,7 +309,7 @@ rec {
               labels.severity = "warning";
               annotations = {
                 summary = "Low disk space on {{ $labels.instance }}";
-                description = "{{ $labels.mountpoint }} below ${toString t.diskFreePercentWarn}% free.";
+                description = "{{ $labels.mountpoint }} below ${toString t.diskFreePercentWarn}% free on ${instLabel}.";
               };
             }
             {
@@ -306,7 +319,7 @@ rec {
               labels.severity = "critical";
               annotations = {
                 summary = "Critically low disk space on {{ $labels.instance }}";
-                description = "{{ $labels.mountpoint }} below ${toString t.diskFreePercentCrit}% free.";
+                description = "{{ $labels.mountpoint }} below ${toString t.diskFreePercentCrit}% free on ${instLabel}.";
               };
             }
             {
@@ -316,7 +329,7 @@ rec {
               labels.severity = "warning";
               annotations = {
                 summary = "Low inodes on {{ $labels.instance }}";
-                description = "{{ $labels.mountpoint }} below ${toString t.inodeFreePercentWarn}% free inodes.";
+                description = "{{ $labels.mountpoint }} below ${toString t.inodeFreePercentWarn}% free inodes on ${instLabel}.";
               };
             }
             {
@@ -326,7 +339,7 @@ rec {
               labels.severity = "warning";
               annotations = {
                 summary = "High memory usage on {{ $labels.instance }}";
-                description = "Available memory below ${toString t.memAvailablePercentWarn}%.";
+                description = "Available memory below ${toString t.memAvailablePercentWarn}% on ${instLabel}.";
               };
             }
             {
@@ -336,7 +349,7 @@ rec {
               labels.severity = "critical";
               annotations = {
                 summary = "Critically high memory usage on {{ $labels.instance }}";
-                description = "Available memory below ${toString t.memAvailablePercentCrit}%.";
+                description = "Available memory below ${toString t.memAvailablePercentCrit}% on ${instLabel}.";
               };
             }
             {
@@ -346,7 +359,7 @@ rec {
               labels.severity = "warning";
               annotations = {
                 summary = "OOM kill on {{ $labels.instance }}";
-                description = "The kernel OOM killer fired in the last 5m.";
+                description = "The kernel OOM killer fired in the last 5m on ${instLabel}.";
               };
             }
             {
@@ -356,7 +369,7 @@ rec {
               labels.severity = "warning";
               annotations = {
                 summary = "High load on {{ $labels.instance }}";
-                description = "1m load above ${toString t.load1PerCoreWarn} per core for 15m.";
+                description = "1m load above ${toString t.load1PerCoreWarn} per core for 15m on ${instLabel}.";
               };
             }
             {
@@ -366,7 +379,7 @@ rec {
               labels.severity = "critical";
               annotations = {
                 summary = "Very high load on {{ $labels.instance }}";
-                description = "1m load above ${toString t.load1PerCoreCrit} per core for 10m.";
+                description = "1m load above ${toString t.load1PerCoreCrit} per core for 10m on ${instLabel}.";
               };
             }
             {
@@ -379,7 +392,7 @@ rec {
               labels.severity = "critical";
               annotations = {
                 summary = "Read-only filesystem on {{ $labels.instance }}";
-                description = "{{ $labels.mountpoint }} is mounted read-only (I/O errors?).";
+                description = "{{ $labels.mountpoint }} is mounted read-only on ${instLabel} (I/O errors?).";
               };
             }
             {
@@ -393,7 +406,7 @@ rec {
               labels.severity = "warning";
               annotations = {
                 summary = "Disk filling up on {{ $labels.instance }}";
-                description = "{{ $labels.mountpoint }} is projected to fill within 24h.";
+                description = "{{ $labels.mountpoint }} on ${instLabel} is projected to fill within 24h.";
               };
             }
             {
@@ -407,7 +420,7 @@ rec {
               labels.severity = "warning";
               annotations = {
                 summary = "Clock not synchronised on {{ $labels.instance }}";
-                description = "NTP sync lost; system clock may be drifting.";
+                description = "NTP sync lost on ${instLabel}; system clock may be drifting.";
               };
             }
             {
@@ -420,7 +433,7 @@ rec {
               labels.severity = "warning";
               annotations = {
                 summary = "Conntrack table near full on {{ $labels.instance }}";
-                description = "Connection tracking table above 80% of its limit.";
+                description = "Connection tracking table above 80% of its limit on ${instLabel}.";
               };
             }
           ];
@@ -520,6 +533,10 @@ rec {
   # the last successful restic backup), exported by the restic module via the
   # node_exporter textfile collector. Absent metric -> no series -> no alert,
   # so a host without backups never trips this.
+  #
+  # `host` is carried through the `by (...)` clause: an aggregation drops every
+  # label it does not group on, and losing it would send the alert to Matrix
+  # titled with the bare `<ip>:<port>` again.
   mkResticRuleGroups = { zoneName }: {
     groups = [
       {
@@ -527,22 +544,22 @@ rec {
         rules = [
           {
             alert = "ResticBackupStale";
-            expr = "time() - max by (instance, job) (dnf_restic_last_success_timestamp) > ${toString (36 * 3600)}";
+            expr = "time() - max by (instance, job, host) (dnf_restic_last_success_timestamp) > ${toString (36 * 3600)}";
             "for" = "0m";
             labels.severity = "warning";
             annotations = {
               summary = "Restic backup stale on {{ $labels.instance }}";
-              description = "No successful restic backup ({{ $labels.job }}) for over 36h.";
+              description = "No successful restic backup ({{ $labels.job }}) on ${instLabel} for over 36h.";
             };
           }
           {
             alert = "ResticBackupCritical";
-            expr = "time() - max by (instance, job) (dnf_restic_last_success_timestamp) > ${toString (7 * 24 * 3600)}";
+            expr = "time() - max by (instance, job, host) (dnf_restic_last_success_timestamp) > ${toString (7 * 24 * 3600)}";
             "for" = "0m";
             labels.severity = "critical";
             annotations = {
               summary = "Restic backup critically stale on {{ $labels.instance }}";
-              description = "No successful restic backup ({{ $labels.job }}) for over 7 days.";
+              description = "No successful restic backup ({{ $labels.job }}) on ${instLabel} for over 7 days.";
             };
           }
         ];
@@ -567,7 +584,7 @@ rec {
             labels.severity = "none";
             annotations = {
               summary = "Maintenance on {{ $labels.instance }}";
-              description = "Node under maintenance (rebuild in progress); its alerts are inhibited.";
+              description = "Node ${instLabel} under maintenance (rebuild in progress); its alerts are inhibited.";
             };
           }
         ];
@@ -592,7 +609,7 @@ rec {
             labels.severity = "critical";
             annotations = {
               summary = "SMART failure on {{ $labels.instance }}";
-              description = "Device {{ $labels.device }} reports a failing SMART overall-health status.";
+              description = "Device {{ $labels.device }} on ${instLabel} reports a failing SMART overall-health status.";
             };
           }
           {
@@ -602,7 +619,7 @@ rec {
             labels.severity = "warning";
             annotations = {
               summary = "Disk temperature high on {{ $labels.instance }}";
-              description = "Device {{ $labels.device }} above 60°C for 15m.";
+              description = "Device {{ $labels.device }} on ${instLabel} above 60°C for 15m.";
             };
           }
         ];
@@ -627,7 +644,7 @@ rec {
             labels.severity = "warning";
             annotations = {
               summary = "Postfix relay unhealthy on {{ $labels.instance }}";
-              description = "postfix_up == 0: the SMTP relay is not responding.";
+              description = "postfix_up == 0 on ${instLabel}: the SMTP relay is not responding.";
             };
           }
           {
@@ -640,7 +657,7 @@ rec {
             labels.severity = "warning";
             annotations = {
               summary = "Postfix deferred queue high on {{ $labels.instance }}";
-              description = "More than 50 deferred messages for 30m (upstream/relay problem?).";
+              description = "More than 50 deferred messages on ${instLabel} for 30m (upstream/relay problem?).";
             };
           }
         ];
@@ -667,20 +684,21 @@ rec {
             labels.severity = "warning";
             annotations = {
               summary = "Synapse restarting repeatedly on {{ $labels.instance }}";
-              description = "matrix-synapse restarted more than twice in 30m.";
+              description = "matrix-synapse on ${instLabel} restarted more than twice in 30m.";
             };
           }
           {
 
             # Elevated server-side errors. The ratio is NaN without traffic, so
-            # it stays silent on an idle homeserver.
+            # it stays silent on an idle homeserver. `host` is grouped on so the
+            # aggregation does not drop it (cf. mkResticRuleGroups).
             alert = "SynapseHighErrorRate";
-            expr = ''sum by (instance) (rate(synapse_http_server_responses_total{job="synapse",code=~"5.."}[15m])) / sum by (instance) (rate(synapse_http_server_responses_total{job="synapse"}[15m])) > 0.05'';
+            expr = ''sum by (instance, host) (rate(synapse_http_server_responses_total{job="synapse",code=~"5.."}[15m])) / sum by (instance, host) (rate(synapse_http_server_responses_total{job="synapse"}[15m])) > 0.05'';
             "for" = "15m";
             labels.severity = "warning";
             annotations = {
               summary = "Synapse high 5xx error rate on {{ $labels.instance }}";
-              description = "Over 5% of Synapse HTTP responses are 5xx for 15m.";
+              description = "Over 5% of Synapse HTTP responses on ${instLabel} are 5xx for 15m.";
             };
           }
         ];
@@ -708,7 +726,7 @@ rec {
             labels.severity = "warning";
             annotations = {
               summary = "Tailscale self-heal flapping on {{ $labels.instance }}";
-              description = "tailscaled was auto-restarted more than 3 times in 1h.";
+              description = "tailscaled on ${instLabel} was auto-restarted more than 3 times in 1h.";
             };
           }
           {
@@ -721,7 +739,7 @@ rec {
             labels.severity = "warning";
             annotations = {
               summary = "Tailscale unhealthy on {{ $labels.instance }}";
-              description = "tailscaled has been disconnected from headscale for 10m.";
+              description = "tailscaled on ${instLabel} has been disconnected from headscale for 10m.";
             };
           }
         ];
@@ -731,6 +749,40 @@ rec {
 
   # Merge several `{ groups = [...]; }` fragments into one rule document.
   mergeRuleGroups = fragments: { groups = lib.concatMap (f: f.groups) fragments; };
+
+  # Alertmanager child routes muting known, accepted alerts. Each entry lands on
+  # the `null` receiver: the alert keeps firing and stays visible in the
+  # Prometheus/Alertmanager/Grafana UIs, it just never notifies.
+  #
+  # :::caution[Route order]
+  # `continue` defaults to false, so the first matching child route wins. The
+  # caller MUST insert these before the severity routes, or they are never
+  # reached (cf. `modules/service/prometheus.nix`).
+  # :::
+  #
+  # Matchers are ANDed. `alertname` is always constrained, which is what keeps a
+  # silence surgical: muting `DiskSpaceLow` on a mount leaves `DiskSpaceCritical`
+  # on that same mount fully armed. Values land inside a quoted matcher string,
+  # hence the escaping.
+  mkSilenceRoutes =
+    silences:
+    let
+      quote = v: ''"${lib.escape [ "\\" "\"" ] v}"'';
+    in
+    map (
+      s:
+      let
+        host = s.host or null;
+      in
+      {
+        matchers = [
+          "alertname=${quote s.alert}"
+        ]
+        ++ optional (host != null && host != "") "host=${quote host}"
+        ++ lib.mapAttrsToList (name: value: "${name}=${quote value}") (s.matchers or { });
+        receiver = "null";
+      }
+    ) silences;
 
   # Convenience: full rule document for a zone's monitoring host (everything but
   # the blackbox probes — network/HTTP — which the caller adds when blackbox is

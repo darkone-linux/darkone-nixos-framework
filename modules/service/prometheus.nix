@@ -57,6 +57,18 @@ let
     h: lib.hasAttr "monitoring-node" h.features && h.features.monitoring-node == zone.name
   ) hosts;
 
+  # One static_config per host, so every scraped series carries a `host` label.
+  # Two payoffs: the Matrix bot renders it instead of the raw `<ip>:<port>`
+  # (`<alert> at ms-a2`), and Alertmanager silences can match a single machine.
+  # Doing it here rather than per-rule means it reaches every alert derived from
+  # these jobs for free — including the generic, zone-wide resource rules.
+  mkHostTargets =
+    exporterPort: hs:
+    map (h: {
+      targets = [ "${dnfLib.preferredIp h}:${toString exporterPort}" ];
+      labels.host = h.hostname;
+    }) hs;
+
   # Subsets running a service exporter we scrape on a dedicated job. Reuses the
   # serviceUnits mapping so a host counts only when it actually runs the daemon.
   hostRunsUnit = unit: h: lib.elem unit (dnfLib.hostExpectedUnits network.services h);
@@ -249,6 +261,68 @@ in
         };
         description = "Override resource alert thresholds (see dnf/lib/alerts.nix defaults)";
       };
+
+      silences = lib.mkOption {
+        default = [ ];
+        example = [
+          {
+            alert = "DiskSpaceLow";
+            host = "ms-a2";
+            matchers.mountpoint = "/mnt/backup";
+            reason = "Backup disk intentionally kept near full.";
+          }
+        ];
+        description = ''
+          Known, accepted alerts that must never notify. Each entry becomes an
+          Alertmanager route to the `null` receiver: the alert still fires and
+          stays visible in the Prometheus/Alertmanager/Grafana UIs, it just
+          stops reaching Matrix and mail.
+
+          Declared on the host running Prometheus, since that is where the
+          zone's rules and routes are generated. A fleet-wide consumer module
+          (`usr/modules/alerts.nix`) is the practical place: it is imported
+          everywhere and only takes effect where Prometheus runs.
+
+          :::caution[Last resort]
+          Fix or reconfigure the underlying condition first. A silence hides a
+          real signal, so `reason` is mandatory and the list stays auditable.
+          :::
+        '';
+        type = lib.types.listOf (
+          lib.types.submodule {
+            options = {
+              alert = lib.mkOption {
+                type = lib.types.str;
+                example = "DiskSpaceLow";
+                description = "Alert name to mute (`alertname` label). Always constrained, so sibling severities stay armed.";
+              };
+
+              # Matches the `host` label set on every scrape target, i.e. the
+              # hostname — not the `<ip>:<port>` instance.
+              host = lib.mkOption {
+                type = lib.types.nullOr lib.types.str;
+                default = null;
+                example = "ms-a2";
+                description = "Restrict the silence to one host. Null mutes the alert fleet-wide.";
+              };
+
+              matchers = lib.mkOption {
+                type = lib.types.attrsOf lib.types.str;
+                default = { };
+                example = {
+                  mountpoint = "/mnt/backup";
+                };
+                description = "Extra exact label matchers, ANDed with the others (e.g. the mount or device the alert is about).";
+              };
+
+              reason = lib.mkOption {
+                type = lib.types.str;
+                description = "Why this alert is accepted, and what would make the silence removable.";
+              };
+            };
+          }
+        );
+      };
     };
   };
 
@@ -297,9 +371,7 @@ in
         scrapeConfigs = [
           {
             job_name = "node";
-            static_configs = [
-              { targets = map (h: "${dnfLib.preferredIp h}:${toString port.nodeExporter}") nodes; }
-            ];
+            static_configs = mkHostTargets port.nodeExporter nodes;
             scrape_interval = "15s";
           }
           {
@@ -307,24 +379,18 @@ in
             # Disk SMART health, per node like the node exporter (slower: SMART
             # data barely changes).
             job_name = "smartctl";
-            static_configs = [
-              { targets = map (h: "${dnfLib.preferredIp h}:${toString port.smartctl}") nodes; }
-            ];
+            static_configs = mkHostTargets port.smartctl nodes;
             scrape_interval = "60s";
           }
         ]
         ++ lib.optional (postfixHosts != [ ]) {
           job_name = "postfix";
-          static_configs = [
-            { targets = map (h: "${dnfLib.preferredIp h}:${toString port.postfix}") postfixHosts; }
-          ];
+          static_configs = mkHostTargets port.postfix postfixHosts;
           scrape_interval = "30s";
         }
         ++ lib.optional (synapseHosts != [ ]) {
           job_name = "synapse";
-          static_configs = [
-            { targets = map (h: "${dnfLib.preferredIp h}:${toString port.synapse}") synapseHosts; }
-          ];
+          static_configs = mkHostTargets port.synapse synapseHosts;
           scrape_interval = "30s";
         };
         globalConfig = {
@@ -411,6 +477,10 @@ in
             group_interval = "5m";
             repeat_interval = "4h";
             receiver = "matrix-warnings";
+
+            # Order matters: `continue` defaults to false, so the first matching
+            # child route wins. Silenced alerts must therefore be matched before
+            # the severity routes, or they would notify anyway.
             routes =
               # Maintenance alerts are swallowed: they exist only to drive
               # inhibition, never to notify.
@@ -418,6 +488,7 @@ in
                 matchers = [ ''alertname="MaintenanceMode"'' ];
                 receiver = "null";
               }
+              ++ dnfLib.mkSilenceRoutes alerting.silences
               ++ [
                 {
                   matchers = [ ''severity="critical"'' ];
@@ -461,35 +532,40 @@ in
               equal = [ "zone" ];
             };
 
-          receivers = lib.optional alerting.silenceOnRebuild { name = "null"; } ++ [
-            {
-              name = "matrix-warnings";
-              webhook_configs = lib.optionals alerting.matrix.enable [
-                {
-                  url = "http://127.0.0.1:${toString port.matrixReceiver}/alerts?secret=$WEBHOOK_SECRET";
-                  send_resolved = true;
-                }
-              ];
-            }
-            {
-              name = "matrix-incidents";
-              webhook_configs = lib.optionals alerting.matrix.enable [
-                {
-                  url = "http://127.0.0.1:${toString port.matrixReceiver}/alerts?secret=$WEBHOOK_SECRET";
-                  send_resolved = true;
-                }
-              ];
-              email_configs = lib.optionals alerting.email.enable [
-                {
-                  to = alerting.email.to;
-                  from = "alertmanager@${network.domain}";
-                  smarthost = "localhost:25";
-                  require_tls = false;
-                  send_resolved = true;
-                }
-              ];
-            }
-          ];
+          # The `null` sink is shared by the maintenance route and the silences;
+          # declaring one without the other would reference a missing receiver
+          # and Alertmanager would refuse to start.
+          receivers =
+            lib.optional (alerting.silenceOnRebuild || alerting.silences != [ ]) { name = "null"; }
+            ++ [
+              {
+                name = "matrix-warnings";
+                webhook_configs = lib.optionals alerting.matrix.enable [
+                  {
+                    url = "http://127.0.0.1:${toString port.matrixReceiver}/alerts?secret=$WEBHOOK_SECRET";
+                    send_resolved = true;
+                  }
+                ];
+              }
+              {
+                name = "matrix-incidents";
+                webhook_configs = lib.optionals alerting.matrix.enable [
+                  {
+                    url = "http://127.0.0.1:${toString port.matrixReceiver}/alerts?secret=$WEBHOOK_SECRET";
+                    send_resolved = true;
+                  }
+                ];
+                email_configs = lib.optionals alerting.email.enable [
+                  {
+                    to = alerting.email.to;
+                    from = "alertmanager@${network.domain}";
+                    smarthost = "localhost:25";
+                    require_tls = false;
+                    send_resolved = true;
+                  }
+                ];
+              }
+            ];
         };
       };
 

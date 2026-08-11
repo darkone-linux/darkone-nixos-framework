@@ -73,6 +73,7 @@ in
     mkTailscaleRuleGroups
     mergeRuleGroups
     mkAlertRuleGroups
+    mkSilenceRoutes
     ;
   inherit (firewall) getInternalInterfaceFwPath mkInternalFirewall;
   inherit (oidc)
