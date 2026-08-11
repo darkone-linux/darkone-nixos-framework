@@ -188,11 +188,7 @@ in
       # (open). Filling `whitelist` restricts inbound AND outbound to the listed
       # domains only (safest for a family network); `enable = false` blocks all.
       federation = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Allow server-to-server federation. False blocks all federation.";
-        };
+        enable = lib.mkEnableOption "Allow server-to-server federation. False blocks all federation.";
         whitelist = lib.mkOption {
           type = lib.types.listOf lib.types.str;
           default = [ ];
@@ -203,19 +199,11 @@ in
       # Next-gen auth: synapse delegates every auth decision to MAS (cf.
       # header). Default off: flipping it on a live server needs the syn2mas
       # migration first.
-      mas.enable = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-        description = "Delegate all authentication to Matrix Authentication Service (Element X support).";
-      };
+      mas.enable = lib.mkEnableOption "Delegate all authentication to Matrix Authentication Service (Element X support).";
 
       # Local password accounts for friends, in addition to the Kanidm (OIDC)
       # users. Token-gated: no open registration without an invite token.
-      friendRegistration.enable = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-        description = "Allow friends to self-register with an invite token (token-gated).";
-      };
+      friendRegistration.enable = lib.mkEnableOption "Allow friends to self-register with an invite token (token-gated).";
 
       # Mautrix bridges, individually switchable
       bridges = {
