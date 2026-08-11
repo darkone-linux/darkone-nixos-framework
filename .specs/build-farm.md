@@ -6,8 +6,9 @@ Créer un module DNF `build-farm` permettant de déclarer, via `config.yaml`,
 une machine du réseau comme builder distant Nix (distributed builds) pour les
 machines d'administration (déployeurs).
 
-Cas concret : `ms-a2` (32 cœurs, 123 Gio RAM, quasi inactive) builde les
-grosses dérivations à la place de `gfx` (déployeur, build central colmena).
+Cas concret : `srv-main` (serveur multi-cœurs, RAM abondante, quasi inactif)
+builde les grosses dérivations à la place de `pc-admin` (déployeur, build
+central colmena).
 
 ## Motivation & périmètre des gains
 
@@ -22,9 +23,10 @@ grosses dérivations à la place de `gfx` (déployeur, build central colmena).
   côté destination) : combinable, mais hors périmètre de ce module.
 
 :::caution[WAN]
-Le builder peut être dans une autre zone (ms-a2 en cp, gfx en ag) : chaque
-build délégué transfère inputs + outputs via le tailnet. Rentable pour les
-grosses dérivations, contre-productif pour les petites. D'où le ciblage par
+Le builder peut être dans une autre zone (`srv-main` en `main`, `pc-admin` en
+`maison`) : chaque build délégué transfère inputs + outputs via le tailnet.
+Rentable pour les grosses dérivations, contre-productif pour les petites.
+D'où le ciblage par
 `supportedFeatures` (le scheduler Nix ne délègue que ce qui les requiert) et
 un `max-jobs` local non nul sur le client.
 :::
@@ -122,14 +124,14 @@ nix.settings.builders-use-substitutes = true;
 ```yaml
 # etc/config.yaml
 hosts:
-  - hostname: "ms-a2"
+  - hostname: "srv-main"
     # ...
     services:
       build-farm:
         global: true # joignable cross-zone (tailnet)
 ```
 
-Aucune config côté gfx : tout hôte `admin-desktop` (donc
+Aucune config côté déployeur : tout hôte `admin-desktop` (donc
 `darkone.admin.nix.enable`) devient client automatiquement.
 
 ## Tests
@@ -145,10 +147,10 @@ Aucune config côté gfx : tout hôte `admin-desktop` (donc
 
 1. Étudier `nix-cache.nix` (résolution serveur/clients, null-safety) et la
    norme module (`dnf/modules/service/AGENTS.md`).
-2. Vérifier sur gfx le chemin réel de la clé privée du user `nix` et le
+2. Vérifier sur le déployeur le chemin réel de la clé privée du user `nix` et le
    format retenu pour la host key du serveur.
 3. Développer le module + entrée `config/modules.nix` + tests eval.
-4. `just clean` puis validation : `nix store ping --store ssh://nix@ms-a2`
+4. `just clean` puis validation : `nix store ping --store ssh://nix@srv-main`
    côté root, puis un build test avec `requiredSystemFeatures = [ "big-parallel" ]`
-   et vérifier qu'il s'exécute sur ms-a2 (`nix log`, charge distante).
+   et vérifier qu'il s'exécute sur srv-main (`nix log`, charge distante).
 5. Mesurer sur `just check-all` (tests VM) avant/après.

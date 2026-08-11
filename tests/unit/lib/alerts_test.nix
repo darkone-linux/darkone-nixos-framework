@@ -535,7 +535,7 @@ in
 
   # ----- host label -----
   # Node rules carry the hostname under `host`, the label the Matrix bot renders
-  # on the title line ("<alert> at ms-a2") instead of the raw `<ip>:<port>`.
+  # on the title line ("<alert> at srv-main") instead of the raw `<ip>:<port>`.
   testNodeRuleHostLabel = {
     expr = (builtins.head (nodeRules [ ])).labels.host;
     expected = "a";
@@ -593,7 +593,7 @@ in
     expr = dnfLib.mkSilenceRoutes [
       {
         alert = "DiskSpaceLow";
-        host = "ms-a2";
+        host = "srv-main";
         matchers = {
           mountpoint = "/mnt/backup";
           device = "/dev/sdb";
@@ -605,7 +605,7 @@ in
       {
         matchers = [
           ''alertname="DiskSpaceLow"''
-          ''host="ms-a2"''
+          ''host="srv-main"''
           ''device="/dev/sdb"''
           ''mountpoint="/mnt/backup"''
         ];
@@ -668,7 +668,7 @@ in
       dnfLib.mkSilenceRoutes [
         {
           alert = "DiskSpaceLow";
-          host = "ms-a2";
+          host = "srv-main";
           reason = "r";
         }
         {

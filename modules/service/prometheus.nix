@@ -59,7 +59,7 @@ let
 
   # One static_config per host, so every scraped series carries a `host` label.
   # Two payoffs: the Matrix bot renders it instead of the raw `<ip>:<port>`
-  # (`<alert> at ms-a2`), and Alertmanager silences can match a single machine.
+  # (`<alert> at srv-main`), and Alertmanager silences can match a single machine.
   # Doing it here rather than per-rule means it reaches every alert derived from
   # these jobs for free — including the generic, zone-wide resource rules.
   mkHostTargets =
@@ -185,19 +185,19 @@ in
         userId = lib.mkOption {
           type = lib.types.str;
           default = if (mtx.bot or "") != "" then "@${mtx.bot}:${network.domain}" else "";
-          example = "@alertbot:poncon.fr";
+          example = "@alertbot:domain.tld";
           description = "Matrix user ID of the alert bot (defaults from network.matrix.bot)";
         };
         warningsRoom = lib.mkOption {
           type = lib.types.str;
           default = mtx.warningsRoom or "";
-          example = "!warnings:poncon.fr";
+          example = "!warnings:domain.tld";
           description = "Matrix room ID for warnings (defaults from network.matrix.warningsRoom)";
         };
         incidentsRoom = lib.mkOption {
           type = lib.types.str;
           default = mtx.incidentsRoom or "";
-          example = "!incidents:poncon.fr";
+          example = "!incidents:domain.tld";
           description = "Matrix room ID for incidents (defaults from network.matrix.incidentsRoom)";
         };
       };
@@ -237,7 +237,7 @@ in
       network.httpProbeUrls = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [ ];
-        example = [ "https://git.ag.poncon.fr" ];
+        example = [ "https://git.domain.tld" ];
         description = ''
           HTTP(S) URLs probed for liveness (`ServiceEndpointDown`) and TLS
           certificate expiry (`CertificateExpiringSoon`/`Critical`). Empty by
@@ -267,7 +267,7 @@ in
         example = [
           {
             alert = "DiskSpaceLow";
-            host = "ms-a2";
+            host = "srv-main";
             matchers.mountpoint = "/mnt/backup";
             reason = "Backup disk intentionally kept near full.";
           }
@@ -302,7 +302,7 @@ in
               host = lib.mkOption {
                 type = lib.types.nullOr lib.types.str;
                 default = null;
-                example = "ms-a2";
+                example = "srv-main";
                 description = "Restrict the silence to one host. Null mutes the alert fleet-wide.";
               };
 
