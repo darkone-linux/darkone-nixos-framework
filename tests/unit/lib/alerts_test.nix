@@ -242,6 +242,13 @@ in
     expected = "nfs-server.service";
   };
 
+  # Regression: the unit is `kanidm`, the daemon binary `kanidmd`. The typo
+  # produced no series, hence a `ServiceDown` rule that could never fire.
+  testServiceUnitIdm = {
+    expr = dnfLib.serviceUnits.idm;
+    expected = "kanidm.service";
+  };
+
   # ----- nodeAlertEligible -----
   # Selection: infrastructure and must-stay-up hosts are watched; bare
   # laptops/desktops are not, unless an explicit feature opts them in.

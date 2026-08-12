@@ -70,7 +70,12 @@ rec {
   serviceUnits = {
     headscale = "headscale.service";
     tailscale = "tailscaled.service";
-    idm = "kanidmd.service";
+
+    # `kanidm`, not `kanidmd`: only the daemon binary carries the trailing `d`.
+    # A wrong unit name exports no series at all, so the `== 0` comparison in
+    # `ServiceDown` matches nothing and the rule silently never fires.
+    idm = "kanidm.service";
+
     matrix = "matrix-synapse.service";
     forgejo = "forgejo.service";
     vaultwarden = "vaultwarden.service";
