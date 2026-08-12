@@ -25,13 +25,33 @@
 # };
 # ```
 #
-# Repository layout per target:
+# Repository layout per target: one repo per category, named after it.
 #
 # ```
-# <root>/<hostname>/system     <- "system" category (/ minus excludes)
-# <root>/<hostname>/srv/nfs    <- "nfs" category    (/srv/nfs/<...>)
-# <root>/<hostname>/srv/medias <- "medias" category (/srv/medias/<...>)
+# <root>/<hostname>/system  <- "system" category (/ minus excludes)
+# <root>/<hostname>/nfs     <- "nfs" category    (/srv/nfs/<...>)
+# <root>/<hostname>/medias  <- "medias" category (/srv/medias/<...>)
 # ```
+#
+# :::caution[Repo path is exactly two levels deep]
+# rest-server serves repositories at most two components below its `--path`:
+# `<hostname>/medias` answers, `<hostname>/srv/medias` returns 404 and restic
+# reports a misleading `repository does not exist`. The subpath is therefore
+# the bare category name, never the source directory. Identical layout for
+# local and REST targets lets a repo move between the two without a rename.
+# :::
+#
+# :::danger[Migrating repos created before this layout]
+# Repos written when the subpath mirrored the source directory sit under
+# `<hostname>/srv/{nfs,medias}`. Rename them on the server before the next run:
+# `initialize = true` would otherwise create an empty repo at the new path and
+# silently start a full re-seed.
+#
+# ```sh
+# mv <data-dir>/<hostname>/srv/medias <data-dir>/<hostname>/medias
+# rmdir <data-dir>/<hostname>/srv
+# ```
+# :::
 {
   config,
   lib,
@@ -119,16 +139,16 @@ let
     ];
   };
 
-  # Per-category metadata: repo subpath, default time, paths and prerequisite.
+  # Per-category metadata: default time, paths and prerequisite. The repo
+  # subpath is the category name itself (cf. header): unique by construction,
+  # and independent of where the data actually lives on disk.
   categoryMeta = {
     system = {
-      subpath = "/system";
       baseTime = "01:00";
       extra = systemBkpConfig;
       prereq = true;
     };
     nfs = {
-      subpath = srv-dirs.nfs;
       baseTime = "03:00";
       extra = {
         paths = cfg.nfsPaths;
@@ -136,7 +156,6 @@ let
       prereq = srv-dirs.enableNfs;
     };
     medias = {
-      subpath = srv-dirs.medias;
       baseTime = "05:00";
       extra = {
         paths = cfg.mediasPaths;
@@ -153,7 +172,7 @@ let
       (
         categoryMeta.${category}.extra
         // {
-          repository = "${target.root}/${host.hostname}${categoryMeta.${category}.subpath}";
+          repository = "${target.root}/${host.hostname}/${category}";
           passwordFile = config.sops.secrets."restic-password-${target.zone}".path;
           timerConfig.OnCalendar = shiftHour categoryMeta.${category}.baseTime idx;
         }
