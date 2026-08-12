@@ -413,27 +413,39 @@ in
       # Kanidm service
       #========================================================================
 
-      systemd.services.kanidmd.serviceConfig = mkIf (!isHcs) {
+      # Upstream unit names: the server is `kanidm` (only the daemon binary is
+      # `kanidmd`), the PAM/NSS resolver is `kanidm-unixd`.
+      systemd.services = {
+        kanidm = {
 
-        # Allow read access to vital system paths
+          # Sendmail permissions
+          path = [
+            pkgs.postfix
+            pkgs.coreutils
+          ];
+
+          # At boot, bring the tailnet up before kanidm reaches its peers (no-op
+          # where tailscaled is absent: missing units are ignored in wants/after).
+          after = [ "tailscaled.service" ];
+          wants = [ "tailscaled.service" ];
+        };
+      }
+
+      # `unix.enable` follows the same condition, so the unit exists exactly
+      # where this block applies. `optionalAttrs` and not `mkIf`: an `mkIf false`
+      # on a leaf still materialises the attribute name, and `systemd.services`
+      # would emit an empty phantom unit on every other node.
+      // lib.optionalAttrs (!isHcs) {
+
+        # kanidm-unixd resolves `default_shell` at runtime and must be able to
+        # read the shell paths.
         # -> https://github.com/kanidm/kanidm/blob/392a10afbc19759d1431025a2daee0dd903b2733/examples/unixd#L77
-        ReadOnlyPaths = [
+        kanidm-unixd.serviceConfig.ReadOnlyPaths = [
           "/run/current-system/sw/bin"
           "/etc/profiles/per-user/nix/bin"
           "${pkgs.zsh}/bin"
         ];
       };
-
-      # Sendmail permissions
-      systemd.services.kanidm.path = [
-        pkgs.postfix
-        pkgs.coreutils
-      ];
-
-      # At boot, bring the tailnet up before kanidm reaches its peers (no-op
-      # where tailscaled is absent: missing units are ignored in wants/after).
-      systemd.services.kanidm.after = [ "tailscaled.service" ];
-      systemd.services.kanidm.wants = [ "tailscaled.service" ];
 
       # Kanidm binds VPN addresses (LDAP on the tailscale IP, replication on
       # the VPN IP) that may not be assigned yet when the unit (re)starts —
