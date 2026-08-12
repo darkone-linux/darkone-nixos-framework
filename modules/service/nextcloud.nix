@@ -250,7 +250,12 @@ in
 
       services.nextcloud = {
         enable = true;
-        package = pkgs.nextcloud33;
+
+        # Pinned on purpose: nixpkgs would otherwise follow `stateVersion`, and
+        # Nextcloud refuses to skip a major (33 -> 35 is impossible, 33 -> 34
+        # then 34 -> 35 is the only path). Bump one major at a time, and only
+        # once the running instance reports the previous one (`occ status`).
+        package = pkgs.nextcloud34;
         hostName = params.fqdn;
         maxUploadSize = "16G";
         https = false;
