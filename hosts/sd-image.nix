@@ -42,6 +42,13 @@
     networking.useDHCP = lib.mkForce true;
     networking.hostName = "dnf-install";
     services.openssh.enable = true;
+
+    # The board base pulls in ZFS support, and `stateVersion` below predates
+    # 26.11, so `forceImportRoot` would fall back to its old `true` default and
+    # warn. `false` is both the 26.11 default and the safe value: a forced
+    # import bypasses the guard against adopting a pool owned by another host.
+    boot.zfs.forceImportRoot = false;
+
     system.stateVersion = "26.05";
   };
 }

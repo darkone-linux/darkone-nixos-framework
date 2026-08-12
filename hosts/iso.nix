@@ -24,8 +24,10 @@
     boot.loader.efi.canTouchEfiVariables = false;
     boot.loader.systemd-boot.editor = false;
 
-    # Align with the 26.11 default — silences the upstream warning. No ZFS
-    # is used in the ISO; same rationale as in dnf/modules/system/core.nix.
+    # Align with the 26.11 default. The installer image DOES enable ZFS support
+    # (so one can install onto a pool), which is precisely why the upstream
+    # warning would fire here: a forced import bypasses the guard against
+    # adopting a pool owned by another host.
     boot.zfs.forceImportRoot = false;
     hardware.enableAllFirmware = true;
 
