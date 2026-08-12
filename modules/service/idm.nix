@@ -460,7 +460,13 @@ in
 
       # Kanidm main instance
       services.kanidm = {
-        package = pkgs.kanidm_1_10.withSecretProvisioning;
+
+        # Pinned on purpose: nixpkgs exposes no default `kanidm` attribute, and
+        # upstream only supports upgrades between ADJACENT releases — a version
+        # goes EOL 30 days after its successor ships, then nixpkgs marks it
+        # insecure and evaluation fails. Bump one minor at a time, after
+        # `kanidmd domain upgrade-check` passes on the running node.
+        package = pkgs.kanidm_1_11.withSecretProvisioning;
 
         #----------------------------------------------------------------------
         # SERVER
@@ -477,7 +483,7 @@ in
             #log_level = "debug";
 
             # The domain that Kanidm manages. Must be below or equal to the domain specified in serverSettings.origin.
-            # Always set (same value network-wide). The kanidm 1.10 nixpkgs module
+            # Always set (same value network-wide). The kanidm nixpkgs module
             # asserts `domain == null -> role is a Write replica`, i.e. a
             # ReadOnlyReplica MUST keep a non-null domain (it simply matches the
             # supplier's, which is identical here since the whole net shares one).
