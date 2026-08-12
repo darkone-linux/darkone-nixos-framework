@@ -220,6 +220,14 @@ in
       };
     };
 
+    # Upstream pins restartIfChanged = false on the kmsconvt@ template, so a
+    # switch never restarts running consoles: they keep exec'ing the login
+    # helper of the generation they were started with. Once the GC collects
+    # that generation, every respawn fails with ENOENT — and kmscon retries
+    # without backoff, burning a core in a fork/exec loop (~400/s).
+    # Cost of forcing it: an active TTY session is killed on each switch.
+    systemd.services."kmsconvt@" = lib.mkIf cfg.enableKmscon { restartIfChanged = lib.mkForce true; };
+
     # To manage nodes, openssh must be activated
     services.openssh.enable = true;
 

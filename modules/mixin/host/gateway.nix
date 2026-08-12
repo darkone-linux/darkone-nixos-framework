@@ -40,6 +40,10 @@ in
         # keep only the last system generations instead of 30 days of history.
         darkone.system.core.gcKeepGenerations = lib.mkDefault 5;
 
+        # Headless: a Nerd font on the TTY buys nothing, and kmscon is a known
+        # CPU hog when its console goes stale. Plain getty is enough.
+        darkone.system.core.enableKmscon = lib.mkDefault false;
+
         # Tailscale as a VPN gateway when headscale coordination is active.
         # Subnet router only: exit-node stays opt-in per host. Advertising it
         # here conflicted with `--snat-subnet-routes=false` (needed for clean
