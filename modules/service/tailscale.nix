@@ -216,7 +216,7 @@ in
         }
 
         # Let tailscaled leave its transient startup states; upstream waited
-        # on these passively until the unit timeout (NoState incident, agate).
+        # on these passively until the unit timeout (NoState incident, gw-ag).
         state=$(getState)
         tries=0
         while [ "$tries" -lt 30 ]; do
