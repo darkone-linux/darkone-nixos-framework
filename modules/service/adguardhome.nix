@@ -143,6 +143,14 @@ in
             port = 53;
             bind_hosts = [ "0.0.0.0" ];
 
+            # Upstream default is 10s, and a startup query is retried twice
+            # before the DNS proxy binds :53 — 20s of deaf resolver whenever an
+            # upstream is unreachable (typically MagicDNS while the tailnet is
+            # still coming up). Every upstream here is either local (dnsmasq,
+            # ~1ms) or a public resolver, and `fallback_dns` already catches the
+            # slow ones, so a short deadline costs nothing and bounds the gap.
+            upstream_timeout = "3s";
+
             # DOMAIN ROUTING
             # 1. Simple names → dnsmasq
             # 2. Local domains → dnsmasq

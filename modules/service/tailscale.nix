@@ -11,6 +11,8 @@
   config,
   zone,
   network,
+  host,
+  hosts,
   dnfLib,
   ...
 }:
@@ -26,6 +28,20 @@ let
   gatewaySubnet = "${zone.networkIp}/${toString zone.prefixLength}";
   hcsFqdn = "${coord.domain}.${network.domain}";
   hcsInternalFqdn = network.zones.${dnfLib.constants.globalZone}.gateway.vpn.ipv4;
+
+  # Control-plane bootstrap. Gateways route the whole network domain to the
+  # tailnet DNS server, so the headscale FQDN resolves *through the VPN it is
+  # used to establish*; today it only works because the resolver falls back to
+  # public upstreams once the split-DNS server times out. Worse on a gateway
+  # boot: tailscaled waits on a resolver that is itself waiting on the tailnet
+  # (AdGuard reverse-resolves its tailnet address through MagicDNS before
+  # binding :53). Pinning the public IP — declared in config.yaml, same source
+  # as everything else — cuts the loop: tailscaled is statically linked against
+  # Go's own resolver, which reads the hosts file before any DNS, so the
+  # control plane stays reachable even with the local resolver down.
+  hcsHost = lib.findFirst (h: h.hostname == coord.hostname) null hosts;
+  bootstrapHcs =
+    hasHeadscale && !(dnfLib.isHcs host zone network) && hcsHost != null && (hcsHost.ip or "") != "";
   inherit (dnfLib.constants) caddyStorage;
   caddyStorTmp = "/tmp/caddy-storage-sync";
 
@@ -141,6 +157,16 @@ in
         group = "root";
       };
     };
+
+    #--------------------------------------------------------------------------
+    # Control plane bootstrap
+    #--------------------------------------------------------------------------
+
+    # Static because it must answer before the resolver exists (cf. hcsHost
+    # above). /etc/hosts wins over DNS, so a moved VPS needs a redeploy of the
+    # tailscale clients — the same contract as every other value derived from
+    # config.yaml.
+    networking.hosts = lib.mkIf bootstrapHcs { ${hcsHost.ip} = [ hcsFqdn ]; };
 
     #--------------------------------------------------------------------------
     # Tailscale client service
