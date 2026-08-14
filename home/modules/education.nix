@@ -84,7 +84,7 @@ in
       (lib.mkIf (cfg.enableMusic && (cfg.enableBaby || cfg.enableChild)) tuxpaint)
       (lib.mkIf (cfg.enableMusic && (cfg.enableChild || cfg.enableStudent)) solfege)
       (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) atomix) # Atom puzzle
-      (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) celestia)
+      (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) pkgs-stable.celestia)
       (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) gnome-maps)
       (lib.mkIf (
         cfg.enableScience && (cfg.enableChild || cfg.enableStudent)
