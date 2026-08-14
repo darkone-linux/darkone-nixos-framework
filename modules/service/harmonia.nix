@@ -16,6 +16,13 @@
 # - any harmonia flagged `global` (typically on the HCS, over the tailnet), then
 # - the zone's `nix-cache` proxy (public cache).
 #
+# That order is pinned client-side with `?priority=` on each substituter URL
+# (see `nix-cache.nix`), because the `priority` set below is identical on every
+# instance and Nix sorts substituters by advertised priority, not by list order.
+#
+# A host running harmonia does **not** get its own instance as a substituter: it
+# would only ever serve paths its local store already has.
+#
 # Other zones' non-global harmonia are never used. Harmonia's signature is
 # passed through unchanged, so every host trusts the deployment-wide harmonia
 # public key (`usr/secrets/harmonia.pub`). Transport is plain HTTP on the
@@ -102,7 +109,9 @@ in
           bind = "${host.ip}:${toString harmoniaPort}";
           workers = 4;
 
-          # Lower value = higher priority than the public caches.
+          # Lower value = higher priority than the public caches. Advertised in
+          # `nix-cache-info`, hence the same on every instance: clients override
+          # it per substituter (`?priority=`) to rank in-zone above cross-zone.
           priority = 30;
         };
       };

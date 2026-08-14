@@ -25,7 +25,7 @@ let
   };
 
   # Extracted tree: source of the `.desktop` entry and the hicolor icons.
-  contents = final.appimageTools.extractType2 { inherit pname version src; };
+  contents = final.appimageTools.extract { inherit pname version src; };
 
   inherit (final.lib) licenses sourceTypes;
 in

@@ -61,19 +61,55 @@ let
   cachePort = dnfConfig.network.ports.nixCache;
   harmoniaPort = dnfConfig.network.ports.harmonia;
 
+  # Substituter priorities (lower wins). Nix orders substituters by the
+  # `Priority` each one advertises in its `nix-cache-info`, NOT by their order in
+  # `substituters`, and the advertised values collide here: every harmonia says
+  # 30, while this proxy relays `cache.nixos.org` verbatim and therefore says 40
+  # — exactly what the direct `cache.nixos.org` entry (R59 allowlist plus the
+  # nixpkgs default) says too. Ties fall back on list order, which the manual
+  # does not guarantee. Pinning the priority in the store URL (`?priority=`)
+  # overrides the advertised value and makes the intended order explicit:
+  #
+  # - 20: the zone's own harmonia (LAN, holds what the zone built);
+  # - 35: this proxy (LAN, mutualised mirror of the public cache) — must beat
+  #   the direct upstream, otherwise the zone never pools its downloads;
+  # - 40: `cache.nixos.org` direct, kept as the fallback when the gateway is down;
+  # - 45: a `global` harmonia, reached cross-zone over the tailnet. Last resort
+  #   on purpose: harmonia serves a whole `/nix/store`, so a well-stocked host
+  #   would otherwise capture traffic the public cache should answer — over a
+  #   WAN link that is typically far slower. At 45 it is only ever consulted for
+  #   paths `cache.nixos.org` does not have, ie. that host's own builds.
+  inZonePriority = 20;
+  proxyPriority = 35;
+  globalPriority = 45;
+
+  # Store URL carrying an explicit priority (see above).
+  cacheUrl =
+    priority: port: addr:
+    "http://${addr}:${toString port}?priority=${toString priority}";
+  harmoniaUrl = priority: cacheUrl priority harmoniaPort;
+  proxyUrl = cacheUrl proxyPriority cachePort;
+
   # Harmonia substituters in scope for this zone: same-zone instances (LAN,
   # highest priority) first, then any global harmonia (reached cross-zone over
-  # the tailnet). Other zones' non-global harmonia are never used. These are now
+  # the tailnet). Other zones' non-global harmonia are never used. These are
   # direct client substituters — Nix itself handles the 404 fall-through and the
   # signature checks across substituters.
-  harmoniaInZone = lib.filter (s: s.name == "harmonia" && s.zone == zone.name) network.services;
+  #
+  # A harmonia host skips its *own* instance: harmonia serves this very
+  # `/nix/store`, so it can only ever hold paths already present locally. Keeping
+  # it would spend one HTTP round-trip per query to be told what the local store
+  # already answered.
+  harmoniaInZone = lib.filter (
+    s: s.name == "harmonia" && s.zone == zone.name && s.host != host.hostname
+  ) network.services;
   harmoniaGlobal = lib.filter (
     s: s.name == "harmonia" && (s.global or false) && s.zone != zone.name
   ) network.services;
   harmoniaUrls =
-    (map (s: "http://${(findHost s.host s.zone hosts).ip}:${toString harmoniaPort}") harmoniaInZone)
+    (map (s: harmoniaUrl inZonePriority (findHost s.host s.zone hosts).ip) harmoniaInZone)
     ++ (map (
-      s: "http://${preferredIp (findHost s.host s.zone hosts)}:${toString harmoniaPort}"
+      s: harmoniaUrl globalPriority (preferredIp (findHost s.host s.zone hosts))
     ) harmoniaGlobal);
 
   # Roaming substituters: zone-neutral names served by each zone's DNS (see
@@ -82,8 +118,8 @@ let
   # here on purpose: from inside another zone it would be a dead substituter
   # (tailscale may be paused on zone LANs) eating connect-timeouts.
   roamingUrls = [
-    "http://${dnfLib.constants.harmoniaRoamingFqdn}:${toString harmoniaPort}"
-    "http://${dnfLib.constants.nixCacheRoamingFqdn}:${toString cachePort}"
+    (harmoniaUrl inZonePriority dnfLib.constants.harmoniaRoamingFqdn)
+    (proxyUrl dnfLib.constants.nixCacheRoamingFqdn)
   ];
 
   # Deployment-wide harmonia public key (committed like nix.pub). Present only
@@ -250,7 +286,7 @@ in
           (lib.mkIf isClient (
             harmoniaUrls
             ++ [
-              "http://${zone.gateway.hostname}.${zone.domain}:${toString cachePort}"
+              (proxyUrl "${zone.gateway.hostname}.${zone.domain}")
 
               # Optional direct (not LAN-cached) upstream. cache.nixos.org covers a
               # standard nixpkgs fleet, so cachix stays off; re-enable here if a
