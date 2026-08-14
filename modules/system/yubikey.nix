@@ -94,6 +94,7 @@ let
   );
 
   luksActive = cfg.luks.enable && luksNames != [ ] && luksKeys != [ ];
+  luksUserPresence = if luksActive && cfg.luks.enableUserPresence then "true" else "false";
 
   # Everything the enroll service needs, public data only (credential ids,
   # salts, device names, sops paths): safe in the store.
@@ -125,6 +126,12 @@ in
       type = lib.types.bool;
       default = true;
       description = "FIDO2 unlock of the host LUKS volumes (inert without disko LUKS + enrolled keys)";
+    };
+
+    darkone.system.yubikey.luks.enableUserPresence = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "FIDO2 unlock requires user presence (button push)";
     };
   };
 
@@ -296,7 +303,7 @@ in
                     "fido2-credential": $cred, "fido2-salt": $salt,
                     "fido2-rp": "io.systemd.cryptsetup",
                     "fido2-clientPin-required": false,
-                    "fido2-up-required": true,
+                    "fido2-up-required": ${luksUserPresence},
                     "fido2-uv-required": false}' \
                   | $cs token import "$dev"
                 echo "$cred" >> "$state"
