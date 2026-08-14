@@ -32,6 +32,15 @@
 # The install passphrase keyslot and the sops session passwords are never
 # touched: losing a key at worst falls back to passphrase/password.
 # :::
+#
+# :::caution[The boot touch cannot be waived]
+# YubiKeys enforce user presence for the `hmac-secret` extension: an assertion
+# requesting `up=false` is refused with `FIDO_ERR_UP_REQUIRED` before the
+# credential is even matched. The touch is a hardware rule, not a token
+# setting, and no header flag can lift it. Unattended unlock (gateways,
+# headless hosts) is a TPM2 job (`systemd-cryptenroll --tpm2-device=auto`),
+# which coexists with these FIDO2 keyslots in the same LUKS header.
+# :::
 
 {
   lib,
@@ -94,7 +103,6 @@ let
   );
 
   luksActive = cfg.luks.enable && luksNames != [ ] && luksKeys != [ ];
-  luksUserPresence = if luksActive && cfg.luks.enableUserPresence then "true" else "false";
 
   # Everything the enroll service needs, public data only (credential ids,
   # salts, device names, sops paths): safe in the store.
@@ -126,12 +134,6 @@ in
       type = lib.types.bool;
       default = true;
       description = "FIDO2 unlock of the host LUKS volumes (inert without disko LUKS + enrolled keys)";
-    };
-
-    darkone.system.yubikey.luks.enableUserPresence = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "FIDO2 unlock requires user presence (button push)";
     };
   };
 
@@ -298,12 +300,19 @@ in
                     *) slot=$s ;;
                   esac
                 done
+                # `fido2-up-required` is not a policy we get to choose: YubiKeys
+                # reject every hmac-secret assertion made without user presence
+                # (FIDO_ERR_UP_REQUIRED, raised before credential matching), so
+                # the boot touch is enforced by the key itself. systemd agrees —
+                # cryptenroll silently re-enables the flag on such devices, and
+                # cryptsetup retries with presence when a token claims false.
+                # An unattended unlock is a TPM2 job, not a FIDO2 one.
                 $jq -n --arg slot "$slot" --arg cred "$cred" --arg salt "$salt" \
                   '{type: "systemd-fido2", keyslots: [$slot],
                     "fido2-credential": $cred, "fido2-salt": $salt,
                     "fido2-rp": "io.systemd.cryptsetup",
                     "fido2-clientPin-required": false,
-                    "fido2-up-required": ${luksUserPresence},
+                    "fido2-up-required": true,
                     "fido2-uv-required": false}' \
                   | $cs token import "$dev"
                 echo "$cred" >> "$state"
