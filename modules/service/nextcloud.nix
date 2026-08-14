@@ -383,12 +383,30 @@ in
       # Runs as the nextcloud user (occ wrapper expects it); the client secret
       # is read from the sops alias file, never passed on the command line.
       systemd.services.nextcloud-oidc-setup = lib.mkIf hasIdm {
-        after = [ "nextcloud-setup.service" ];
+        after = [
+          "nextcloud-setup.service"
+          "network-online.target"
+          "nss-lookup.target"
+        ];
         requires = [ "nextcloud-setup.service" ];
+        wants = [
+          "network-online.target"
+          "nss-lookup.target"
+        ];
         wantedBy = [ "multi-user.target" ];
+
+        # The discovery URI is fetched at provisioning time, so this unit needs
+        # the IdM reachable — and the IdM usually lives on another host,
+        # possibly behind the mesh VPN, possibly still booting. Nothing local
+        # can express "kanidm is serving", so retry on a slow window instead of
+        # leaving a failed unit behind after every reboot.
+        startLimitIntervalSec = 900;
+        startLimitBurst = 10;
         serviceConfig = {
           Type = "oneshot";
           User = "nextcloud";
+          Restart = "on-failure";
+          RestartSec = "60s";
         };
         script = ''
           ${lib.getExe config.services.nextcloud.occ} user_oidc:provider IDM \
