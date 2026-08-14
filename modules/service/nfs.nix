@@ -149,6 +149,14 @@ assert
           "retrans=2" # Retry x2
           "_netdev" # Wait the network (implicit)
           "bg" # Background try if fail
+
+          # `bg` only backgrounds a server that does not answer: an unresolved
+          # name is a hard error (exit 32) that fails the mount unit outright.
+          # On a gateway the local resolver binds :53 seconds after
+          # network-online.target, so wait for names to resolve. Elsewhere the
+          # target is reached immediately: no boot delay added.
+          "x-systemd.requires=nss-lookup.target"
+          "x-systemd.after=nss-lookup.target"
           "rw"
         ];
       };

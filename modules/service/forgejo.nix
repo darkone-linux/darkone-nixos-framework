@@ -135,9 +135,25 @@ in
       # service (DB ready); add-on first boot, update on every later run.
       systemd.services.forgejo-oauth-setup = lib.mkIf hasIdm {
         description = "Provision Forgejo OIDC auth source (Kanidm)";
-        after = [ "forgejo.service" ];
+        after = [
+          "forgejo.service"
+          "network-online.target"
+          "nss-lookup.target"
+        ];
         requires = [ "forgejo.service" ];
+        wants = [
+          "network-online.target"
+          "nss-lookup.target"
+        ];
         wantedBy = [ "multi-user.target" ];
+
+        # `add-oauth`/`update-oauth` fetch the discovery document, so this unit
+        # needs the IdM reachable — and the IdM usually lives on another host,
+        # possibly behind the mesh VPN, possibly still booting. Nothing local
+        # can express "kanidm is serving", so retry on a slow window instead of
+        # leaving a failed unit behind after every reboot.
+        startLimitIntervalSec = 900;
+        startLimitBurst = 10;
 
         # The CLI resolves its config/data from these (same as forgejo.service).
         environment = {
@@ -149,6 +165,8 @@ in
           RemainAfterExit = true;
           User = fjCfg.user;
           Group = fjCfg.group;
+          Restart = "on-failure";
+          RestartSec = "60s";
         };
         script = ''
           set -eu

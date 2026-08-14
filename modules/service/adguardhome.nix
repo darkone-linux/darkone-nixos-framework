@@ -10,6 +10,7 @@
   dnfLib,
   dnfConfig,
   config,
+  pkgs,
   network,
   zone,
   host,
@@ -53,6 +54,56 @@ in
 
       # Darkone service: enable
       darkone.system.services = dnfLib.enableBlock "adguardhome";
+
+      #------------------------------------------------------------------------
+      # Resolver readiness gate
+      #------------------------------------------------------------------------
+
+      # AdGuardHome owns :53 (resolv.conf points at 127.0.0.1) but its unit is
+      # Type=simple: systemd marks it active as soon as the process forks,
+      # ~20s before the DNS proxy actually binds. On a gateway that gap is
+      # structural, not incidental: at startup ADH reverse-resolves its own
+      # tailnet address through MagicDNS (100.100.100.100), unreachable until
+      # tailscaled is up, and tailscaled needs a working resolver to reach the
+      # control plane. The upstream timeout breaks the loop, but every unit
+      # resolving a name meanwhile races a deaf socket and fails hard (nfs
+      # mounts, OIDC provisioning...).
+      #
+      # `nss-lookup.target` is the systemd contract for "names resolve here":
+      # gate it on a resolver that answers, so consumers only need the usual
+      # `after = [ "nss-lookup.target" ]`.
+      systemd.services.dns-ready = {
+        description = "Wait for the local DNS resolver to answer";
+        after = [
+          "adguardhome.service"
+          "dnsmasq.service"
+        ];
+        before = [ "nss-lookup.target" ];
+        wantedBy = [
+          "nss-lookup.target"
+          "multi-user.target"
+        ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          TimeoutStartSec = "120s";
+        };
+
+        # Probes the host's own name: answered locally by dnsmasq, so a reply
+        # proves the whole chain is up without depending on any upstream. dig
+        # exits 9 while nothing listens, 0 on any answer (NXDOMAIN included).
+        #
+        # Never fails: a resolver still deaf after the deadline must delay the
+        # boot, not break every unit ordered after this gate.
+        script = ''
+          for _ in $(${pkgs.coreutils}/bin/seq 60); do
+            ${pkgs.dnsutils}/bin/dig +tries=1 +timeout=1 @127.0.0.1 \
+              ${host.hostname} > /dev/null 2>&1 && exit 0
+            ${pkgs.coreutils}/bin/sleep 1
+          done
+          echo "local resolver still silent, giving up the wait"
+        '';
+      };
 
       #------------------------------------------------------------------------
       # AdguardHome Service
