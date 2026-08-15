@@ -13,6 +13,9 @@ let
   cfg = config.darkone.service.element;
   country = builtins.substring 3 2 zone.locale;
   localMatrixServer = "https://matrix.${network.domain}";
+  # Next-gen auth on the matrix server of THIS host (cf. mobile guide below).
+  hasMas = config.darkone.service.matrix.mas.enable;
+
   jitsiService = lib.findFirst (s: s.name == "jitsi-meet" && s.zone == "www") null network.services;
   hasJitsi = jitsiService != null;
   jitsiDomain = lib.optionalString hasJitsi (
@@ -46,10 +49,13 @@ let
       # back to the legacy browser SSO flow. Its own defaults register fine.
       jitsi.preferred_domain = if hasJitsi then jitsiDomain else "meet.jit.si";
 
-      # Element X needs MAS (`darkone.service.matrix.mas.enable`). Steer phone
-      # users to the classic app, the only one that works either way.
+      # Which app the phone landing page offers. Element X only talks to a
+      # MAS-backed homeserver, so follow that. Upstream spells Element X
+      # "element" (its default) and the legacy app "element-classic", which
+      # works in both modes and stays the safe fallback: a matrix server on
+      # another host reads `mas.enable` as its default here.
       mobile_guide_toast = true; # default
-      mobile_guide_app_variant = "element-classic";
+      mobile_guide_app_variant = if hasMas then "element" else "element-classic";
     };
   };
 in
