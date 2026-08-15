@@ -144,11 +144,16 @@ let
     config.services.matrix-authentication-service.settings
   );
 
+  # Postgres only accepts peer auth here, and syn2mas needs both the MAS and
+  # the synapse database at once: `postgres` is the single local identity that
+  # reaches both. Root reads the sops files, hands them over, then drops to it.
+  masCliUser = "postgres";
   masCliScript = pkgs.writeShellApplication {
     name = "dnf-mas";
     runtimeInputs = [
       pkgs.coreutils
       pkgs.gnused
+      pkgs.util-linux
       config.services.matrix-authentication-service.package
     ];
     text = ''
@@ -160,19 +165,27 @@ let
       # Private creds dir mirroring the unit's, wiped on exit.
       creds="$(mktemp -d /run/dnf-mas.XXXXXX)"
       trap 'rm -rf "$creds"' EXIT
+      chown ${masCliUser} "$creds"
       ${lib.concatStringsSep "\n" (
-        lib.mapAttrsToList (name: path: ''install -m 0400 ${path} "$creds/${name}"'') masCredFiles
+        lib.mapAttrsToList (
+          name: path: ''install -o ${masCliUser} -m 0400 ${path} "$creds/${name}"''
+        ) masCredFiles
       )}
       sed 's|${masCreds}|'"$creds"'|g' ${masCliConfig} > "$creds/config.yaml"
+      chown ${masCliUser} "$creds/config.yaml"
 
-      # syn2mas also needs Synapse's own configuration; inject it so the
-      # operator never has to look up its store path.
+      # syn2mas needs synapse's own config, and its database uri would carry
+      # the `matrix-synapse` role that peer auth denies us: inject both so the
+      # operator never has to work them out.
       if [ "''${1:-}" = "syn2mas" ] && [[ "$*" != *--synapse-config* ]] ;then
         shift
-        set -- syn2mas --synapse-config "${srv.configFile}" "$@"
+        set -- syn2mas \
+          --synapse-config "${srv.configFile}" \
+          --synapse-database-uri "postgresql:///${srv.settings.database.args.database}?host=/run/postgresql" \
+          "$@"
       fi
 
-      exec mas-cli --config "$creds/config.yaml" "$@"
+      exec runuser -u ${masCliUser} -- mas-cli --config "$creds/config.yaml" "$@"
     '';
   };
 
@@ -344,11 +357,18 @@ in
         ''
         + lib.optionalString cfg.mas.enable ''
 
-          # Next-gen auth: MAS owns the compat auth endpoints. Longer path
-          # matchers, so they win over /_matrix/* (Caddy specificity order).
-          reverse_proxy /_matrix/client/*/login http://127.0.0.1:${toString masPort}
-          reverse_proxy /_matrix/client/*/logout http://127.0.0.1:${toString masPort}
-          reverse_proxy /_matrix/client/*/refresh http://127.0.0.1:${toString masPort}
+          # Next-gen auth: MAS owns the whole compat auth surface, sub-paths
+          # included (`logout/all`, and the legacy `login/sso/redirect[/<idp>]`
+          # that Element Desktop and every pre-OIDC client still use). Synapse
+          # answers M_UNRECOGNIZED on all of them once auth is delegated.
+          #
+          # A regex matcher, not path matchers: Caddy compares a trailing `*`
+          # as a literal prefix, so `/_matrix/client/*/login/*` would never
+          # match. `handle` also outranks the `reverse_proxy` block below.
+          @masCompat path_regexp ^/_matrix/client/[^/]+/(login|logout|refresh)(/.*)?$
+          handle @masCompat {
+            reverse_proxy http://127.0.0.1:${toString masPort}
+          }
         ''
         + ''
 
