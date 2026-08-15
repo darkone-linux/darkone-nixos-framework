@@ -42,6 +42,15 @@
 # MAS, mint it on the host with
 # `sudo dnf-mas manage issue-user-registration-token`.
 #
+# :::caution[One namespace, permanent ids]
+# Friends and declared users draw from the same localpart namespace, and a
+# matrix id is never freed (unique in MAS's `users`, deactivation keeps it).
+# Declaring a user whose localpart a friend already took fails their first SSO
+# login: `on_conflict` stays on `fail` below, since anything else hands the
+# existing account to whoever registers a matching name upstream. Merge
+# procedure in the admin guide (`operate/matrix.mdx`).
+# :::
+#
 # #### Next-gen auth (MAS)
 #
 # `mas.enable` delegates all authentication to Matrix Authentication Service
