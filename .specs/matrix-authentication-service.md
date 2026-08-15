@@ -1,5 +1,22 @@
 # Matrix Authentication Service (MAS) — étude d'intégration
 
+> **État : implémenté et migré en production (P1→P3 faits).** Ce document
+> reste l'étude de conception ; il contient des hypothèses que
+> l'implémentation a corrigées. Se référer à l'en-tête de
+> `modules/service/matrix.nix` et au guide d'exploitation. Écarts notables :
+>
+> - secrets passés par `*_file` + option `credentials` du module nixpkgs, pas
+>   par un `secrets.yml` fusionné (la fusion de listes YAML est évitée) ;
+> - clé de config MAS : `account.password_registration_token_required`, pas
+>   `registration_token_required` ;
+> - `experimental_features.msc4190_enabled` inutile côté synapse et pas de
+>   régénération des registrations : synapse force MSC4190 sur tous les
+>   appservices dès que l'auth est déléguée ;
+> - Caddy doit router *toute* la surface compat (`login/sso/redirect`,
+>   `logout/all` inclus), via un matcher regex ;
+> - `syn2mas` a besoin du bloc `oidc_providers` legacy, réinjecté par
+>   `dnf-mas`.
+
 ## Objectif
 
 Déléguer toute l'authentification Synapse à MAS (next-gen auth OAuth2/OIDC),
