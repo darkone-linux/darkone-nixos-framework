@@ -13,7 +13,6 @@ let
   cfg = config.darkone.service.element;
   country = builtins.substring 3 2 zone.locale;
   localMatrixServer = "https://matrix.${network.domain}";
-  idmUri = "https://idm.${network.domain}";
   jitsiService = lib.findFirst (s: s.name == "jitsi-meet" && s.zone == "www") null network.services;
   hasJitsi = jitsiService != null;
   jitsiDomain = lib.optionalString hasJitsi (
@@ -38,14 +37,17 @@ let
         on_welcome_page = true;
         on_login_page = true;
       };
-      oidc_static_clients."${idmUri}/".client_id = "matrix-synapse";
-      oidc_metadata = {
-        client_uri = idmUri;
-        logo_uri = idmUri + "/pkg/img/logo.svg";
-      };
+      # No `oidc_static_clients` / `oidc_metadata` override: both assumed
+      # Kanidm was the OIDC issuer, which it never is for a matrix client.
+      # With MAS the issuer is `matrix.<domain>`, and forcing `client_uri` to
+      # the IDM host made MAS reject Element's dynamic registration ("invalid
+      # redirect_uri": a native app's custom scheme must reverse-DNS-match its
+      # client_uri, `io.element.desktop` vs `idm.<domain>`). Element then fell
+      # back to the legacy browser SSO flow. Its own defaults register fine.
       jitsi.preferred_domain = if hasJitsi then jitsiDomain else "meet.jit.si";
 
-      # "Element X" n'est pas fonctionnel pour OIDC -> Element Classic pour l'instant
+      # Element X needs MAS (`darkone.service.matrix.mas.enable`). Steer phone
+      # users to the classic app, the only one that works either way.
       mobile_guide_toast = true; # default
       mobile_guide_app_variant = "element-classic";
     };
