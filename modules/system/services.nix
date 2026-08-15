@@ -163,18 +163,17 @@ let
     }
   '';
 
-  matrixWellKnownSection = ''
-    handle /.well-known/matrix/client {
-      header Access-Control-Allow-Origin "*"
-      header Content-Type "application/json"
-      respond `{"m.homeserver":{"base_url":"https://matrix.${network.domain}"}}`
-    }
-    handle /.well-known/matrix/server {
-      header Access-Control-Allow-Origin "*"
-      header Content-Type "application/json"
-      respond `{"m.server":"matrix.${network.domain}:443"}`
-    }
-  '';
+  # The discovery documents clients actually resolve: they derive them from the
+  # server_name (the apex), not from the matrix subdomain, which serves its own
+  # copy of the very same payload.
+  matrixWellKnownSection = dnfLib.mkMatrixWellKnown {
+    inherit (network) domain;
+    rtcFociUrl =
+      if config.darkone.service.matrix.matrixRtc.enable then
+        "https://matrix.${network.domain}/livekit/jwt"
+      else
+        null;
+  };
 
   # Make virtualhost prefix:
   # - isInternal -> abort external access

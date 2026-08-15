@@ -56,6 +56,18 @@
     # Immich Redis backend (localhost). modules/service/immich.nix
     immichRedis = 6379;
 
+    # LiveKit SFU HTTP/WebSocket (reverse-proxy target). modules/service/matrix.nix
+    livekit = 7880;
+
+    # LiveKit WebRTC ICE/TCP fallback, reached directly by clients whose
+    # network blocks UDP. Never behind the proxy. modules/service/matrix.nix
+    livekitRtcTcp = 7881;
+
+    # MatrixRTC authorization service (lk-jwt-service), reverse-proxy target.
+    # Off its upstream :8080 default, which headscale already owns.
+    # modules/service/matrix.nix
+    livekitJwt = 7883;
+
     # Matrix Synapse client/federation listener. modules/service/matrix.nix
     matrix = 8008;
 
@@ -136,6 +148,16 @@
     # Mautrix-Discord appservice (upstream default restated because the
     # module's appservice option does not merge). modules/service/matrix.nix
     matrixDiscord = 29334;
+
+    # LiveKit WebRTC media, one UDP port per participant. Bounds of a range,
+    # not two listeners: everything between them is bound on demand.
+    #
+    # Kept well under coturn's relay range (49152-65535, upstream default),
+    # which the LiveKit default of 50000-51000 sits right inside: co-located on
+    # the matrix host, the two would fight over the same ports and drop calls
+    # at random. modules/service/matrix.nix
+    livekitRtcUdpStart = 40000;
+    livekitRtcUdpEnd = 40100;
 
     # Ports owned by an upstream module (inherited via `config.services.<x>.port`):
     # DNF does not bind them, but a new `ports.*` value must steer clear.

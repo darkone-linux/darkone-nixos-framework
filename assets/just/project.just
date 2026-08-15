@@ -671,6 +671,34 @@ passwd-mas:
 	just _fix_fs_permissions
 	just _log "MAS secrets generated, don't forget to deploy" "SOPS"
 
+# Generate the MatrixRTC (LiveKit) secret (idempotent, never overwrites)
+[group('install')]
+passwd-livekit:
+	#!/usr/bin/env bash
+	set -euo pipefail
+
+	# Shared by the SFU and its authorization service: the first validates the
+	# JWTs the second signs. Rotating it only drops the calls in flight.
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd-livekit
+	cd {{secretsDir}}
+	just _sops_before_edit
+	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
+	if [ -f {{sopsSecretsFile}} ] ; then
+		sops -d -i {{sopsSecretsFile}}
+	else
+		just _fail "Passwd file must exists to perform this operation" "SOPS"
+	fi
+
+	if ! yq -e '."livekit-secret"' {{sopsSecretsFile}} >/dev/null 2>&1 ; then
+		just _log "Generating livekit-secret..." "SOPS"
+		PW=$(openssl rand -hex 32) \
+			yq --inplace '."livekit-secret" = strenv(PW)' {{sopsSecretsFile}}
+	fi
+
+	sops -e -i {{sopsSecretsFile}}
+	just _fix_fs_permissions
+	just _log "MatrixRTC secret generated, don't forget to deploy" "SOPS"
+
 # Update a user password
 [group('install')]
 passwd user:

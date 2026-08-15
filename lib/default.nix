@@ -23,6 +23,7 @@ let
   paths = import ./paths.nix { inherit lib; };
   serviceActivation = import ./service-activation.nix { inherit lib; };
   configSchema = import ./config-schema.nix { inherit lib; };
+  matrix = import ./matrix.nix { inherit lib; };
 in
 {
   inherit constants;
@@ -84,4 +85,5 @@ in
     mkKanidmEndpoints
     ;
   inherit (homepage) mkHomepageSection;
+  inherit (matrix) mkMatrixWellKnown;
 }
