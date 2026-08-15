@@ -807,6 +807,12 @@ in
               scope = "openid profile";
               token_endpoint_auth_method = "client_secret_basic";
 
+              # Kanidm signs id_tokens with ES256 and advertises nothing else
+              # (RS256 would need its legacy crypto mode). MAS defaults to
+              # RS256 and rejects the callback with "wrong signature alg",
+              # which breaks every fresh SSO login.
+              id_token_signed_response_alg = "ES256";
+
               # syn2mas maps the synapse-era external ids through this key
               # (synapse `idp_id = "kanidm"` -> `oidc-kanidm`)
               synapse_idp_id = "oidc-kanidm";
