@@ -70,10 +70,10 @@
 #
 # :::caution[Migrating an existing instance]
 # Enabling `mas.enable` on a live homeserver requires the `syn2mas` migration
-# (accounts, passwords, sessions, external ids), synapse stopped:
-# `sudo dnf-mas syn2mas check`, then `sudo dnf-mas syn2mas migrate`. Bridges
-# need no registration regen: synapse forces MSC4190 on every appservice as
-# soon as auth is delegated. Procedure in
+# (accounts, passwords, sessions, external ids). Deploy first, then, with both
+# services stopped: `sudo dnf-mas syn2mas check`, `... migrate --dry-run`,
+# `... migrate`. Bridges need no registration regen: synapse forces MSC4190 on
+# every appservice as soon as auth is delegated. Procedure in
 # `.specs/matrix-authentication-service.md`.
 # :::
 #
@@ -144,6 +144,30 @@ let
     config.services.matrix-authentication-service.settings
   );
 
+  # syn2mas refuses to map the `oidc-kanidm` external ids unless synapse still
+  # declares that provider, which delegated mode precisely removes. Hand the
+  # legacy block back as an extra synapse config: read for provider ids only,
+  # so the client secret is never used.
+  syn2masOidcConfig = (pkgs.formats.yaml { }).generate "syn2mas-oidc.yaml" {
+    oidc_providers = [
+      {
+        idp_id = "kanidm";
+        idp_name = "IDM";
+        issuer = oidc.issuerUrl;
+        client_id = clientId;
+        client_secret = "unused-by-syn2mas";
+        scopes = [
+          "openid"
+          "profile"
+        ];
+        user_mapping_provider.config = {
+          localpart_template = "{{ user.preferred_username.split('@')[0] | lower }}";
+          display_name_template = "{{ user.displayname }}";
+        };
+      }
+    ];
+  };
+
   # Postgres only accepts peer auth here, and syn2mas needs both the MAS and
   # the synapse database at once: `postgres` is the single local identity that
   # reaches both. Root reads the sops files, hands them over, then drops to it.
@@ -162,6 +186,10 @@ let
         exit 1
       fi
 
+      # mas-cli looks for a .env in its cwd; a caller's $HOME is unreadable
+      # once we drop to ${masCliUser} and only yields a warning.
+      cd /
+
       # Private creds dir mirroring the unit's, wiped on exit.
       creds="$(mktemp -d /run/dnf-mas.XXXXXX)"
       trap 'rm -rf "$creds"' EXIT
@@ -174,13 +202,14 @@ let
       sed 's|${masCreds}|'"$creds"'|g' ${masCliConfig} > "$creds/config.yaml"
       chown ${masCliUser} "$creds/config.yaml"
 
-      # syn2mas needs synapse's own config, and its database uri would carry
-      # the `matrix-synapse` role that peer auth denies us: inject both so the
-      # operator never has to work them out.
+      # syn2mas needs synapse's own config plus the legacy provider block, and
+      # its database uri would carry the `matrix-synapse` role that peer auth
+      # denies us: inject all three so the operator works them out never.
       if [ "''${1:-}" = "syn2mas" ] && [[ "$*" != *--synapse-config* ]] ;then
         shift
         set -- syn2mas \
           --synapse-config "${srv.configFile}" \
+          --synapse-config "${syn2masOidcConfig}" \
           --synapse-database-uri "postgresql:///${srv.settings.database.args.database}?host=/run/postgresql" \
           "$@"
       fi
