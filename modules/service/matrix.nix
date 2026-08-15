@@ -37,9 +37,10 @@
 # :::
 #
 # Friend self-registration (`friendRegistration.enable`) opens token-gated
-# local password accounts alongside Kanidm OIDC users. Minting a token needs a
-# server admin (Synapse admin API / Synapse-Admin UI); with MAS enabled, mint
-# with `mas-cli manage issue-user-registration-token` on the host instead.
+# local password accounts alongside Kanidm OIDC users. Without MAS, minting a
+# token goes through the Synapse admin API (a server admin is required); with
+# MAS, mint it on the host with
+# `sudo dnf-mas manage issue-user-registration-token`.
 #
 # #### Next-gen auth (MAS)
 #
@@ -55,16 +56,32 @@
 # `mas-encryption-secret`, `mas-synapse-secret`, and `mas-rsa-private-key`
 # (`openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096`).
 #
+# `dnf-mas` (root) wraps `mas-cli` for host-side administration: registration
+# tokens, `promote-admin`, `register-user`, `syn2mas`. MAS runs with
+# `DynamicUser` and reads its secrets from systemd credentials, which do not
+# exist outside the running unit; the wrapper rebuilds an equivalent
+# credentials directory from the sops files, so it works whether the service
+# is up or down (syn2mas needs it down).
+#
 # :::danger[Immutable once started]
 # `mas-encryption-secret` and the Kanidm provider ULID must never change
 # after MAS's first start (encrypted DB data / upstream account links).
 # :::
 #
 # :::caution[Migrating an existing instance]
-# Enabling `mas.enable` on a live homeserver requires the `mas-cli syn2mas`
-# migration (accounts, sessions, external ids) and a bridge registration
-# regen (the `io.element.msc4190` flag is only written at generation time):
-# procedure in `.specs/matrix-authentication-service.md`.
+# Enabling `mas.enable` on a live homeserver requires the `syn2mas` migration
+# (accounts, passwords, sessions, external ids), synapse stopped:
+# `sudo dnf-mas syn2mas check`, then `sudo dnf-mas syn2mas migrate`. Bridges
+# need no registration regen: synapse forces MSC4190 on every appservice as
+# soon as auth is delegated. Procedure in
+# `.specs/matrix-authentication-service.md`.
+# :::
+#
+# :::caution[No shared-secret registration under MAS]
+# Synapse's `/_synapse/admin/v1/register` (registration shared secret) is
+# disabled in delegated mode, which is what `just configure-alert-bot` uses to
+# create a missing bot account. Create it beforehand, or with
+# `sudo dnf-mas manage register-user`.
 # :::
 
 # (TODO: Livekit -> https://wiki.nixos.org/wiki/Matrix#Livekit)
@@ -108,6 +125,56 @@ let
   # Sops files are root-owned and MAS runs with DynamicUser: LoadCredential
   # bridges the gap. Absolute form of systemd's %d, usable in MAS settings.
   masCreds = "/run/credentials/matrix-authentication-service.service";
+
+  # Secret name -> sops path, shared by the unit credentials and the CLI
+  # wrapper so both expose the very same file names under their creds dir.
+  masCredFiles = {
+    encryption = config.sops.secrets.mas-encryption-secret.path;
+    rsa-key = config.sops.secrets.mas-rsa-private-key.path;
+    synapse-secret = config.sops.secrets.mas-synapse-secret.path;
+    oidc-client-secret = config.sops.secrets.${secret}.path;
+  };
+
+  # The unit config lives in a RuntimeDirectory that disappears with the
+  # service, and its credentials are unreadable outside it: regenerate an
+  # equivalent file so `mas-cli` keeps working while MAS is stopped (which
+  # syn2mas requires). Built from the evaluated option, module defaults
+  # (database uri, trusted proxies...) included.
+  masCliConfig = (pkgs.formats.yaml { }).generate "mas-cli-config.yaml" (
+    config.services.matrix-authentication-service.settings
+  );
+
+  masCliScript = pkgs.writeShellApplication {
+    name = "dnf-mas";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.gnused
+      config.services.matrix-authentication-service.package
+    ];
+    text = ''
+      if [ "$(id -u)" != 0 ] ;then
+        echo "dnf-mas: must run as root (reads the sops secrets)." >&2
+        exit 1
+      fi
+
+      # Private creds dir mirroring the unit's, wiped on exit.
+      creds="$(mktemp -d /run/dnf-mas.XXXXXX)"
+      trap 'rm -rf "$creds"' EXIT
+      ${lib.concatStringsSep "\n" (
+        lib.mapAttrsToList (name: path: ''install -m 0400 ${path} "$creds/${name}"'') masCredFiles
+      )}
+      sed 's|${masCreds}|'"$creds"'|g' ${masCliConfig} > "$creds/config.yaml"
+
+      # syn2mas also needs Synapse's own configuration; inject it so the
+      # operator never has to look up its store path.
+      if [ "''${1:-}" = "syn2mas" ] && [[ "$*" != *--synapse-config* ]] ;then
+        shift
+        set -- syn2mas --synapse-config "${srv.configFile}" "$@"
+      fi
+
+      exec mas-cli --config "$creds/config.yaml" "$@"
+    '';
+  };
 
   # Native Prometheus metrics, exposed only where a zone Prometheus scrapes
   # this host. Bound to the scrapeable IP (like the node exporter), not the
@@ -603,6 +670,12 @@ in
       services.matrix-authentication-service = {
         enable = true;
         createDatabase = true;
+
+        # Sops files are root-only and the unit runs with DynamicUser; the
+        # module's own option is used rather than a hand-written
+        # `serviceConfig.LoadCredential`, which would collide with it.
+        credentials = masCredFiles;
+
         settings = {
           http.public_base = params.href + "/";
           http.listeners = [
@@ -702,12 +775,8 @@ in
         };
       };
 
-      systemd.services.matrix-authentication-service.serviceConfig.LoadCredential = [
-        "encryption:${config.sops.secrets.mas-encryption-secret.path}"
-        "rsa-key:${config.sops.secrets.mas-rsa-private-key.path}"
-        "synapse-secret:${config.sops.secrets.mas-synapse-secret.path}"
-        "oidc-client-secret:${config.sops.secrets.${secret}.path}"
-      ];
+      # Host-side administration (registration tokens, admin, syn2mas)
+      environment.systemPackages = [ masCliScript ];
 
       # Synapse in delegated mode: every auth decision goes through MAS
       services.matrix-synapse.settings.matrix_authentication_service = {

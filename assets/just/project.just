@@ -632,6 +632,45 @@ passwd-restic:
 	just _fix_fs_permissions
 	just _log "Restic passwords generated, don't forget to deploy" "SOPS"
 
+# Generate Matrix Authentication Service secrets (idempotent, never overwrites)
+#
+# `mas-encryption-secret` protects encrypted columns and the Kanidm provider
+# link: regenerating it after MAS's first start makes that data unreadable.
+# Hence the strict "generate only what is missing" rule below.
+[group('install')]
+passwd-mas:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd-mas
+	cd {{secretsDir}}
+	just _sops_before_edit
+	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
+	if [ -f {{sopsSecretsFile}} ] ; then
+		sops -d -i {{sopsSecretsFile}}
+	else
+		just _fail "Passwd file must exists to perform this operation" "SOPS"
+	fi
+
+	# Internal encryption key + MAS <-> synapse shared secret.
+	for key in mas-encryption-secret mas-synapse-secret ; do
+		if ! yq -e ".\"$key\"" {{sopsSecretsFile}} >/dev/null 2>&1 ; then
+			just _log "Generating $key..." "SOPS"
+			PW=$(openssl rand -hex 32) \
+				yq --inplace ".\"$key\" = strenv(PW)" {{sopsSecretsFile}}
+		fi
+	done
+
+	# OIDC token signing key (PKCS#8 PEM, kept as a YAML block scalar).
+	if ! yq -e '."mas-rsa-private-key"' {{sopsSecretsFile}} >/dev/null 2>&1 ; then
+		just _log "Generating mas-rsa-private-key (RSA 4096)..." "SOPS"
+		PEM=$(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 2>/dev/null) \
+			yq --inplace '."mas-rsa-private-key" = strenv(PEM)' {{sopsSecretsFile}}
+	fi
+
+	sops -e -i {{sopsSecretsFile}}
+	just _fix_fs_permissions
+	just _log "MAS secrets generated, don't forget to deploy" "SOPS"
+
 # Update a user password
 [group('install')]
 passwd user:
