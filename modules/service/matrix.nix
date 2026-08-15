@@ -214,7 +214,11 @@ let
           "$@"
       fi
 
-      exec runuser -u ${masCliUser} -- mas-cli --config "$creds/config.yaml" "$@"
+      # Not `exec`: that would replace the shell and drop the EXIT trap,
+      # leaving the decrypted secrets behind in /run after every run.
+      status=0
+      runuser -u ${masCliUser} -- mas-cli --config "$creds/config.yaml" "$@" || status=$?
+      exit "$status"
     '';
   };
 
