@@ -19,7 +19,7 @@
 # registration synapse has loaded (which would otherwise require a registration
 # wipe + synapse restart and produce "as_token was not accepted" errors).
 #
-# ## Federation
+# #### Federation
 #
 # Federation is configurable via `darkone.service.matrix.federation`:
 #
@@ -41,7 +41,7 @@
 # server admin (Synapse admin API / Synapse-Admin UI); with MAS enabled, mint
 # with `mas-cli manage issue-user-registration-token` on the host instead.
 #
-# ## Next-gen auth (MAS)
+# #### Next-gen auth (MAS)
 #
 # `mas.enable` delegates all authentication to Matrix Authentication Service
 # (required by Element X, QR login, `/account` self-service portal). Kanidm
