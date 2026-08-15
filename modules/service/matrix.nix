@@ -843,6 +843,13 @@ in
         endpoint = "http://localhost:${toString masPort}/";
         secret_path = config.sops.secrets.mas-synapse-secret.path;
       };
+
+      # QR-code login ("link a new device", required by Element X). MSC4108
+      # adds synapse's rendezvous channel, which pairs with the device
+      # authorization grant MAS already exposes; without it clients report
+      # "your account provider does not support QR code sign-in". Synapse
+      # refuses the flag unless auth is delegated, hence this block.
+      services.matrix-synapse.settings.experimental_features.msc4108_enabled = true;
     })
 
     #------------------------------------------------------------------------
