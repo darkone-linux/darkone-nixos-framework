@@ -25,11 +25,11 @@
   - [ ] Agents MCP personnels.
   - [ ] Générateur d'images et de médias.
   - [x] Conf OpenCode / Claude Code optimisée pour les développeurs.
+- [ ] Automatisation des secrets OIDC et similaires.
 
 ### Planifié
 
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
-- [ ] Automatisation des secrets OIDC et similaires.
 - [ ] Corriger l'arbre de démarrage des services, un redémarrage de passerelle ou du HCS laisse certains services (kanidm, prometheus-node-exporter, mnt-nfs-homes) en berne.
 - [ ] Suite de tests de recette complète, intégrée à une stratégie d'intégration continue déclarative et utilisable par chaque instance DNF.
 - [ ] Officialiser le projet auprès du public.
