@@ -280,15 +280,17 @@ let
   inherit (config.services) coturn;
   hasTurn = coturn.enable;
 
-  matrixDbInitScript = pkgs.writeScript "matrix-db-init.sh" ''
-    #!/bin/sh
+  # writeShellScript, not writeScript + `#!/bin/sh`: the script uses the
+  # bash-only `set -o pipefail`, which only worked because NixOS points
+  # /bin/sh at bash. This pins the interpreter in the store instead.
+  matrixDbInitScript = pkgs.writeShellScript "matrix-db-init.sh" ''
     set -euo pipefail
 
-    if ! ${pkgs.postgresql}/bin/psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='matrix-synapse'" | grep -q 1; then
+    if ! ${pkgs.postgresql}/bin/psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='matrix-synapse'" | ${pkgs.gnugrep}/bin/grep -q 1; then
       ${pkgs.postgresql}/bin/psql -c 'CREATE ROLE "matrix-synapse" LOGIN;'
     fi
 
-    if ! ${pkgs.postgresql}/bin/psql -tAc "SELECT 1 FROM pg_database WHERE datname='matrix-synapse'" | grep -q 1; then
+    if ! ${pkgs.postgresql}/bin/psql -tAc "SELECT 1 FROM pg_database WHERE datname='matrix-synapse'" | ${pkgs.gnugrep}/bin/grep -q 1; then
       ${pkgs.postgresql}/bin/createdb --owner=matrix-synapse \
         --template=template0 \
         --encoding=UTF8 \
