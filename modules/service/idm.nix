@@ -14,8 +14,23 @@
   workDir,
   ...
 }:
-with lib;
 let
+  inherit (lib)
+    any
+    concatMap
+    filter
+    filterAttrs
+    hasAttrByPath
+    listToAttrs
+    mapAttrs
+    mapAttrsToList
+    mkEnableOption
+    mkIf
+    mkMerge
+    mkOption
+    optionalAttrs
+    types
+    ;
   cfg = config.darkone.service.idm;
   srvPort = dnfConfig.network.ports.kanidm;
   inherit (config.sops) secrets;

@@ -21,8 +21,24 @@
   workDir,
   ...
 }:
-with lib;
 let
+  inherit (lib)
+    any
+    concatMapStringsSep
+    concatStringsSep
+    filter
+    findFirst
+    hasAttr
+    listToAttrs
+    mkEnableOption
+    mkForce
+    mkIf
+    mkMerge
+    mkOption
+    optional
+    optionalString
+    types
+    ;
   cfg = config.darkone.system.services;
   inLocalZone = dnfLib.inLocalZone zone;
 

@@ -8,8 +8,15 @@
   network,
   ...
 }:
-with lib;
 let
+  inherit (lib)
+    findFirst
+    gvariant
+    mkEnableOption
+    mkIf
+    mkOption
+    types
+    ;
   cfg = config.darkone.graphic.gnome;
   hasInternalCloud =
     (findFirst (s: s.name == "nextcloud" || s.name == "oxicloud") null network.services) != null;

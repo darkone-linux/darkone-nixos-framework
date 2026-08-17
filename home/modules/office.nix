@@ -10,8 +10,17 @@
   host,
   ...
 }:
-with lib;
 let
+  inherit (lib)
+    findFirst
+    hasAttr
+    mkEnableOption
+    mkIf
+    mkOption
+    optional
+    optionalString
+    types
+    ;
   cfg = config.darkone.home.office;
 
   # Locale

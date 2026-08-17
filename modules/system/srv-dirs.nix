@@ -5,8 +5,17 @@
 # :::
 
 { config, lib, ... }:
-with lib;
 let
+  inherit (lib)
+    hasPrefix
+    mkDefault
+    mkEnableOption
+    mkIf
+    mkMerge
+    mkOption
+    optional
+    types
+    ;
   cfg = config.darkone.system.srv-dirs;
 in
 {
