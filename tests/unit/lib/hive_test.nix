@@ -83,6 +83,39 @@ in
       board = "raspberry-pi-5";
     };
   };
+  testParseArchAarch64NoBoard = {
+    expr = dnfLib.parseArch "aarch64";
+    expected = {
+      system = "aarch64-linux";
+      board = null;
+    };
+  };
+
+  # Rejected inputs — each used to fail silently or much later.
+  # `arch = "rpi5"` (missing `aarch64:`) produced system = "rpi5-linux".
+  testParseArchBoardWithoutCpuThrows = {
+    expr = (builtins.tryEval (dnfLib.parseArch "rpi5")).success;
+    expected = false;
+  };
+  testParseArchUnknownCpuThrows = {
+    expr = (builtins.tryEval (dnfLib.parseArch "riscv64")).success;
+    expected = false;
+  };
+  testParseArchEmptyThrows = {
+    expr = (builtins.tryEval (dnfLib.parseArch "")).success;
+    expected = false;
+  };
+
+  # Unknown board used to yield `board = null`: the Pi was then built as a
+  # generic aarch64 machine, with no vendor kernel/firmware/bootloader.
+  testParseArchUnknownBoardThrows = {
+    expr = (builtins.tryEval (dnfLib.parseArch "aarch64:rpi6")).success;
+    expected = false;
+  };
+  testGetHostBoardUnknownThrows = {
+    expr = (builtins.tryEval (dnfLib.getHostBoard { arch = "aarch64:rpi6"; })).success;
+    expected = false;
+  };
 
   # getHostArch
   testGetHostArchDefault = {

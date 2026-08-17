@@ -63,7 +63,7 @@ Défaillances silencieuses :
 - [x] `build.nix` : déréférence un secret sops sans assertion -> poser
       `darkone.system.core.enableSops = false` casse l'eval avec un message
       pointant `build.nix` au lieu de l'option réellement basculée.
-- [ ] `hive.nix` : `parseArch` ne valide ni le CPU ni le token de carte -> un
+- [x] `hive.nix` : `parseArch` ne valide ni le CPU ni le token de carte -> un
       `arch` mal orthographié produit un `system` invalide, ou un Pi construit
       sans noyau vendeur ni firmware ni bootloader (image qui ne démarre pas),
       sans erreur à l'eval.
