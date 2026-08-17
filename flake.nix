@@ -303,6 +303,10 @@
               # doc/ toolchain: astro/starlight build + rsync deploy
               nodejs_24
               openssl
+
+              # HMAC helper of just-configure-alert-bot.sh (keeps the homeserver
+              # shared secret out of argv).
+              python3
               rsync
               rustc
               treefmt

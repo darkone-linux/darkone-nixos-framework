@@ -412,6 +412,10 @@ let
         nix-unit
         nixfmt
         openssl
+
+        # HMAC helper of just-configure-alert-bot.sh (keeps the homeserver
+        # shared secret out of argv).
+        python3
         rustc
         treefmt
         sops

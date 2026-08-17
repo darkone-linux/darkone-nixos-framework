@@ -37,7 +37,7 @@ mx() { curl -A "$UA" "$@"; }
 
 [ -f "$cfg" ] || die "config.yaml not found ($cfg)."
 [ -f "$secrets" ] || die "secrets file not found ($secrets) — run 'just configure-admin-host' first."
-for bin in yq jq curl openssl sops nix; do
+for bin in yq jq curl openssl python3 sops nix; do
   command -v "$bin" >/dev/null 2>&1 || die "missing dependency: $bin (enter 'nix develop')."
 done
 
@@ -99,8 +99,14 @@ register_token() {
   fi
 
   nonce="$(mx -fsS "$admin_hs/_synapse/admin/v1/register" | jq -r .nonce)"
+
+  # The shared secret reaches the HMAC helper through its environment, never
+  # through argv: /proc/<pid>/cmdline is world-readable, so `openssl -hmac
+  # "$secret"` exposed the homeserver registration secret to every local user
+  # for the lifetime of the call. /proc/<pid>/environ is owner-only.
   mac="$(printf '%s\0%s\0%s\0notadmin' "$nonce" "$bot" "$pass" \
-    | openssl dgst -sha1 -hmac "$shared" | awk '{print $NF}')"
+    | DNF_HS_SECRET="$shared" python3 -c 'import hashlib, hmac, os, sys
+sys.stdout.write(hmac.new(os.environb[b"DNF_HS_SECRET"], sys.stdin.buffer.read(), hashlib.sha1).hexdigest())')"
   resp="$(mx -sS -XPOST "$admin_hs/_synapse/admin/v1/register" -H 'Content-Type: application/json' \
     -d "{\"nonce\":\"$nonce\",\"username\":\"$bot\",\"displayname\":\"Alertes\",\"password\":\"$pass\",\"admin\":false,\"mac\":\"$mac\"}" || true)"
 
