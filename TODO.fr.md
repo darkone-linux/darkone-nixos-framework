@@ -60,7 +60,7 @@ Défaillances silencieuses :
 - [x] `loki.nix` : lookup du service `monitoring` sans filtre de zone et repli
       muet sur `127.0.0.1` -> les gateways sans monitoring déclaré jettent leurs
       logs Caddy dans le vide, sans aucun signal.
-- [ ] `build.nix` : déréférence un secret sops sans assertion -> poser
+- [x] `build.nix` : déréférence un secret sops sans assertion -> poser
       `darkone.system.core.enableSops = false` casse l'eval avec un message
       pointant `build.nix` au lieu de l'option réellement basculée.
 - [ ] `hive.nix` : `parseArch` ne valide ni le CPU ni le token de carte -> un

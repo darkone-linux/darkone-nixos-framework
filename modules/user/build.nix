@@ -15,6 +15,11 @@
 }:
 let
 
+  # The `user/<login>/password-hash` secrets only exist while the sops module is
+  # on. Reading them unconditionally turned `enableSops = false` into an
+  # `attribute missing` error pointing here instead of at the flipped option.
+  hasSops = config.darkone.system.sops.enable;
+
   # `userNixosProfiles.<login>` is pre-resolved by `dnf/lib/mkConfigurations.nix`
   # (framework-side or workDir-side NixOS profile path). This module stays
   # agnostic to the framework/consumer layout.
@@ -49,7 +54,7 @@ let
           }
         else
           base
-          // {
+          // lib.optionalAttrs hasSops {
             hashedPasswordFile = config.sops.secrets."user/${login}/password-hash".path;
           }
           // import userNixosProfiles.${login} {
@@ -72,5 +77,21 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable { users.users = builtins.listToAttrs (map mkUser host.users); };
+  config = lib.mkIf cfg.enable {
+    users.users = builtins.listToAttrs (map mkUser host.users);
+
+    # sops is the only password source in DNF: without it every declared account
+    # would be created without any credential.
+    assertions = [
+      {
+        assertion = hasSops || host.users == [ ];
+        message = ''
+          darkone.user.build builds ${toString (builtins.length host.users)} account(s) on
+          ${host.hostname}, but sops is disabled, so no password hash is available.
+          Re-enable darkone.system.core.enableSops, or set
+          darkone.user.build.enable = false.
+        '';
+      }
+    ];
+  };
 }
