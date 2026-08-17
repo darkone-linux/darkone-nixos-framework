@@ -1,6 +1,6 @@
 # Darkone NixOS Framework
 
-[![Nix Tests](https://github.com/darkone-linux/darkone-nixos-framework/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/darkone-linux/darkone-nixos-framework/actions/workflows/unit-tests.yml)
+[![Nix Tests](https://github.com/darkone-linux/darkone-nixos-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/darkone-linux/darkone-nixos-framework/actions/workflows/ci.yml)
 [![NixOS Unstable](https://img.shields.io/badge/NixOS-unstable-5277C3?logo=nixos&logoColor=white)](https://nixos.org/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
