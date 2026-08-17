@@ -43,7 +43,16 @@ let
   bootstrapHcs =
     hasHeadscale && !(dnfLib.isHcs host zone network) && hcsHost != null && (hcsHost.ip or "") != "";
   inherit (dnfLib.constants) caddyStorage;
-  caddyStorTmp = "/tmp/caddy-storage-sync";
+
+  # Staging dir for the cert pull, provided as a systemd StateDirectory. NOT in
+  # /tmp: a fixed path in a 1777 dir let a local user pre-create it as a symlink
+  # and turn the unit's `chown -R` into an arbitrary root chown.
+  caddyStorSyncName = "caddy-cert-sync";
+  caddyStorTmp = "/var/lib/${caddyStorSyncName}";
+
+  # Private key of the `nix` user, used for the pull. The unit runs as root, so
+  # ssh cannot find it by itself (HOME=/root). Same path as admin/nix.nix.
+  nixSshKey = "${config.users.users.nix.home}/.ssh/id_ed25519";
 
   # Self-heal watchdog tunables. 3 failed ticks at 60s ≈ 3 min of sustained
   # disconnection before acting (rides out WAN blips); one restart per 10 min
@@ -363,32 +372,43 @@ in
       wants = [ "tailscaled.service" ];
       serviceConfig = {
         Type = "oneshot";
-        User = "nix";
+
+        # Runs as root, on purpose: the former `User = "nix"` needed four sudo
+        # calls, and sudo is unusable from a unit as soon as ANSSI R39 sets
+        # `requiretty` (no TTY) — they failed silently on every hardened host.
+        StateDirectory = caddyStorSyncName;
+        StateDirectoryMode = "0700";
         ExecStart = pkgs.writeShellScript "sync-hcs-caddy-certs" ''
 
-          # Sync from HCS with nix user
-          /run/current-system/sw/bin/mkdir -p ${caddyStorTmp}
-          /run/wrappers/bin/sudo ${pkgs.coreutils}/bin/chown -R nix ${caddyStorTmp}
+          # Without this, every step below can fail while the oneshot still
+          # exits 0: certs stop syncing until they expire, with no alert.
+          set -euo pipefail
 
-          # Certificates extraction
+          # Pull the HCS storage. The remote side still elevates to caddy: the
+          # ACME files are 0600 caddy:caddy, unreadable by nix.
           ${pkgs.rsync}/bin/rsync \
             -avz \
             --delete \
             --timeout=30 \
-            -e "${pkgs.openssh}/bin/ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+            -e "${pkgs.openssh}/bin/ssh -i ${nixSshKey} -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
             --rsync-path="sudo -u caddy rsync" \
             nix@${hcsInternalFqdn}:${caddyStorage}/ \
             ${caddyStorTmp}/
 
-          # Sync to caddy data dir with caddy user
-          /run/wrappers/bin/sudo ${pkgs.coreutils}/bin/chown -R caddy:caddy ${caddyStorTmp}
-            
-          # Sync with local tailscale
-          /run/wrappers/bin/sudo ${pkgs.rsync}/bin/rsync \
-            -av \
+          # Never publish an empty staging dir: the --delete below would wipe
+          # the live certificates and the ACME account key.
+          if [ -z "$(${pkgs.findutils}/bin/find ${caddyStorTmp} -type f -print -quit)" ]; then
+            echo "sync-caddy-certs: empty staging dir, refusing to publish" >&2
+            exit 1
+          fi
+
+          # Publish to caddy's own storage.
+          ${pkgs.rsync}/bin/rsync \
+            -a \
             --delete \
             ${caddyStorTmp}/ \
             ${caddyStorage}/
+          ${pkgs.coreutils}/bin/chown -R caddy:caddy ${caddyStorage}
         '';
       };
     };

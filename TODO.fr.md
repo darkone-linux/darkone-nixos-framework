@@ -33,20 +33,24 @@ Issu d'une revue de code globale du dépôt (250 fichiers nix, ~29k lignes).
 
 Bugs de correction / sécurité :
 
-- [ ] `prometheus.nix` : alerte `ZoneInternetDown` inversée (`min by` au lieu de
+- [x] `prometheus.nix` : alerte `ZoneInternetDown` inversée (`min by` au lieu de
       `max by`) -> se déclenche dès qu'une seule sonde externe tombe, alors que
       le contrat est "toutes les sondes". Faux positif critical + inhibition
       abusive des alertes `down` des hôtes joints par le WAN.
-- [ ] `services.nix` : la branche des vhosts globaux (HCS) n'a pas la garde
+- [x] `services.nix` : la branche des vhosts globaux (HCS) n'a pas la garde
       `servicePort` de la branche locale -> `reverse_proxy http://ip:` invalide,
       Caddy refuse de démarrer, tous les vhosts publics tombent. La garde
       correcte est l'implication `hasReverseProxy -> servicePort != null` (la
       branche locale élimine à tort les services purement `extraConfig`).
-- [ ] `tailscale.nix` : `sync-caddy-certs` sans `set -euo pipefail` (échecs
+- [x] `tailscale.nix` : `sync-caddy-certs` sans `set -euo pipefail` (échecs
       muets, expiration TLS sans alerte), staging dans `/tmp` à chemin fixe sans
       `PrivateTmp` puis `chown -R` (symlink attack -> élévation de privilèges),
       `sudo` inutilisable dans une unité systemd dès ANSSI >= intermediary
       (`requiretty`), et `mkdir` en chemin impur.
+  - [ ] Reste le `--rsync-path="sudo -u caddy rsync"` côté HCS : même blocage
+        `requiretty` sur un HCS durci en intermediary+, cette fois via ssh sans
+        pty. Trancher entre une exception sudoers ciblée pour `nix` sur le HCS
+        et un autre mécanisme de lecture du stockage Caddy (0600 caddy:caddy).
 - [ ] `just-configure-alert-bot.sh` : le `registration_shared_secret` Synapse
       est passé en argv à `openssl` -> lisible par tout utilisateur local dans
       `/proc/<pid>/cmdline`.
