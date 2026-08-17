@@ -89,9 +89,19 @@ let
   };
 
   # Host running the monitoring service (Grafana). Logs are pushed there.
-  monitoringSvc = lib.findFirst (s: s.name == "monitoring") null network.services;
+  # A zone-local monitoring service wins, but a single central Grafana serving
+  # every zone stays supported — hence the cross-zone fallback.
+  monitoringSvcs = lib.filter (s: s.name == "monitoring") network.services;
+  monitoringSvc = lib.findFirst (s: s.zone == zone.name) (
+    if monitoringSvcs == [ ] then null else builtins.head monitoringSvcs
+  ) monitoringSvcs;
   monitoringHost =
     if monitoringSvc != null then dnfLib.findHost monitoringSvc.host monitoringSvc.zone hosts else { };
+
+  # `preferredIp {}` falls back to 127.0.0.1 by design, which would turn an
+  # unresolved monitoring host into a silent black hole for every pushed log.
+  # Resolution is therefore an explicit condition, asserted below.
+  hasMonitoringHost = monitoringHost != { };
   lokiAddr = dnfLib.preferredIp monitoringHost;
   lokiUrl = "http://${lokiAddr}:${toString port.loki}";
 
@@ -107,7 +117,10 @@ in
     };
     darkone.service.loki.isClient = lib.mkOption {
       type = lib.types.bool;
-      default = config.services.caddy.enable;
+
+      # No monitoring host in the network means no Loki to push to: shipping
+      # Alloy anyway would just drop every log line without a word.
+      default = config.services.caddy.enable && hasMonitoringHost;
       description = "Deploys Alloy to collect local Caddy access logs.";
     };
     darkone.service.loki.retentionTime = lib.mkOption {
@@ -276,6 +289,20 @@ in
     #--------------------------------------------------------------------------
 
     (lib.mkIf cfg.isClient {
+
+      # Only reachable by setting isClient by hand: the default already accounts
+      # for a missing monitoring host.
+      assertions = [
+        {
+          assertion = hasMonitoringHost;
+          message = ''
+            darkone.service.loki.isClient is enabled on ${host.hostname} but no
+            host runs the `monitoring` service in this network: Alloy would push
+            the Caddy logs to 127.0.0.1 and lose them. Declare a `monitoring`
+            service in config.yaml, or set isClient = false.
+          '';
+        }
+      ];
 
       services.alloy.enable = true;
 

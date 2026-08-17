@@ -51,13 +51,13 @@ Bugs de correction / sécurité :
         `requiretty` sur un HCS durci en intermediary+, cette fois via ssh sans
         pty. Trancher entre une exception sudoers ciblée pour `nix` sur le HCS
         et un autre mécanisme de lecture du stockage Caddy (0600 caddy:caddy).
-- [ ] `just-configure-alert-bot.sh` : le `registration_shared_secret` Synapse
+- [x] `just-configure-alert-bot.sh` : le `registration_shared_secret` Synapse
       est passé en argv à `openssl` -> lisible par tout utilisateur local dans
       `/proc/<pid>/cmdline`.
 
 Défaillances silencieuses :
 
-- [ ] `loki.nix` : lookup du service `monitoring` sans filtre de zone et repli
+- [x] `loki.nix` : lookup du service `monitoring` sans filtre de zone et repli
       muet sur `127.0.0.1` -> les gateways sans monitoring déclaré jettent leurs
       logs Caddy dans le vide, sans aucun signal.
 - [ ] `build.nix` : déréférence un secret sops sans assertion -> poser
