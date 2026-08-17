@@ -323,6 +323,83 @@ let
   # substituted by envsubst from each bridge's environmentFile.
   doublePuppetSecret = "as_token:$MAUTRIX_DOUBLEPUPPET_AS_TOKEN";
 
+  # Settings shared by the bridgev2 bridges (meta, whatsapp, signal). The legacy
+  # telegram (python) and discord (go) bridges use a different schema and keep
+  # their own blocks. Single point of truth for the encryption policy, which
+  # otherwise had to be edited bridge by bridge.
+  bridgev2Settings = {
+    bridge.permissions = mkBridgePermissions "user";
+    double_puppet.secrets."${network.domain}" = doublePuppetSecret;
+    encryption = {
+      allow = true;
+      default = true;
+      pickle_key = "$ENCRYPTION_PICKLE_KEY";
+      require = false;
+
+      # Mandatory with MAS; needs a registration regen when flipped
+      # (cf. header)
+      msc4190 = cfg.mas.enable;
+    };
+  };
+
+  # sops plumbing shared by every mautrix bridge: the appservice token secrets,
+  # the optional encryption pickle key, and the env template the unit reads.
+  # Only the namespace and the unit/user name differ, so this used to be five
+  # near-identical copies — duplicated deprecation TODO included.
+  #
+  # `name` is both the sops namespace (`mautrix-<name>-*`) and the env prefix
+  # (`MAUTRIX_<NAME>_*`). `unit`/`owner` default to `mautrix-<name>`; meta
+  # overrides them because its unit carries the instance name.
+  mkBridgeSops =
+    {
+      name,
+      unit ? "mautrix-${name}",
+      owner ? unit,
+      withPickleKey ? true,
+      extraSecrets ? [ ],
+    }:
+    let
+      envPrefix = "MAUTRIX_${lib.toUpper name}";
+
+      # Secret suffix -> env var read by the bridge. The two appservice tokens
+      # and the pickle key have names the bridges impose; anything else follows
+      # the plain `<PREFIX>_<SUFFIX>` convention.
+      envFor =
+        suffix:
+        {
+          "as-token" = "${envPrefix}_APPSERVICE_AS_TOKEN";
+          "hs-token" = "${envPrefix}_APPSERVICE_HS_TOKEN";
+          "encryption-pickle-key" = "ENCRYPTION_PICKLE_KEY";
+        }
+        .${suffix} or "${envPrefix}_${lib.toUpper (lib.replaceStrings [ "-" ] [ "_" ] suffix)}";
+
+      suffixes =
+        extraSecrets
+        ++ [
+          "as-token"
+          "hs-token"
+        ]
+        ++ lib.optional withPickleKey "encryption-pickle-key";
+
+      secretName = suffix: "mautrix-${name}-${suffix}";
+    in
+    {
+      sops.secrets = lib.genAttrs (map secretName suffixes) (_: { });
+
+      sops.templates."mautrix-${name}-env" = {
+        content =
+          lib.concatMapStrings (
+            suffix: "${envFor suffix}=${config.sops.placeholder.${secretName suffix}}\n"
+          ) suffixes
+          + "MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}\n";
+        mode = "0400";
+        inherit owner;
+
+        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
+        restartUnits = [ "${unit}.service" ];
+      };
+    };
+
   defaultParams = {
     icon = "element";
   };
@@ -1009,325 +1086,248 @@ in
     # Mautrix bridge: Facebook Messenger (bridgev2)
     #------------------------------------------------------------------------
 
-    (lib.mkIf (cfg.enable && cfg.bridges.messenger.enable) {
+    (lib.mkIf (cfg.enable && cfg.bridges.messenger.enable) (
+      lib.mkMerge [
+        (mkBridgeSops {
+          name = "meta";
+          unit = "mautrix-meta-messenger";
+        })
+        {
 
-      sops.secrets.mautrix-meta-as-token = { };
-      sops.secrets.mautrix-meta-hs-token = { };
-      sops.secrets.mautrix-meta-encryption-pickle-key = { };
-      sops.templates.mautrix-meta-env = {
-        content = ''
-          MAUTRIX_META_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-meta-as-token}
-          MAUTRIX_META_APPSERVICE_HS_TOKEN=${config.sops.placeholder.mautrix-meta-hs-token}
-          ENCRYPTION_PICKLE_KEY=${config.sops.placeholder.mautrix-meta-encryption-pickle-key}
-          MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
-        '';
-        mode = "0400";
-        owner = "mautrix-meta-messenger";
+          services.mautrix-meta.instances.messenger = {
+            enable = true;
+            environmentFile = config.sops.templates.mautrix-meta-env.path;
+            settings = mautrixCommonSettings // {
+              network.mode = "messenger";
+              network.chat_sync_max_age = "168h"; # only sync active conversations from the last 7 days
+              inherit (bridgev2Settings) bridge double_puppet;
 
-        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
-        restartUnits = [ "mautrix-meta-messenger.service" ];
-      };
+              # The nixpkgs mautrix-meta defaults are stricter than the other
+              # bridges: `require = true` makes the bot ignore unencrypted rooms
+              # and `cross-signed-tofu` silently drops messages from unverified
+              # sessions — the bot never answers. Align on whatsapp/signal
+              # (mautrix upstream defaults). Changing pickle_key from the module
+              # default requires a bridge state reset (/var/lib/mautrix-meta-*).
+              encryption = bridgev2Settings.encryption // {
+                verification_levels = {
+                  receive = "unverified";
+                  send = "unverified";
+                  share = "cross-signed-tofu";
+                };
 
-      services.mautrix-meta.instances.messenger = {
-        enable = true;
-        environmentFile = config.sops.templates.mautrix-meta-env.path;
-        settings = mautrixCommonSettings // {
-          network.mode = "messenger";
-          network.chat_sync_max_age = "168h"; # only sync active conversations from the last 7 days
-          bridge.permissions = mkBridgePermissions "user";
-          double_puppet.secrets."${network.domain}" = doublePuppetSecret;
+                # Aggressive key deletion is only sensible with enforced
+                # verification; back to mautrix defaults like the other bridges.
+                delete_keys = {
+                  dont_store_outbound = false;
+                  ratchet_on_decrypt = false;
+                  delete_fully_used_on_decrypt = false;
+                  delete_prev_on_new_session = false;
+                  delete_on_device_delete = false;
+                  periodically_delete_expired = false;
+                  delete_outdated_inbound = false;
+                };
+              };
+              appservice = {
+                id = "messenger";
 
-          # The nixpkgs mautrix-meta defaults are stricter than the other
-          # bridges: `require = true` makes the bot ignore unencrypted rooms
-          # and `cross-signed-tofu` silently drops messages from unverified
-          # sessions — the bot never answers. Align on whatsapp/signal
-          # (mautrix upstream defaults). Changing pickle_key from the module
-          # default requires a bridge state reset (/var/lib/mautrix-meta-*).
-          encryption = {
-            allow = true;
-            default = true;
-            require = false;
-            pickle_key = "$ENCRYPTION_PICKLE_KEY";
-
-            # Appservice device management: mandatory with MAS (no /login).
-            # Written into the registration at generation time -> flipping it
-            # requires a registration regen (cf. header).
-            msc4190 = cfg.mas.enable;
-            verification_levels = {
-              receive = "unverified";
-              send = "unverified";
-              share = "cross-signed-tofu";
-            };
-
-            # Aggressive key deletion is only sensible with enforced
-            # verification; back to mautrix defaults like the other bridges.
-            delete_keys = {
-              dont_store_outbound = false;
-              ratchet_on_decrypt = false;
-              delete_fully_used_on_decrypt = false;
-              delete_prev_on_new_session = false;
-              delete_on_device_delete = false;
-              periodically_delete_expired = false;
-              delete_outdated_inbound = false;
+                # Deterministic registration tokens (cf. file header)
+                as_token = "$MAUTRIX_META_APPSERVICE_AS_TOKEN";
+                hs_token = "$MAUTRIX_META_APPSERVICE_HS_TOKEN";
+                bot = {
+                  username = "messengerbot";
+                  displayname = "Messenger bridge bot";
+                  avatar = "mxc://maunium.net/ygtkteZsXnGJLJHRchUwYWak";
+                };
+              };
             };
           };
-          appservice = {
-            id = "messenger";
-
-            # Deterministic registration tokens (cf. file header)
-            as_token = "$MAUTRIX_META_APPSERVICE_AS_TOKEN";
-            hs_token = "$MAUTRIX_META_APPSERVICE_HS_TOKEN";
-            bot = {
-              username = "messengerbot";
-              displayname = "Messenger bridge bot";
-              avatar = "mxc://maunium.net/ygtkteZsXnGJLJHRchUwYWak";
-            };
-          };
-        };
-      };
-    })
+        }
+      ]
+    ))
 
     #------------------------------------------------------------------------
     # Mautrix bridge: WhatsApp (bridgev2)
     #------------------------------------------------------------------------
 
-    (lib.mkIf (cfg.enable && cfg.bridges.whatsapp.enable) {
+    (lib.mkIf (cfg.enable && cfg.bridges.whatsapp.enable) (
+      lib.mkMerge [
+        (mkBridgeSops { name = "whatsapp"; })
+        {
 
-      sops.secrets.mautrix-whatsapp-as-token = { };
-      sops.secrets.mautrix-whatsapp-hs-token = { };
-      sops.secrets.mautrix-whatsapp-encryption-pickle-key = { };
-      sops.templates.mautrix-whatsapp-env = {
-        content = ''
-          MAUTRIX_WHATSAPP_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-whatsapp-as-token}
-          MAUTRIX_WHATSAPP_APPSERVICE_HS_TOKEN=${config.sops.placeholder.mautrix-whatsapp-hs-token}
-          ENCRYPTION_PICKLE_KEY=${config.sops.placeholder.mautrix-whatsapp-encryption-pickle-key}
-          MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
-        '';
-        mode = "0400";
-        owner = "mautrix-whatsapp";
+          services.mautrix-whatsapp = {
+            enable = true;
+            environmentFile = config.sops.templates.mautrix-whatsapp-env.path;
+            settings = lib.mkMerge [
+              mautrixCommonSettings
+              bridgev2Settings
+              {
 
-        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
-        restartUnits = [ "mautrix-whatsapp.service" ];
-      };
+                # Deterministic registration tokens (cf. file header)
+                appservice = {
+                  as_token = "$MAUTRIX_WHATSAPP_APPSERVICE_AS_TOKEN";
+                  hs_token = "$MAUTRIX_WHATSAPP_APPSERVICE_HS_TOKEN";
+                };
 
-      services.mautrix-whatsapp = {
-        enable = true;
-        environmentFile = config.sops.templates.mautrix-whatsapp-env.path;
-        settings = lib.mkMerge [
-          mautrixCommonSettings
-          {
-            bridge.permissions = mkBridgePermissions "user";
-            double_puppet.secrets."${network.domain}" = doublePuppetSecret;
-
-            # Deterministic registration tokens (cf. file header)
-            appservice = {
-              as_token = "$MAUTRIX_WHATSAPP_APPSERVICE_AS_TOKEN";
-              hs_token = "$MAUTRIX_WHATSAPP_APPSERVICE_HS_TOKEN";
-            };
-
-            # Do not bridge WhatsApp statuses: the default (true) keeps
-            # re-inviting every user to a "WhatsApp Status Broadcast" room.
-            network.enable_status_broadcast = false;
-
-            encryption = {
-              allow = true;
-              default = true;
-              pickle_key = "$ENCRYPTION_PICKLE_KEY";
-              require = false;
-
-              # Mandatory with MAS; needs a registration regen when flipped
-              # (cf. header)
-              msc4190 = cfg.mas.enable;
-            };
-          }
-        ];
-      };
-    })
+                # Do not bridge WhatsApp statuses: the default (true) keeps
+                # re-inviting every user to a "WhatsApp Status Broadcast" room.
+                network.enable_status_broadcast = false;
+              }
+            ];
+          };
+        }
+      ]
+    ))
 
     #------------------------------------------------------------------------
     # Mautrix bridge: Signal (bridgev2)
     #------------------------------------------------------------------------
 
-    (lib.mkIf (cfg.enable && cfg.bridges.signal.enable) {
+    (lib.mkIf (cfg.enable && cfg.bridges.signal.enable) (
+      lib.mkMerge [
+        (mkBridgeSops { name = "signal"; })
+        {
 
-      sops.secrets.mautrix-signal-as-token = { };
-      sops.secrets.mautrix-signal-hs-token = { };
-      sops.secrets.mautrix-signal-encryption-pickle-key = { };
-      sops.templates.mautrix-signal-env = {
-        content = ''
-          MAUTRIX_SIGNAL_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-signal-as-token}
-          MAUTRIX_SIGNAL_APPSERVICE_HS_TOKEN=${config.sops.placeholder.mautrix-signal-hs-token}
-          ENCRYPTION_PICKLE_KEY=${config.sops.placeholder.mautrix-signal-encryption-pickle-key}
-          MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
-        '';
-        mode = "0400";
-        owner = "mautrix-signal";
+          services.mautrix-signal = {
+            enable = true;
+            environmentFile = config.sops.templates.mautrix-signal-env.path;
+            settings = lib.mkMerge [
+              mautrixCommonSettings
+              bridgev2Settings
+              {
 
-        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
-        restartUnits = [ "mautrix-signal.service" ];
-      };
-
-      services.mautrix-signal = {
-        enable = true;
-        environmentFile = config.sops.templates.mautrix-signal-env.path;
-        settings = lib.mkMerge [
-          mautrixCommonSettings
-          {
-            bridge.permissions = mkBridgePermissions "user";
-            double_puppet.secrets."${network.domain}" = doublePuppetSecret;
-
-            # Deterministic registration tokens (cf. file header)
-            appservice = {
-              as_token = "$MAUTRIX_SIGNAL_APPSERVICE_AS_TOKEN";
-              hs_token = "$MAUTRIX_SIGNAL_APPSERVICE_HS_TOKEN";
-            };
-
-            encryption = {
-              allow = true;
-              default = true;
-              pickle_key = "$ENCRYPTION_PICKLE_KEY";
-              require = false;
-
-              # Mandatory with MAS; needs a registration regen when flipped
-              # (cf. header)
-              msc4190 = cfg.mas.enable;
-            };
-          }
-        ];
-      };
-    })
+                # Deterministic registration tokens (cf. file header)
+                appservice = {
+                  as_token = "$MAUTRIX_SIGNAL_APPSERVICE_AS_TOKEN";
+                  hs_token = "$MAUTRIX_SIGNAL_APPSERVICE_HS_TOKEN";
+                };
+              }
+            ];
+          };
+        }
+      ]
+    ))
 
     #------------------------------------------------------------------------
     # Mautrix bridge: Telegram (legacy python bridge)
     #------------------------------------------------------------------------
 
-    (lib.mkIf (cfg.enable && cfg.bridges.telegram.enable) {
+    (lib.mkIf (cfg.enable && cfg.bridges.telegram.enable) (
+      lib.mkMerge [
 
-      # API credentials -> https://my.telegram.org/
-      sops.secrets.mautrix-telegram-api-id = { };
-      sops.secrets.mautrix-telegram-api-hash = { };
-      sops.secrets.mautrix-telegram-as-token = { };
-      sops.secrets.mautrix-telegram-hs-token = { };
-      sops.templates.mautrix-telegram-env = {
-        content = ''
-          MAUTRIX_TELEGRAM_API_ID=${config.sops.placeholder.mautrix-telegram-api-id}
-          MAUTRIX_TELEGRAM_API_HASH=${config.sops.placeholder.mautrix-telegram-api-hash}
-          MAUTRIX_TELEGRAM_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-telegram-as-token}
-          MAUTRIX_TELEGRAM_APPSERVICE_HS_TOKEN=${config.sops.placeholder.mautrix-telegram-hs-token}
-          MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
-        '';
-        mode = "0400";
-        owner = "mautrix-telegram";
+        # No pickle key: the legacy bridge keeps its olm state in its own DB.
+        # API credentials -> https://my.telegram.org/
+        (mkBridgeSops {
+          name = "telegram";
+          withPickleKey = false;
+          extraSecrets = [
+            "api-id"
+            "api-hash"
+          ];
+        })
+        {
 
-        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
-        restartUnits = [ "mautrix-telegram.service" ];
-      };
+          services.mautrix-telegram = {
+            enable = true;
+            environmentFile = config.sops.templates.mautrix-telegram-env.path;
+            settings = lib.mkMerge [
+              mautrixCommonSettings
+              {
+                telegram = {
+                  api_id = "$MAUTRIX_TELEGRAM_API_ID";
+                  api_hash = "$MAUTRIX_TELEGRAM_API_HASH";
+                  bot_token = "disabled";
+                };
+                appservice = {
+                  id = "telegram";
+                  address = "http://localhost:${toString telegramPort}"; # 8080 by default already in use
+                  port = telegramPort;
+                  as_token = "$MAUTRIX_TELEGRAM_APPSERVICE_AS_TOKEN";
+                  hs_token = "$MAUTRIX_TELEGRAM_APPSERVICE_HS_TOKEN";
+                };
+                bridge = {
 
-      services.mautrix-telegram = {
-        enable = true;
-        environmentFile = config.sops.templates.mautrix-telegram-env.path;
-        settings = lib.mkMerge [
-          mautrixCommonSettings
-          {
-            telegram = {
-              api_id = "$MAUTRIX_TELEGRAM_API_ID";
-              api_hash = "$MAUTRIX_TELEGRAM_API_HASH";
-              bot_token = "disabled";
-            };
-            appservice = {
-              id = "telegram";
-              address = "http://localhost:${toString telegramPort}"; # 8080 by default already in use
-              port = telegramPort;
-              as_token = "$MAUTRIX_TELEGRAM_APPSERVICE_AS_TOKEN";
-              hs_token = "$MAUTRIX_TELEGRAM_APPSERVICE_HS_TOKEN";
-            };
-            bridge = {
-
-              # Legacy levels: "full" (not "user") is required so that local
-              # accounts can log into their own telegram account.
-              permissions = mkBridgePermissions "full";
-              login_shared_secret_map."${network.domain}" = doublePuppetSecret;
-              encryption = {
-                allow = true;
-                default = true;
-                msc4190 = true;
-                require = false;
-              };
-            };
-          }
-        ];
-      };
-    })
+                  # Legacy levels: "full" (not "user") is required so that local
+                  # accounts can log into their own telegram account.
+                  permissions = mkBridgePermissions "full";
+                  login_shared_secret_map."${network.domain}" = doublePuppetSecret;
+                  encryption = {
+                    allow = true;
+                    default = true;
+                    msc4190 = true;
+                    require = false;
+                  };
+                };
+              }
+            ];
+          };
+        }
+      ]
+    ))
 
     #------------------------------------------------------------------------
     # Mautrix bridge: Discord (legacy go bridge, optional)
     #------------------------------------------------------------------------
 
-    (lib.mkIf (cfg.enable && cfg.bridges.discord.enable) {
+    (lib.mkIf (cfg.enable && cfg.bridges.discord.enable) (
+      lib.mkMerge [
 
-      sops.secrets.mautrix-discord-as-token = { };
-      sops.secrets.mautrix-discord-hs-token = { };
-      sops.templates.mautrix-discord-env = {
-        content = ''
-          MAUTRIX_DISCORD_APPSERVICE_AS_TOKEN=${config.sops.placeholder.mautrix-discord-as-token}
-          MAUTRIX_DISCORD_APPSERVICE_HS_TOKEN=${config.sops.placeholder.mautrix-discord-hs-token}
-          MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}
-        '';
-        mode = "0400";
-        owner = "mautrix-discord";
+        # No pickle key: the legacy bridge keeps its olm state in its own DB.
+        (mkBridgeSops {
+          name = "discord";
+          withPickleKey = false;
+        })
+        {
 
-        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
-        restartUnits = [ "mautrix-discord.service" ];
-      };
+          services.mautrix-discord = {
+            enable = true;
+            environmentFile = config.sops.templates.mautrix-discord-env.path;
+            settings = {
+              homeserver = mautrixCommonSettings.homeserver;
 
-      services.mautrix-discord = {
-        enable = true;
-        environmentFile = config.sops.templates.mautrix-discord-env.path;
-        settings = {
-          homeserver = mautrixCommonSettings.homeserver;
+              # Deterministic registration tokens (cf. file header). The module's
+              # appservice option is a non-merging attrs: setting the tokens
+              # replaces its default wholesale, so the upstream values must be
+              # restated here.
+              appservice = {
+                address = "http://localhost:${toString discordPort}";
+                hostname = "0.0.0.0";
+                port = discordPort;
+                database = {
+                  type = "sqlite3";
+                  uri = "file:/var/lib/mautrix-discord/mautrix-discord.db?_txlock=immediate";
+                  max_open_conns = 20;
+                  max_idle_conns = 2;
+                  max_conn_idle_time = null;
+                  max_conn_lifetime = null;
+                };
+                id = "discord";
+                bot = {
+                  username = "discordbot";
+                  displayname = "Discord bridge bot";
+                  avatar = "mxc://maunium.net/nIdEykemnwdisvHbpxflpDlC";
+                };
+                ephemeral_events = true;
+                async_transactions = false;
+                as_token = "$MAUTRIX_DISCORD_APPSERVICE_AS_TOKEN";
+                hs_token = "$MAUTRIX_DISCORD_APPSERVICE_HS_TOKEN";
+              };
 
-          # Deterministic registration tokens (cf. file header). The module's
-          # appservice option is a non-merging attrs: setting the tokens
-          # replaces its default wholesale, so the upstream values must be
-          # restated here.
-          appservice = {
-            address = "http://localhost:${toString discordPort}";
-            hostname = "0.0.0.0";
-            port = discordPort;
-            database = {
-              type = "sqlite3";
-              uri = "file:/var/lib/mautrix-discord/mautrix-discord.db?_txlock=immediate";
-              max_open_conns = 20;
-              max_idle_conns = 2;
-              max_conn_idle_time = null;
-              max_conn_lifetime = null;
+              # Intentionally partial: missing keys (templates, command prefix...)
+              # are filled at startup by the bridge's embedded config upgrader.
+              bridge = {
+                permissions = mkBridgePermissions "user" // {
+                  "*" = "relay";
+                };
+                login_shared_secret_map."${network.domain}" = doublePuppetSecret;
+
+                # Mandatory with MAS; needs a registration regen when flipped
+                # (cf. header)
+                encryption.msc4190 = cfg.mas.enable;
+              };
             };
-            id = "discord";
-            bot = {
-              username = "discordbot";
-              displayname = "Discord bridge bot";
-              avatar = "mxc://maunium.net/nIdEykemnwdisvHbpxflpDlC";
-            };
-            ephemeral_events = true;
-            async_transactions = false;
-            as_token = "$MAUTRIX_DISCORD_APPSERVICE_AS_TOKEN";
-            hs_token = "$MAUTRIX_DISCORD_APPSERVICE_HS_TOKEN";
           };
-
-          # Intentionally partial: missing keys (templates, command prefix...)
-          # are filled at startup by the bridge's embedded config upgrader.
-          bridge = {
-            permissions = mkBridgePermissions "user" // {
-              "*" = "relay";
-            };
-            login_shared_secret_map."${network.domain}" = doublePuppetSecret;
-
-            # Mandatory with MAS; needs a registration regen when flipped
-            # (cf. header)
-            encryption.msc4190 = cfg.mas.enable;
-          };
-        };
-      };
-    })
+        }
+      ]
+    ))
   ];
 }
