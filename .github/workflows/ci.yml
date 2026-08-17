@@ -22,9 +22,29 @@ jobs:
       - name: Run unit tests
         run: nix run nixpkgs#nix-unit -- --flake .#libTests
 
+  # One runner per system, NOT `--all-systems`.
+  #
+  # `nix flake check --all-systems` evaluates every system inside a single nix
+  # process and keeps it all live: measured peak 17.3 GB, against 16 GB on an
+  # ubuntu-24.04 runner. The OOM killer ended it with SIGTERM (exit 143), with
+  # no output at all. Per system the peak drops to ~8.3 GB (x86_64) and ~7.6 GB
+  # (aarch64), and the two run in parallel.
+  #
+  # If this starts dying again as scenarios are added, do not raise the ceiling:
+  # evaluate one output per nix process (`nix eval .#checks.<sys>.<name>.drvPath`
+  # in a loop), which caps the peak at the heaviest single item (~4.6 GB for
+  # `eval-all`).
   eval:
-    name: Evaluate flake outputs
+    name: Evaluate flake outputs (${{ matrix.system }})
     runs-on: ubuntu-latest
+    strategy:
+
+      # A failure on one architecture must not hide the other one's result.
+      fail-fast: false
+      matrix:
+        system:
+          - x86_64-linux
+          - aarch64-linux
     steps:
       - uses: actions/checkout@v4
 
@@ -36,12 +56,14 @@ jobs:
       # `attribute missing` / type errors that only surfaced at deploy time,
       # without booting the VM scenarios (those live in simulations.yml).
       # The sed filter mirrors `just check-flake`: DNF's non-standard outputs
-      # are expected, any *other* unknown output stays visible.
+      # are expected, any *other* unknown output stays visible. `sed -u` is
+      # mandatory here — buffered, it swallowed every line of a run that then
+      # died silently.
       - name: nix flake check (eval only)
         run: |
           set -euo pipefail
-          nix flake check --no-build --all-systems 2>&1 \
-            | sed -E "/^warning: unknown flake output '(colmena|colmenaHive|homeManagerModules|libTests|mkNodes)'$/d"
+          nix flake check --no-build --option system ${{ matrix.system }} 2>&1 \
+            | sed -u -E "/^warning: unknown flake output '(colmena|colmenaHive|homeManagerModules|libTests|mkNodes)'$/d"
 
   lint:
     name: Lint and format
