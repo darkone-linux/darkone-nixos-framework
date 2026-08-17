@@ -148,7 +148,9 @@ let
       job = "blackbox-internet";
       severity = "critical";
       "for" = "2m";
-      expr = ''min by (job) (probe_success{job="blackbox-internet"}) == 0'';
+      # `max`, not `min`: probe_success is 1/0, so max == 0 means every target
+      # is down. `min == 0` would fire on the first dead target.
+      expr = ''max by (job) (probe_success{job="blackbox-internet"}) == 0'';
       summary = "Internet down in zone ${zone.name}";
       description = "All external probes (${lib.concatStringsSep ", " internetTargets}) from the ${zone.name} gateway failed: the zone lost internet. WAN-reached hosts' down-alerts are inhibited.";
     });
