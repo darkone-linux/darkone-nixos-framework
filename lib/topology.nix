@@ -62,4 +62,45 @@ rec {
       host.ip
     else
       "127.0.0.1";
+
+  # Resolve the NFS topology seen from `host`: who serves the zone, and is this
+  # host the server or one of its clients?
+  #
+  # Single source of truth for what used to be three hand-copied variants that
+  # had drifted apart — one crashed on a null lookup, one used a `""` sentinel,
+  # one omitted the zone check on the `nfs-client` feature.
+  #
+  # A client must carry the `nfs-client` feature AND point it at the server's
+  # own zone; cross-zone clients are not wired yet (see modules/service/nfs.nix).
+  # `count` is exposed so callers can assert the single-server invariant.
+  resolveNfs =
+    {
+      host,
+      hosts,
+      zone,
+      services,
+    }:
+    let
+      matches = builtins.filter (s: s.name == "nfs" && s.zone == zone.name) services;
+      count = builtins.length matches;
+      server = if matches == [ ] then null else (builtins.head matches).host;
+      serverHost = if server == null then { } else findFirst (h: h.hostname == server) { } hosts;
+      features = host.features or { };
+      hasServer = count == 1;
+      isServer = server != null && host.hostname == server;
+      isClient =
+        hasServer
+        && !isServer
+        && hasAttr "nfs-client" features
+        && features.nfs-client == (serverHost.zone or null);
+    in
+    {
+      inherit
+        count
+        server
+        hasServer
+        isServer
+        isClient
+        ;
+    };
 }

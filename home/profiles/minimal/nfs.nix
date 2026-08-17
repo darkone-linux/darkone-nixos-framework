@@ -3,6 +3,7 @@
   pkgs,
   config,
   osConfig,
+  dnfLib,
   hosts,
   host,
   zone,
@@ -10,19 +11,12 @@
   ...
 }:
 let
-  hasServer = osConfig.darkone.service.nfs.enable;
-  nfsServer =
-    if hasServer then
-      (lib.findFirst (s: s.name == "nfs" && s.zone == zone.name) null network.services).host
-    else
-      null;
-  isServer = nfsServer != null && host.hostname == nfsServer;
-  isClient =
-    nfsServer != null
-    && !isServer
-    && lib.hasAttr "nfs-client" host.features
-    && host.features.nfs-client == (lib.findFirst (h: h.hostname == nfsServer) null hosts).zone;
-  isEnable = hasServer && (isServer || isClient);
+  nfs = dnfLib.resolveNfs {
+    inherit host hosts zone;
+    inherit (network) services;
+  };
+  inherit (nfs) isServer isClient;
+  isEnable = osConfig.darkone.service.nfs.enable && (isServer || isClient);
   inherit (osConfig.darkone.system) srv-dirs;
   baseDir = if isServer then srv-dirs.nfs else "/mnt/nfs";
 in

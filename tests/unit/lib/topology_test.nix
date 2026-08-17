@@ -50,6 +50,29 @@ let
     hcsHost
   ];
 
+  # NFS fixtures: one server in `lan`, one client tagged with the server's zone.
+  nfsSrvHost = {
+    hostname = "nfssrv";
+    zone = "lan";
+  };
+  nfsClientHost = {
+    hostname = "nfsclient";
+    zone = "lan";
+    features.nfs-client = "lan";
+  };
+  nfsHosts = [
+    nfsSrvHost
+    nfsClientHost
+    mockHost
+  ];
+  nfsServices = [
+    {
+      name = "nfs";
+      host = "nfssrv";
+      zone = "lan";
+    }
+  ];
+
   mockServices = [
     {
       name = "wiki";
@@ -165,5 +188,107 @@ in
   testPreferredIpLoopback = {
     expr = dnfLib.preferredIp { };
     expected = "127.0.0.1";
+  };
+
+  # ----- resolveNfs -----
+  testResolveNfsServer = {
+    expr = dnfLib.resolveNfs {
+      host = nfsSrvHost;
+      hosts = nfsHosts;
+      zone = mockZone;
+      services = nfsServices;
+    };
+    expected = {
+      count = 1;
+      server = "nfssrv";
+      hasServer = true;
+      isServer = true;
+      isClient = false;
+    };
+  };
+  testResolveNfsClient = {
+    expr =
+      (dnfLib.resolveNfs {
+        host = nfsClientHost;
+        hosts = nfsHosts;
+        zone = mockZone;
+        services = nfsServices;
+      }).isClient;
+    expected = true;
+  };
+
+  # The feature must point at the server's own zone: cross-zone clients are not
+  # wired yet, and one of the former copies silently accepted them.
+  testResolveNfsClientWrongZone = {
+    expr =
+      (dnfLib.resolveNfs {
+        host = nfsClientHost // {
+          features.nfs-client = "dmz";
+        };
+        hosts = nfsHosts;
+        zone = mockZone;
+        services = nfsServices;
+      }).isClient;
+    expected = false;
+  };
+  testResolveNfsNoFeature = {
+    expr =
+      (dnfLib.resolveNfs {
+        host = nfsClientHost // {
+          features = { };
+        };
+        hosts = nfsHosts;
+        zone = mockZone;
+        services = nfsServices;
+      }).isClient;
+    expected = false;
+  };
+
+  # `features` absent altogether must not abort (hosts declare it optionally).
+  testResolveNfsMissingFeaturesAttr = {
+    expr =
+      (dnfLib.resolveNfs {
+        host = mockHost;
+        hosts = nfsHosts;
+        zone = mockZone;
+        services = nfsServices;
+      }).isClient;
+    expected = false;
+  };
+
+  # No `nfs` service in the zone: used to abort with `attempt to select
+  # attribute 'host' on null` instead of degrading.
+  testResolveNfsNoServer = {
+    expr = dnfLib.resolveNfs {
+      host = nfsClientHost;
+      hosts = nfsHosts;
+      zone = mockZone;
+      services = [ ];
+    };
+    expected = {
+      count = 0;
+      server = null;
+      hasServer = false;
+      isServer = false;
+      isClient = false;
+    };
+  };
+
+  # Two servers in one zone: `count` lets the caller assert the invariant.
+  testResolveNfsTwoServers = {
+    expr =
+      (dnfLib.resolveNfs {
+        host = nfsClientHost;
+        hosts = nfsHosts;
+        zone = mockZone;
+        services = nfsServices ++ [
+          {
+            name = "nfs";
+            host = "otherhost";
+            zone = "lan";
+          }
+        ];
+      }).count;
+    expected = 2;
   };
 }

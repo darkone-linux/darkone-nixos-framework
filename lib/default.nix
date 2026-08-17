@@ -54,6 +54,7 @@ in
     inLocalZone
     isHcs
     preferredIp
+    resolveNfs
     ;
   inherit (serviceParams) buildServiceParams extractServiceParams enableBlock;
   inherit (alerts)

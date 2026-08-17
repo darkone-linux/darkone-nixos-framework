@@ -67,7 +67,7 @@ Défaillances silencieuses :
       `arch` mal orthographié produit un `system` invalide, ou un Pi construit
       sans noyau vendeur ni firmware ni bootloader (image qui ne démarre pas),
       sans erreur à l'eval.
-- [ ] `music.nix` : troisième copie de la résolution du client NFS, seule sans
+- [x] `music.nix` : troisième copie de la résolution du client NFS, seule sans
       garde de nullité -> crash de l'eval au lieu d'une dégradation. À
       factoriser dans un helper `lib/` unique + test unitaire.
 

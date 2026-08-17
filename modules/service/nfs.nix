@@ -18,6 +18,7 @@
   dnfLib,
   dnfConfig,
   host,
+  hosts,
   pkgs,
   config,
   zone,
@@ -28,16 +29,15 @@ let
 
   # TODO: clients whose servers are not in the same zone (host.features.nfs-client -> external zone)
   cfg = config.darkone.service.nfs;
-  nfsServerCount = lib.count (s: s.name == "nfs" && s.zone == zone.name) network.services;
-  nfsServer = (lib.findFirst (s: s.name == "nfs" && s.zone == zone.name) "" network.services).host;
-  isServer = host.hostname == nfsServer;
-  hasServer = nfsServerCount == 1;
-  isClient = !isServer && hasServer && lib.hasAttr "nfs-client" host.features;
+  nfs = dnfLib.resolveNfs {
+    inherit host hosts zone;
+    inherit (network) services;
+  };
+  inherit (nfs) hasServer isServer isClient;
   inherit (config.darkone.system) srv-dirs; # Read only
 in
 assert
-  nfsServerCount <= 1
-  || builtins.throw "Only one 'nfs' server can be used, found ${toString nfsServerCount}";
+  nfs.count <= 1 || builtins.throw "Only one 'nfs' server can be used, found ${toString nfs.count}";
 {
   options = {
     darkone.service.nfs.enable = lib.mkOption {
