@@ -56,24 +56,17 @@ in
       }
       //
 
-        # Users passwords
+        # Users passwords. `neededForUsers` secrets are decrypted before the
+        # users exist, so sops-nix rejects `owner`/`group`/`mode` on them —
+        # they stay root-owned by construction.
         builtins.listToAttrs (
           map (login: {
             name = "user/" + login + "/password-hash";
             value = {
-              #mode = "0440";
               neededForUsers = true;
-              #owner = config.users.users.${login}.name;
-              #inherit (config.users.users.nobody) group;
             };
           }) host.users
         );
-
-      #// lib.genAttrs host.users (login: {
-      #  mode = "0440";
-      #  owner = config.users.users.${login}.name;
-      #  inherit (config.users.users.nobody) group;
-      #});
     };
   };
 }

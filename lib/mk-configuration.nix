@@ -36,7 +36,7 @@ let
 
   forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
-  # Pure helpers; needed before mkDnfLib (arch-independent)
+  # Pure helpers; needed before dnfLibFor (arch-independent)
   hiveLib = import ./hive.nix { inherit (nixpkgs) lib; };
   inherit (hiveLib)
     getHostArch
@@ -56,20 +56,20 @@ let
     inherit workDir;
   };
 
-  # Overlay temporaire : injecte `pkgs.geneweb` depuis la PR nixpkgs#522751.
-  # À supprimer en même temps que l'input `nixpkgs-geneweb` (cf. flake.nix).
-  # Appliqué via `nixpkgs.overlays` dans `mkNode` plutôt que dans `nixpkgsFor` :
-  # `nixosSystem` reconstruit son propre `pkgs`, donc seul `nixpkgs.overlays`
-  # passé en module atteint le `pkgs` vu par les modules.
+  # Temporary overlay: injects `pkgs.geneweb` from nixpkgs PR #522751. Drop it
+  # together with the `nixpkgs-geneweb` input (cf. flake.nix). Applied through
+  # `nixpkgs.overlays` in `mkNode` rather than in `nixpkgsFor`: `nixosSystem`
+  # rebuilds its own `pkgs`, so only an overlay passed as a module reaches the
+  # `pkgs` the modules actually see.
   genewebOverlay = import ./overlays/geneweb.nix { inherit nixpkgs-geneweb; };
 
-  # Overlay portabilité : neutralise le `target-cpu=native` d'OxiCloud pour que
-  # le binaire construit sur le deployer tourne sur tous les nœuds (SIGILL
-  # sinon sur CPU plus ancien). À retirer si le paquet nixpkgs le corrige.
+  # Portability overlay: neutralises OxiCloud's `target-cpu=native` so the
+  # binary built on the deployer runs on every node (SIGILL on an older CPU
+  # otherwise). Drop it once the nixpkgs package fixes this.
   oxicloudOverlay = import ./overlays/oxicloud.nix;
 
-  # Overlay compat : force `__structuredAttrs = false` sur `gimp` (build cassé
-  # sinon). À retirer dès qu'amont rend `gimp` compatible `__structuredAttrs`.
+  # Compat overlay: forces `__structuredAttrs = false` on `gimp` (build broken
+  # otherwise). Drop it once upstream makes `gimp` `__structuredAttrs`-clean.
   gimpOverlay = import ./overlays/gimp.nix;
 
   # logseq overlay: official AppImage instead of the broken electron-forge
@@ -97,13 +97,10 @@ let
     }
   );
 
-  # DNF runtime lib (per-system, injected into modules via specialArgs.dnfLib)
-  mkDnfLib =
-    system:
-    let
-      pkgs = nixpkgsFor.${system};
-    in
-    import ./. { inherit (pkgs) lib; };
+  # DNF runtime lib (per-system, injected into modules via specialArgs.dnfLib).
+  # Memoised like its `nixpkgsFor` neighbours: it is looked up once per host,
+  # and re-importing `lib/` for each of them is pure waste.
+  dnfLibFor = forAllSystems (system: import ./. { inherit (nixpkgsFor.${system}) lib; });
 
   # Consumer-side generated inventory
   hosts = import (workDir + "/var/generated/hosts.nix");
@@ -129,7 +126,9 @@ let
   # Common args injected as specialArgs / extraSpecialArgs.
   # `workDir` lets framework modules reference consumer-side files
   # (`usr/secrets/...`, `usr/www/...`) without baking relative paths.
-  mkCommonNodeArgs = system: {
+  # Memoised per system: the attrset is identical for every host of a given
+  # architecture.
+  commonNodeArgsFor = forAllSystems (system: {
     inherit
       dnfConfig
       network
@@ -138,18 +137,18 @@ let
       workDir
       ;
     pkgs-stable = nixpkgsStableFor.${system};
-    dnfLib = mkDnfLib system;
+    dnfLib = dnfLibFor.${system};
 
     # Required by nixos-raspberrypi board modules to locate the flake (the same
     # specialArg its `lib.nixosSystem` wrapper would inject).
     inherit nixos-raspberrypi;
-  };
+  });
 
   mkNodeSpecialArgs = host: {
     name = host.hostname;
     value = mkNodeArgs {
       inherit host hosts network;
-      extraArgs = mkCommonNodeArgs (getHostArch host);
+      extraArgs = commonNodeArgsFor.${getHostArch host};
     };
   };
 
@@ -176,19 +175,17 @@ let
         # Framework-side NixOS modules
         ../modules
 
-        # Geneweb : module upstream importé depuis la PR nixpkgs#522751
-        # (à retirer dès que la PR est mergée dans `nixos-unstable`).
-        # Parsé inconditionnellement mais sans effet tant que
-        # `services.geneweb.enable = false`.
+        # Geneweb: upstream module imported from nixpkgs PR #522751 (drop it
+        # once the PR lands in `nixos-unstable`). Parsed unconditionally, but
+        # inert while `services.geneweb.enable = false`.
         "${nixpkgs-geneweb}/nixos/modules/services/web-apps/geneweb.nix"
 
-        # Overlays temporaires (à retirer en même temps que les imports/inputs
-        # upstream correspondants) :
+        # Temporary overlays, to drop along with their upstream imports/inputs:
         #
-        # - geneweb   : injecte `pkgs.geneweb` depuis la PR nixpkgs#522751 ;
-        # - oxicloud  : neutralise `target-cpu=native` pour un binaire portable
-        #               entre nœuds (cf. oxicloudOverlay ci-dessus) ;
-        # - gimp      : force `__structuredAttrs = false` (build cassé sinon).
+        # - geneweb  : injects `pkgs.geneweb` from nixpkgs PR #522751;
+        # - oxicloud : neutralises `target-cpu=native` for a binary portable
+        #              across nodes (cf. oxicloudOverlay above);
+        # - gimp     : forces `__structuredAttrs = false` (build broken otherwise).
         {
           nixpkgs.overlays = [
             (genewebOverlay system)
@@ -199,11 +196,10 @@ let
           ];
         }
 
-        # OxiCloud : module upstream importé depuis la PR nixpkgs#516113
-        # (à retirer dès que la PR est mergée dans `nixos-unstable`). Parsé
-        # inconditionnellement, sans effet tant que `services.oxicloud.enable`
-        # reste à false. Pas d'overlay : `pkgs.oxicloud` vient déjà du tree
-        # `nixpkgs` principal.
+        # OxiCloud: upstream module imported from nixpkgs PR #516113 (drop it
+        # once the PR lands in `nixos-unstable`). Parsed unconditionally, but
+        # inert while `services.oxicloud.enable = false`. No overlay:
+        # `pkgs.oxicloud` already comes from the main `nixpkgs` tree.
         "${nixpkgs-oxicloud}/nixos/modules/services/web-apps/oxicloud.nix"
 
         # Consumer-side NixOS modules overlay
@@ -240,7 +236,7 @@ let
 
             extraSpecialArgs = mkNodeArgs {
               inherit host hosts network;
-              extraArgs = mkCommonNodeArgs system // {
+              extraArgs = commonNodeArgsFor.${system} // {
                 inherit inputs;
               };
             };
