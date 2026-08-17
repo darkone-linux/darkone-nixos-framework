@@ -27,6 +27,74 @@
   - [x] Conf OpenCode / Claude Code optimisée pour les développeurs.
 - [ ] Automatisation des secrets OIDC et similaires.
 
+### Améliorations / Corrections
+
+Issu d'une revue de code globale du dépôt (250 fichiers nix, ~29k lignes).
+
+Bugs de correction / sécurité :
+
+- [ ] `prometheus.nix` : alerte `ZoneInternetDown` inversée (`min by` au lieu de
+      `max by`) -> se déclenche dès qu'une seule sonde externe tombe, alors que
+      le contrat est "toutes les sondes". Faux positif critical + inhibition
+      abusive des alertes `down` des hôtes joints par le WAN.
+- [ ] `services.nix` : la branche des vhosts globaux (HCS) n'a pas la garde
+      `servicePort` de la branche locale -> `reverse_proxy http://ip:` invalide,
+      Caddy refuse de démarrer, tous les vhosts publics tombent. La garde
+      correcte est l'implication `hasReverseProxy -> servicePort != null` (la
+      branche locale élimine à tort les services purement `extraConfig`).
+- [ ] `tailscale.nix` : `sync-caddy-certs` sans `set -euo pipefail` (échecs
+      muets, expiration TLS sans alerte), staging dans `/tmp` à chemin fixe sans
+      `PrivateTmp` puis `chown -R` (symlink attack -> élévation de privilèges),
+      `sudo` inutilisable dans une unité systemd dès ANSSI >= intermediary
+      (`requiretty`), et `mkdir` en chemin impur.
+- [ ] `just-configure-alert-bot.sh` : le `registration_shared_secret` Synapse
+      est passé en argv à `openssl` -> lisible par tout utilisateur local dans
+      `/proc/<pid>/cmdline`.
+
+Défaillances silencieuses :
+
+- [ ] `loki.nix` : lookup du service `monitoring` sans filtre de zone et repli
+      muet sur `127.0.0.1` -> les gateways sans monitoring déclaré jettent leurs
+      logs Caddy dans le vide, sans aucun signal.
+- [ ] `build.nix` : déréférence un secret sops sans assertion -> poser
+      `darkone.system.core.enableSops = false` casse l'eval avec un message
+      pointant `build.nix` au lieu de l'option réellement basculée.
+- [ ] `hive.nix` : `parseArch` ne valide ni le CPU ni le token de carte -> un
+      `arch` mal orthographié produit un `system` invalide, ou un Pi construit
+      sans noyau vendeur ni firmware ni bootloader (image qui ne démarre pas),
+      sans erreur à l'eval.
+- [ ] `music.nix` : troisième copie de la résolution du client NFS, seule sans
+      garde de nullité -> crash de l'eval au lieu d'une dégradation. À
+      factoriser dans un helper `lib/` unique + test unitaire.
+
+Filet de sécurité (à traiter plus tard) :
+
+- [ ] CI aveugle : `.github/workflows/unit-tests.yml` filtre sur
+      `paths: [lib/**, tests/unit/**]` -> une PR ne touchant que `modules/`,
+      `home/`, `hosts/` ou `flake.nix` ne déclenche aucun workflow. Le seul job
+      lance `nix-unit` : pas de `nix flake check`, treefmt, statix ni deadnix.
+- [ ] Tests de scénario verts à vide : `network-dns` et `vpn-multizone` sont
+      réduits à `runCommand ... "echo disabled"` mais restent auto-découverts,
+      donc `nix flake check` les rapporte comme passants (cf. le TODO existant
+      sur les tests multi-noeuds).
+
+Maintenabilité (à traiter plus tard) :
+
+- [ ] `matrix.nix` : les 5 ponts mautrix sont ~300 lignes de copier-coller
+      (3 secrets sops + 1 template + settings par pont, TODO de dépréciation
+      NixOS 26.11 dupliqué 5 fois). Un helper `mkMautrixBridge` économise ~240
+      lignes et donne un point de vérité unique.
+- [ ] `flake.nix` : le commentaire affirme que le devShell du framework est
+      identique à celui livré par `mkConfigurations`, alors que sept paquets
+      diffèrent. Extraire un `mkDevShell` partagé.
+- [ ] Conventions AGENTS.md non respectées : `with lib;` dans 5 modules
+      (`office.nix`, `gnome.nix`, `idm.nix`, `services.nix`, `srv-dirs.nix`) ;
+      commentaires français dans `flake.nix` et `lib/mk-configuration.nix` ;
+      `matrix.nix` utilise `pkgs.writeScript` + `#!/bin/sh` avec un
+      `set -o pipefail` bash-only et des `grep` nus.
+- [ ] Gains rapides : mémoïser `mkDnfLib` / `mkCommonNodeArgs` comme leurs
+      voisins `nixpkgsFor` ; supprimer le bloc commenté obsolète de `sops.nix`.
+
 ### Planifié
 
 - [ ] Commandes d'introspection pour lister les hosts, users, modules activés par host, etc.
