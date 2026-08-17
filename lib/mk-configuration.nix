@@ -393,38 +393,13 @@ let
     }) rpiBoards
   );
 
-  # Multi-arch devshell (cargo / nix-unit / sops / colmena / ...)
+  # Multi-arch devshell (cargo / nix-unit / sops / colmena / ...).
+  # Shared with the framework's own shell — see lib/dev-shell.nix.
   mkDevShell =
     system:
-    let
+    import ./dev-shell.nix {
       pkgs = nixpkgsFor.${system};
       inherit (inputs.colmena.packages.${system}) colmena;
-    in
-    pkgs.mkShell {
-      packages = with pkgs; [
-        age
-        cargo
-        colmena
-        deadnix
-        git
-        just
-        mkpasswd
-        nix-unit
-        nixfmt
-        openssl
-
-        # HMAC helper of just-configure-alert-bot.sh (keeps the homeserver
-        # shared secret out of argv).
-        python3
-        rustc
-        treefmt
-        sops
-        ssh-to-age
-        statix
-        yq-go
-        zsh
-      ];
-      shellHook = "exec zsh";
     };
 
 in

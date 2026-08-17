@@ -212,12 +212,17 @@
           };
         in
         {
-          dnf-generator = inputs.dnf-generator.packages.${system}.default;
-
           assets = pkgs.runCommand "dnf-assets" { } ''
             mkdir -p $out
             cp -r ${./assets}/. $out/
           '';
+        }
+
+        # The Rust generator only builds for x86_64-linux. Declaring it for
+        # every supported system made `.#packages.aarch64-linux` — and the
+        # aarch64 devShell that pulls it in — fail to evaluate.
+        // nixpkgs.lib.optionalAttrs (inputs.dnf-generator.packages ? ${system}) {
+          dnf-generator = inputs.dnf-generator.packages.${system}.default;
         }
       );
 
@@ -268,8 +273,9 @@
         import ./tests/scenarios { inherit pkgs inputs; }
       );
 
-      # Dev shell for framework hacking (cargo / nix-unit / sops / ...).
-      # Identical to the one consumers get via mkConfigurations.
+      # Dev shell for framework hacking. Shares its base toolchain with the one
+      # consumers get via mkConfigurations (lib/dev-shell.nix); `extraPackages`
+      # below is what is genuinely framework-only.
       devShells = forAllSystems (
         system:
         let
@@ -277,47 +283,31 @@
             inherit system;
             config.allowUnfree = true;
           };
-          inherit (inputs.colmena.packages.${system}) colmena;
         in
         {
-          default = pkgs.mkShell {
-            packages = [
-              self.packages.${system}.dnf-generator
-            ]
-            ++ (with pkgs; [
-              age
+          default = import ./lib/dev-shell.nix {
+            inherit pkgs;
+            inherit (inputs.colmena.packages.${system}) colmena;
 
-              # astro-ls: doc/ (Astro/Starlight) LSP
-              astro-language-server
-              cargo
-              colmena
-              d2
-              deadnix
-              git
-              just
-              mkpasswd
-              nix-output-monitor
-              nix-unit
-              nixfmt
+            # Framework-only: the generator sources, the doc/ site toolchain and
+            # local deployment conveniences. `dnf-generator` is x86_64-only, so
+            # it is added only where it exists (cf. `packages` above).
+            extraPackages =
+              (with pkgs; [
 
-              # doc/ toolchain: astro/starlight build + rsync deploy
-              nodejs_24
-              openssl
+                # astro-ls: doc/ (Astro/Starlight) LSP
+                astro-language-server
+                d2
+                nix-output-monitor
 
-              # HMAC helper of just-configure-alert-bot.sh (keeps the homeserver
-              # shared secret out of argv).
-              python3
-              rsync
-              rustc
-              treefmt
-              sops
-              ssh-to-age
-              statix
-              wipe
-              yq-go
-              zsh
-            ]);
-            shellHook = "exec zsh";
+                # doc/ toolchain: astro/starlight build + rsync deploy
+                nodejs_24
+                rsync
+                wipe
+              ])
+              ++ nixpkgs.lib.optional (
+                self.packages.${system} ? dnf-generator
+              ) self.packages.${system}.dnf-generator;
           };
         }
       );
