@@ -183,10 +183,16 @@ let
     (optionalString isInternal internalServiceBindSection)
     + (optionalString isProtected (mkForwardAuth allowedGroups));
 
+  # A service can be turned into a virtualhost iff it is enabled and, when it
+  # emits a `reverse_proxy` line, knows the backend port. Guarding on
+  # servicePort alone would drop the pure-`extraConfig` vhosts
+  # (hasReverseProxy = false), which legitimately have no port.
+  hasUsableProxy = s: s.proxy.enable && (!s.proxy.hasReverseProxy || s.proxy.servicePort != null);
+
   # Global services to expose to internet, only for HCS
   globalServices =
     if isHcs then
-      (filter (s: (hasAttr "global" s.params) && s.params.global && s.proxy.enable) services)
+      (filter (s: (hasAttr "global" s.params) && s.params.global && hasUsableProxy s) services)
     else
       [ ];
 
@@ -547,7 +553,7 @@ in
         ++ map (
           srv:
           let
-            isValid = srv.proxy.enable && (srv.proxy.servicePort != null);
+            isValid = hasUsableProxy srv;
             isDefault = isValid && srv.proxy.defaultService;
             backend = lib.optionalString srv.proxy.hasReverseProxy "reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString srv.proxy.servicePort}";
 
@@ -606,10 +612,9 @@ in
         ++ map (
           srv:
           let
-            sPort = config.darkone.system.services.service.${srv.name}.proxy.servicePort;
             prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups;
             noRobots = optionalString srv.params.noRobots badBotsSection;
-            reverseProxy = lib.optionalString srv.proxy.hasReverseProxy "reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString sPort}";
+            reverseProxy = lib.optionalString srv.proxy.hasReverseProxy "reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString srv.proxy.servicePort}";
           in
           {
             "${srv.params.domain}.${network.domain}" = {
