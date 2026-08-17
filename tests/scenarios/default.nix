@@ -3,6 +3,11 @@
 # minus the `.nix` suffix (e.g. services/node-fail2ban.nix ->
 # services-node-fail2ban).
 #
+# A scenario named `*.disabled.nix` produces NO check at all, and the eval
+# warns about it. The previous convention — a `runCommand "echo disabled"`
+# stub — made `nix flake check` report the scenario as PASSING, hiding the
+# coverage gap behind a green tick.
+#
 # TODO: réorganiser les scénarios (home manager, profiles, combinaisons...)
 
 { pkgs, inputs }:
@@ -30,11 +35,19 @@ let
 
   files = collect "" root;
 
+  isDisabled = lib.hasSuffix ".disabled.nix";
+  disabled = lib.filter isDisabled files;
+  active = lib.filter (rel: !(isDisabled rel)) files;
+
   toCheckName = rel: lib.replaceStrings [ "/" ".nix" ] [ "-" "" ] rel;
 in
-builtins.listToAttrs (
-  map (rel: {
-    name = toCheckName rel;
-    value = import (root + "/${rel}") { inherit pkgs inputs; };
-  }) files
-)
+lib.warnIf (disabled != [ ])
+  "DNF scenarios: ${toString (lib.length disabled)} disabled, covered by no check (${lib.concatStringsSep ", " disabled})"
+  (
+    builtins.listToAttrs (
+      map (rel: {
+        name = toCheckName rel;
+        value = import (root + "/${rel}") { inherit pkgs inputs; };
+      }) active
+    )
+  )
