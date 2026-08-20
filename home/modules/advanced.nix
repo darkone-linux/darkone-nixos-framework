@@ -136,6 +136,7 @@ in
       (lib.mkIf cfg.enableAdmin pinentry-curses)
       (lib.mkIf cfg.enableAdmin psmisc) # killall, pstree, pslog, fuser...
       (lib.mkIf cfg.enableAdmin rmlint)
+      (lib.mkIf cfg.enableAdmin smartmontools) # smartctl: disk health and power state
       (lib.mkIf cfg.enableAdmin strace)
       (lib.mkIf cfg.enableAdmin tcpdump)
       (lib.mkIf cfg.enableAdmin openssl_legacy) # openssl
