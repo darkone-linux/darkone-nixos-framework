@@ -249,6 +249,13 @@ in
     expected = "kanidm.service";
   };
 
+  # Regression: watching `restic-rest-server.service` alerted on every boot and
+  # on every automount idle-unmount, both of which leave the socket listening.
+  testServiceUnitRestic = {
+    expr = dnfLib.serviceUnits.restic;
+    expected = "restic-rest-server.socket";
+  };
+
   # ----- nodeAlertEligible -----
   # Selection: infrastructure and must-stay-up hosts are watched; bare
   # laptops/desktops are not, unless an explicit feature opts them in.

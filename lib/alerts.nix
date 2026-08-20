@@ -84,7 +84,15 @@ rec {
     grafana = "grafana.service";
     immich = "immich-server.service";
     loki = "loki.service";
-    restic = "restic-rest-server.service";
+
+    # `.socket`, not `.service`: the REST server is socket-activated upstream,
+    # so its service unit legitimately sits `inactive` whenever no client is
+    # connected — after every boot until the first pull, and for as long as an
+    # automounted backup disk stays idle (the server's `Requires=` on the mount
+    # makes systemd stop the daemon to unmount it). Both produced a `ServiceDown`
+    # that said nothing about reachability. The always-listening socket is the
+    # real signal; a crashed daemon is still caught by `SystemdUnitFailed`.
+    restic = "restic-rest-server.socket";
 
     # Standalone daemons with a single, stable upstream unit name.
     postfix = "postfix.service";
