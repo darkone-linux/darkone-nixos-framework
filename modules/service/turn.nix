@@ -148,7 +148,6 @@ in
 
           total-quota=500
           user-quota=12 # max 12 allocations per user (enough for 2-3 calls)
-          max-allocate-timeout=3600
 
           external-ip=${host.ip}
           no-cli
