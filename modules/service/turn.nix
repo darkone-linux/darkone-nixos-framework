@@ -131,8 +131,13 @@ in
         cert = "/var/lib/acme/${turnDomain}/fullchain.pem";
         pkey = "/var/lib/acme/${turnDomain}/key.pem";
 
-        # Require authentication
-        secure-stun = true;
+        # Anonymous STUN Binding must stay allowed (coturn default, restated
+        # here because the opposite looks safer than it is): libwebrtc never
+        # authenticates a Binding request, so rejecting it costs every client
+        # its server-reflexive candidate. Only host and relay candidates then
+        # remain, no direct path is ever tried and every call is relayed.
+        # Allocations stay authenticated by `use-auth-secret`.
+        secure-stun = false;
 
         # https://github.com/coturn/coturn/blob/master/examples/etc/turnserver.conf
         # HCS host.ip is the external IP address (not the tailnet ip)
