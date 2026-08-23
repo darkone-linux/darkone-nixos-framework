@@ -118,6 +118,8 @@ in
         enable = true;
         realm = turnDomain;
         no-cli = true;
+
+        # Media relays stay UDP-only (clients may still reach coturn over TCP).
         no-tcp-relay = true;
 
         listening-ips = [ host.ip ] ++ (lib.optional (host ? vpnIp) host.vpnIp);
@@ -162,10 +164,6 @@ in
           user-quota=50
 
           external-ip=${host.ip}
-          no-cli
-
-          # force UDP usage when possible (faster...)
-          no-tcp-relay
 
           # useful for mobile clients switching networks (degrades connection)
           mobility
