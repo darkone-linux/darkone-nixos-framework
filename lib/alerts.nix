@@ -53,6 +53,30 @@ let
     # Load average per core (node_load1 normalised by CPU count).
     load1PerCoreWarn = 2.0;
     load1PerCoreCrit = 4.0;
+
+    # Remote filesystems, dropped from every filesystem rule: a client mount
+    # reports the *server's* space and inodes, so watching it turns one full
+    # export into the same alert on every machine that mounts it. The server is
+    # scraped on its own and alerts once, with the real mountpoint. Empty the
+    # list to watch a NAS that runs no node-exporter — then add its fstype to
+    # `readOnlyByDesignFstypes` if it is exported read-only.
+    remoteFstypes = [
+      "nfs.*"
+      "cifs"
+      "smb.*"
+      "9p"
+    ];
+
+    # Filesystem types whose read-only state is a mount option, not a failure:
+    # optical/image media. `FilesystemReadOnly` skips them — nothing on the node
+    # could ever clear the condition. Network shares exported `ro` are already
+    # out via `remoteFstypes`. Entries are regex alternatives (PromQL label
+    # matchers are fully anchored).
+    readOnlyByDesignFstypes = [
+      "iso9660"
+      "udf"
+      "erofs"
+    ];
   };
 in
 rec {
@@ -304,9 +328,29 @@ rec {
     let
       t = defaultThresholds // thresholds;
 
-      # Real filesystems only: skip pseudo/ephemeral mounts that legitimately run
-      # near full or report misleading sizes.
-      fsSelector = ''fstype!~"tmpfs|ramfs|overlay|squashfs|fuse.*",mountpoint!~"/(boot|nix/store).*"'';
+      # The node's own real filesystems: skip pseudo/ephemeral mounts that
+      # legitimately run near full or report misleading sizes, and remote mounts,
+      # whose metrics describe the exporting server rather than this node.
+      pseudoFstypes = [
+        "tmpfs"
+        "ramfs"
+        "overlay"
+        "squashfs"
+        "fuse.*"
+      ];
+      fsSelector = ''fstype!~"${
+        concatStringsSep "|" (pseudoFstypes ++ t.remoteFstypes)
+      }",mountpoint!~"/(boot|nix/store).*"'';
+
+      # `node_filesystem_readonly` cannot tell a fault from an intent: a mount
+      # made `ro` on purpose reports exactly like a disk the kernel remounted
+      # after I/O errors. Only the fstype separates them, hence this extra
+      # exclusion layered on `fsSelector` for that single rule.
+      roSelector =
+        fsSelector
+        + optionalString (
+          t.readOnlyByDesignFstypes != [ ]
+        ) '',fstype!~"${concatStringsSep "|" t.readOnlyByDesignFstypes}"'';
       diskFreeExpr =
         pct:
         "100 * node_filesystem_avail_bytes{${fsSelector}} / node_filesystem_size_bytes{${fsSelector}} < ${toString pct}";
@@ -406,9 +450,10 @@ rec {
             {
 
               # A filesystem remounted read-only is almost always I/O errors or
-              # corruption: page immediately.
+              # corruption: page immediately. Mounts that are read-only by
+              # design never reach here (cf. `roSelector`).
               alert = "FilesystemReadOnly";
-              expr = "node_filesystem_readonly{${fsSelector}} == 1";
+              expr = "node_filesystem_readonly{${roSelector}} == 1";
               "for" = "5m";
               labels.severity = "critical";
               annotations = {

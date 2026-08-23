@@ -42,6 +42,23 @@ let
         inherit ignoredUnits;
       }).groups
     ).rules;
+
+  # One zone-wide resource rule, picked by alert name.
+  resourceRule =
+    thresholds: alert:
+    builtins.head (
+      builtins.filter (r: r.alert == alert)
+        (builtins.head
+          (dnfLib.mkResourceRuleGroups {
+            inherit thresholds;
+            zoneName = "ag";
+          }).groups
+        ).rules
+    );
+
+  # Shared filesystem selector: the node's own real mounts only (no pseudo
+  # filesystem, no remote share).
+  fsSel = ''fstype!~"tmpfs|ramfs|overlay|squashfs|fuse.*|nfs.*|cifs|smb.*|9p",mountpoint!~"/(boot|nix/store).*"'';
 in
 {
 
@@ -583,6 +600,46 @@ in
       (builtins.elemAt (builtins.head (dnfLib.mkSynapseRuleGroups { zoneName = "ag"; }).groups).rules 1)
       .expr;
     expected = ''sum by (instance, host) (rate(synapse_http_server_responses_total{job="synapse",code=~"5.."}[15m])) / sum by (instance, host) (rate(synapse_http_server_responses_total{job="synapse"}[15m])) > 0.05'';
+  };
+
+  # ----- mkResourceRuleGroups (filesystem selectors) -----
+
+  # A mount that is read-only by design (optical media) would alert forever:
+  # `FilesystemReadOnly` excludes those fstypes on top of the shared selector.
+  testFilesystemReadOnlyExcludesByDesignFstypes = {
+    expr = (resourceRule { } "FilesystemReadOnly").expr;
+    expected = ''node_filesystem_readonly{${fsSel},fstype!~"iso9660|udf|erofs"} == 1'';
+  };
+
+  # Remote mounts leave every filesystem rule, not just the read-only one: their
+  # space is the exporting server's, and it is scraped there.
+  testDiskSpaceLowExcludesRemoteMounts = {
+    expr = (resourceRule { } "DiskSpaceLow").expr;
+    expected = "100 * node_filesystem_avail_bytes{${fsSel}} / node_filesystem_size_bytes{${fsSel}} < 15";
+  };
+
+  # Emptying the list puts network shares back under watch, for a NAS that runs
+  # no node-exporter of its own.
+  testRemoteFstypesOverride = {
+    expr = (resourceRule { remoteFstypes = [ ]; } "InodesLow").expr;
+    expected =
+      let
+        sel = ''fstype!~"tmpfs|ramfs|overlay|squashfs|fuse.*",mountpoint!~"/(boot|nix/store).*"'';
+      in
+      "100 * node_filesystem_files_free{${sel}} / node_filesystem_files{${sel}} < 10";
+  };
+
+  # An empty override disarms the exclusion without leaving a dangling, empty
+  # fstype matcher behind.
+  testFilesystemReadOnlyEmptyExclusion = {
+    expr = (resourceRule { readOnlyByDesignFstypes = [ ]; } "FilesystemReadOnly").expr;
+    expected = "node_filesystem_readonly{${fsSel}} == 1";
+  };
+
+  # Overrides replace the default list (attrset merge), they do not append to it.
+  testFilesystemReadOnlyCustomExclusion = {
+    expr = (resourceRule { readOnlyByDesignFstypes = [ "vfat" ]; } "FilesystemReadOnly").expr;
+    expected = ''node_filesystem_readonly{${fsSel},fstype!~"vfat"} == 1'';
   };
 
   # ----- mkSilenceRoutes -----
