@@ -94,13 +94,21 @@ rec {
     # real signal; a crashed daemon is still caught by `SystemdUnitFailed`.
     restic = "restic-rest-server.socket";
 
+    # `.socket` too, and for the same reason as restic above: harmonia is
+    # socket-activated, so its service unit sits `inactive` whenever no client
+    # is fetching — the normal resting state, and the one every
+    # `switch-to-configuration` leaves behind (systemd restarts the socket, not
+    # the on-demand service). Probing the cache over HTTP instead would be worse
+    # than useless: harmonia has no idle timeout, so every scrape would wake the
+    # daemon and pin it resident for good.
+    harmonia = "harmonia.socket";
+
     # Standalone daemons with a single, stable upstream unit name.
     postfix = "postfix.service";
     dnsmasq = "dnsmasq.service";
     turn = "coturn.service";
     garage = "garage.service";
     minio = "minio.service";
-    harmonia = "harmonia.service";
     outline = "outline.service";
     mealie = "mealie.service";
     searx = "searx.service";
