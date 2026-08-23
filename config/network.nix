@@ -7,11 +7,18 @@
 # :::note[Conventions]
 # - Key naming: `<service>[Usage]` — the `ports.` prefix already says "port", so
 #   the key says *what for*. A bare `<service>` is the service's main port.
+# - A port *range* bound on demand (media relays) is declared by its two bounds,
+#   `<service><Usage>Start` and `<service><Usage>End`; the service owns every
+#   port in between, so nothing else may sit there.
 # - `ports.*` are DNF-fixed values; `ports.reserved` lists ports DNF inherits
 #   from an upstream module default (`config.services.<x>.port`) and therefore
 #   only needs to avoid, not own.
-# - Sorted by value. `tests/unit/config/network_test.nix` enforces global
-#   uniqueness across every `ports.*` value and `ports.reserved`.
+# - Named ports stay clear of the kernel ephemeral range
+#   (`net.ipv4.ip_local_port_range`, 32768-60999 by default): any outgoing
+#   connection of a co-hosted service can otherwise steal one.
+# - Sorted by value. `tests/unit/config/network_test.nix` enforces the whole
+#   registry: shape, bounds, and that no two entries — scalar, reserved or
+#   range — ever overlap.
 # :::
 
 {
@@ -163,6 +170,17 @@
     # modules/service/matrix.nix
     livekitRtcUdpStart = 30000;
     livekitRtcUdpEnd = 30100;
+
+    # Coturn UDP media relay, one port per allocation. Bounds of a range, not
+    # two listeners: everything between them is bound on demand.
+    #
+    # Upstream starts the range at 49152, right inside the kernel ephemeral
+    # range (`net.ipv4.ip_local_port_range`, 32768-60999 by default): every
+    # outgoing connection of a co-hosted service could steal a relay port.
+    # Above it instead — 4536 ports, far beyond what coturn's `total-quota`
+    # allows. modules/service/turn.nix
+    turnRelayStart = 61000;
+    turnRelayEnd = 65535;
 
     # Ports owned by an upstream module (inherited via `config.services.<x>.port`):
     # DNF does not bind them, but a new `ports.*` value must steer clear.

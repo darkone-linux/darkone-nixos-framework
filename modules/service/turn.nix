@@ -14,6 +14,7 @@
 {
   lib,
   dnfLib,
+  dnfConfig,
   config,
   network,
   host,
@@ -23,6 +24,14 @@ let
   cfg = config.darkone.service.turn;
   srv = config.services.coturn;
   turnDomain = "turn.${network.domain}";
+
+  # UDP media relay range, in the registry so no neighbouring service can be
+  # given a port coturn hands out (cf. config/network.nix). Shaped for
+  # `allowedUDPPortRanges`, which the firewall below reuses as-is.
+  relayRange = {
+    from = dnfConfig.network.ports.turnRelayStart;
+    to = dnfConfig.network.ports.turnRelayEnd;
+  };
 in
 {
   options = {
@@ -125,12 +134,10 @@ in
         listening-ips = [ host.ip ] ++ (lib.optional (host ? vpnIp) host.vpnIp);
         relay-ips = [ host.ip ];
 
-        # Upstream starts the relay range at 49152, which overlaps the kernel
-        # ephemeral range (`net.ipv4.ip_local_port_range`, 32768-60999 by
-        # default): every outgoing connection of the co-hosted services can
-        # steal a relay port. Start above it instead — 4536 ports, far beyond
-        # what `total-quota` allows.
-        min-port = 61000;
+        # Relay range: both bounds come from the registry, `max-port` included,
+        # so the range the firewall opens is exactly the one coturn allocates.
+        min-port = relayRange.from;
+        max-port = relayRange.to;
 
         use-auth-secret = true;
         static-auth-secret-file = config.sops.secrets.turn-secret.path;
@@ -202,13 +209,9 @@ in
           srv.listening-port # 3478
           srv.tls-listening-port # 5349
         ];
+
         # Media relay is UDP-only (no-tcp-relay): no TCP relay range needed.
-        allowedUDPPortRanges = [
-          {
-            from = srv.min-port; # 61000
-            to = srv.max-port; # 65535
-          }
-        ];
+        allowedUDPPortRanges = [ relayRange ];
       };
     })
   ];
