@@ -152,10 +152,11 @@
     # LiveKit WebRTC media, one UDP port per participant. Bounds of a range,
     # not two listeners: everything between them is bound on demand.
     #
-    # Kept well under coturn's relay range (49152-65535, upstream default),
-    # which the LiveKit default of 50000-51000 sits right inside: co-located on
-    # the matrix host, the two would fight over the same ports and drop calls
-    # at random. modules/service/matrix.nix
+    # Kept clear of coturn's relay range (61000-65535, modules/service/
+    # turn.nix), which the LiveKit default of 50000-51000 sat right inside
+    # while coturn still started at 49152: co-located on the matrix host, the
+    # two would fight over the same ports and drop calls at random.
+    # modules/service/matrix.nix
     livekitRtcUdpStart = 40000;
     livekitRtcUdpEnd = 40100;
 

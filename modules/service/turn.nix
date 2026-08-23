@@ -123,6 +123,13 @@ in
         listening-ips = [ host.ip ] ++ (lib.optional (host ? vpnIp) host.vpnIp);
         relay-ips = [ host.ip ];
 
+        # Upstream starts the relay range at 49152, which overlaps the kernel
+        # ephemeral range (`net.ipv4.ip_local_port_range`, 32768-60999 by
+        # default): every outgoing connection of the co-hosted services can
+        # steal a relay port. Start above it instead — 4536 ports, far beyond
+        # what `total-quota` allows.
+        min-port = 61000;
+
         use-auth-secret = true;
         static-auth-secret-file = config.sops.secrets.turn-secret.path;
 
@@ -200,7 +207,7 @@ in
         # Media relay is UDP-only (no-tcp-relay): no TCP relay range needed.
         allowedUDPPortRanges = [
           {
-            from = srv.min-port; # 49152
+            from = srv.min-port; # 61000
             to = srv.max-port; # 65535
           }
         ];
