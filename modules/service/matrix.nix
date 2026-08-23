@@ -1020,8 +1020,8 @@ in
           port = livekitPort;
           rtc = {
 
-            # Media ports, one per participant. Deliberately outside coturn's
-            # relay range, which the upstream default overlaps
+            # Media ports, one per participant. Deliberately clear of both
+            # coturn's relay range and the kernel ephemeral range
             # (cf. config/network.nix).
             port_range_start = dnfConfig.network.ports.livekitRtcUdpStart;
             port_range_end = dnfConfig.network.ports.livekitRtcUdpEnd;

@@ -152,13 +152,17 @@
     # LiveKit WebRTC media, one UDP port per participant. Bounds of a range,
     # not two listeners: everything between them is bound on demand.
     #
-    # Kept clear of coturn's relay range (61000-65535, modules/service/
-    # turn.nix), which the LiveKit default of 50000-51000 sat right inside
-    # while coturn still started at 49152: co-located on the matrix host, the
-    # two would fight over the same ports and drop calls at random.
+    # Two windows to avoid, hence a range this low:
+    # - coturn's relay range (61000-65535, modules/service/turn.nix), which the
+    #   LiveKit default of 50000-51000 sat right inside while coturn still
+    #   started at 49152: co-located on the matrix host, the two would fight
+    #   over the same ports and drop calls at random.
+    # - the kernel ephemeral range (`net.ipv4.ip_local_port_range`, 32768-60999
+    #   by default), from which any outgoing connection of a neighbouring
+    #   service can steal a media port.
     # modules/service/matrix.nix
-    livekitRtcUdpStart = 40000;
-    livekitRtcUdpEnd = 40100;
+    livekitRtcUdpStart = 30000;
+    livekitRtcUdpEnd = 30100;
 
     # Ports owned by an upstream module (inherited via `config.services.<x>.port`):
     # DNF does not bind them, but a new `ports.*` value must steer clear.
