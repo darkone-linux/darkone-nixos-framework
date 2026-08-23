@@ -146,8 +146,13 @@ in
           log-file stdout
           no-multicast-peers
 
+          # One allocation per (announced turn uri x interface x address
+          # family), not one per call: a phone on wifi + cellular already
+          # spends 6, and Element reuses the same coturn username for the
+          # whole `turn_user_lifetime`, so consecutive calls stack up until
+          # the allocations expire: 12 could be reached on a redial.
           total-quota=500
-          user-quota=12 # max 12 allocations per user (enough for 2-3 calls)
+          user-quota=50
 
           external-ip=${host.ip}
           no-cli
