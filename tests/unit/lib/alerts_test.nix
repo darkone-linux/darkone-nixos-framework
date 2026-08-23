@@ -256,6 +256,13 @@ in
     expected = "restic-rest-server.socket";
   };
 
+  # Regression: watching `harmonia.service` alerted after every deploy, since
+  # `switch-to-configuration` stops the service and restarts only the socket.
+  testServiceUnitHarmonia = {
+    expr = dnfLib.serviceUnits.harmonia;
+    expected = "harmonia.socket";
+  };
+
   # ----- nodeAlertEligible -----
   # Selection: infrastructure and must-stay-up hosts are watched; bare
   # laptops/desktops are not, unless an explicit feature opts them in.
