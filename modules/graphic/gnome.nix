@@ -336,6 +336,13 @@ in
                 intellihide = true;
                 multi-monitor = true;
                 running-indicator-style = "DOTS";
+
+                # Notification counter badges: a single terminal bell raises
+                # one and it never clears, so the number means nothing. The
+                # message tray already carries the information — same reason
+                # visual-bell and event-sounds are off above.
+                show-icons-notifications-counter = false;
+
                 show-mounts-network = true;
               };
               "org/gnome/settings-daemon/plugins/power" = {

@@ -429,6 +429,12 @@ in
         window-padding-y = 6;
         copy-on-select = "clipboard";
 
+        # A bell on an unfocused surface sets the urgency hint, which GNOME
+        # turns into a tray notification that survives the window being
+        # activated: it only ever accumulates as a dock badge. Consistent with
+        # visual-bell/event-sounds, disabled in modules/graphic/gnome.nix.
+        bell-features = "no-attention";
+
         # Otherwise the working directory flag is ignored by a running instance (nautilus open terminal)
         gtk-single-instance = false;
       };
