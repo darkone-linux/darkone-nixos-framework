@@ -139,6 +139,7 @@ in
       (lib.mkIf cfg.enableAdmin smartmontools) # smartctl: disk health and power state
       (lib.mkIf cfg.enableAdmin strace)
       (lib.mkIf cfg.enableAdmin tcpdump)
+      (lib.mkIf cfg.enableAdmin usbutils) # lsusb usb-devices usbhid-dump
       (lib.mkIf cfg.enableAdmin openssl_legacy) # openssl
       (lib.mkIf cfg.enableAdmin libargon2) # argon2
       (lib.mkIf cfg.enableAdmin wirelesstools) # ifrename iwconfig iwevent iwgetid iwlist iwpriv iwspy
