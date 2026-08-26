@@ -613,35 +613,67 @@ in
       startInBackground = true;
     };
 
-    # The home-manager module hardcodes its ExecStart, and the wizard pre-fill
-    # flags are the only documented way to bind an account without shipping a
-    # password: the client then jumps straight to browser authentication
-    # (Kanidm SSO), which mints an app password of its own.
+    # The wizard pre-fill flags are a one-shot *configuration* command, not
+    # launch options: `application.cpp` writes them to the client config then
+    # calls `std::exit(0)`. Passing them to ExecStart therefore configures the
+    # client and never runs it, so they belong in ExecStartPre — which leaves
+    # the home-manager ExecStart (`nextcloud --background`) alone.
+    #
+    # Pre-filling the server is what lets an account be bound without shipping
+    # a password: the wizard jumps straight to browser authentication (Kanidm
+    # SSO), which mints an app password of its own.
     #
     # `--overridelocaldir` stays out unless explicitly asked for: with the
     # server alone the wizard stops on its folder page instead of committing
-    # the user to a sync. The client does not persist either value, so passing
-    # them on every start is the intended usage — and inert once an account
-    # exists.
+    # the user to a sync.
     systemd.user.services.nextcloud-client = mkIf hasNextcloud {
-      Service.ExecStart = mkForce (
-        concatStringsSep " " (
+
+      # `-`: a failed pre-fill must not cost the user their client. The wizard
+      # then merely opens with an empty server field.
+      Service.ExecStartPre =
+        "-"
+        + concatStringsSep " " (
           [
             "${pkgs.nextcloud-client}/bin/nextcloud"
-            "--background"
             "--overrideserverurl ${toString nextcloudUrl}"
           ]
           ++ optional (
             cfg.nextcloudSyncDir != null
           ) "--overridelocaldir ${config.home.homeDirectory}/${toString cfg.nextcloudSyncDir}"
-        )
-      );
+        );
 
       # Computed rather than conditional: the unit stays defined either way, so
       # `systemctl --user start nextcloud-client` still works when auto-start
       # is off.
       Install.WantedBy = mkForce (optional cfg.enableNextcloudAutoStart "graphical-session.target");
     };
+
+    # The client writes its own autostart entry (`Utility::setLaunchOnStartup`,
+    # called on every config migration) and that entry launches it bare, with
+    # no pre-filled server, racing the unit above. `Hidden=true` is the XDG way
+    # to retire an autostart entry; as a store symlink it also survives the
+    # client trying to write the file back.
+    xdg.configFile."autostart/Nextcloud.desktop" = mkIf hasNextcloud {
+      text = ''
+        [Desktop Entry]
+        Type=Application
+        Name=Nextcloud
+        Hidden=true
+      '';
+    };
+
+    # A workstation that ran the client before this module carries that entry
+    # as a real file, and home-manager aborts rather than clobber one. Retire
+    # it before the link check, keeping a copy: activation must not destroy
+    # something the user could have edited.
+    home.activation.retireNextcloudAutostart = mkIf hasNextcloud (
+      lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+        entry="${config.xdg.configHome}/autostart/Nextcloud.desktop"
+        if [ -f "$entry" ] && [ ! -L "$entry" ]; then
+          run mv $VERBOSE_ARG "$entry" "$entry.dnf-backup"
+        fi
+      ''
+    );
 
     # Connecting the account needs a credential the web UI cannot issue to an
     # OIDC user; this entry runs the Login Flow v2 helper in a terminal.
