@@ -1,14 +1,17 @@
 # Nextcloud full-configured service.
 #
 # :::caution[Required sops secrets]
-# When enabled, this module reads two sops secrets:
+# When enabled, this module reads:
 #
 # - `nextcloud-admin-password`: initial password of the admin account;
-# - `nextcloud-whiteboard-secret`: JWT shared between Nextcloud and the
-#   whiteboard backend (only read when `whiteboard` is in `plugins`).
+# - `nextcloud-whiteboard-secret`: JWT shared with the whiteboard backend
+#   (only read when `whiteboard` is in `plugins`);
+# - `oidc-secret-<client>`: Kanidm OAuth2 client secret, declared by the idm
+#   module and re-encrypted here for the `occ` provisioning unit.
 #
-# Add both entries to `usr/secrets/` before rebuilding, otherwise sops-nix
-# activation will fail.
+# `just passwd-nextcloud` generates all of them, idempotently, and never
+# overwrites an existing one. Run it before rebuilding: sops-nix activation
+# fails on a missing entry.
 # :::
 
 {

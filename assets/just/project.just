@@ -699,6 +699,63 @@ passwd-livekit:
 	just _fix_fs_permissions
 	just _log "MatrixRTC secret generated, don't forget to deploy" "SOPS"
 
+# Generate every internal Nextcloud secret (idempotent, never overwrites)
+[group('install')]
+passwd-nextcloud:
+	#!/usr/bin/env bash
+	set -euo pipefail
+
+	# Three families, all machine-generated: no human ever reads them.
+	#   - the admin account password, only reachable through `/login?direct=1`
+	#     once `enableSsoRedirect` is on, so random beats hand-picked;
+	#   - the whiteboard JWT, shared with the whiteboard backend daemon;
+	#   - one Kanidm OAuth2 client secret per declared instance, named after
+	#     `dnfLib.oauth2ClientName` (hence the sub-domain lookup below).
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd-nextcloud
+	cd {{secretsDir}}
+	just _sops_before_edit
+	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
+	if [ -f {{sopsSecretsFile}} ] ; then
+		sops -d -i {{sopsSecretsFile}}
+	else
+		just _fail "Passwd file must exists to perform this operation" "SOPS"
+	fi
+
+	# Admin account. base64 like the other account passwords; the rest are hex,
+	# to keep client secrets free of characters that need URL/basic-auth escaping.
+	if ! yq -e '."nextcloud-admin-password"' {{sopsSecretsFile}} >/dev/null 2>&1 ; then
+		just _log "Generating nextcloud-admin-password..." "SOPS"
+		PW=$(openssl rand -base64 24) \
+			yq --inplace '."nextcloud-admin-password" = strenv(PW)' {{sopsSecretsFile}}
+	fi
+
+	# Whiteboard JWT. Rotating it only invalidates the boards in flight.
+	if ! yq -e '."nextcloud-whiteboard-secret"' {{sopsSecretsFile}} >/dev/null 2>&1 ; then
+		just _log "Generating nextcloud-whiteboard-secret..." "SOPS"
+		PW=$(openssl rand -hex 32) \
+			yq --inplace '."nextcloud-whiteboard-secret" = strenv(PW)' {{sopsSecretsFile}}
+	fi
+
+	# One client per declared instance (authority: generated services list).
+	# `oauth2ClientName`: the client is named after the service when the
+	# sub-domain matches it, and disambiguated by the sub-domain otherwise.
+	just _log "Extracting nextcloud instances..." "SOPS"
+	DOMAINS=$(nix eval --extra-experimental-features nix-command --impure --json \
+		--expr 'let n = import {{workDir}}/var/generated/network.nix; in map (s: s.domain or "nextcloud") (builtins.filter (s: s.name == "nextcloud") n.services)' \
+		| yq -r '.[]' | sort -u)
+	for d in $DOMAINS ; do
+		if [ "$d" = "nextcloud" ] ; then key="oidc-secret-nextcloud" ; else key="oidc-secret-nextcloud-$d" ; fi
+		if ! yq -e ".\"$key\"" {{sopsSecretsFile}} >/dev/null 2>&1 ; then
+			just _log "Generating $key..." "SOPS"
+			PW=$(openssl rand -hex 32) \
+				yq --inplace ".\"$key\" = strenv(PW)" {{sopsSecretsFile}}
+		fi
+	done
+
+	sops -e -i {{sopsSecretsFile}}
+	just _fix_fs_permissions
+	just _log "Nextcloud secrets generated, don't forget to deploy" "SOPS"
+
 # Update a user password
 [group('install')]
 passwd user:
