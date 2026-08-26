@@ -8,13 +8,17 @@
   inputs,
   pkgs,
   host,
+  hosts,
+  dnfLib,
   ...
 }:
 let
   inherit (lib)
+    concatStringsSep
     findFirst
     hasAttr
     mkEnableOption
+    mkForce
     mkIf
     mkOption
     optional
@@ -44,6 +48,124 @@ let
   hasMatrix = (findFirst (s: s.name == "matrix") null network.services) != null;
   hasMatrixClient = cfg.enableCommunication && hasMatrix;
   hasVaultwarden = (findFirst (s: s.name == "vaultwarden") null network.services) != null;
+
+  #--------------------------------------------------------------------------
+  # Nextcloud (personal cloud)
+  #--------------------------------------------------------------------------
+
+  # Reads only `network`/`hosts`, never an option, so it can safely back the
+  # `enableNextcloud` default without recursing through the option system.
+  detectedNextcloud = dnfLib.serviceHref {
+    name = "nextcloud";
+    inherit network hosts;
+    preferZone = zone.name;
+  };
+  nextcloudUrl = if cfg.nextcloudServer != null then cfg.nextcloudServer else detectedNextcloud;
+  hasNextcloud = cfg.enableNextcloud && nextcloudUrl != null;
+  hasNextcloudWebdav = hasNextcloud && cfg.enableNextcloudWebdav;
+  nextcloudBookmark = "Nextcloud";
+
+  # WebDAV credential helper.
+  #
+  # Nextcloud refuses to mint an app password from the web UI for an OIDC
+  # user: it asks to confirm a local password that does not exist
+  # (user_oidc#468). Login Flow v2 is the documented way around it — the very
+  # one the desktop client uses — and it is a plain HTTP API, so a script can
+  # drive it and hand the result to the file manager.
+  nextcloudWebdavLogin = pkgs.writeShellApplication {
+    name = "nextcloud-webdav-login";
+    runtimeInputs = with pkgs; [
+      coreutils
+      curl
+      gnugrep
+      jq
+      libsecret
+      wl-clipboard
+      xdg-utils
+    ];
+    text = ''
+      server="${toString nextcloudUrl}"
+      label="${nextcloudBookmark}"
+      bookmarks="''${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/bookmarks"
+
+      # Login Flow v2: anonymous POST, then poll while the user authenticates
+      # in the browser. The User-Agent names the app password server-side.
+      init="$(curl -fsS -X POST -A "DNF WebDAV ($(uname -n))" "$server/index.php/login/v2")"
+      login_url="$(jq -r .login <<< "$init")"
+      poll_token="$(jq -r .poll.token <<< "$init")"
+      poll_endpoint="$(jq -r .poll.endpoint <<< "$init")"
+
+      echo "Autorisez l'accès dans le navigateur, puis revenez ici."
+      xdg-open "$login_url" >/dev/null 2>&1 || echo "URL à ouvrir : $login_url"
+
+      # 404 while pending, 200 once granted. The token lives 20 minutes.
+      deadline="$(( $(date +%s) + 1200 ))"
+      result=""
+      while [ "$(date +%s)" -lt "$deadline" ]; do
+        if result="$(curl -fsS -X POST -d "token=$poll_token" "$poll_endpoint" 2>/dev/null)"; then
+          break
+        fi
+        sleep 2
+      done
+
+      if [ -z "$result" ]; then
+        echo "Délai dépassé : aucune autorisation reçue." >&2
+        exit 1
+      fi
+
+      login_name="$(jq -r .loginName <<< "$result")"
+      app_password="$(jq -r .appPassword <<< "$result")"
+
+      host="''${server#*://}"
+      host="''${host%%/*}"
+
+      # Kanidm emits `preferred_username` as an SPN, so Nextcloud UIDs read
+      # `login@domain`; encode the `@` rather than leave it raw in the path.
+      enc_login="''${login_name//@/%40}"
+      dav="davs://$host/remote.php/dav/files/$enc_login/"
+
+      # Append, never overwrite: this file belongs to the user, who adds their
+      # own bookmarks from the file manager.
+      mkdir -p "$(dirname "$bookmarks")"
+      touch "$bookmarks"
+      if grep -qF "$dav" "$bookmarks"; then
+        echo "Marque-page déjà présent."
+      else
+        printf '%s %s\n' "$dav" "$label" >> "$bookmarks"
+        echo "Marque-page « $label » ajouté."
+      fi
+
+      # Convenience only: gvfs looks credentials up by mount spec and that
+      # attribute set has drifted between releases. The credential is printed
+      # below whatever happens, so a miss here costs one manual paste.
+      if printf '%s' "$app_password" \
+        | secret-tool store --label="Nextcloud WebDAV ($login_name)" \
+            protocol davs server "$host" user "$enc_login" \
+            object "remote.php/dav/files/$enc_login/" \
+            domain "" port 443 authtype basic >/dev/null 2>&1
+      then
+        echo "Identifiants enregistrés dans le trousseau."
+      else
+        echo "Trousseau non pré-rempli : le gestionnaire de fichiers les demandera une fois."
+      fi
+
+      if [ -n "''${WAYLAND_DISPLAY:-}" ]; then
+        printf '%s' "$app_password" | wl-copy >/dev/null 2>&1 || true
+      fi
+
+      echo ""
+      echo "  Compte  : $login_name"
+      echo "  Adresse : $dav"
+      echo ""
+      echo "  Mot de passe d'application :"
+      echo ""
+      echo "    $app_password"
+      echo ""
+      echo "Ouvrez le marque-page « $label » dans le gestionnaire de fichiers."
+      echo "Si un mot de passe est demandé, collez celui ci-dessus et cochez"
+      echo "« Retenir pour toujours »."
+    '';
+  };
 
   # Common Firefox / Librewolf policies
   # https://mozilla.github.io/policy-templates/
@@ -242,6 +364,56 @@ in
       default = false;
       description = "Auto-start Fractal on login when a local Matrix server is present (opt-in, see caveats below)";
     };
+
+    # Nextcloud desktop client. Binds the account and nothing else: a user
+    # with a large account on several machines must stay in control of what
+    # actually lands on each disk.
+    darkone.home.office.enableNextcloud = mkOption {
+      type = types.bool;
+      default = detectedNextcloud != null;
+      description = "Install the Nextcloud desktop client, pre-bound to the network instance";
+    };
+    darkone.home.office.nextcloudServer = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "https://cloud.example.com";
+      description = ''
+        Nextcloud instance the client binds to. `null` picks the one declared
+        on the network (this zone first). Set it to target a local or external
+        instance instead.
+      '';
+    };
+    darkone.home.office.enableNextcloudAutoStart = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Start the Nextcloud client in the background on login";
+    };
+    darkone.home.office.enableNextcloudWebdav = mkOption {
+      type = types.bool;
+      default = true;
+      description = ''
+        Ship `nextcloud-webdav-login`, a one-shot helper that authenticates
+        through the browser (Kanidm SSO) and registers a `davs://` bookmark in
+        the file manager. Needed because Nextcloud refuses to create an app
+        password from its web UI for an OIDC user.
+
+        Ignored when `enableNextcloud` is off.
+      '';
+    };
+    darkone.home.office.nextcloudSyncDir = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "Nextcloud";
+      description = ''
+        Local folder pre-filled in the setup wizard, relative to `$HOME`.
+
+        :::caution[No sync by default]
+        Left `null` on purpose. The wizard then stops on its folder page and
+        the user decides what — if anything — to synchronise. Setting it skips
+        that page.
+        :::
+      '';
+    };
   };
 
   config = mkIf cfg.enable {
@@ -292,7 +464,24 @@ in
       (mkIf cfg.enableSecurity gnome-secrets)
       (mkIf cfg.enableSecurity git-credential-keepassxc)
       (mkIf hasMatrix fractal)
+
+      # `services.nextcloud-client` only defines the systemd unit; it never
+      # installs the package, hence this explicit entry.
+      (mkIf hasNextcloud nextcloud-client)
+      (mkIf hasNextcloudWebdav nextcloudWebdavLogin)
       (mkIf hasVaultwarden bitwarden-cli)
+    ];
+
+    assertions = [
+      {
+        assertion = !cfg.enableNextcloud || nextcloudUrl != null;
+        message = ''
+          darkone.home.office.enableNextcloud is enabled but no Nextcloud
+          instance could be resolved. Declare a `nextcloud` service on the
+          network, or point darkone.home.office.nextcloudServer at an explicit
+          URL.
+        '';
+      }
     ];
 
     #--------------------------------------------------------------------------
@@ -383,6 +572,61 @@ in
         ExecStart = "${pkgs.fractal}/bin/fractal";
         Restart = "on-failure";
       };
+    };
+
+    #--------------------------------------------------------------------------
+    # Nextcloud desktop client
+    #--------------------------------------------------------------------------
+
+    services.nextcloud-client = mkIf hasNextcloud {
+      enable = true;
+      startInBackground = true;
+    };
+
+    # The home-manager module hardcodes its ExecStart, and the wizard pre-fill
+    # flags are the only documented way to bind an account without shipping a
+    # password: the client then jumps straight to browser authentication
+    # (Kanidm SSO), which mints an app password of its own.
+    #
+    # `--overridelocaldir` stays out unless explicitly asked for: with the
+    # server alone the wizard stops on its folder page instead of committing
+    # the user to a sync. The client does not persist either value, so passing
+    # them on every start is the intended usage — and inert once an account
+    # exists.
+    systemd.user.services.nextcloud-client = mkIf hasNextcloud {
+      Service.ExecStart = mkForce (
+        concatStringsSep " " (
+          [
+            "${pkgs.nextcloud-client}/bin/nextcloud"
+            "--background"
+            "--overrideserverurl ${toString nextcloudUrl}"
+          ]
+          ++ optional (
+            cfg.nextcloudSyncDir != null
+          ) "--overridelocaldir ${config.home.homeDirectory}/${toString cfg.nextcloudSyncDir}"
+        )
+      );
+
+      # Computed rather than conditional: the unit stays defined either way, so
+      # `systemctl --user start nextcloud-client` still works when auto-start
+      # is off.
+      Install.WantedBy = mkForce (optional cfg.enableNextcloudAutoStart "graphical-session.target");
+    };
+
+    # Browsing files over WebDAV needs a credential the web UI cannot issue to
+    # an OIDC user; this entry runs the Login Flow v2 helper in a terminal.
+    xdg.desktopEntries.nextcloud-webdav-login = mkIf hasNextcloudWebdav {
+      name = "Fichiers Nextcloud (connexion)";
+      genericName = "Accès WebDAV";
+      comment = "Autoriser l'accès à mes fichiers depuis le gestionnaire de fichiers";
+      exec = "${nextcloudWebdavLogin}/bin/nextcloud-webdav-login";
+      icon = "nextcloud";
+      terminal = true;
+      type = "Application";
+      categories = [
+        "Network"
+        "FileTransfer"
+      ];
     };
 
     #--------------------------------------------------------------------------

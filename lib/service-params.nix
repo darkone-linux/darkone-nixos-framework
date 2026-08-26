@@ -5,7 +5,11 @@
 # values derived from the host topology. Also exposes the small activation
 # fragment every service module repeats. Pure and side-effect free.
 
-{ lib, strings }:
+{
+  lib,
+  strings,
+  topology,
+}:
 let
   inherit (lib) hasAttr hasAttrByPath;
 in
@@ -121,6 +125,37 @@ rec {
       ) { } network.services;
     in
     buildServiceParams serviceHost network overloadParams defaults;
+
+  # Resolve the public URL of a service deployed anywhere on the network.
+  #
+  # Generalises what `oidc.idmHref` did for Kanidm only: find the service in
+  # `network.services`, resolve its host in the topology, and build the
+  # effective `href`. `preferZone` disambiguates multi-zone deployments — the
+  # caller gets the instance of its own zone when there is one, the first
+  # declared otherwise.
+  #
+  # Returns `null` when the service is not deployed, so callers can
+  # short-circuit (same convention as the other lookups).
+  serviceHref =
+    {
+      name,
+      network,
+      hosts,
+      preferZone ? null,
+      defaults ? { },
+    }:
+    let
+      matches = lib.filter (s: s.name == name) network.services;
+      preferred = lib.filter (s: s.zone == preferZone) matches;
+      candidates = if preferred != [ ] then preferred else matches;
+    in
+    if candidates == [ ] then
+      null
+    else
+      let
+        svc = lib.head candidates;
+      in
+      (buildServiceParams (topology.findHost svc.host svc.zone hosts) network svc defaults).href;
 
   # Activation fragment systematically repeated inside `lib.mkIf cfg.enable`
   # blocks of every DNF service module. Returns the attrset that should be

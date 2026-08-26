@@ -38,6 +38,20 @@ let
     services = [ ];
   };
 
+  otherHost = {
+    hostname = "otherhost";
+    zone = "dmz";
+    networkDomain = "example.com";
+    zoneDomain = "dmz.example.com";
+    ip = "192.168.2.10";
+  };
+
+  mockHosts = [
+    mockHost
+    otherHost
+    hcsHost
+  ];
+
   mockServices = [
     {
       name = "wiki";
@@ -180,6 +194,81 @@ in
       domain = "ghosts";
       zone = "lan";
     };
+  };
+
+  # ----- serviceHref: service not deployed -----
+  testServiceHrefMissing = {
+    expr = dnfLib.serviceHref {
+      name = "ghost";
+      network = mockNetworkPlain // {
+        services = mockServices;
+      };
+      hosts = mockHosts;
+    };
+    expected = null;
+  };
+
+  # ----- serviceHref: first declared instance wins without preferZone -----
+  testServiceHrefFirstInstance = {
+    expr = dnfLib.serviceHref {
+      name = "wiki";
+      network = mockNetworkPlain // {
+        services = mockServices;
+      };
+      hosts = mockHosts;
+    };
+    expected = "http://wiki.lan.example.com";
+  };
+
+  # ----- serviceHref: preferZone picks the caller's own instance -----
+  testServiceHrefPreferZone = {
+    expr = dnfLib.serviceHref {
+      name = "wiki";
+      network = mockNetworkPlain // {
+        services = mockServices;
+      };
+      hosts = mockHosts;
+      preferZone = "dmz";
+    };
+    expected = "http://wiki.dmz.example.com";
+  };
+
+  # ----- serviceHref: unmatched preferZone falls back to the first instance -----
+  testServiceHrefPreferZoneFallback = {
+    expr = dnfLib.serviceHref {
+      name = "wiki";
+      network = mockNetworkPlain // {
+        services = mockServices;
+      };
+      hosts = mockHosts;
+      preferZone = "nowhere";
+    };
+    expected = "http://wiki.lan.example.com";
+  };
+
+  # ----- serviceHref: global service resolves on the network domain -----
+  testServiceHrefGlobal = {
+    expr = dnfLib.serviceHref {
+      name = "global-svc";
+      network = mockNetworkPlain // {
+        services = mockServices;
+      };
+      hosts = mockHosts;
+    };
+    expected = "http://global-svc.example.com";
+  };
+
+  # ----- serviceHref: module defaults feed the sub-domain -----
+  testServiceHrefDefaults = {
+    expr = dnfLib.serviceHref {
+      name = "wiki";
+      network = mockNetworkPlain // {
+        services = mockServices;
+      };
+      hosts = mockHosts;
+      defaults.domain = "knowledge";
+    };
+    expected = "http://knowledge.lan.example.com";
   };
 
   # ----- enableBlock -----

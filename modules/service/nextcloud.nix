@@ -1,9 +1,14 @@
 # Nextcloud full-configured service.
 #
-# :::caution[Required sops secret]
-# When enabled, this module reads the Nextcloud admin password from the sops
-# secret `nextcloud-admin-password`. Add the entry to `usr/secrets/` before
-# rebuilding, otherwise sops-nix activation will fail.
+# :::caution[Required sops secrets]
+# When enabled, this module reads two sops secrets:
+#
+# - `nextcloud-admin-password`: initial password of the admin account;
+# - `nextcloud-whiteboard-secret`: JWT shared between Nextcloud and the
+#   whiteboard backend (only read when `whiteboard` is in `plugins`).
+#
+# Add both entries to `usr/secrets/` before rebuilding, otherwise sops-nix
+# activation will fail.
 # :::
 
 {
@@ -40,6 +45,11 @@ let
 
   # No Kanidm on this network ⇒ skip the user_oidc provisioning.
   hasIdm = idmUrl != null;
+
+  # The whiteboard backend is useless without the app that talks to it, and
+  # it used to run unconditionally even though `whiteboard` is not a default
+  # plugin.
+  hasWhiteboard = lib.elem "whiteboard" cfg.plugins;
 
   # Apps fetched from the appstore and bundled by nixpkgs, i.e. every
   # package under `services.nextcloud.package.packages.apps` for this
@@ -116,6 +126,22 @@ in
       type = lib.types.str;
       default = "admin";
       description = "Admin username for Nextcloud";
+    };
+    darkone.service.nextcloud.enableSsoRedirect = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Send users straight to Kanidm instead of showing the Nextcloud login
+        form (`user_oidc` `allow_multiple_user_backends`). Saves one click on
+        every login, including the desktop client's Login Flow v2.
+
+        :::caution[Local login form]
+        This hides the password form, admin account included. Reach it with
+        `/login?direct=1`.
+        :::
+
+        No effect when Kanidm is absent from the network.
+      '';
     };
     darkone.service.nextcloud.plugins = lib.mkOption {
       type = lib.types.listOf (lib.types.enum (appstoreApps ++ shippedToggleableApps));
@@ -226,17 +252,29 @@ in
       # with "cannot assign requested address" at every fleet deployment.
       boot.kernel.sysctl."net.ipv4.ip_nonlocal_bind" = 1;
 
-      # Whiteboard server (TODO: automatiser)
-      # nextcloud-occ config:app:set whiteboard collabBackendUrl --value="${params.href}"
-      # nextcloud-occ config:app:set whiteboard jwt_secret_key --value="test123"
-      services.nextcloud-whiteboard-server = {
+      # Whiteboard backend. The JWT is shared between the daemon and the
+      # `whiteboard` app: the sops template feeds the daemon's EnvironmentFile,
+      # and `nextcloud-whiteboard-setup` below mirrors the same value into the
+      # app config. Left to systemd's default (root-owned) ownership on purpose:
+      # `EnvironmentFile` is read by PID 1 before the unit drops to its
+      # DynamicUser.
+      services.nextcloud-whiteboard-server = lib.mkIf hasWhiteboard {
         enable = true;
         settings.NEXTCLOUD_URL = params.href;
-        secrets = [ "/etc/nextcloud-whiteboard-secret" ];
+        secrets = [ config.sops.templates."nextcloud-whiteboard-env".path ];
       };
-      environment.etc."nextcloud-whiteboard-secret".text = ''
-        JWT_SECRET_KEY=test123
-      '';
+
+      # Read by the `occ` provisioning unit, which runs as the nextcloud user.
+      sops.secrets."nextcloud-whiteboard-secret" = lib.mkIf hasWhiteboard {
+        mode = "0400";
+        owner = "nextcloud";
+      };
+
+      sops.templates."nextcloud-whiteboard-env" = lib.mkIf hasWhiteboard {
+        content = ''
+          JWT_SECRET_KEY=${config.sops.placeholder."nextcloud-whiteboard-secret"}
+        '';
+      };
 
       #------------------------------------------------------------------------
       # Firewall
@@ -292,6 +330,8 @@ in
         # `user_oidc` is force-included (required for Kanidm SSO); other
         # apps come from `cfg.plugins`, intersected with the appstore
         # catalogue so shipped-only entries (e.g. `photos`) are ignored here.
+        # `notify_push` is deliberately absent: its own module already adds
+        # the app, and defining it twice breaks the merge.
         extraApps =
           let
             inherit (config.services.nextcloud.package.packages) apps;
@@ -302,9 +342,21 @@ in
         # Apps config
         autoUpdateApps.enable = true;
 
-        # Client Push
-        # TODO: separate service, accessible via HTTPS
-        #notify_push.enable = true;
+        # Client push: the desktop client gets change notifications over a
+        # websocket instead of polling every 30s (much less PHP churn too).
+        # The upstream module grafts a `location ^~ /push/` onto the internal
+        # nginx vhost; Caddy already proxies the whole vhost and relays the
+        # websocket upgrade, so no extra proxy config is needed.
+        notify_push = {
+          enable = true;
+
+          # Explicit, because `bendDomainToLocalhost` is off: Caddy runs on the
+          # zone gateway, not necessarily on this host, so mapping the domain
+          # to 127.0.0.1 would point at nothing.
+          nextcloudUrl = params.href;
+          bendDomainToLocalhost = false;
+          logLevel = "warn";
+        };
 
         # Additional settings
         settings = {
@@ -320,8 +372,12 @@ in
             params.domain
             params.fqdn
           ];
+
+          # 100.64.0.0/10 is the tailnet (CGNAT) range the comment above refers
+          # to. It used to read 10.64.0.0/10, which is a subset of the
+          # 10.0.0.0/8 entry below — dead weight, and the tailnet was missing.
           trusted_proxies = [
-            "10.64.0.0/10"
+            "100.64.0.0/10"
             "10.0.0.0/8"
             "127.0.0.1"
             "::1"
@@ -337,7 +393,12 @@ in
           mail_smtpname = network.smtp.username or "";
           mail_smtphost = network.smtp.server or "";
           mail_smtpauth = true;
-          mail_smtpsecure = lib.optionalString network.smtp.tls "ssl";
+
+          # `submissions` (465) is implicit TLS -> "ssl"; `submission` (587)
+          # upgrades in-band -> "tls".
+          mail_smtpsecure = lib.optionalString network.smtp.tls (
+            if (network.smtp.protocol or "submissions") == "submissions" then "ssl" else "tls"
+          );
           mail_smtptimeout = 30;
           mail_from_address = "noreply";
         };
@@ -372,6 +433,52 @@ in
             if lib.elem name cfg.plugins then "enable" else "disable"
           } ${name}"
         ) shippedToggleableApps;
+      };
+
+      #------------------------------------------------------------------------
+      # Whiteboard app provisioning
+      #------------------------------------------------------------------------
+
+      # `config:app:set` is an upsert, so this is idempotent. Both values were
+      # left as TODO comments until now, which meant the app could never reach
+      # its backend.
+      #
+      # The JWT transits through argv for the duration of the call. Acceptable:
+      # the unit runs as `nextcloud`, and anything able to read its
+      # /proc/<pid>/cmdline already reads the same value straight out of
+      # Nextcloud's own config.
+      systemd.services.nextcloud-whiteboard-setup = lib.mkIf hasWhiteboard {
+        after = [ "nextcloud-setup.service" ];
+        requires = [ "nextcloud-setup.service" ];
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          User = "nextcloud";
+        };
+        script = ''
+          ${lib.getExe config.services.nextcloud.occ} config:app:set \
+            whiteboard collabBackendUrl --value="${params.href}"
+          ${lib.getExe config.services.nextcloud.occ} config:app:set \
+            whiteboard jwt_secret_key \
+            --value="$(${pkgs.coreutils}/bin/cat ${config.sops.secrets."nextcloud-whiteboard-secret".path})"
+        '';
+      };
+
+      #------------------------------------------------------------------------
+      # Client push readiness
+      #------------------------------------------------------------------------
+
+      # The upstream setup unit self-tests against the PUBLIC url, so it needs
+      # Caddy on the zone gateway to be up and the FQDN to resolve. Its own
+      # retry window (5 tries over 30s) covers a local race, not a gateway
+      # still booting, so widen it — same rationale as `nextcloud-oidc-setup`
+      # below. Overrides rather than additions: upstream already sets these.
+      systemd.services.nextcloud-notify_push_setup = {
+        serviceConfig.RestartSec = lib.mkForce "60s";
+        unitConfig = {
+          StartLimitIntervalSec = lib.mkForce 900;
+          StartLimitBurst = lib.mkForce 10;
+        };
       };
 
       #------------------------------------------------------------------------
@@ -418,6 +525,13 @@ in
             --mapping-uid=preferred_username \
             --mapping-email=email \
             --mapping-display-name=name
+
+          # Skip the Nextcloud login form and go straight to Kanidm. Also
+          # spares the desktop client's Login Flow v2 one click. `?direct=1`
+          # brings the password form back for the admin account.
+          ${lib.getExe config.services.nextcloud.occ} config:app:set \
+            --type=string --value=${if cfg.enableSsoRedirect then "0" else "1"} \
+            user_oidc allow_multiple_user_backends
         '';
       };
     })

@@ -14,9 +14,9 @@ let
   networking = import ./networking.nix { inherit lib; };
   topology = import ./topology.nix { inherit lib constants; };
   alerts = import ./alerts.nix { inherit lib topology; };
-  serviceParams = import ./service-params.nix { inherit lib strings; };
+  serviceParams = import ./service-params.nix { inherit lib strings topology; };
   firewall = import ./firewall.nix { inherit lib constants topology; };
-  oidc = import ./oidc.nix { inherit lib topology serviceParams; };
+  oidc = import ./oidc.nix { inherit lib serviceParams; };
   homepage = import ./homepage.nix { inherit lib constants; };
   security = import ./security.nix { inherit lib; };
   hive = import ./hive.nix { inherit lib; };
@@ -56,7 +56,12 @@ in
     preferredIp
     resolveNfs
     ;
-  inherit (serviceParams) buildServiceParams extractServiceParams enableBlock;
+  inherit (serviceParams)
+    buildServiceParams
+    extractServiceParams
+    serviceHref
+    enableBlock
+    ;
   inherit (alerts)
     serviceUnits
     nodeClass

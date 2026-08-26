@@ -5,15 +5,10 @@
 # protocol endpoints, plus the provisioning entries fed to Kanidm. Pure and
 # side-effect free.
 
-{
-  lib,
-  topology,
-  serviceParams,
-}:
+{ lib, serviceParams }:
 let
-  inherit (lib) hasInfix findFirst;
-  inherit (topology) findHost;
-  inherit (serviceParams) buildServiceParams;
+  inherit (lib) hasInfix;
+  inherit (serviceParams) serviceHref;
 
   # Prefix `path` with `href` unless it is already an absolute URI (eg.
   # mobile-app schemes such as `app.immich:///oauth-callback`). Private
@@ -52,23 +47,18 @@ rec {
       "${name}-${params.domain}";
 
   # Resolve the public URL of the Kanidm (idm) instance reachable from the
-  # current network. Looks up the first `idm` entry in `network.services`
-  # and returns its computed `href` (eg. `https://idm.example.com`).
+  # current network (eg. `https://idm.example.com`). Thin alias over
+  # `serviceParams.serviceHref`, kept because the OIDC wiring reads better
+  # with a named entry point.
   #
   # Returns `null` when no `idm` service is registered, so callers can
   # short-circuit OIDC wiring on hosts where Kanidm is not deployed.
   idmHref =
     network: hosts:
-    let
-      svc = findFirst (s: s.name == "idm") null network.services;
-    in
-    if svc == null then
-      null
-    else
-      let
-        svcHost = findHost svc.host svc.zone hosts;
-      in
-      (buildServiceParams svcHost network svc { }).href;
+    serviceHref {
+      name = "idm";
+      inherit network hosts;
+    };
 
   # Bundle the three values systematically derived together when wiring a
   # service to Kanidm OIDC: the Kanidm client identifier, the SOPS secret

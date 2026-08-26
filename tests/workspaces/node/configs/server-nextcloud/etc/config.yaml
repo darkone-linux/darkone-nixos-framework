@@ -1,0 +1,75 @@
+# node variant: nextcloud, server side and desktop side.
+#
+#   - server1 runs nextcloud (postgres, redis, notify_push, whiteboard
+#     backend — the plugin is force-enabled in usr/modules, since it is not a
+#     default one and its wiring sits behind mkIf);
+#   - desk1 is a desktop with a `normal` user, which exercises the
+#     home-manager side: `darkone.home.office.enableNextcloud` auto-detects
+#     the instance declared on server1 and pre-binds the desktop client;
+#   - gw1 only gives the zone a gateway, as in the other node variants.
+#
+# :::note[No idm here]
+# `modules/service/idm.nix` reads `host.vpnIp`, which the generator only emits
+# for tailnet-registered hosts, so no fixture can declare idm yet. The
+# `hasIdm` branch of the nextcloud module (user_oidc provisioning, SSO
+# redirect) therefore stays outside this guard.
+# :::
+
+network:
+  domain: "test.local"
+  default:
+    locale: "en_US.UTF-8"
+    timezone: "Etc/UTC"
+  coordination:
+    enable: false
+    hostname: "hcs"
+    domain: "headscale"
+  smtp:
+    protocol: "submissions"
+    server: "smtp.test.local"
+    port: 465
+    username: "noreply@test.local"
+    sender: "Test <noreply@test.local>"
+    tls: true
+
+zones:
+  z1:
+    description: "Test zone 1"
+    ipPrefix: "10.10"
+    gateway:
+      wan:
+        interface: "eth0"
+      lan:
+        interfaces: ["eth1"]
+      vpn:
+        ipv4: "100.64.0.1"
+
+users:
+  darkone:
+    uid: 1000
+    name: "Darkone"
+    email: "darkone@test.local"
+    profile: "normal"
+    groups: ["global"]
+
+hosts:
+  - hostname: "gw1"
+    name: "Test gateway"
+    zone: "z1:1.1"
+    profile: "gateway"
+
+  - hostname: "server1"
+    name: "Test server"
+    zone: "z1:1.2"
+    profile: "server"
+    services:
+      nextcloud:
+        title: "Test cloud"
+        description: "Local personal cloud"
+        domain: "cloud"
+
+  - hostname: "desk1"
+    name: "Test desktop"
+    zone: "z1:1.3"
+    profile: "desktop"
+    users: ["darkone"]
