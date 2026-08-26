@@ -63,34 +63,39 @@ let
   nextcloudUrl = if cfg.nextcloudServer != null then cfg.nextcloudServer else detectedNextcloud;
   hasNextcloud = cfg.enableNextcloud && nextcloudUrl != null;
   hasNextcloudWebdav = hasNextcloud && cfg.enableNextcloudWebdav;
-  nextcloudBookmark = "Nextcloud";
 
-  # WebDAV credential helper.
+  # Nextcloud account helper (files, calendar, contacts).
   #
   # Nextcloud refuses to mint an app password from the web UI for an OIDC
   # user: it asks to confirm a local password that does not exist
   # (user_oidc#468). Login Flow v2 is the documented way around it — the very
   # one the desktop client uses — and it is a plain HTTP API, so a script can
-  # drive it and hand the result to the file manager.
+  # drive it and hand the result to GNOME Online Accounts.
+  #
+  # GOA rather than a GTK bookmark: `modules/graphic/gnome.nix` already turns
+  # it on whenever the network carries a cloud, it mounts the share on its
+  # own, and the same entry feeds Evolution over CalDAV/CardDAV. A bookmark
+  # would only add a credential-less duplicate of that mount.
   nextcloudWebdavLogin = pkgs.writeShellApplication {
     name = "nextcloud-webdav-login";
     runtimeInputs = with pkgs; [
       coreutils
       curl
-      gnugrep
+      gawk
+      glib
       jq
       libsecret
-      wl-clipboard
       xdg-utils
     ];
     text = ''
       server="${toString nextcloudUrl}"
-      label="${nextcloudBookmark}"
-      bookmarks="''${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/bookmarks"
+      host="''${server#*://}"
+      host="''${host%%/*}"
+      goa_conf="''${XDG_CONFIG_HOME:-$HOME/.config}/goa-1.0/accounts.conf"
 
       # Login Flow v2: anonymous POST, then poll while the user authenticates
       # in the browser. The User-Agent names the app password server-side.
-      init="$(curl -fsS -X POST -A "DNF WebDAV ($(uname -n))" "$server/index.php/login/v2")"
+      init="$(curl -fsS -X POST -A "DNF $(uname -n)" "$server/index.php/login/v2")"
       login_url="$(jq -r .login <<< "$init")"
       poll_token="$(jq -r .poll.token <<< "$init")"
       poll_endpoint="$(jq -r .poll.endpoint <<< "$init")"
@@ -113,57 +118,72 @@ let
         exit 1
       fi
 
+      # The Nextcloud uid, which is what GOA authenticates with. Never assume
+      # it matches the local account: user_oidc derives it from the provider,
+      # and a user may well run their services under another login.
       login_name="$(jq -r .loginName <<< "$result")"
       app_password="$(jq -r .appPassword <<< "$result")"
 
-      host="''${server#*://}"
-      host="''${host%%/*}"
+      # Derived from the server, so re-running refreshes the account in place
+      # instead of stacking a second one next to it.
+      account="account_$(printf '%s' "$server" | cksum | cut -d' ' -f1)_0"
 
-      # Kanidm emits `preferred_username` as an SPN, so Nextcloud UIDs read
-      # `login@domain`; encode the `@` rather than leave it raw in the path.
-      enc_login="''${login_name//@/%40}"
-      dav="davs://$host/remote.php/dav/files/$enc_login/"
-
-      # Append, never overwrite: this file belongs to the user, who adds their
-      # own bookmarks from the file manager.
-      mkdir -p "$(dirname "$bookmarks")"
-      touch "$bookmarks"
-      if grep -qF "$dav" "$bookmarks"; then
-        echo "Marque-page déjà présent."
-      else
-        printf '%s %s\n' "$dav" "$label" >> "$bookmarks"
-        echo "Marque-page « $label » ajouté."
-      fi
-
-      # Convenience only: gvfs looks credentials up by mount spec and that
-      # attribute set has drifted between releases. The credential is printed
-      # below whatever happens, so a miss here costs one manual paste.
-      if printf '%s' "$app_password" \
-        | secret-tool store --label="Nextcloud WebDAV ($login_name)" \
-            protocol davs server "$host" user "$enc_login" \
-            object "remote.php/dav/files/$enc_login/" \
-            domain "" port 443 authtype basic >/dev/null 2>&1
+      # Seed the keyring first: rewriting the config file is what makes the
+      # daemon reload, so the credential has to already be there. GOA reads a
+      # GVariant vardict, and jq supplies the string escaping.
+      if ! printf "{'password': <%s>}" "$(jq -n --arg p "$app_password" '$p')" \
+        | secret-tool store --label="GOA owncloud credentials for identity $account" \
+            xdg:schema org.gnome.OnlineAccounts \
+            goa-identity "owncloud:gen0:$account"
       then
-        echo "Identifiants enregistrés dans le trousseau."
-      else
-        echo "Trousseau non pré-rempli : le gestionnaire de fichiers les demandera une fois."
+        echo "Trousseau inaccessible : compte non enregistré." >&2
+        exit 1
       fi
 
-      if [ -n "''${WAYLAND_DISPLAY:-}" ]; then
-        printf '%s' "$app_password" | wl-copy >/dev/null 2>&1 || true
-      fi
+      # Rewrite our own block only; any other account in the file is kept.
+      mkdir -p "$(dirname "$goa_conf")"
+      touch "$goa_conf"
+      tmp="$(mktemp)"
+      awk -v drop="[Account $account]" '
+        $0 == drop { skip = 1; next }
+        /^\[/ { skip = 0 }
+        !skip
+      ' "$goa_conf" > "$tmp"
+
+      # Mirrors what the GOA "Nextcloud" provider writes itself, explicit port
+      # included; the provider is still named `owncloud` internally.
+      cat >> "$tmp" <<EOF
+
+      [Account $account]
+      Provider=owncloud
+      Identity=$login_name
+      PresentationIdentity=$login_name@$host
+      Uri=https://$host:443/remote.php/webdav/
+      FilesEnabled=true
+      CalendarEnabled=true
+      CalDavUri=https://$host:443/remote.php/dav/
+      ContactsEnabled=true
+      CardDavUri=https://$host:443/remote.php/dav/
+      AcceptSslErrors=false
+      EOF
+      mv "$tmp" "$goa_conf"
+      chmod 644 "$goa_conf"
+
+      # Wakes the daemon when it is not running; when it is, its own file
+      # monitor has already picked the account up.
+      gdbus introspect --session --dest org.gnome.OnlineAccounts \
+        --object-path /org/gnome/OnlineAccounts >/dev/null 2>&1 || true
 
       echo ""
-      echo "  Compte  : $login_name"
-      echo "  Adresse : $dav"
+      echo "  Compte Nextcloud : $login_name"
+      echo "  Serveur          : $host"
       echo ""
-      echo "  Mot de passe d'application :"
+      echo "Fichiers, agenda et contacts sont reliés à ce compte ; le partage"
+      echo "apparaît dans le gestionnaire de fichiers."
+      echo ""
+      echo "Mot de passe d'application, pour tout autre client WebDAV :"
       echo ""
       echo "    $app_password"
-      echo ""
-      echo "Ouvrez le marque-page « $label » dans le gestionnaire de fichiers."
-      echo "Si un mot de passe est demandé, collez celui ci-dessus et cochez"
-      echo "« Retenir pour toujours »."
     '';
   };
 
@@ -327,11 +347,11 @@ in
     darkone.home.office.enableUnsafeFeatures = mkEnableOption "Features for advanced non-child users";
     darkone.home.office.enableUBlock = mkEnableOption "Enable ublock plugin";
     darkone.home.office.enableTools = mkEnableOption "Little (gnome) tools (iotas, dialect, etc.)";
-    darkone.home.office.enableProductivity = mkEnableOption "Productivity apps (obsidian, time management, projects, etc.)";
+    darkone.home.office.enableProductivity = mkEnableOption "Productivity apps (obsidian, time mgm, projects, etc.)";
     darkone.home.office.enableCommunication = mkEnableOption "Communication tools";
-    darkone.home.office.enableOffice = mkEnableOption "Office packages (libreoffice)";
+    darkone.home.office.enableOffice = mkEnableOption "Office packages (libreoffice, huntspell, fonts...)";
     darkone.home.office.enableFirefox = mkEnableOption "Enable firefox";
-    darkone.home.office.enableLibreWolf = mkEnableOption "Enable firefox";
+    darkone.home.office.enableLibreWolf = mkEnableOption "Enable LibreWolf (firefox alternative)";
     darkone.home.office.enableChromium = mkEnableOption "Enable chromium";
     darkone.home.office.enableBrave = mkEnableOption "Enable Brave Browser";
     darkone.home.office.enableEmail = mkEnableOption "Email management packages (thunderbird)";
@@ -393,9 +413,19 @@ in
       default = true;
       description = ''
         Ship `nextcloud-webdav-login`, a one-shot helper that authenticates
-        through the browser (Kanidm SSO) and registers a `davs://` bookmark in
-        the file manager. Needed because Nextcloud refuses to create an app
-        password from its web UI for an OIDC user.
+        through the browser (Kanidm SSO) and registers the result as a GNOME
+        Online Account: files over WebDAV in the file manager, plus calendar
+        and contacts in Evolution. Needed because Nextcloud refuses to create
+        an app password from its web UI for an OIDC user.
+
+        The helper also prints the app password, so any other WebDAV client
+        can be pointed at the same account.
+
+        :::note[GNOME only]
+        The account is written where GNOME Online Accounts reads it, which
+        `darkone.graphic.gnome` enables on its own as soon as the network
+        carries a cloud. On another desktop the printed password stays usable.
+        :::
 
         Ignored when `enableNextcloud` is off.
       '';
@@ -445,7 +475,7 @@ in
       (mkIf cfg.enableOffice hunspellDicts.${cfg.huntspellLang})
       (mkIf cfg.enableOffice inter) # Inter fonts
       (mkIf cfg.enableOffice liberation_ttf) # Liberation fonts
-      (mkIf cfg.enableOffice libreoffice-fresh) # Force visible icon theme
+      (mkIf cfg.enableOffice libreoffice-stable) # Force visible icon theme
       (mkIf cfg.enableOffice lato) # Lato fonts
       (mkIf cfg.enableTools authenticator) # Two-factor authentication code generator
       (mkIf cfg.enableTools dialect) # translate
@@ -613,12 +643,12 @@ in
       Install.WantedBy = mkForce (optional cfg.enableNextcloudAutoStart "graphical-session.target");
     };
 
-    # Browsing files over WebDAV needs a credential the web UI cannot issue to
-    # an OIDC user; this entry runs the Login Flow v2 helper in a terminal.
+    # Connecting the account needs a credential the web UI cannot issue to an
+    # OIDC user; this entry runs the Login Flow v2 helper in a terminal.
     xdg.desktopEntries.nextcloud-webdav-login = mkIf hasNextcloudWebdav {
-      name = "Fichiers Nextcloud (connexion)";
-      genericName = "Accès WebDAV";
-      comment = "Autoriser l'accès à mes fichiers depuis le gestionnaire de fichiers";
+      name = "Connecter mon compte Nextcloud";
+      genericName = "Compte en ligne";
+      comment = "Relier fichiers, agenda et contacts à mon compte Nextcloud";
       exec = "${nextcloudWebdavLogin}/bin/nextcloud-webdav-login";
       icon = "nextcloud";
       terminal = true;
