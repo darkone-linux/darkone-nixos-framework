@@ -1,4 +1,13 @@
 # Kanidm (identity manager) DNF Service.
+#
+# :::note[Secrets are generated, not typed]
+# `just configure-admin-host` creates every entry this module reads:
+# the break-glass account passwords (`kanidm-admin-password`,
+# `kanidm-idm-admin-password`), the self-signed pair of the internal HTTPS
+# listener (`kanidm-tls-chain` / `kanidm-tls-key`, 10 years, CN=127.0.0.1) and
+# one `oidc-secret-<client>` per provisioned OAuth2 client. Read them back with
+# `just sops` on the rare occasions an admin needs one.
+# :::
 
 {
   lib,
@@ -525,8 +534,9 @@ in
               else
                 "WriteReplicaNoUI";
 
-            # Internal TLS Certificates
-            # openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 3650 -nodes -subj "/CN=127.0.0.1";
+            # Internal TLS certificate. Self-signed (see the file header):
+            # Caddy fronts this listener with `tls_insecure_skip_verify`, so it
+            # never has to chain to anything.
             tls_chain = secrets.kanidm-tls-chain.path;
             tls_key = secrets.kanidm-tls-key.path;
 

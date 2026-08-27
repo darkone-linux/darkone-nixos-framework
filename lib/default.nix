@@ -24,6 +24,7 @@ let
   serviceActivation = import ./service-activation.nix { inherit lib; };
   configSchema = import ./config-schema.nix { inherit lib; };
   matrix = import ./matrix.nix { inherit lib; };
+  secrets = import ./secrets.nix { inherit lib; };
 in
 {
   inherit constants;
@@ -92,4 +93,11 @@ in
     ;
   inherit (homepage) mkHomepageSection;
   inherit (matrix) mkMatrixWellKnown;
+  inherit (secrets)
+    secretGenerators
+    secretBundles
+    secretRules
+    classifySecret
+    mkSecretPlan
+    ;
 }

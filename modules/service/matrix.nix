@@ -61,9 +61,8 @@
 # `/_synapse/*`; client discovery is automatic (synapse serves
 # `auth_metadata` itself), so no well-known change.
 #
-# Required sops secrets (`openssl rand -hex 32` unless stated):
-# `mas-encryption-secret`, `mas-synapse-secret`, and `mas-rsa-private-key`
-# (`openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096`).
+# Required sops secrets, all created by `just configure-admin-host`:
+# `mas-encryption-secret`, `mas-synapse-secret` and `mas-rsa-private-key`.
 #
 # `dnf-mas` (root) wraps `mas-cli` for host-side administration: registration
 # tokens, `promote-admin`, `register-user`, `syn2mas`. MAS runs with
@@ -110,8 +109,8 @@
 # discover it from `matrix_rtc.transports` (synapse, MSC4143) and, as a
 # fallback for older ones, from `rtc_foci` in the well-known.
 #
-# Required sops secret: `livekit-secret` (`openssl rand -hex 32`, via
-# `just passwd-livekit`), shared by the SFU and the JWT service.
+# Required sops secret: `livekit-secret` (`just configure-admin-host`),
+# shared by the SFU and the JWT service.
 #
 # :::caution[Media ports must reach the host]
 # Media does not go through the reverse proxy. The UDP range and the TCP

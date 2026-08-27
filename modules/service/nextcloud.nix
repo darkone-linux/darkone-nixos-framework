@@ -9,7 +9,7 @@
 # - `oidc-secret-<client>`: Kanidm OAuth2 client secret, declared by the idm
 #   module and re-encrypted here for the `occ` provisioning unit.
 #
-# `just passwd-nextcloud` generates all of them, idempotently, and never
+# `just configure-admin-host` generates all of them, idempotently, and never
 # overwrites an existing one. Run it before rebuilding: sops-nix activation
 # fails on a missing entry.
 # :::

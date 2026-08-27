@@ -411,6 +411,21 @@ in
   nixosConfigurations =
     isoNixosConfigurations // sdImageNixosConfigurations // consumerNixosConfigurations;
 
+  # Internal-secrets generation plan consumed by `just configure-admin-host`
+  # (`assets/scripts/just-generate-secrets.sh`).
+  #
+  # The authority for *which* secrets the fleet needs is each host's own
+  # `sops.secrets`, so a service enabled anywhere brings its entries along with
+  # no second registry to maintain. `key` (not the attribute name) is what
+  # addresses the YAML: aliases such as `oidc-secret-internal-service` collapse
+  # onto the single source entry they point at. ISO/SD-image variants are left
+  # out: they carry no consumer secret.
+  secretsPlan = dnfLibFor.x86_64-linux.mkSecretPlan (
+    nixpkgs.lib.concatMap (
+      node: map (secret: secret.key) (nixpkgs.lib.attrValues node.config.sops.secrets)
+    ) (nixpkgs.lib.attrValues consumerNixosConfigurations)
+  );
+
   devShells = forAllSystems (system: {
     default = mkDevShell system;
   });

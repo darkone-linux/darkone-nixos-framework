@@ -270,6 +270,28 @@ copy-id host target='auto':
 		sudo -i -u nix ssh nix@"$t" 'chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_ed25519 && chmod 644 ~/.ssh/id_ed25519.pub'
 	fi
 
+# Generate every internal secret the fleet declares (idempotent, silent when
+# there is nothing to create).
+#
+# The list is NOT maintained here: `<workDir>#secretsPlan` collects the
+# `sops.secrets` of every host and classifies each entry (dnf/lib/secrets.nix),
+# so enabling a service is enough to bring its secrets along. Only what DNF can
+# invent on its own is created; human, hardware and third-party secrets stay
+# manual (`just sops`, `just passwd`, `just luks`, `just yubikey`,
+# `just configure-alert-bot`). An existing entry is never overwritten.
+_gen-secrets:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just _gen-secrets
+	just _sops_before_edit
+	n=$(WORKDIR="{{workDir}}" SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}} \
+		bash {{dnfDir}}/assets/scripts/just-generate-secrets.sh)
+	case "$n" in
+		skip) ;;
+		0) just _info "Secrets already generated." "SOPS" ;;
+		*) just _log "$n secret(s) generated." "SOPS" ;;
+	esac
+
 # Framework installation on local machine (builder / admin)
 [group('install')]
 configure-admin-host:
@@ -351,6 +373,11 @@ configure-admin-host:
 	else
 		just _info "Harmonia public key already exists." "SOPS"
 	fi
+
+	# Everything the declared services need and nobody has to know: OIDC client
+	# secrets, backup credentials, service-to-service tokens... Re-run this
+	# recipe after enabling a service to converge the new entries.
+	just _gen-secrets
 	just _fix_fs_permissions
 	just _done
 
@@ -405,10 +432,16 @@ install host user='nix' ip='auto' do='install':
 	fi
 	echo "{ }" > ./usr/machines/{{host}}/hardware-configuration.nix
 	TARGET_HOST=$(just _resolve "{{host}}" "{{ip}}")
-	just _log "Sops updates..."
-	just passwd-restic
-	just _fix_fs_permissions
 	just _log "We need to add, commit and build..."
+
+	# Staged before the sops step on purpose: `_gen-secrets` evaluates the flake
+	# to know which secrets the fleet needs, and nix only sees files git already
+	# knows about — a brand new host would stay invisible to the very step that
+	# must create its credentials.
+	git add .
+	just _log "Sops updates..."
+	just _gen-secrets
+	just _fix_fs_permissions
 	git add . && (git diff --cached --quiet || git commit -m "New host {{host}} dnf installation") && git reset
 	just _log "Launching installation ({{do}})..."
 	if [ "{{do}}" == "test" ]; then
@@ -588,173 +621,6 @@ passwd-default:
 	yq --inplace '.network.default."password-hash" = strenv(BCRYPT_HASH)' {{generatedConfigFile}}
 	just _fix_fs_permissions
 	just _log "Password updated, don't forget to deploy" "SOPS"
-
-# Generate restic backup passwords (idempotent, never overwrites existing)
-[group('install')]
-passwd-restic:
-	#!/usr/bin/env bash
-	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd-restic
-	cd {{secretsDir}}
-	just _sops_before_edit
-	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
-	if [ -f {{sopsSecretsFile}} ] ; then
-		sops -d -i {{sopsSecretsFile}}
-	else
-		just _fail "Passwd file must exists to perform this operation" "SOPS"
-	fi
-
-	# One REST credential per fleet hostname (authority: generated hosts list).
-	just _log "Extracting hostnames..." "SOPS"
-	HOSTNAMES=$(nix eval --extra-experimental-features nix-command --impure --json \
-		--expr 'map (h: h.hostname) (import {{workDir}}/var/generated/hosts.nix)' \
-		| yq -r '.[]' | sort -u)
-	for h in $HOSTNAMES ; do
-		if ! yq -e ".restic.\"$h\".\"rest-password\"" {{sopsSecretsFile}} >/dev/null 2>&1 ; then
-			just _log "Generating REST password for $h..." "SOPS"
-			PW=$(openssl rand -base64 24) \
-				yq --inplace ".restic.\"$h\".\"rest-password\" = strenv(PW)" {{sopsSecretsFile}}
-		fi
-	done
-
-	# One repository passphrase per zone (excluding the 'common' merge template).
-	just _log "Extracting zones..." "SOPS"
-	ZONES=$(yq -r '.zones | keys | .[]' {{workDir}}/etc/config.yaml | grep -vx common)
-	for z in $ZONES ; do
-		if ! yq -e ".\"restic-password-$z\"" {{sopsSecretsFile}} >/dev/null 2>&1 ; then
-			just _log "Generating repository passphrase for zone $z..." "SOPS"
-			PW=$(openssl rand -base64 24) \
-				yq --inplace ".\"restic-password-$z\" = strenv(PW)" {{sopsSecretsFile}}
-		fi
-	done
-
-	sops -e -i {{sopsSecretsFile}}
-	just _fix_fs_permissions
-	just _log "Restic passwords generated, don't forget to deploy" "SOPS"
-
-# Generate Matrix Authentication Service secrets (idempotent, never overwrites)
-#
-# `mas-encryption-secret` protects encrypted columns and the Kanidm provider
-# link: regenerating it after MAS's first start makes that data unreadable.
-# Hence the strict "generate only what is missing" rule below.
-[group('install')]
-passwd-mas:
-	#!/usr/bin/env bash
-	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd-mas
-	cd {{secretsDir}}
-	just _sops_before_edit
-	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
-	if [ -f {{sopsSecretsFile}} ] ; then
-		sops -d -i {{sopsSecretsFile}}
-	else
-		just _fail "Passwd file must exists to perform this operation" "SOPS"
-	fi
-
-	# Internal encryption key + MAS <-> synapse shared secret.
-	for key in mas-encryption-secret mas-synapse-secret ; do
-		if ! yq -e ".\"$key\"" {{sopsSecretsFile}} >/dev/null 2>&1 ; then
-			just _log "Generating $key..." "SOPS"
-			PW=$(openssl rand -hex 32) \
-				yq --inplace ".\"$key\" = strenv(PW)" {{sopsSecretsFile}}
-		fi
-	done
-
-	# OIDC token signing key (PKCS#8 PEM, kept as a YAML block scalar).
-	if ! yq -e '."mas-rsa-private-key"' {{sopsSecretsFile}} >/dev/null 2>&1 ; then
-		just _log "Generating mas-rsa-private-key (RSA 4096)..." "SOPS"
-		PEM=$(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 2>/dev/null) \
-			yq --inplace '."mas-rsa-private-key" = strenv(PEM)' {{sopsSecretsFile}}
-	fi
-
-	sops -e -i {{sopsSecretsFile}}
-	just _fix_fs_permissions
-	just _log "MAS secrets generated, don't forget to deploy" "SOPS"
-
-# Generate the MatrixRTC (LiveKit) secret (idempotent, never overwrites)
-[group('install')]
-passwd-livekit:
-	#!/usr/bin/env bash
-	set -euo pipefail
-
-	# Shared by the SFU and its authorization service: the first validates the
-	# JWTs the second signs. Rotating it only drops the calls in flight.
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd-livekit
-	cd {{secretsDir}}
-	just _sops_before_edit
-	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
-	if [ -f {{sopsSecretsFile}} ] ; then
-		sops -d -i {{sopsSecretsFile}}
-	else
-		just _fail "Passwd file must exists to perform this operation" "SOPS"
-	fi
-
-	if ! yq -e '."livekit-secret"' {{sopsSecretsFile}} >/dev/null 2>&1 ; then
-		just _log "Generating livekit-secret..." "SOPS"
-		PW=$(openssl rand -hex 32) \
-			yq --inplace '."livekit-secret" = strenv(PW)' {{sopsSecretsFile}}
-	fi
-
-	sops -e -i {{sopsSecretsFile}}
-	just _fix_fs_permissions
-	just _log "MatrixRTC secret generated, don't forget to deploy" "SOPS"
-
-# Generate every internal Nextcloud secret (idempotent, never overwrites)
-[group('install')]
-passwd-nextcloud:
-	#!/usr/bin/env bash
-	set -euo pipefail
-
-	# Three families, all machine-generated: no human ever reads them.
-	#   - the admin account password, only reachable through `/login?direct=1`
-	#     once `enableSsoRedirect` is on, so random beats hand-picked;
-	#   - the whiteboard JWT, shared with the whiteboard backend daemon;
-	#   - one Kanidm OAuth2 client secret per declared instance, named after
-	#     `dnfLib.oauth2ClientName` (hence the sub-domain lookup below).
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd-nextcloud
-	cd {{secretsDir}}
-	just _sops_before_edit
-	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
-	if [ -f {{sopsSecretsFile}} ] ; then
-		sops -d -i {{sopsSecretsFile}}
-	else
-		just _fail "Passwd file must exists to perform this operation" "SOPS"
-	fi
-
-	# Admin account. base64 like the other account passwords; the rest are hex,
-	# to keep client secrets free of characters that need URL/basic-auth escaping.
-	if ! yq -e '."nextcloud-admin-password"' {{sopsSecretsFile}} >/dev/null 2>&1 ; then
-		just _log "Generating nextcloud-admin-password..." "SOPS"
-		PW=$(openssl rand -base64 24) \
-			yq --inplace '."nextcloud-admin-password" = strenv(PW)' {{sopsSecretsFile}}
-	fi
-
-	# Whiteboard JWT. Rotating it only invalidates the boards in flight.
-	if ! yq -e '."nextcloud-whiteboard-secret"' {{sopsSecretsFile}} >/dev/null 2>&1 ; then
-		just _log "Generating nextcloud-whiteboard-secret..." "SOPS"
-		PW=$(openssl rand -hex 32) \
-			yq --inplace '."nextcloud-whiteboard-secret" = strenv(PW)' {{sopsSecretsFile}}
-	fi
-
-	# One client per declared instance (authority: generated services list).
-	# `oauth2ClientName`: the client is named after the service when the
-	# sub-domain matches it, and disambiguated by the sub-domain otherwise.
-	just _log "Extracting nextcloud instances..." "SOPS"
-	DOMAINS=$(nix eval --extra-experimental-features nix-command --impure --json \
-		--expr 'let n = import {{workDir}}/var/generated/network.nix; in map (s: s.domain or "nextcloud") (builtins.filter (s: s.name == "nextcloud") n.services)' \
-		| yq -r '.[]' | sort -u)
-	for d in $DOMAINS ; do
-		if [ "$d" = "nextcloud" ] ; then key="oidc-secret-nextcloud" ; else key="oidc-secret-nextcloud-$d" ; fi
-		if ! yq -e ".\"$key\"" {{sopsSecretsFile}} >/dev/null 2>&1 ; then
-			just _log "Generating $key..." "SOPS"
-			PW=$(openssl rand -hex 32) \
-				yq --inplace ".\"$key\" = strenv(PW)" {{sopsSecretsFile}}
-		fi
-	done
-
-	sops -e -i {{sopsSecretsFile}}
-	just _fix_fs_permissions
-	just _log "Nextcloud secrets generated, don't forget to deploy" "SOPS"
 
 # Update a user password
 [group('install')]

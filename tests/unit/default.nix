@@ -22,6 +22,7 @@ in
   lib_service_activation = import ./lib/service-activation_test.nix { inherit dnfLib; };
   lib_config_schema = import ./lib/config-schema_test.nix { inherit dnfLib; };
   lib_matrix = import ./lib/matrix_test.nix { inherit dnfLib lib; };
+  lib_secrets = import ./lib/secrets_test.nix { inherit dnfLib lib; };
   config_alerts = import ./config/alerts_test.nix { inherit dnfLib lib; };
   config_network = import ./config/network_test.nix { inherit dnfLib lib; };
   config_modules = import ./config/modules_test.nix { inherit dnfLib lib; };
