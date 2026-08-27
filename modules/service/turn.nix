@@ -178,7 +178,11 @@ in
           # recommended for WebRTC
           fingerprint
 
-          # Block irrelevant private networks...
+          # Peer filtering applies to the *destination* of an allocation
+          # (CreatePermission / ChannelBind), not to who may connect here.
+          # Coturn is a public-only relay since 8bd5e62 (`turn` joined
+          # EXTERNAL_ACCESS_SERVICES): clients reach it on the public ip, and
+          # `relay-ip` is that same public address.
           denied-peer-ip=0.0.0.0-0.255.255.255
           denied-peer-ip=127.0.0.0-127.255.255.255
           denied-peer-ip=172.16.0.0-172.31.255.255
@@ -186,7 +190,23 @@ in
           denied-peer-ip=100.64.0.0-100.127.255.255
           denied-peer-ip=10.0.0.0-10.255.255.255
 
-          # Authorize public IP and actual private networks
+          # Public relay address only. The two ranges below were allowed
+          # before 8bd5e62 and must stay commented:
+          #
+          # - Relayed media leaves by the public `relay-ip` while a tailnet
+          #   or LAN peer is only reachable through the other interface. The
+          #   path is asymmetric: the call establishes, then dies when the
+          #   conntrack mapping expires, which is why long calls used to
+          #   drop. `mobility` compounds it, a roaming phone keeps a
+          #   permission pointing at the address it just left.
+          # - A relay that forwards into RFC1918/CGNAT is a pivot into the
+          #   private network for anyone holding TURN credentials, i.e. every
+          #   homeserver account (`use-auth-secret`).
+          #
+          # `ERROR ... denied in the range` during a call is this filter
+          # doing its job: ICE drops that candidate pair and moves on.
+          # Intra-VPN relaying, if ever needed, wants a second instance bound
+          # to the tailnet with its own relay-ip, not a wider list here.
           allowed-peer-ip=${host.ip}
           #allowed-peer-ip=100.64.0.0-100.127.255.255
           #allowed-peer-ip=10.0.0.0-10.255.255.255
