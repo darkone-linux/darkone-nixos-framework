@@ -17,6 +17,7 @@ let
     concatStringsSep
     findFirst
     hasAttr
+    makeBinPath
     mkEnableOption
     mkForce
     mkIf
@@ -54,15 +55,37 @@ let
   #--------------------------------------------------------------------------
 
   # Reads only `network`/`hosts`, never an option, so it can safely back the
-  # `enableNextcloud` default without recursing through the option system.
+  # `nextcloud.enable` default without recursing through the option system.
   detectedNextcloud = dnfLib.serviceHref {
     name = "nextcloud";
     inherit network hosts;
     preferZone = zone.name;
   };
-  nextcloudUrl = if cfg.nextcloudServer != null then cfg.nextcloudServer else detectedNextcloud;
-  hasNextcloud = cfg.enableNextcloud && nextcloudUrl != null;
-  hasNextcloudWebdav = hasNextcloud && cfg.enableNextcloudWebdav;
+  nextcloudUrl = if cfg.nextcloud.server != null then cfg.nextcloud.server else detectedNextcloud;
+  hasNextcloud = cfg.nextcloud.enable && nextcloudUrl != null;
+  hasNextcloudWebdav = hasNextcloud && cfg.nextcloud.enableWebdav;
+
+  # Search path of the client unit, overriding the profile-only one
+  # home-manager pins.
+  #
+  # The wizard's "Open" button ends in `xdg-open`, whose GNOME branch is
+  # guarded by `command -v gio`. Without glib it silently falls through to the
+  # generic branch, which probes a hardcoded browser list (`firefox`,
+  # `chromium`, `www-browser`...) that a NixOS profile shipping `firefox-esr`
+  # never satisfies: `xdg-open: no method available for opening <url>`, and a
+  # login-flow token minted for nothing.
+  #
+  # That failure is what makes "Copy link" look broken too: every click on
+  # either button mints a *new* token and the client only polls the last one,
+  # so a link copied after a few dead "Open" attempts is already superseded
+  # server-side and lands on "Unauthorized".
+  nextcloudClientPath = concatStringsSep ":" [
+    (makeBinPath [
+      pkgs.glib
+      pkgs.xdg-utils
+    ])
+    "${config.home.profileDirectory}/bin"
+  ];
 
   # Nextcloud account helper (files, calendar, contacts).
   #
@@ -152,12 +175,18 @@ let
 
       # Mirrors what the GOA "Nextcloud" provider writes itself, explicit port
       # included; the provider is still named `owncloud` internally.
+      #
+      # `Identity` is the credential half and must stay the Nextcloud uid;
+      # `PresentationIdentity` is display only, and gvfs reuses it verbatim to
+      # name the mount. Left to the provider's `uid@host` default that reads
+      # as `IDM-<uuid>@cloud.example.com` in the file manager sidebar,
+      # hence an explicit, human label.
       cat >> "$tmp" <<EOF
 
       [Account $account]
       Provider=owncloud
       Identity=$login_name
-      PresentationIdentity=$login_name@$host
+      PresentationIdentity=Nextcloud ($host)
       Uri=https://$host:443/remote.php/webdav/
       FilesEnabled=true
       CalendarEnabled=true
@@ -184,6 +213,66 @@ let
       echo "Mot de passe d'application, pour tout autre client WebDAV :"
       echo ""
       echo "    $app_password"
+    '';
+  };
+
+  # Drops the GTK bookmark the client plants on its sync folder.
+  #
+  # `Utility::setupFavLink` appends `file://<syncdir>` to the GTK bookmarks
+  # the first time a folder is configured, which lands right next to the
+  # entry the file manager already shows for the same account: two sidebar
+  # rows, one target. Only the bookmark is ours to remove.
+  #
+  # The sync roots are read back from the client's own config rather than
+  # from `syncDir`: the wizard lets the user pick any folder, and this must
+  # still match what they chose.
+  nextcloudDropSyncBookmark = pkgs.writeShellApplication {
+    name = "nextcloud-drop-sync-bookmark";
+    runtimeInputs = with pkgs; [
+      coreutils
+      diffutils
+      gnused
+    ];
+    text = ''
+      conf_home="''${XDG_CONFIG_HOME:-$HOME/.config}"
+      bookmarks="$conf_home/gtk-3.0/bookmarks"
+      client_conf="$conf_home/Nextcloud/nextcloud.cfg"
+
+      if [ ! -f "$bookmarks" ] || [ ! -f "$client_conf" ]; then
+        exit 0
+      fi
+
+      # `0\Folders\1\localPath=/home/me/Nextcloud/`, one line per sync root.
+      roots="$(sed -n 's/^[0-9]*\\Folders\\[0-9]*\\localPath=//p' "$client_conf")"
+      if [ -z "$roots" ]; then
+        exit 0
+      fi
+
+      tmp="$(mktemp)"
+      while IFS= read -r line; do
+
+        # `URI [label]`, percent-encoded once the file manager has rewritten
+        # the file; `%b` turns `%C3%A9` back into the raw UTF-8 bytes.
+        uri="''${line%% *}"
+        target="''${uri#file://}"
+        target="$(printf '%b' "''${target//%/\\x}")"
+        keep=1
+        while IFS= read -r root; do
+          if [ -n "$root" ] && [ "''${target%/}" = "''${root%/}" ]; then
+            keep=0
+          fi
+        done <<< "$roots"
+        if [ "$keep" = 1 ]; then
+          printf '%s\n' "$line"
+        fi
+      done < "$bookmarks" > "$tmp"
+
+      # Rewrite only on a real change: the path unit driving this watches the
+      # very file being written.
+      if ! cmp -s "$tmp" "$bookmarks"; then
+        cat "$tmp" > "$bookmarks"
+      fi
+      rm -f "$tmp"
     '';
   };
 
@@ -385,64 +474,66 @@ in
       description = "Auto-start Fractal on login when a local Matrix server is present (opt-in, see caveats below)";
     };
 
-    # Nextcloud desktop client. Binds the account and nothing else: a user
-    # with a large account on several machines must stay in control of what
-    # actually lands on each disk.
-    darkone.home.office.enableNextcloud = mkOption {
-      type = types.bool;
-      default = detectedNextcloud != null;
-      description = "Install the Nextcloud desktop client, pre-bound to the network instance";
-    };
-    darkone.home.office.nextcloudServer = mkOption {
-      type = types.nullOr types.str;
-      default = null;
-      example = "https://cloud.example.com";
-      description = ''
-        Nextcloud instance the client binds to. `null` picks the one declared
-        on the network (this zone first). Set it to target a local or external
-        instance instead.
-      '';
-    };
-    darkone.home.office.enableNextcloudAutoStart = mkOption {
-      type = types.bool;
-      default = true;
-      description = "Start the Nextcloud client in the background on login";
-    };
-    darkone.home.office.enableNextcloudWebdav = mkOption {
-      type = types.bool;
-      default = true;
-      description = ''
-        Ship `nextcloud-webdav-login`, a one-shot helper that authenticates
-        through the browser (Kanidm SSO) and registers the result as a GNOME
-        Online Account: files over WebDAV in the file manager, plus calendar
-        and contacts in Evolution. Needed because Nextcloud refuses to create
-        an app password from its web UI for an OIDC user.
+    # Nextcloud desktop integration. Binds the account and nothing else: a
+    # user with a large account on several machines must stay in control of
+    # what actually lands on each disk.
+    darkone.home.office.nextcloud = {
+      enable = mkOption {
+        type = types.bool;
+        default = detectedNextcloud != null;
+        description = "Install the Nextcloud desktop client, pre-bound to the network instance";
+      };
+      server = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        example = "https://cloud.example.com";
+        description = ''
+          Nextcloud instance the client binds to. `null` picks the one declared
+          on the network (this zone first). Set it to target a local or external
+          instance instead.
+        '';
+      };
+      enableAutoStart = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Start the Nextcloud client in the background on login";
+      };
+      enableWebdav = mkOption {
+        type = types.bool;
+        default = true;
+        description = ''
+          Ship `nextcloud-webdav-login`, a one-shot helper that authenticates
+          through the browser (Kanidm SSO) and registers the result as a GNOME
+          Online Account: files over WebDAV in the file manager, plus calendar
+          and contacts in Evolution. Needed because Nextcloud refuses to create
+          an app password from its web UI for an OIDC user.
 
-        The helper also prints the app password, so any other WebDAV client
-        can be pointed at the same account.
+          The helper also prints the app password, so any other WebDAV client
+          can be pointed at the same account.
 
-        :::note[GNOME only]
-        The account is written where GNOME Online Accounts reads it, which
-        `darkone.graphic.gnome` enables on its own as soon as the network
-        carries a cloud. On another desktop the printed password stays usable.
-        :::
+          :::note[GNOME only]
+          The account is written where GNOME Online Accounts reads it, which
+          `darkone.graphic.gnome` enables on its own as soon as the network
+          carries a cloud. On another desktop the printed password stays usable.
+          :::
 
-        Ignored when `enableNextcloud` is off.
-      '';
-    };
-    darkone.home.office.nextcloudSyncDir = mkOption {
-      type = types.nullOr types.str;
-      default = null;
-      example = "Nextcloud";
-      description = ''
-        Local folder pre-filled in the setup wizard, relative to `$HOME`.
+          Ignored when `darkone.home.office.nextcloud.enable` is off.
+        '';
+      };
+      syncDir = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        example = "Nextcloud";
+        description = ''
+          Local folder pre-filled in the setup wizard, relative to `$HOME`.
 
-        :::caution[No sync by default]
-        Left `null` on purpose. The wizard then stops on its folder page and
-        the user decides what — if anything — to synchronise. Setting it skips
-        that page.
-        :::
-      '';
+          :::caution[No sync by default]
+          Left `null` on purpose. The wizard then stops on its folder page and
+          the user decides what, if anything, to synchronise. Setting it skips
+          that page.
+          :::
+        '';
+      };
     };
   };
 
@@ -504,12 +595,11 @@ in
 
     assertions = [
       {
-        assertion = !cfg.enableNextcloud || nextcloudUrl != null;
+        assertion = !cfg.nextcloud.enable || nextcloudUrl != null;
         message = ''
-          darkone.home.office.enableNextcloud is enabled but no Nextcloud
-          instance could be resolved. Declare a `nextcloud` service on the
-          network, or point darkone.home.office.nextcloudServer at an explicit
-          URL.
+          darkone.home.office.nextcloud.enable is on but no Nextcloud instance
+          could be resolved. Declare a `nextcloud` service on the network, or
+          point darkone.home.office.nextcloud.server at an explicit URL.
         '';
       }
     ];
@@ -638,14 +728,48 @@ in
             "--overrideserverurl ${toString nextcloudUrl}"
           ]
           ++ optional (
-            cfg.nextcloudSyncDir != null
-          ) "--overridelocaldir ${config.home.homeDirectory}/${toString cfg.nextcloudSyncDir}"
+            cfg.nextcloud.syncDir != null
+          ) "--overridelocaldir ${config.home.homeDirectory}/${toString cfg.nextcloud.syncDir}"
         );
+
+      # Without this the wizard's "Open" button cannot reach a browser, see
+      # `nextcloudClientPath`.
+      Service.Environment = mkForce [ "PATH=${nextcloudClientPath}" ];
 
       # Computed rather than conditional: the unit stays defined either way, so
       # `systemctl --user start nextcloud-client` still works when auto-start
       # is off.
-      Install.WantedBy = mkForce (optional cfg.enableNextcloudAutoStart "graphical-session.target");
+      Install.WantedBy = mkForce (optional cfg.nextcloud.enableAutoStart "graphical-session.target");
+    };
+
+    # Watch the bookmarks file rather than patch it once: the client writes
+    # its entry when the user finishes the wizard, long after activation.
+    systemd.user.services.nextcloud-drop-sync-bookmark = mkIf hasNextcloud {
+      Unit = {
+        Description = "Remove the duplicate Nextcloud sync folder bookmark";
+      };
+      Service = {
+        Type = "oneshot";
+        ExecStart = "${nextcloudDropSyncBookmark}/bin/nextcloud-drop-sync-bookmark";
+      };
+
+      # Also on login: `PathChanged` never fires for a file already sitting
+      # there when the path unit starts.
+      Install = {
+        WantedBy = [ "graphical-session.target" ];
+      };
+    };
+
+    systemd.user.paths.nextcloud-drop-sync-bookmark = mkIf hasNextcloud {
+      Unit = {
+        Description = "Watch the GTK bookmarks for the Nextcloud sync entry";
+      };
+      Path = {
+        PathChanged = "${config.xdg.configHome}/gtk-3.0/bookmarks";
+      };
+      Install = {
+        WantedBy = [ "graphical-session.target" ];
+      };
     };
 
     # The client writes its own autostart entry (`Utility::setLaunchOnStartup`,
@@ -677,8 +801,12 @@ in
 
     # Connecting the account needs a credential the web UI cannot issue to an
     # OIDC user; this entry runs the Login Flow v2 helper in a terminal.
+    #
+    # Short name on purpose: the GNOME grid ellipsises past ~14 characters, so
+    # the first word is all the user gets to tell this icon apart from the
+    # sync client sitting next to it.
     xdg.desktopEntries.nextcloud-webdav-login = mkIf hasNextcloudWebdav {
-      name = "Connecter mon compte Nextcloud";
+      name = "Compte Nextcloud";
       genericName = "Compte en ligne";
       comment = "Relier fichiers, agenda et contacts à mon compte Nextcloud";
       exec = "${nextcloudWebdavLogin}/bin/nextcloud-webdav-login";
