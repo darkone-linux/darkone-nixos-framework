@@ -118,6 +118,25 @@
 # forwarded, and `rtc.use_external_ip` set (untested here: the HCS holds its
 # public address directly).
 # :::
+#
+# :::caution[Echo cancellation is not a server-side setting]
+# `services.livekit.settings` is freeform: unknown keys reach the config
+# file silently. LiveKit's `audio` section only tunes active speaker
+# detection and RED redundancy; `echo_cancellation`, `noise_suppression`
+# and `channels` do not exist there. They are `getUserMedia` constraints,
+# owned by the client.
+#
+# No SFU setting can fix an echoing participant:
+#
+# - LiveKit forwards Opus without ever decoding it.
+# - AEC needs the local speaker reference, which never leaves the device.
+# - Element Call encrypts media end to end, so the SFU cannot read it.
+#
+# The remedy is device-side: a headset, or Element Call's own audio
+# processing toggles. Beware the diagnosis trap: a handset whose hardware
+# AEC advertises itself but does nothing echoes for everyone *else*, never
+# for its own user.
+# :::
 
 # TODO: Synapse Admin -> https://wiki.nixos.org/wiki/Matrix#Synapse_Admin_with_Caddy
 
