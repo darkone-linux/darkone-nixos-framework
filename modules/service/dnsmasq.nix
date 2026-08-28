@@ -35,6 +35,22 @@ let
   hasAdguardHome = config.darkone.service.adguardhome.enable;
   isTailscaleSubnet = network.coordination.enable && config.services.tailscale.enable;
 
+  # Radios hostapd enslaves into the LAN bridge on its own (`bridge=` setting).
+  # The kernel refuses to bridge a wireless interface before hostapd has put it
+  # in AP mode, so networkd loses that race at boot, retries, then gives up
+  # ("refusing to reconfigure it automatically") and leaves the link failed.
+  # The AP itself works — hostapd bridges it correctly — but networkd never
+  # manages the interface again. Let hostapd own them; keep them out of
+  # `networking.bridges`.
+  hostapdBridgedRadios = lib.optionals config.services.hostapd.enable (
+    lib.filter (
+      radio:
+      lib.any (net: (net.settings.bridge or null) == lanInterface) (
+        lib.attrValues config.services.hostapd.radios.${radio}.networks
+      )
+    ) (lib.attrNames config.services.hostapd.radios)
+  );
+
   # Zone-neutral cache records: publish this zone's nix-cache proxy and
   # harmonia instances under fixed names, identical in every zone, so a
   # roaming client always resolves them to the caches of the zone it is
@@ -74,7 +90,8 @@ in
       ];
 
       # We need a bridge for dnsmasq settings (lan0)
-      bridges.${lanInterface}.interfaces = zone.gateway.lan.interfaces;
+      bridges.${lanInterface}.interfaces =
+        lib.subtractLists hostapdBridgedRadios zone.gateway.lan.interfaces;
 
       # Internet sharing / nat
       nat = {

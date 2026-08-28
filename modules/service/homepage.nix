@@ -98,6 +98,11 @@ in
       # Homepage Service
       #------------------------------------------------------------------------
 
+      # Next.js traps SIGTERM and exits 143 instead of dying from the signal, so
+      # systemd reads code=exited/status=143 and logs a spurious "Failed with
+      # result 'exit-code'" on every activation that restarts the unit.
+      systemd.services.homepage-dashboard.serviceConfig.SuccessExitStatus = "143";
+
       services.homepage-dashboard = {
         enable = true;
         openFirewall = false; # Homepage is in the reverse proxy server
