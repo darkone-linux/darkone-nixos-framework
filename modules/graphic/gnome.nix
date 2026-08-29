@@ -13,6 +13,7 @@ let
     findFirst
     gvariant
     mkEnableOption
+    mkForce
     mkIf
     mkOption
     types
@@ -209,7 +210,10 @@ in
     # Gnome services
     services.gnome = {
       gnome-online-accounts.enable = hasInternalCloud || cfg.enableOnlineServices; # Nextcloud, etc.
-      evolution-data-server.enable = hasInternalCloud || cfg.enableOnlineServices; # CalDAV, CardDAV, tasks
+
+      # mkForce: the upstream GNOME desktop-manager sets this one without
+      # mkDefault, so a fleet with no internal cloud would fail to evaluate.
+      evolution-data-server.enable = mkForce (hasInternalCloud || cfg.enableOnlineServices); # CalDAV, CardDAV, tasks
       gnome-settings-daemon.enable = true;
       gnome-user-share.enable = false;
       glib-networking.enable = true; # HTTPS, proxy, authentification support
