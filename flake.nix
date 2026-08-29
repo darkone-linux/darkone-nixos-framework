@@ -230,32 +230,21 @@
       # APPS
       #------------------------------------------------------------------------
       #
-      # `init` materialises the `assets` derivation as a `.dnf/` symlink in
-      # the consumer's workspace. Required because `just` resolves `import`
-      # paths statically at parse time — there is no shell substitution that
-      # could fetch the store path on the fly.
+      # `init` materialises the framework tree as a `dnf/` symlink in the
+      # consumer's workspace (see `lib/init-app.nix`). Bootstrap form, used
+      # once, before the consumer has a lock to pin:
       #
-      # Usage from a consumer project:
       #   nix run github:darkone-linux/darkone-nixos-framework#init
+      #
+      # `mkConfigurations` re-exposes the same app to consumers, so that later
+      # refreshes (`nix run .#init`) follow their own `flake.lock`.
 
-      apps = forAllSystems (
-        system:
-        let
+      apps = forAllSystems (system: {
+        init = import ./lib/init-app.nix {
           pkgs = nixpkgs.legacyPackages.${system};
-        in
-        {
-          init = {
-            type = "app";
-            program = toString (
-              pkgs.writeShellScript "dnf-init" ''
-                set -euo pipefail
-                ln -sfn ${self.packages.${system}.assets} .dnf
-                echo "Linked .dnf -> $(readlink .dnf)"
-              ''
-            );
-          };
-        }
-      );
+          frameworkRoot = self;
+        };
+      });
 
       # Unit tests — run with: nix-unit --flake .#libTests
       libTests = import ./tests/unit { inherit (nixpkgs) lib; };

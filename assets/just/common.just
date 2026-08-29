@@ -13,6 +13,12 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 workDir := justfile_directory()
+
+# `assetsDir` is the only path valid in BOTH consumer layouts: `dnf/assets/just/`
+# when the framework tree is symlinked as `dnf/` (nix run .#init), and
+# `.dnf/just/` for the legacy assets-only symlink. `dnfDir` assumes the full
+# framework tree and is therefore reserved for framework-side recipes.
+assetsDir := source_directory() + '/..'
 dnfDir := source_directory() + '/../..'
 secretsDir := workDir + '/usr/secrets'
 sopsSecretsFile := secretsDir + '/secrets.yaml'
@@ -87,9 +93,9 @@ _fix_fs_permissions:
 	sudo chown -R --reference=. .
 
 	# Consumer project only: secrets file lives under usr/secrets/ and needs
-	# world-read for the nix build sandbox. In framework-standalone mode
-	# there is no usr/ tree, so skip.
-	if [ -f "{{workDir}}/etc/config.yaml" ]; then
+	# world-read for the nix build sandbox. Absent in framework-standalone mode,
+	# and until `just configure-admin-host` has run on a fresh workspace.
+	if [ -f "{{sopsSecretsFile}}" ]; then
 		sudo chmod 644 {{sopsSecretsFile}}
 	fi
 
@@ -131,6 +137,8 @@ check:
 # libTests, mkNodes, secretsPlan); any *other* unknown output stays visible.
 # sed (vs. grep -v) always exits 0, which keeps pipefail honest about nix's
 # real exit status.
+#
+# Check the main flake (nix flake check)
 [group('check')]
 check-flake:
 	{{nix}} flake check --quiet 2>&1 \
@@ -158,10 +166,13 @@ format:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	just _log "Full formatting..." "TREEFMT"
-	treefmt --config-file {{dnfDir}}/assets/treefmt.toml --no-cache --quiet
-	if [ -d dnf ] ;then
+	treefmt --config-file {{assetsDir}}/treefmt.toml --no-cache --quiet
+
+	# A `dnf/` symlink points into the nix store (read-only): only a real
+	# co-development checkout is formatted here.
+	if [ -d dnf ] && [ ! -L dnf ] ;then
 		just _log "Formatting also dnf..." "TREEFMT"
-		cd dnf && treefmt --config-file {{dnfDir}}/assets/treefmt.toml --no-cache --quiet
+		cd dnf && treefmt --config-file {{assetsDir}}/treefmt.toml --no-cache --quiet
 	fi
 
 # Fix with statix
@@ -176,13 +187,13 @@ fix:
 # Generators
 #==============================================================================
 
-# Update the nix generated files.
-#
 # Detects the running context:
 #   - Consumer project (workDir has etc/config.yaml): full generation including
 #     Rust-generated files (var/generated/*.nix) and consumer-side paths.
 #   - Framework standalone (workDir is dnf/ itself): only framework module
 #     default.nix files, no Rust generator (no config.yaml to consume).
+#
+# Update the nix generated files.
 [group('dev')]
 generate:
 	#!/usr/bin/env bash
@@ -205,8 +216,11 @@ generate:
 _gen-default dir:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	if [ ! -d "{{dir}}" ] ;then
-		just _info "Skipping unknown directory {{dir}}..."
+	if [ ! -d "{{dir}}" ] || [ ! -w "{{dir}}" ] ;then
+
+		# Unknown (consumer without that overlay) or read-only (framework tree
+		# symlinked from the nix store): nothing to generate there.
+		just _info "Skipping {{dir}} (absent or read-only)..."
 	else
 		just _log "{{dir}} ➜ default.nix..." "GENERATOR"
 		cd {{dir}}
@@ -257,6 +271,8 @@ develop:
 # ISO — this is what makes it passwordless-installable with `just full-install`.
 # A standalone dnf/ checkout has workDir == the framework root, so it falls back
 # to the framework's own (keyless) ISO.
+#
+# Build the DNF ISO image (carries the admin key)
 [group('install')]
 build-iso arch="x86_64-linux":
 	@just _log "Building local DNF ISO image..."

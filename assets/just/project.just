@@ -49,6 +49,15 @@ cat host='':
 update-flake:
 	#!/usr/bin/env bash
 	set -euo pipefail
+
+	# Co-development only: `dnf/` is a git checkout carrying its own lock, and
+	# the dual-repo commit helpers of dev.just are imported. In release mode
+	# `dnf/` is a read-only store symlink (or absent) — only the root lock moves.
+	if [ ! -d "{{workDir}}/dnf/.git" ]; then
+		just _log "Updating flake inputs..." "FLAKE"
+		cd {{workDir}} && {{nix}} flake update
+		exit 0
+	fi
 	just _log "Updating dnf/ flake inputs..." "FLAKE"
 	(cd {{workDir}}/dnf && {{nix}} flake update)
 	last_msg=$(git -C {{workDir}}/dnf log -1 --format=%s 2>/dev/null || echo "")
@@ -167,8 +176,6 @@ _wait-ssh target state='up' timeout='600':
 	done
 	printf ' OK\n'
 
-# Route ssh to a host that sits outside its own zone.
-#
 # Colmena addresses a node by its name, which DNS resolves to the host's HOME
 # address — deploying into the void while the machine is plugged elsewhere.
 # A stanza in the nix user's ssh config redirects it, and ssh, scp and colmena
@@ -176,6 +183,8 @@ _wait-ssh target state='up' timeout='600':
 # once the host is configured; call `roaming-clear` after a manual `configure`.
 #
 # No argument: show the current redirections.
+#
+# Route ssh to a host that sits outside its own zone.
 [group('install')]
 roaming host='' target='auto':
 	#!/usr/bin/env bash
@@ -234,11 +243,11 @@ roaming-clear host='':
 	mv "$tmp" "$conf"
 	chmod 600 "$conf"
 
-# Copy pub key to the node (nix user must exist)
-#
 # `target` is the network address to reach the node; 'auto' asks `_target`,
 # which returns the host name in its own zone and the reserved roaming address
 # elsewhere. The machine identity stays {{host}} whatever the address used.
+#
+# Copy pub key to the node (nix user must exist)
 [group('install')]
 copy-id host target='auto':
 	#!/usr/bin/env bash
@@ -285,7 +294,7 @@ _gen-secrets:
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just _gen-secrets
 	just _sops_before_edit
 	n=$(WORKDIR="{{workDir}}" SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}} \
-		bash {{dnfDir}}/assets/scripts/just-generate-secrets.sh)
+		bash {{assetsDir}}/scripts/just-generate-secrets.sh)
 	case "$n" in
 		skip) ;;
 		0) just _info "Secrets already generated." "SOPS" ;;
@@ -381,10 +390,10 @@ configure-admin-host:
 	just _fix_fs_permissions
 	just _done
 
-# Extract hardware config from host
-#
 # `target`: network address to reach the node ('auto' = resolved by `_target`).
 # The extracted config is always stored under the machine identity {{host}}.
+#
+# Extract hardware config from host
 [group('install')]
 copy-hw host target='auto':
 	#!/usr/bin/env bash
@@ -395,9 +404,9 @@ copy-hw host target='auto':
 	sudo -i -u nix ssh nix@"$t" "sudo nixos-generate-config --no-filesystems --show-hardware-config" > {{workDir}}/usr/machines/{{host}}/hardware-configuration.nix
 	nixfmt -s usr/machines/{{host}}/hardware-configuration.nix
 
-# Push the infrastructure key to the host
-#
 # `target`: network address to reach the node ('auto' = resolved by `_target`).
+#
+# Push the infrastructure key to the host
 [group('install')]
 push-key host target='auto':
 	#!/usr/bin/env bash
@@ -508,12 +517,12 @@ _host-info host target='auto':
 # Auto-switching here means the chained `copy-id` / `copy-hw` / `push-key`
 # already inherit the nix user — their own guards short-circuit cleanly.
 #
-# New host: ssh cp id, extr. hw, push infra key, clean, info
-#
 # `ip`: network address to reach the node ('auto' = resolved by `_target`).
 # Configuring a host that sits outside its own zone also installs the ssh
 # redirection, so the `apply` that follows reaches it instead of its home
 # address; `just roaming-clear {{host}}` drops it once the host is back home.
+#
+# New host: ssh cp id, extr. hw, push infra key, clean, info
 [group('install')]
 configure host ip='auto':
 	#!/usr/bin/env bash
@@ -533,14 +542,14 @@ configure host ip='auto':
 	just _log "just apply-verbose {{host}}"
 	just _host-info "{{host}}" "$t"
 
-# New host: full installation (install, configure, apply)
-#
 # One address for the whole run: `_target` gives the host name when it is
 # installed at home, and the address its host zone reserves for it otherwise.
 # The reservation is a DHCP one, keyed on the MAC, so the installer and the
 # installed system land on the very same address — nothing to type, nothing to
 # guess. Requires the local gateway to be up to date (`just apply <gateway>`)
 # when the host has just been declared in etc/config.yaml.
+#
+# New host: full installation (install, configure, apply)
 [group('install')]
 full-install host user='nixos' ip='auto':
 	#!/usr/bin/env bash
@@ -660,8 +669,6 @@ passwd user:
 	just _log "OK, password updated for {{user}}" "SOPS"
 	just _log "Now deploy with 'just apply @user-{{user}}'" "SOPS"
 
-# YubiKey enrollment: ONE physical enrollment per (user, key), fleet-wide.
-#
 # With the key plugged into this admin host (~3 touches), captures:
 #   - the pam_u2f credential -> usr/secrets/yubikeys.json (public, committed):
 #     a touch replaces the session password on every host of the user;
@@ -679,6 +686,8 @@ passwd user:
 # key = full replacement, the old credential is pruned fleet-wide at next apply
 # (old Kanidm/Vaultwarden passkeys must be removed by hand). Requires exactly
 # ONE plugged key: with several, each capture could target a different device.
+#
+# YubiKey enrollment: ONE physical enrollment per (user, key), fleet-wide.
 [group('install')]
 yubikey user key='main' action='enroll':
 	#!/usr/bin/env bash
@@ -816,6 +825,8 @@ yubikey user key='main' action='enroll':
 #   the next apply embeds it), and a valid shared keyslot — a host installed
 #   with a different passphrase gets its shared slot bootstrapped here, the
 #   install passphrase is asked once.
+#
+# LUKS provisioning: per-host passphrase + remote unlock (idempotent)
 [group('install')]
 luks host action='' ip='auto':
 	#!/usr/bin/env bash
@@ -964,15 +975,15 @@ sops:
 # Reads config.yaml (network.matrix.{admin,bot}), creates/refreshes the bot,
 # webhook secret and the warnings/incidents rooms, and writes the resulting
 # room IDs back into config.yaml. Re-run any time; it only fixes what's missing.
+#
+# Provision the Matrix alert bot and its rooms (idempotent)
 [group('install')]
 configure-alert-bot:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	WORKDIR="{{workDir}}" bash {{dnfDir}}/assets/scripts/just-configure-alert-bot.sh
+	WORKDIR="{{workDir}}" bash {{assetsDir}}/scripts/just-configure-alert-bot.sh
 	just _fix_fs_permissions
 
-# Sync Kanidm replication certificates (multi-zone read-only replicas).
-#
 # Replication is automatic when idm runs on the HCS and >=1 zone gateway. Bootstrap
 # is a two-step deploy:
 #   1. `just apply` once  -> each replication node generates its identity.
@@ -983,6 +994,8 @@ configure-alert-bot:
 # Runs as the current (admin) user so the collected files stay user-owned and
 # committable. Only the per-node SSH needs the `nix` deploy identity (its keys,
 # config and known_hosts live in ~nix/.ssh), so just that call uses `sudo -u nix`.
+#
+# Sync Kanidm replication certificates (multi-zone read-only replicas).
 [group('install')]
 idm-sync-certs:
 	#!/usr/bin/env bash
@@ -1016,8 +1029,6 @@ idm-sync-certs:
 	[ "$found" -gt 0 ] || just _warn "No replication certificates collected — did you 'just apply' first?"
 	just _log "Done. Commit usr/secrets/replication/ then 'just apply' again to activate replication." "IDM"
 
-# Diagnose Kanidm replication health and prescribe the exact remediation steps.
-#
 # Read-only "doctor": never wipes, restarts or applies anything. Pass the supplier
 # (the HCS / coordination host) and the comma-separated consumer gateways, e.g.
 #   just idm-fix-replica hcs agate,gw
@@ -1026,6 +1037,8 @@ idm-sync-certs:
 # checks supplier integrity, certificate sync and each consumer's last refresh,
 # then prints a copy-pasteable checklist. Same SSH/identity conventions as
 # idm-sync-certs (only the per-node SSH uses the nix deploy user).
+#
+# Diagnose Kanidm replication health and prescribe the exact remediation steps.
 [group('install')]
 idm-fix-replica supplier consumers:
 	#!/usr/bin/env bash
@@ -1397,6 +1410,8 @@ apply-local what='switch':
 # Alertmanager inhibits their alerts during the restart, then clear the flag.
 # Requires the monitoring alerting layer (dnf-maintenance ships on monitored
 # nodes); on a first deploy or a non-monitored host the flag step is a no-op.
+#
+# Apply with the target's alerts silenced during the rebuild
 [group('apply')]
 apply-silenced on what='switch':
 	#!/usr/bin/env bash
@@ -1420,8 +1435,6 @@ apply-silenced on what='switch':
 # Same auto-switch pattern as the apply group: each recipe re-execs itself
 # under the `nix` user when the caller is somebody else.
 
-# Interactive shell to the host.
-#
 # When the host answers on port 22, plain ssh as usual. Otherwise it may be
 # waiting in initrd for its LUKS passphrase, where sshd listens on port 2222
 # (dnf/modules/system/luks.nix): probe the explicit ip (if given), the
@@ -1431,6 +1444,8 @@ apply-silenced on what='switch':
 # passphrase prompt. The initrd has its own host key, regenerated by every
 # reinstall, and the login is root@ — outside the `Match user nix` fleet
 # policy (core.nix), so the same "never pin" options are restated here.
+#
+# Interactive shell to the host.
 [group('manage')]
 enter on ip='auto':
 	#!/usr/bin/env bash
