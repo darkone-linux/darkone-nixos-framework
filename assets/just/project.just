@@ -115,11 +115,14 @@ update-dnf:
 #
 # Falls back to the host name when nothing matches: a host with no declared MAC
 # is simply not reachable outside its zone.
+#
+# A reservation is an expectation, not evidence, so the roaming address is
+# probed before being returned — see the comment on the probe below.
 _target host:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	gw=$(ip -4 route show default 2>/dev/null | awk '{print $3; exit}' || true)
-	{{nix}} eval --raw --impure --expr '
+	addr=$({{nix}} eval --raw --impure --expr '
 	  let
 	    hosts = import {{workDir}}/var/generated/hosts.nix;
 	    network = import {{workDir}}/var/generated/network.nix;
@@ -138,7 +141,28 @@ _target host:
 	  if here == null || target == null || target.zone == here.name
 	  then "{{host}}"
 	  else here.roaming."{{host}}" or "{{host}}"
-	'
+	')
+
+	# The roaming reservation says where the host WOULD be if plugged in here.
+	# During an install it is right — the machine is on the bench, answering on
+	# 22. Once it is back home and reached over the VPN it is a dead address,
+	# and every management recipe aimed at it: `just enter` gave up, `just luks`
+	# warned and exited 0 while colmena, which addresses nodes by name, still
+	# deployed happily. Order below: trust the reservation only if something
+	# answers there, otherwise the name if the host responds (2222 included —
+	# an encrypted host waiting in its initrd is up, just not booted), and keep
+	# the reservation as the last word so a machine not powered on yet still
+	# resolves to the address its installer will appear on.
+	up() { timeout 2 bash -c ": < /dev/tcp/$1/$2" 2>/dev/null ; }
+	if [ "$addr" = "{{host}}" ] ;then
+		echo "{{host}}"
+	elif up "$addr" 22 ;then
+		echo "$addr"
+	elif up "{{host}}" 22 || up "{{host}}" 2222 ;then
+		echo "{{host}}"
+	else
+		echo "$addr"
+	fi
 
 # Resolve a recipe's `target`/`ip` parameter: 'auto' asks `_target`.
 _resolve host target:
@@ -887,7 +911,7 @@ luks host action='' ip='auto':
 	# needs a re-run before its next apply (the initrd host key must exist
 	# there when the bootloader embeds it).
 	if ! ssh -o ConnectTimeout=5 nix@"$target" true 2>/dev/null ;then
-		just _warn "{{host}} unreachable: re-run 'just luks {{host}}' once it is up, BEFORE any apply."
+		just _warn "{{host}} unreachable at $target: re-run 'just luks {{host}}' once it is up, BEFORE any apply."
 		exit 0
 	fi
 	ssh nix@"$target" 'sudo mkdir -p /var/lib/luks-initrd \
