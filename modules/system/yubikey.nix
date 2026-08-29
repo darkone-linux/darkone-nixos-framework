@@ -30,7 +30,9 @@
 #
 # :::caution[No lockout by design]
 # The install passphrase keyslot and the sops session passwords are never
-# touched: losing a key at worst falls back to passphrase/password.
+# touched: losing a key at worst falls back to passphrase/password. This holds
+# at boot too, which is why no `fido2-device=` option is written to crypttab —
+# see the comment on the initrd block below.
 # :::
 #
 # :::caution[The boot touch cannot be waived]
@@ -204,16 +206,26 @@ in
 
       (lib.mkIf luksActive {
 
-        # systemd initrd unlocks FIDO2 tokens (`fido2-device=auto`); USB HID
-        # modules make the key reachable before cryptsetup runs.
+        # systemd initrd unlocks the FIDO2 keyslots; USB HID modules make the
+        # key reachable before cryptsetup runs.
         boot.initrd.systemd.enable = true;
         boot.initrd.availableKernelModules = [
           "usbhid"
           "hid_generic"
         ];
-        boot.initrd.luks.devices = lib.genAttrs luksNames (_: {
-          crypttabExtraOpts = [ "fido2-device=auto" ];
-        });
+
+        # `crypttabExtraOpts = [ "fido2-device=auto" ]` is deliberately NOT set.
+        # The CID is read from the LUKS2 token metadata with or without it
+        # (crypttab(5)), so the key is tried either way — but with the option a
+        # token that is plugged in and left untouched makes systemd-cryptsetup
+        # exit 1 instead of falling back to the passphrase: no prompt, on the
+        # console or over ssh, and the boot dies in the initrd. Measured on
+        # systemd 261: `FIDO_ERR_OPERATION_DENIED` after ~29s of unanswered user
+        # presence, unit failed, initrd in emergency. A power cut on a headless
+        # host with a key left in its port was enough to strand it.
+        #
+        # A key is a convenience. It must never become the only way in — which
+        # is what the "No lockout by design" note above promises.
 
         # Derived secrets (one per enrolled key) + the shared passphrase that
         # authorizes keyslot management. All created by `just yubikey`.
