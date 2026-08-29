@@ -80,10 +80,10 @@ Notre réseau local est une bulle sécurisée composée de "nœuds" (ordinateurs
 ## Une configuration multi-utilisateur, multi-hôte et multi-service
 
 - 🔥 [Déclaratif, reproductible, immuable](https://nixos.org/).
-- 🚀 [Modules](https://darkone-linux.github.io/ref/modules/) prêts à l’emploi.
-- ❄️ **Configuration** (link todo) simple.
-- 🧩 [Organisation](https://darkone-linux.github.io/doc/introduction/#structure) cohérente.
-- 🌎 Un [réseau complet](#une-configuration-pour-un-réseau-complet).
+- 🚀 [Modules prêts à l’emploi](https://darkone-linux.github.io/fr/ref/modules/).
+- ❄️ [Configuration simple](https://github.com/darkone-linux/dnf-boilerplate/blob/main/etc/config.yaml).
+- 🧩 [Organisation cohérente](https://darkone-linux.github.io/fr/doc/#structure).
+- 🌎 [Un réseau complet](#une-configuration-pour-un-réseau-complet).
 
 Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé des prochaines versions stables, merci de me le faire savoir sur [GitHub](https://github.com/darkone-linux/darkone-nixos-framework) ou en vous abonnant à ma [chaîne YouTube](https://www.youtube.com/@DarkoneLinux) (FR). Merci !
 
@@ -92,12 +92,12 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 | | Fonctionnalité | Description |
 |---|---------------|-------------|
 | ⚙️ | Tout-automatisé | Installation et mise à jour auto des hôtes avec [nixos-anywhere](https://github.com/nix-community/nixos-anywhere), [disko](https://github.com/nix-community/disko) et [colmena](https://github.com/zhaofengli/colmena) |
-| 👤 | Profils utilisateurs | [Profils](https://github.com/darkone-linux/darkone-nixos-framework/tree/main/dnf/home/profiles) et [modules](https://darkone-linux.github.io/ref/modules/#home-manager-modules) utilisateurs avec [Home Manager](https://github.com/nix-community/home-manager) (admin, gamer, débutant…) |
-| 🖥️ | Profils d’hôtes | [Profils d’hôtes](https://darkone-linux.github.io/ref/modules/#-darkonehostdesktop) (serveurs, conteneurs, nœuds réseau, postes de travail…) |
+| 👤 | Profils utilisateurs | [Profils](https://darkone-linux.github.io/fr/doc/admin-guide/understand/user-profiles/) et [modules](https://darkone-linux.github.io/fr/ref/modules/home/) utilisateurs avec [Home Manager](https://github.com/nix-community/home-manager) (admin, gamer, débutant…) |
+| 🖥️ | Profils d’hôtes | [Profils d’hôtes](https://darkone-linux.github.io/fr/doc/admin-guide/understand/host-profiles/) (serveurs, conteneurs, nœuds réseau, postes de travail…) |
 | 🌐 | VPN Tailnet | [VPN maillé](https://fr.wikipedia.org/wiki/R%C3%A9seau_maill%C3%A9) avec [headscale](https://headscale.net/) + [tailscale](https://tailscale.com/) et [sous-réseaux indépendants](#une-configuration-pour-un-réseau-complet) |
 | 🛡️ | Stop Publicités | Internet sécurisé et sans publicité avec [AdguardHome](https://adguard.com/fr/adguard-home/overview.html) et un pare-feu efficace |
 | 🧩 | Authentification unique | SSO avec [Kanidm](https://kanidm.com/) : une seule identité pour (presque) tous les services |
-| 🤗 | Services intelligents | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [Jellyfin](https://jellyfin.org/), [etc.](https://darkone-linux.github.io/ref/modules/#-darkoneserviceadguardhome) |
+| 🤗 | Services intelligents | [Immich](https://immich.app/), [Nextcloud](https://nextcloud.com/), [Forgejo](https://forgejo.org/), [Vaultwarden](https://github.com/dani-garcia/vaultwarden), [Mattermost](https://mattermost.com/), [Jellyfin](https://jellyfin.org/), [etc.](https://darkone-linux.github.io/fr/ref/modules/service/) |
 | 💻 | GNOME épuré | Hôtes NixOS avec un [GNOME](https://www.gnome.org/) allégée et des applications stables et utiles |
 | 💾 | Sauvegardes 3-2-1 | Sauvegardes robustes, simplifiées et distribuées avec [Restic](https://restic.net/) |
 | 🤖 | IA Générative | IA générative locale et sécurisée, avec [Open WebUI](https://openwebui.com/) et [Ollama](https://ollama.com/) |
@@ -109,8 +109,8 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 |---|---------------|-------------|
 | ❄️ | Déclaratif et immuable | Configuration reproductible basée sur [Nix / NixOS](https://nixos.org/) et son écosystème |
 | 🔑 | Sécurité renforcée | Stratégie de sécurité simple et fiable, reposant sur [sops-nix](https://github.com/Mic92/sops-nix) |
-| 📦 | Modules haut niveau | [Modules NixOS haut-niveau](https://darkone-linux.github.io/ref/modules), faciles à activer et à configurer |
-| 📐 | Architecture | [Architecture extensible et scalable](https://darkone-linux.github.io/doc/introduction/#structure), cohérente et personnalisable |
+| 📦 | Modules haut niveau | [Modules NixOS haut-niveau](https://darkone-linux.github.io/fr/ref/modules/), faciles à activer et à configurer |
+| 📐 | Architecture | [Architecture extensible et scalable](https://darkone-linux.github.io/fr/doc/#structure), cohérente et personnalisable |
 | ✴️ | Proxy inverse | Services distribués à travers le réseau via des proxies sous [Caddy](https://github.com/caddyserver/caddy) |
 | 🛜 | Réseau automatisé | Plomberie réseau zero-conf (DNS, DHCP, pare-feu…) avec [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html) |
 | ✅ | Monitoring & Alertes | Supervision avec [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com) et [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) |
@@ -162,7 +162,7 @@ Ce projet évolue en fonction de mes besoins. Si vous souhaitez être informé d
 - `src` -> Fichiers source du générateur
 - `doc` -> Documentation du projet
 
-La [structure complète est documentée ici](https://darkone-linux.github.io/doc/introduction/#structure).
+La [structure complète est documentée ici](https://darkone-linux.github.io/fr/doc/#structure).
 
 > [!NOTE]
 > Cette structure peut être clonée pour chaque configuration et les parties communes
