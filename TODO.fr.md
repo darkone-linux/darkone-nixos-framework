@@ -34,6 +34,11 @@
 - [ ] Suite de tests de recette complète, intégrée à une stratégie d'intégration continue déclarative et utilisable par chaque instance DNF.
 - [ ] Officialiser le projet auprès du public.
   - [ ] Politique de versionning, packaging, changelog, diffusion.
+    - [ ] Tags sémantiques sur `dnf` : c'est ce que le consommateur épingle (`dnf.url = "github:darkone-linux/darkone-nixos-framework/vX.Y.Z"`), aujourd'hui le boilerplate suit `main`.
+    - [ ] Alignement des sous-projets : quel `dnf-generator` (schéma de `etc/config.yaml`), quel boilerplate et quelle doc vont avec un tag DNF donné.
+    - [ ] `CHANGELOG.md` par version, listant explicitement les ruptures de `etc/config.yaml`, des recettes `just` et de la structure `usr/`.
+    - [ ] Procédure de release : tag, notes, régénération de la doc, mise à jour du boilerplate.
+    - [ ] Montée de version côté consommateur, documentée : `nix flake update dnf` puis `nix run .#init` (le lien `dnf/` doit suivre la révision épinglée).
   - [ ] "Getting Started" très simple, rapide et efficace.
   - [ ] ISO NixOS + DNF facile à installer.
   - [ ] Documentation user-friendly.
