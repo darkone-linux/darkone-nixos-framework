@@ -927,7 +927,12 @@ luks host action='' ip='auto':
 	SHARED=$(sops -d --extract '["luks-passphrase"]' {{sopsSecretsFile}})
 	PERHOST=$(sops -d --extract '["luks"]["{{host}}"]["passphrase"]' {{sopsSecretsFile}})
 	test_slot() { printf '%s' "$1" | ssh nix@"$target" "sudo cryptsetup open --test-passphrase --key-file=- '$2'" >/dev/null 2>&1 ; }
-	devs=$(echo 'for p in /dev/disk/by-partlabel/*; do cryptsetup isLuks --type luks2 "$p" 2>/dev/null && echo "$p"; done' \
+
+	# Trailing `exit 0`: a `for` loop reports its LAST iteration, so the probe
+	# failed whenever the final by-partlabel entry was not LUKS — devs was
+	# correct, but `set -e` killed the recipe on the assignment. An ssh or sudo
+	# failure still surfaces: the snippet never runs in that case.
+	devs=$(echo 'for p in /dev/disk/by-partlabel/*; do cryptsetup isLuks --type luks2 "$p" 2>/dev/null && echo "$p"; done; exit 0' \
 		| ssh nix@"$target" sudo bash -s)
 	[ -n "$devs" ] || just _fail "No LUKS2 volume found on {{host}} (disko config out of sync?)."
 	fixed=""
