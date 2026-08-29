@@ -429,4 +429,14 @@ in
   devShells = forAllSystems (system: {
     default = mkDevShell system;
   });
+
+  # `nix run .#init` — (re)link `dnf/` onto the framework revision this project
+  # pins in its own flake.lock. Run it after every `nix flake update dnf`, so
+  # the just recipes and the generator profiles stay in sync with what is built.
+  apps = forAllSystems (system: {
+    init = import ./init-app.nix {
+      pkgs = nixpkgsFor.${system};
+      frameworkRoot = inputs.self;
+    };
+  });
 }
