@@ -70,9 +70,15 @@ in
           };
         };
 
-        # Allow nix/colmena (running as user `nix`) to open the NixOS repo
+        # Allow nix/colmena (running as user `nix`) to open the NixOS repo.
+        # Not recursive: the dnf/ sub-repo is a distinct git repository, and
+        # consumer flakes consume it as a `git+file:///etc/nixos/dnf` input,
+        # so it needs its own entry or every eval run by `nix` fails.
         safe = {
-          directory = "/etc/nixos";
+          directory = [
+            "/etc/nixos"
+            "/etc/nixos/dnf"
+          ];
         };
       };
     };
