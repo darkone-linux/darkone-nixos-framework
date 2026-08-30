@@ -276,6 +276,63 @@ let
     '';
   };
 
+  # Opens the client's own settings dialog, which nothing else can reach.
+  #
+  # Client 34 moved every action out of the window: what a launcher opens is
+  # `ActivitiesWindow`, a read-only feed whose header is a plain label (no
+  # button, no menu), and the account/sync entries now live only in the tray
+  # icon's menu. On Wayland that menu is never built — `showQtTrayPopup()`
+  # bails out with "Wayland cannot create an arbitrary QWidget popup from a
+  # tray activation" and falls back to that same window — and relaunching the
+  # binary lands there too, through the single-instance MSG_SHOWMAINDIALOG.
+  # No command-line flag opens the dialog either.
+  #
+  # The client does export its actions on the freedesktop CloudProviders bus
+  # though (`Implements=org.freedesktop.CloudProviders` in its desktop entry),
+  # `opensettings` included, so a launcher can reach the real dialog without
+  # depending on a tray icon at all.
+  nextcloudSettings = pkgs.writeShellApplication {
+    name = "nextcloud-settings";
+    runtimeInputs = with pkgs; [
+      coreutils
+      glib
+      gnugrep
+      systemd
+    ];
+    text = ''
+      bus="com.nextcloudgmbh.Nextcloud"
+      root="/com/nextcloudgmbh/Nextcloud"
+
+      # Start the unit before touching the bus. The name is D-Bus activatable
+      # (the package ships a .service for it), so a bare call would spawn an
+      # instance outside the unit, hence without the PATH its browser login
+      # needs — see `nextcloudClientPath`. No-op when the client is up.
+      systemctl --user start nextcloud-client || true
+
+      # The action group belongs to the running process, which needs a moment
+      # to claim the name on a cold start.
+      for _ in $(seq 60); do
+        if gdbus introspect --session --dest "$bus" --object-path "$root" >/dev/null 2>&1; then
+          break
+        fi
+        sleep 0.5
+      done
+
+      # One `Folder/<n>` object per account, each exposing the same actions.
+      managed="$(gdbus call --session --dest "$bus" --object-path "$root" \
+        --method org.freedesktop.DBus.ObjectManager.GetManagedObjects 2>/dev/null || true)"
+      account="$(printf '%s' "$managed" | grep -o "$root/Folder/[0-9]\+" | head -n1 || true)"
+
+      if [ -z "$account" ]; then
+        echo "Aucun compte Nextcloud connecté : ouvrez d'abord le client." >&2
+        exit 1
+      fi
+
+      gdbus call --session --dest "$bus" --object-path "$account" \
+        --method org.gtk.Actions.Activate opensettings "[]" "{}" >/dev/null
+    '';
+  };
+
   # Common Firefox / Librewolf policies
   # https://mozilla.github.io/policy-templates/
   commonPolicies = {
@@ -589,6 +646,7 @@ in
       # `services.nextcloud-client` only defines the systemd unit; it never
       # installs the package, hence this explicit entry.
       (mkIf hasNextcloud nextcloud-client)
+      (mkIf hasNextcloud nextcloudSettings)
       (mkIf hasNextcloudWebdav nextcloudWebdavLogin)
       (mkIf hasVaultwarden bitwarden-cli)
     ];
@@ -812,6 +870,27 @@ in
       exec = "${nextcloudWebdavLogin}/bin/nextcloud-webdav-login";
       icon = "nextcloud";
       terminal = true;
+      type = "Application";
+      categories = [
+        "Network"
+        "FileTransfer"
+      ];
+    };
+
+    # The only way in to the sync settings, see `nextcloudSettings`. A
+    # launcher rather than a tray menu entry: the client's window offers no
+    # action at all, so the user has nowhere else to look.
+    #
+    # Short name for the same reason as the account entry above: the GNOME
+    # grid ellipsises past ~14 characters, so "Synchro" is what tells this
+    # icon apart from the client's own.
+    xdg.desktopEntries.nextcloud-settings = mkIf hasNextcloud {
+      name = "Synchro Nextcloud";
+      genericName = "Paramètres de synchronisation";
+      comment = "Choisir les dossiers synchronisés entre le cloud et cet ordinateur";
+      exec = "${nextcloudSettings}/bin/nextcloud-settings";
+      icon = "Nextcloud";
+      terminal = false;
       type = "Application";
       categories = [
         "Network"
