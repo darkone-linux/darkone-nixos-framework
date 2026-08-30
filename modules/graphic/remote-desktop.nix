@@ -82,9 +82,16 @@ let
   };
 
   awk = "${pkgs.gawk}/bin/awk";
+  chmod = "${pkgs.coreutils}/bin/chmod";
+  chown = "${pkgs.coreutils}/bin/chown";
   dconf = "${pkgs.dconf}/bin/dconf";
+  dirname = "${pkgs.coreutils}/bin/dirname";
   env = "${pkgs.coreutils}/bin/env";
   gdbus = "${pkgs.glib}/bin/gdbus";
+  mkdir = "${pkgs.coreutils}/bin/mkdir";
+  mktemp = "${pkgs.coreutils}/bin/mktemp";
+  mv = "${pkgs.coreutils}/bin/mv";
+  cp = "${pkgs.coreutils}/bin/cp";
   grdctl = "${pkgs.gnome-remote-desktop}/bin/grdctl";
   head = "${pkgs.coreutils}/bin/head";
   hostname = "${pkgs.inetutils}/bin/hostname";
@@ -110,6 +117,10 @@ let
     text = ''
       port=${toString port}
       state=${stateFile}
+      syscert=/run/dnf-remote-desktop/tls.crt
+      syskey=/run/dnf-remote-desktop/tls.key
+      sysconf=/etc/gnome-remote-desktop/grd.conf
+      sysconf_backup=/run/dnf-remote-desktop/grd.conf.orig
       timeout=${toString cfg.timeout}
       shadow_unit=${shadowUnit}
       timeout_unit=${timeoutUnit}
@@ -151,7 +162,9 @@ let
         local found count
         found=$(pick_sessions)
         count=$(printf '%s' "$found" | ${awk} 'NF { n++ } END { print n + 0 }')
-        [ "$count" != 0 ] || die "no open graphical session on this host"
+
+        # No session is not an error: the caller falls back to remote login.
+        [ "$count" != 0 ] || return 1
         [ "$count" = 1 ] || die "several active graphical sessions ($(echo "$found" | ${tr} '\n' ' ')): refusing to guess"
 
         sid=$(printf '%s\n' "$found" | ${head} -n1)
@@ -220,9 +233,6 @@ let
         # restoring seven keys.
         current=$(as_user ${dconf} read /org/gnome/desktop/remote-desktop/rdp/enable 2>/dev/null || true)
         [ "$current" != "true" ] || die "screen sharing is already enabled on this session; leaving it untouched"
-
-        cert="$s_runtime/dnf-remote-desktop.crt"
-        key="$s_runtime/dnf-remote-desktop.key"
 
         # Ephemeral and self-signed: it lives in the session's tmpfs, dies with
         # the session, and its fingerprint travels back over ssh. Identity is
@@ -307,10 +317,80 @@ let
       }
 
       cmd_probe() {
-        load_session
-        echo "session=$sid"
-        echo "session_user=$s_user"
-        echo "type=$s_type"
+        if load_session ;then
+          echo "backend=$s_type"
+          echo "session=$sid"
+          echo "session_user=$s_user"
+        else
+          echo "backend=login"
+        fi
+      }
+
+      # Nobody logged in: hand the client GDM instead, through the system
+      # daemon. Same binary, same port, same tunnel — but its runtime mode
+      # takes credentials from a TPM or a file rather than from a keyring,
+      # which is precisely what an unattended machine cannot provide.
+      #
+      # The RDP credentials below only open the door; GDM then asks for the
+      # real account. What comes back is a fresh headless session, never the
+      # monitor's own screen.
+      # `grdctl --system rdp enable` cannot be used here: it asks systemd to
+      # enable the unit *before* setting the key, and that write lands in
+      # /etc/systemd/system, read-only on NixOS by construction. It therefore
+      # fails and never sets `enabled` at all. The unit already runs and we
+      # start it ourselves, so the key is the only thing missing — put it in
+      # the system daemon's own key file.
+      set_system_enabled() {
+        local tmp
+        tmp=$(${mktemp})
+        ${awk} -v want="$1" '
+          /^\[/ { group = $0 }
+          group == "[RDP]" && /^[[:space:]]*enabled[[:space:]]*=/ { next }
+          { print }
+          /^\[RDP\][[:space:]]*$/ { print "enabled=" want ; done = 1 }
+          END { if (!done) { print "[RDP]" ; print "enabled=" want } }
+        ' "$sysconf" > "$tmp"
+        ${chown} gnome-remote-desktop "$tmp"
+        ${chmod} 644 "$tmp"
+        ${mv} -f "$tmp" "$sysconf"
+      }
+
+      start_login() {
+        local dir
+
+        dir=$(${dirname} "$syscert")
+        ${mkdir} -p "$dir"
+        ${chmod} 700 "$dir"
+        ${chown} gnome-remote-desktop "$dir"
+
+        ${openssl} req -x509 -newkey rsa:2048 -nodes -days 1 \
+          -subj "/CN=$(${hostname})" -keyout "$syskey" -out "$syscert" >/dev/null 2>&1 \
+          || die "could not generate the TLS certificate"
+        ${chown} gnome-remote-desktop "$syscert" "$syskey"
+        ${chmod} 600 "$syscert" "$syskey"
+
+        # Keep the original so `stop` restores exactly what was there.
+        [ ! -e "$sysconf" ] || ${cp} -a "$sysconf" "$sysconf_backup"
+
+        ${grdctl} --system rdp set-tls-cert "$syscert" >/dev/null
+        ${grdctl} --system rdp set-tls-key "$syskey" >/dev/null
+        ${grdctl} --system rdp set-port "$port" >/dev/null
+        ${grdctl} --system rdp disable-port-negotiation >/dev/null
+        ${grdctl} --system rdp set-credentials "$rdp_user" "$rdp_pass" >/dev/null
+
+        # view-only defaults to true in the schema, and a login screen you
+        # cannot type into is worth nothing: `ro` simply has no meaning here.
+        ${grdctl} --system rdp disable-view-only >/dev/null 2>&1 || true
+
+        set_system_enabled true
+        ${systemctl} restart gnome-remote-desktop.service
+        wait_port
+
+        # Deliberately no fingerprint: the daemon hands the client over to the
+        # login session, which presents a certificate of its own. Pinning ours
+        # would break the second leg. Loopback behind the tunnel carries the
+        # trust here.
+        fingerprint=""
       }
 
       cmd_start() {
@@ -322,48 +402,57 @@ let
 
         [ ! -e "$state" ] || die "a support session is already open; run 'stop' first"
 
-        load_session
-
         rdp_user=dnf-support
         rdp_pass=$(${openssl} rand -hex 18)
         cert=""
         key=""
         fingerprint=""
         geometry=""
-        auth=credentials
+        backend=login
 
-        case "$s_type" in
-          wayland) start_gnome ;;
-          x11)
-            auth=none
-            rdp_user=""
-            rdp_pass=""
-            start_x11
-            ;;
-          *) die "unsupported session type: $s_type" ;;
-        esac
+        if load_session ;then
+          backend=$s_type
+          cert="$s_runtime/dnf-remote-desktop.crt"
+          key="$s_runtime/dnf-remote-desktop.key"
+        else
+          cert=$syscert
+          key=$syskey
+        fi
 
+        # Written BEFORE arming, not after: half-armed is exactly the state
+        # `stop` has to be able to undo, and an arming that dies partway used
+        # to leave the host configured with nothing to clean it up.
         umask 077
         {
-          echo "backend=$s_type"
-          echo "session_user=$s_user"
-          echo "session_uid=$s_uid"
-          echo "session_dbus=$s_dbus"
+          echo "backend=$backend"
+          echo "session_user=''${s_user:-}"
+          echo "session_uid=''${s_uid:-}"
+          echo "session_dbus=''${s_dbus:-}"
           echo "mode=$mode"
           echo "cert=$cert"
           echo "key=$key"
         } > "$state"
+
+        case "$backend" in
+          wayland) start_gnome ;;
+          x11)
+            rdp_user=""
+            rdp_pass=""
+            start_x11
+            ;;
+          login) start_login ;;
+          *) die "unsupported session type: $backend" ;;
+        esac
 
         # Self-destruct. If the admin's client dies, the laptop closes or the
         # tunnel breaks, the session still closes on its own.
         ${systemdRun} --collect --quiet --unit="$timeout_unit" \
           --on-active="''${timeout}m" -- "$0" stop >/dev/null
 
-        echo "backend=$s_type"
-        echo "session_user=$s_user"
+        echo "backend=$backend"
+        echo "session_user=''${s_user:-}"
         echo "mode=$mode"
         echo "port=$port"
-        echo "auth=$auth"
         echo "username=$rdp_user"
         echo "password=$rdp_pass"
         echo "fingerprint=$fingerprint"
@@ -402,6 +491,22 @@ let
             ;;
           x11)
             ${systemctl} stop "$shadow_unit.service" >/dev/null 2>&1 || true
+            ;;
+          login)
+
+            # Order matters: deafen first, then stop. The unit is
+            # WantedBy=graphical.target, so it may well come back — it just
+            # must come back deaf.
+            set_system_enabled false
+            ${grdctl} --system rdp clear-credentials >/dev/null 2>&1 || true
+            ${systemctl} stop gnome-remote-desktop.service >/dev/null 2>&1 || true
+
+            # Restore what was there before, once nothing reads it any more.
+            if [ -e "$sysconf_backup" ] ;then
+              ${mv} -f "$sysconf_backup" "$sysconf"
+              ${chown} gnome-remote-desktop "$sysconf"
+            fi
+            ${rm} -f "$syscert" "$syskey"
             ;;
         esac
 
