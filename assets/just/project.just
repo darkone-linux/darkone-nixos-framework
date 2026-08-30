@@ -1616,7 +1616,11 @@ remote-desktop host mode='ro':
 
 	sudo -i -u nix ssh -M -S "$ctl" -f -N -o ExitOnForwardFailure=yes \
 		-L "127.0.0.1:$lport:127.0.0.1:$(get port)" nix@"$target"
-	just _log "$(get backend) session of $(get session_user), closing itself in $(get timeout) min." "RDP"
+	if [ "$(get backend)" = login ] ;then
+		just _warn "Nobody is logged in on {{host}}: opening a GDM login screen."
+		just _warn "You will get your OWN session, not the screen on the monitor. '{{mode}}' does not apply."
+	fi
+	just _log "$(get backend) session, closing itself in $(get timeout) min." "RDP"
 
 	# Arguments through a pipe rather than argv: the password stays out of ps.
 	"$client" /args-from:fd:3 3< <(
@@ -1634,23 +1638,33 @@ remote-desktop host mode='ro':
 		# still follows every manual resize. Falling back to a share of the
 		# local screen when the host could not report its geometry costs the
 		# aspect ratio, not the session.
-		geom=$(get geometry)
-		if [ -n "$geom" ] ;then
-			echo "/size:$geom"
+		# A login session is a virtual monitor the server CAN resize, so there
+		# the client dictates the resolution and gets a crisp 1:1.
+		if [ "$(get backend)" = login ] ;then
+			echo "+dynamic-resolution"
 		else
-			echo "/size:100%"
+			geom=$(get geometry)
+			if [ -n "$geom" ] ;then
+				echo "/size:$geom"
+			else
+				echo "/size:100%"
+			fi
+			echo "/smart-sizing"
 		fi
-		echo "/smart-sizing"
-		if [ "$(get auth)" = credentials ] ;then
+
+		if [ -n "$(get username)" ] ;then
 			echo "/u:$(get username)"
 			echo "/p:$(get password)"
+		fi
+
+		# freerdp-shadow-cli mints its own certificate and runs with client
+		# authentication off; the login daemon hands the client over to a
+		# session presenting yet another one. So pin only the certificate we
+		# generated ourselves: elsewhere the loopback tunnel carries the trust.
+		[ "$(get backend)" != x11 ] || echo "/sec:tls"
+		if [ -n "$(get fingerprint)" ] ;then
 			echo "/cert:fingerprint:sha256:$(get fingerprint)"
 		else
-
-			# freerdp-shadow-cli mints its own certificate and runs with client
-			# authentication off: on that branch trust comes from the tunnel,
-			# not from RDP.
-			echo "/sec:tls"
 			echo "/cert:ignore"
 		fi
 	)
