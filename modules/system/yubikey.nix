@@ -238,28 +238,28 @@ in
         #   `FIDO_ERR_OPERATION_DENIED` after ~29s of unanswered user presence).
         #   A power cut on a headless host with a key left in its port was
         #   enough to strand it;
-        # - without it, systemd-cryptsetup never takes the FIDO2 path at all
-        #   (`crypttab(5)`: "Use the fido2-device= option [...] to use this
-        #   mechanism"), so the enrolled keys stop unlocking anything. The
-        #   LUKS2 token metadata is read *by that path*, not instead of it.
+        # - without it, the token is tried only if a FIDO2 device is
+        #   *already* enumerated when the unit runs — nothing waits for one.
+        #   At cold boot `systemd-cryptsetup@` starts ~1.2s before `hidraw0`
+        #   exists, so the key is never seen and the enrolled keyslots unlock
+        #   nothing. Measured both ways: no FIDO2 line at all on a cold boot,
+        #   but "Asking FIDO2 token for authentication" when the same unit
+        #   runs 30s in, on a key plugged all along.
         #
+        # What `fido2-device=` really buys is the *wait* (`token-timeout=`).
         # So the attempt lives in a unit of its own, ordered `Before=` the real
         # `systemd-cryptsetup@` one and only `Wants=`-linked to it: it is
         # allowed to fail, and its failure changes nothing. Three cases, all
-        # terminating:
+        # ending on an unlock or a prompt:
         #
         # - key touched: volume open, the real unit logs "Volume data already
         #   active" and succeeds;
         # - key plugged, never touched: libfido2 gives up after ~30s, this unit
         #   fails, the real unit prompts for the passphrase;
-        # - no key, or anything unforeseen: `TimeoutSec` below ends it, and the
-        #   real unit prompts.
-        #
-        # That last case is why the timeout is not `infinity`. Past the token
-        # attempt this unit has nothing useful left to do, but it is ordered
-        # `Before=` the prompt — so it must never be able to sit there. What
-        # systemd-cryptsetup does on its own when no token shows up is beside
-        # the point: the bound holds either way.
+        # - no key: `token-timeout` elapses (~6s measured) and this unit puts
+        #   up the passphrase prompt itself — one prompt, `NotAfter=0`, served
+        #   in parallel by the tty1 agent and by `just enter` over ssh. The
+        #   real unit then finds the volume open.
         #
         # A key is a convenience. It must never become the only way in — which
         # is what the "No lockout by design" note above promises.
@@ -315,11 +315,13 @@ in
                   # the real unit's business, whoever opened it.
                   RemainAfterExit = true;
 
-                  # Bounds the whole attempt: 5s to find the token, ~30s
-                  # for libfido2 to give up on an unanswered touch. Anything
-                  # past that is this unit overstaying its turn, and the
-                  # passphrase prompt is waiting behind it.
-                  TimeoutSec = "60s";
+                  # `infinity`, like `systemd-cryptsetup@.service` upstream.
+                  # Past the token attempt this unit is the one holding the
+                  # passphrase prompt (see the third case above), and a prompt
+                  # cut short mid-typing is worse than no bound at all: the
+                  # FIDO2 leg is already bounded by libfido2 (~30s, measured)
+                  # and by `token-timeout` when no key shows up.
+                  TimeoutSec = "infinity";
 
                   # `-`: an untouched or absent key is the expected outcome,
                   # not an incident. Without it the failure survives
