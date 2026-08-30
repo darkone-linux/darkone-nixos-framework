@@ -248,6 +248,14 @@ let
           as_user ${grdctl} rdp disable-view-only >/dev/null
         fi
 
+        # `grdctl rdp enable` asks systemd to EnableUnitFiles, which drops an
+        # alias into ~/.config/systemd/user pinning the store path resolved at
+        # that instant. That alias outranks /etc/systemd/user and survives
+        # every later deploy, so a stale one silently keeps starting an old
+        # binary. Clear it and reload before enabling; `stop` removes it again.
+        as_user ${systemctl} --user disable gnome-remote-desktop.service >/dev/null 2>&1 || true
+        as_user ${systemctl} --user daemon-reload
+
         as_user ${grdctl} rdp enable >/dev/null
         as_user ${systemctl} --user start gnome-remote-desktop.service
         wait_port
@@ -380,6 +388,14 @@ let
         case "$backend" in
           wayland)
             as_user ${systemctl} --user stop gnome-remote-desktop.service >/dev/null 2>&1 || true
+
+            # `rdp disable` is the counterpart of `rdp enable`: a plain dconf
+            # reset flips the key but leaves the systemd unit enabled, and its
+            # alias behind. Disable twice over, since only the alias actually
+            # matters and grd may not always remove it.
+            as_user ${grdctl} rdp disable >/dev/null 2>&1 || true
+            as_user ${systemctl} --user disable gnome-remote-desktop.service >/dev/null 2>&1 || true
+
             as_user ${grdctl} rdp clear-credentials >/dev/null 2>&1 || true
             as_user ${dconf} reset -f /org/gnome/desktop/remote-desktop/rdp/ >/dev/null 2>&1 || true
             ${rm} -f "$(state_get cert)" "$(state_get key)"

@@ -1628,16 +1628,17 @@ remote-desktop host mode='ro':
 		# Mirroring a physical monitor, the server cannot resize anything, so
 		# `+dynamic-resolution` would leave the client showing the top-left
 		# crop of a desktop larger than its default 1024x768 window. The
-		# client has to adapt instead. Sizing the window at 80% of the REMOTE
-		# resolution keeps its aspect ratio exactly, so nothing arrives
-		# stretched; smart-sizing then follows every manual resize. Falling
-		# back to a share of the local screen when the host could not report
-		# its geometry costs the aspect ratio, not the session.
+		# client has to adapt instead. Opening at the REMOTE resolution maps
+		# one pixel to one pixel: right aspect ratio, and no resampling blur.
+		# Fullscreen is then exact whenever both screens match. Smart-sizing
+		# still follows every manual resize. Falling back to a share of the
+		# local screen when the host could not report its geometry costs the
+		# aspect ratio, not the session.
 		geom=$(get geometry)
 		if [ -n "$geom" ] ;then
-			echo "/size:$(( ${geom%x*} * 8 / 10 ))x$(( ${geom#*x} * 8 / 10 ))"
+			echo "/size:$geom"
 		else
-			echo "/size:80%"
+			echo "/size:100%"
 		fi
 		echo "/smart-sizing"
 		if [ "$(get auth)" = credentials ] ;then
