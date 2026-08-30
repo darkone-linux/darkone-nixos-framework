@@ -26,6 +26,7 @@ alias a := apply
 alias al := apply-local
 alias av := apply-verbose
 alias e := enter
+alias rd := remote-desktop
 
 #==============================================================================
 # Development
@@ -1561,6 +1562,82 @@ fix-boot on:
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just fix-boot "{{on}}"
 	just _log "Fixing boot of {{on}}..."
 	colmena exec --on "{{on}}" "sudo NIXOS_INSTALL_BOOTLOADER=1 /nix/var/nix/profiles/system/bin/switch-to-configuration boot"
+
+# Attaches to the graphical session already open on the host; it never creates
+# one, so nobody logged in means nothing to do.
+#
+# `ro` (default) watches, `rw` takes control. Both are enforced by the remote
+# server, never by the client. Nothing is ever exposed on the network: the RDP
+# listener is armed for the length of the session and reached through an ssh
+# tunnel, so the fleet's deny-by-default firewall is left alone.
+#
+# Deliberately NOT re-exec'd as nix like its neighbours: only the ssh side runs
+# as nix, because the FreeRDP window has to reach the caller's own Wayland
+# display and nix cannot.
+#
+# Remote desktop on a graphical host (ro = view only, rw = control).
+[group('manage')]
+remote-desktop host mode='ro':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	case "{{mode}}" in
+		ro | rw) ;;
+		*) just _fail "mode must be 'ro' or 'rw'." ;;
+	esac
+	target=$(just _target "{{host}}")
+	rssh() { sudo -i -u nix ssh -o ConnectTimeout=5 nix@"$target" "$@" ; }
+
+	# Pinned to the same nixpkgs as the fleet, so the client never depends on
+	# what happens to be installed on the machine running just.
+	just _log "Resolving the RDP client..." "RDP"
+	client=$({{nix}} build --no-link --print-out-paths --impure --expr \
+		'let f = builtins.getFlake "{{workDir}}/dnf"; in f.inputs.nixpkgs.legacyPackages.${builtins.currentSystem}.freerdp')/bin/sdl-freerdp
+
+	just _log "Arming a {{mode}} session on {{host}} ($target)..." "RDP"
+	params=$(rssh sudo dnf-remote-desktop start "{{mode}}") \
+		|| just _fail "could not arm a session on {{host}}: is anyone logged in, and is the remote-desktop service enabled there?"
+	get() { printf '%s\n' "$params" | sed -n "s/^$1=//p" | head -n1 ; }
+
+	# The remote port is fixed by the port registry; the local one only has to
+	# be free here.
+	lport=3389
+	while timeout 1 bash -c "exec 3<>/dev/tcp/127.0.0.1/$lport" 2>/dev/null ;do
+		lport=$((lport + 1))
+	done
+	ctl=$(mktemp -u /tmp/dnf-rd-XXXXXXXX)
+
+	# Client closed, ctrl-c or failure: the host disarms and the tunnel goes.
+	# The host keeps its own timeout as a last resort if this machine dies.
+	cleanup() {
+		sudo -i -u nix ssh -S "$ctl" -O exit nix@"$target" 2>/dev/null || true
+		rssh sudo dnf-remote-desktop stop >/dev/null 2>&1 || true
+	}
+	trap cleanup EXIT
+
+	sudo -i -u nix ssh -M -S "$ctl" -f -N -o ExitOnForwardFailure=yes \
+		-L "127.0.0.1:$lport:127.0.0.1:$(get port)" nix@"$target"
+	just _log "$(get backend) session of $(get session_user), closing itself in $(get timeout) min." "RDP"
+
+	# Arguments through a pipe rather than argv: the password stays out of ps.
+	"$client" /args-from:fd:3 3< <(
+		echo "/v:127.0.0.1:$lport"
+		echo "/t:{{host}} ({{mode}})"
+		echo "/gfx:AVC444"
+		echo "/network:lan"
+		echo "+dynamic-resolution"
+		if [ "$(get auth)" = credentials ] ;then
+			echo "/u:$(get username)"
+			echo "/p:$(get password)"
+			echo "/cert:fingerprint:sha256:$(get fingerprint)"
+		else
+
+			# freerdp-shadow-cli mints its own certificate and runs with client
+			# authentication off: on that branch trust comes from the tunnel,
+			# not from RDP.
+			echo "/sec:tls"
+			echo "/cert:ignore"
+		fi
+	)
 
 # Run all checks and tests (useful before deploy)
 [group('check')]
