@@ -1624,7 +1624,22 @@ remote-desktop host mode='ro':
 		echo "/t:{{host}} ({{mode}})"
 		echo "/gfx:AVC444"
 		echo "/network:lan"
-		echo "+dynamic-resolution"
+
+		# Mirroring a physical monitor, the server cannot resize anything, so
+		# `+dynamic-resolution` would leave the client showing the top-left
+		# crop of a desktop larger than its default 1024x768 window. The
+		# client has to adapt instead. Sizing the window at 80% of the REMOTE
+		# resolution keeps its aspect ratio exactly, so nothing arrives
+		# stretched; smart-sizing then follows every manual resize. Falling
+		# back to a share of the local screen when the host could not report
+		# its geometry costs the aspect ratio, not the session.
+		geom=$(get geometry)
+		if [ -n "$geom" ] ;then
+			echo "/size:$(( ${geom%x*} * 8 / 10 ))x$(( ${geom#*x} * 8 / 10 ))"
+		else
+			echo "/size:80%"
+		fi
+		echo "/smart-sizing"
 		if [ "$(get auth)" = credentials ] ;then
 			echo "/u:$(get username)"
 			echo "/p:$(get password)"

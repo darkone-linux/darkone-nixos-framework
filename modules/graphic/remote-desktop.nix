@@ -61,9 +61,30 @@ let
   # restore a session that no longer exists.
   stateFile = "/run/dnf-remote-desktop.state";
 
+  # Upstream hardcodes the METADATA cursor mode when mirroring a physical
+  # monitor (`create_stream`, src/grd-rdp-layout-manager.c): the pointer's
+  # *shape* is sent as an RDP pointer update but never its *position*, so the
+  # client draws the remote cursor wherever the local mouse happens to be and
+  # an observer never sees what the user is pointing at. EMBEDDED asks mutter
+  # to composite the pointer into the video instead — which also stops the
+  # PipeWire cursor metadata, so no second cursor appears.
+  #
+  # Deliberately a `--replace-fail` rather than a patch file: no context lines
+  # to rot, and a loud, legible failure the day upstream touches that call.
+  embeddedCursorOverlay = _final: prev: {
+    gnome-remote-desktop = prev.gnome-remote-desktop.overrideAttrs (old: {
+      postPatch = (old.postPatch or "") + ''
+        substituteInPlace src/grd-rdp-layout-manager.c \
+          --replace-fail "GRD_SCREEN_CAST_CURSOR_MODE_METADATA);" \
+                         "GRD_SCREEN_CAST_CURSOR_MODE_EMBEDDED);"
+      '';
+    });
+  };
+
   awk = "${pkgs.gawk}/bin/awk";
   dconf = "${pkgs.dconf}/bin/dconf";
   env = "${pkgs.coreutils}/bin/env";
+  gdbus = "${pkgs.glib}/bin/gdbus";
   grdctl = "${pkgs.gnome-remote-desktop}/bin/grdctl";
   head = "${pkgs.coreutils}/bin/head";
   hostname = "${pkgs.inetutils}/bin/hostname";
@@ -235,6 +256,20 @@ let
         # FreeRDP uses to split the /cert: option itself.
         fingerprint=$(${openssl} x509 -in "$cert" -noout -fingerprint -sha256 \
           | ${sed} 's/^.*=//' | ${tr} -d ':' | ${tr} '[:upper:]' '[:lower:]')
+
+        # Mirroring cannot resize a physical monitor, so the client has to open
+        # at the remote aspect ratio or the desktop arrives stretched. Best
+        # effort: the recipe falls back to a share of the local screen when
+        # this comes back empty. \047 is a quote awk understands, which keeps
+        # the program free of shell quoting.
+        geometry=$(as_user ${gdbus} call --session \
+          --dest org.gnome.Mutter.DisplayConfig \
+          --object-path /org/gnome/Mutter/DisplayConfig \
+          --method org.gnome.Mutter.DisplayConfig.GetCurrentState 2>/dev/null \
+          | ${awk} 'BEGIN { RS = "[(]\047" }
+                    /is-current.: <true>/ && match($0, /^[0-9]+x[0-9]+/) {
+                      print substr($0, RSTART, RLENGTH); exit
+                    }' || true)
       }
 
       start_x11() {
@@ -286,6 +321,7 @@ let
         cert=""
         key=""
         fingerprint=""
+        geometry=""
         auth=credentials
 
         case "$s_type" in
@@ -323,6 +359,7 @@ let
         echo "username=$rdp_user"
         echo "password=$rdp_pass"
         echo "fingerprint=$fingerprint"
+        echo "geometry=$geometry"
         echo "timeout=$timeout"
       }
 
@@ -380,10 +417,22 @@ in
         default = 60;
         description = "Minutes before an armed support session closes itself.";
       };
+      embedCursor = mkOption {
+        type = types.bool;
+        default = true;
+        description = ''
+          Patch gnome-remote-desktop so the pointer is composited into the
+          video. Without it the observer cannot see where the user points,
+          which defeats the read-only mode. Costs a local rebuild of
+          gnome-remote-desktop.
+        '';
+      };
     };
   };
 
   config = mkIf cfg.enable {
+
+    nixpkgs.overlays = lib.optional cfg.embedCursor embeddedCursorOverlay;
 
     # freerdp is explicit rather than inherited from the gnome-remote-desktop
     # closure: the X11 backend depends on freerdp-shadow-cli being there.
