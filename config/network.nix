@@ -45,6 +45,11 @@
     # Grafana web UI. modules/service/monitoring.nix
     grafana = 3222;
 
+    # Admin remote desktop (RDP). Bound only while a support session runs, and
+    # reached exclusively through an ssh tunnel — never opened in the
+    # firewall. modules/graphic/remote-desktop.nix
+    remoteDesktop = 3389;
+
     # Garage S3 API on the internal IP. modules/service/garage.nix
     garage = 3900;
 

@@ -7,6 +7,7 @@
     ./console/pandoc.nix
     ./console/zsh.nix
     ./graphic/gnome.nix
+    ./graphic/remote-desktop.nix
     ./graphic/supertuxkart.nix
     ./graphic/virt-manager.nix
     ./graphic/virtualbox.nix
