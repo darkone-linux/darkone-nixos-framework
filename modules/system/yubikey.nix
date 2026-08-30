@@ -320,7 +320,14 @@ in
                   # past that is this unit overstaying its turn, and the
                   # passphrase prompt is waiting behind it.
                   TimeoutSec = "60s";
-                  ExecStart = "/bin/systemd-cryptsetup attach ${name} ${dev.device} - ${opts}";
+
+                  # `-`: an untouched or absent key is the expected outcome,
+                  # not an incident. Without it the failure survives
+                  # switch-root as a `not-found failed` ghost in stage 2,
+                  # where the unit no longer exists — enough to spoil the
+                  # `systemctl --failed` health check on every such boot. The
+                  # journal keeps the FIDO2 detail either way.
+                  ExecStart = "-/bin/systemd-cryptsetup attach ${name} ${dev.device} - ${opts}";
                 };
               };
           }) unlockable
