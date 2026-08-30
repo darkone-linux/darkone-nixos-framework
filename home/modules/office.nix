@@ -276,21 +276,22 @@ let
     '';
   };
 
-  # Opens the client's own settings dialog, which nothing else can reach.
+  # Opens the client's settings dialog when the tray icon is out of reach.
   #
   # Client 34 moved every action out of the window: what a launcher opens is
   # `ActivitiesWindow`, a read-only feed whose header is a plain label (no
-  # button, no menu), and the account/sync entries now live only in the tray
-  # icon's menu. On Wayland that menu is never built — `showQtTrayPopup()`
-  # bails out with "Wayland cannot create an arbitrary QWidget popup from a
-  # tray activation" and falls back to that same window — and relaunching the
-  # binary lands there too, through the single-instance MSG_SHOWMAINDIALOG.
-  # No command-line flag opens the dialog either.
+  # button, no menu), and the account/sync entries live only in the tray
+  # icon's menu. Lose that icon and the settings become unreachable — no
+  # command-line flag opens them, and on Wayland `showQtTrayPopup()` bails out
+  # ("Wayland cannot create an arbitrary QWidget popup from a tray
+  # activation") back to that same read-only window, as does relaunching the
+  # binary through the single-instance MSG_SHOWMAINDIALOG.
   #
-  # The client does export its actions on the freedesktop CloudProviders bus
-  # though (`Implements=org.freedesktop.CloudProviders` in its desktop entry),
-  # `opensettings` included, so a launcher can reach the real dialog without
-  # depending on a tray icon at all.
+  # `UnsetEnvironment` on the unit below keeps the icon alive, so this is a
+  # fallback rather than the main door: no launcher, just a command. It leans
+  # on the actions the client exports on the freedesktop CloudProviders bus
+  # (`Implements=org.freedesktop.CloudProviders` in its desktop entry),
+  # `opensettings` among them, which need no tray at all.
   nextcloudSettings = pkgs.writeShellApplication {
     name = "nextcloud-settings";
     runtimeInputs = with pkgs; [
@@ -794,6 +795,22 @@ in
       # `nextcloudClientPath`.
       Service.Environment = mkForce [ "PATH=${nextcloudClientPath}" ];
 
+      # Restores the tray icon, which is where every action lives since v34.
+      #
+      # `modules/graphic/gnome.nix` sets `qt.platformTheme = "gnome"`, i.e.
+      # `QT_QPA_PLATFORMTHEME=gnome`, which loads QGnomePlatform. Its
+      # `createPlatformSystemTrayIcon()` is a hardcoded `return nullptr`
+      # (`xor %eax,%eax; ret`), so `QSystemTrayIcon::isSystemTrayAvailable()`
+      # is false and `Systray::create()` skips the icon altogether — no icon,
+      # hence no menu, hence no way to the settings dialog. Dropping the
+      # variable falls back to Qt's own GNOME theme, which does return a real
+      # `QDBusTrayIcon`.
+      #
+      # Scoped to this unit on purpose: the same nullptr breaks the tray of
+      # every Qt application on the fleet, but widening the fix means changing
+      # how all of them are themed.
+      Service.UnsetEnvironment = "QT_QPA_PLATFORMTHEME";
+
       # Computed rather than conditional: the unit stays defined either way, so
       # `systemctl --user start nextcloud-client` still works when auto-start
       # is off.
@@ -870,27 +887,6 @@ in
       exec = "${nextcloudWebdavLogin}/bin/nextcloud-webdav-login";
       icon = "nextcloud";
       terminal = true;
-      type = "Application";
-      categories = [
-        "Network"
-        "FileTransfer"
-      ];
-    };
-
-    # The only way in to the sync settings, see `nextcloudSettings`. A
-    # launcher rather than a tray menu entry: the client's window offers no
-    # action at all, so the user has nowhere else to look.
-    #
-    # Short name for the same reason as the account entry above: the GNOME
-    # grid ellipsises past ~14 characters, so "Synchro" is what tells this
-    # icon apart from the client's own.
-    xdg.desktopEntries.nextcloud-settings = mkIf hasNextcloud {
-      name = "Synchro Nextcloud";
-      genericName = "Paramètres de synchronisation";
-      comment = "Choisir les dossiers synchronisés entre le cloud et cet ordinateur";
-      exec = "${nextcloudSettings}/bin/nextcloud-settings";
-      icon = "Nextcloud";
-      terminal = false;
       type = "Application";
       categories = [
         "Network"
