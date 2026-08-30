@@ -1598,7 +1598,7 @@ remote-desktop host mode='ro':
 
 	just _log "Arming a {{mode}} session on {{host}} ($target)..." "RDP"
 	params=$(rssh sudo dnf-remote-desktop start "{{mode}}") \
-		|| just _fail "could not arm a {{mode}} session on {{host}} (reason above): is the remote-desktop feature enabled there?"
+		|| just _fail "could not arm a {{mode}} session on {{host}}: is the remote-desktop enabled there? who is logged?"
 	get() { printf '%s\n' "$params" | sed -n "s/^$1=//p" | head -n1 ; }
 
 	# The remote port is fixed by the port registry; the local one only has to
