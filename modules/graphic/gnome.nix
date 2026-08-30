@@ -176,7 +176,8 @@ in
       (mkIf cfg.enableDashToDock gnomeExtensions.dash-to-dock)
       (mkIf cfg.enableGsConnect gnomeExtensions.gsconnect)
       bibata-cursors
-      gnomeExtensions.appindicator
+      #gnomeExtensions.appindicator # Old one
+      gnomeExtensions.status-tray # New one
       gnomeExtensions.just-perfection
 
       # Force focus + raise on newly mapped windows. Works around Mutter's
@@ -186,6 +187,10 @@ in
 
       papirus-icon-theme
       adwaita-qt
+
+      # Kept for its Wayland decoration plugin alone, opt-in via
+      # `QT_WAYLAND_DECORATION=qgnomeplatform`; its platform theme is
+      # deliberately not selected, see `qt.platformTheme` below.
       qgnomeplatform-qt6
     ];
 
@@ -198,7 +203,21 @@ in
     qt = {
       enable = true;
       style = "adwaita-dark";
-      platformTheme = "gnome";
+
+      # That value exports `QT_QPA_PLATFORMTHEME=gnome`,
+      # which loads QGnomePlatform, whose `createPlatformSystemTrayIcon()` is
+      # a hardcoded `return nullptr`. `QSystemTrayIcon::isSystemTrayAvailable()`
+      # then answers false and every Qt application on the fleet silently gives
+      # up its tray icon — Nextcloud, which since v34 keeps its whole menu
+      # there, ends up with no reachable settings at all.
+      #
+      # Qt's own GNOME theme takes over and does return a real `QDBusTrayIcon`.
+      # Nothing else regresses: `style` still exports
+      # `QT_STYLE_OVERRIDE=adwaita-dark`, dark mode comes from the desktop
+      # portal, and QGnomePlatform's Wayland decoration was never in play
+      # anyway (it is opt-in through `QT_WAYLAND_DECORATION`, which the theme
+      # only sets for itself).
+      platformTheme = "qt5ct"; # gnome
     };
 
     # Devices connections
@@ -300,7 +319,8 @@ in
               "org/gnome/shell" = {
                 disable-user-extensions = false;
                 enabled-extensions = [
-                  "appindicatorsupport@rgcjonas.gmail.com"
+                  #"appindicatorsupport@rgcjonas.gmail.com"
+                  "status-tray@keithvassallo.com"
                   "blur-my-shell@aunetx"
                   "steal-my-focus-window@steal-my-focus-window"
                 ]

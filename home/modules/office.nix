@@ -795,21 +795,20 @@ in
       # `nextcloudClientPath`.
       Service.Environment = mkForce [ "PATH=${nextcloudClientPath}" ];
 
-      # Restores the tray icon, which is where every action lives since v34.
+      # Only way to restore the tray icon, which is where every action lives
+      # since v34. TODO: Commented because it degrades the QT theme.
       #
-      # `modules/graphic/gnome.nix` sets `qt.platformTheme = "gnome"`, i.e.
-      # `QT_QPA_PLATFORMTHEME=gnome`, which loads QGnomePlatform. Its
+      # `QT_QPA_PLATFORMTHEME=gnome` loads QGnomePlatform, whose
       # `createPlatformSystemTrayIcon()` is a hardcoded `return nullptr`
       # (`xor %eax,%eax; ret`), so `QSystemTrayIcon::isSystemTrayAvailable()`
       # is false and `Systray::create()` skips the icon altogether — no icon,
-      # hence no menu, hence no way to the settings dialog. Dropping the
-      # variable falls back to Qt's own GNOME theme, which does return a real
-      # `QDBusTrayIcon`.
+      # hence no menu, hence no way to the settings dialog.
       #
-      # Scoped to this unit on purpose: the same nullptr breaks the tray of
-      # every Qt application on the fleet, but widening the fix means changing
-      # how all of them are themed.
-      Service.UnsetEnvironment = "QT_QPA_PLATFORMTHEME";
+      # `modules/graphic/gnome.nix` no longer sets that variable, so this is
+      # belt and braces: a home module cannot assume which desktop module a
+      # consumer enabled, and the client is the one application that becomes
+      # unusable rather than merely tray-less.
+      #Service.UnsetEnvironment = "QT_QPA_PLATFORMTHEME";
 
       # Computed rather than conditional: the unit stays defined either way, so
       # `systemctl --user start nextcloud-client` still works when auto-start
@@ -881,12 +880,37 @@ in
     # the first word is all the user gets to tell this icon apart from the
     # sync client sitting next to it.
     xdg.desktopEntries.nextcloud-webdav-login = mkIf hasNextcloudWebdav {
-      name = "Compte Nextcloud";
-      genericName = "Compte en ligne";
-      comment = "Relier fichiers, agenda et contacts à mon compte Nextcloud";
+      name = "Cloud Login (webdav)";
+      genericName = "Online Account";
+      comment = "Link files, calendar and contacts to my Nextcloud account";
       exec = "${nextcloudWebdavLogin}/bin/nextcloud-webdav-login";
       icon = "nextcloud";
       terminal = true;
+      type = "Application";
+      categories = [
+        "Network"
+        "FileTransfer"
+      ];
+    };
+
+    # TODO: beaucoup de hacks parce que le tray icon de nextcloud ne s'affiche
+    # pas (problème avec QT + gnome). Lanceur supplémentaire à retirer quand
+    # tray icon fonctionnera.
+
+    # The only way in to the sync settings, see `nextcloudSettings`. A
+    # launcher rather than a tray menu entry: the client's window offers no
+    # action at all, so the user has nowhere else to look.
+    #
+    # Short name for the same reason as the account entry above: the GNOME
+    # grid ellipsises past ~14 characters, so "Synchro" is what tells this
+    # icon apart from the client's own.
+    xdg.desktopEntries.nextcloud-settings = mkIf hasNextcloud {
+      name = "Sync Settings";
+      genericName = "Sync Settings";
+      comment = "Choisir les dossiers synchronisés entre le cloud et cet ordinateur";
+      exec = "${nextcloudSettings}/bin/nextcloud-settings";
+      icon = "Nextcloud";
+      terminal = false;
       type = "Application";
       categories = [
         "Network"
