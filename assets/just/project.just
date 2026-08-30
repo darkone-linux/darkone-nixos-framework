@@ -1563,26 +1563,29 @@ fix-boot on:
 	just _log "Fixing boot of {{on}}..."
 	colmena exec --on "{{on}}" "sudo NIXOS_INSTALL_BOOTLOADER=1 /nix/var/nix/profiles/system/bin/switch-to-configuration boot"
 
-# Attaches to the graphical session already open on the host; it never creates
-# one, so nobody logged in means nothing to do.
+# `ro` (default) watches the screen already open on the host, `rw` watches and
+# takes control; both are enforced by the remote server, never by the client,
+# and both fail when nobody is logged in — an admin asking to see a user's
+# screen must never be silently given a different session instead. `login` is
+# that other session, asked for on purpose: a GDM login screen and a desktop
+# of one's own, whoever is sitting at the machine.
 #
-# `ro` (default) watches, `rw` takes control. Both are enforced by the remote
-# server, never by the client. Nothing is ever exposed on the network: the RDP
-# listener is armed for the length of the session and reached through an ssh
-# tunnel, so the fleet's deny-by-default firewall is left alone.
+# Nothing is ever exposed on the network: the RDP listener is armed for the
+# length of the session and reached through an ssh tunnel, so the fleet's
+# deny-by-default firewall is left alone.
 #
 # Deliberately NOT re-exec'd as nix like its neighbours: only the ssh side runs
 # as nix, because the FreeRDP window has to reach the caller's own Wayland
 # display and nix cannot.
 #
-# Remote desktop on a graphical host (ro = view only, rw = control).
+# Remote desktop (ro = view only, rw = control, login = own GDM session).
 [group('manage')]
 remote-desktop host mode='ro':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	case "{{mode}}" in
-		ro | rw) ;;
-		*) just _fail "mode must be 'ro' or 'rw'." ;;
+		ro | rw | login) ;;
+		*) just _fail "mode must be 'ro', 'rw' or 'login'." ;;
 	esac
 	target=$(just _target "{{host}}")
 	rssh() { sudo -i -u nix ssh -o ConnectTimeout=5 nix@"$target" "$@" ; }
@@ -1595,7 +1598,7 @@ remote-desktop host mode='ro':
 
 	just _log "Arming a {{mode}} session on {{host}} ($target)..." "RDP"
 	params=$(rssh sudo dnf-remote-desktop start "{{mode}}") \
-		|| just _fail "could not arm a session on {{host}}: is anyone logged in, and is the remote-desktop service enabled there?"
+		|| just _fail "could not arm a {{mode}} session on {{host}} (reason above): is the remote-desktop feature enabled there?"
 	get() { printf '%s\n' "$params" | sed -n "s/^$1=//p" | head -n1 ; }
 
 	# The remote port is fixed by the port registry; the local one only has to
@@ -1617,8 +1620,7 @@ remote-desktop host mode='ro':
 	sudo -i -u nix ssh -M -S "$ctl" -f -N -o ExitOnForwardFailure=yes \
 		-L "127.0.0.1:$lport:127.0.0.1:$(get port)" nix@"$target"
 	if [ "$(get backend)" = login ] ;then
-		just _warn "Nobody is logged in on {{host}}: opening a GDM login screen."
-		just _warn "You will get your OWN session, not the screen on the monitor. '{{mode}}' does not apply."
+		just _warn "GDM login screen: you get your OWN session, not the screen on the monitor."
 	fi
 	just _log "$(get backend) session, closing itself in $(get timeout) min." "RDP"
 

@@ -1,4 +1,4 @@
-# Admin remote desktop: attach to an already open graphical session over RDP.
+# Admin remote desktop: attach to an open graphical session, or open one, over RDP.
 #
 # :::note[Nothing is installed, nothing is exposed]
 # `gnome-remote-desktop` already ships and runs on every GNOME host (the
@@ -10,19 +10,30 @@
 # tunnel — the firewall stays shut.
 # :::
 #
-# :::tip[Two backends, one protocol]
+# :::tip[Three modes]
+# `ro` mirrors the screen read-only, `rw` mirrors it and takes control. Both
+# need somebody logged in and fail otherwise, rather than quietly handing out
+# a private session an admin who asked to *watch* a user would not expect.
+# `login` is that private session, asked for explicitly: a GDM login screen
+# served by the system daemon, whoever is in front of the machine.
+# :::
+#
+# :::tip[Three backends, one protocol]
 # A GNOME Wayland session is served by `gnome-remote-desktop`, driven through
 # `grdctl` inside the session owner's own bus. A Cinnamon X11 session — the
 # gaze-driven UMI workstation, since GNOME 50 dropped its Xorg session — is
-# served by `freerdp-shadow-cli` on the existing display. Same protocol, same
-# client, same `ro`/`rw` semantics enforced server-side.
+# served by `freerdp-shadow-cli` on the existing display. A `login` session is
+# served by the same `gnome-remote-desktop`, in its system runtime mode, which
+# hands the client over to GDM. Same protocol, same client, `ro`/`rw`
+# enforced server-side.
 # :::
 #
 # :::caution[Attaching is taking over someone's screen]
 # The target session belongs to a user who is very likely sitting in front of
 # it. GNOME shows a sharing indicator, but nothing asks for consent: this is a
 # support tool for machines you administer, and enabling it on a host is a
-# deliberate, auditable declaration in `config.yaml`.
+# deliberate, auditable declaration in `config.yaml`. `login` is the discreet
+# one: it never touches the screen on the monitor.
 # :::
 #
 # :::tip[Activation]
@@ -105,6 +116,7 @@ let
   ss = "${pkgs.iproute2}/bin/ss";
   systemctl = "${pkgs.systemd}/bin/systemctl";
   systemdRun = "${pkgs.systemd}/bin/systemd-run";
+  touch = "${pkgs.coreutils}/bin/touch";
   tr = "${pkgs.coreutils}/bin/tr";
 
   remoteDesktopScript = pkgs.writeShellApplication {
@@ -343,6 +355,11 @@ let
       set_system_enabled() {
         local tmp
         tmp=$(${mktemp})
+
+        # grdctl creates the file on its first write, so `stop` can reach this
+        # before anything ever wrote it — and awk on a missing file is fatal.
+        [ -e "$sysconf" ] || ${touch} "$sysconf"
+
         ${awk} -v want="$1" '
           /^\[/ { group = $0 }
           group == "[RDP]" && /^[[:space:]]*enabled[[:space:]]*=/ { next }
@@ -396,8 +413,8 @@ let
       cmd_start() {
         mode=$1
         case "$mode" in
-          ro | rw) ;;
-          *) die "mode must be ro or rw" ;;
+          ro | rw | login) ;;
+          *) die "mode must be ro, rw or login" ;;
         esac
 
         [ ! -e "$state" ] || die "a support session is already open; run 'stop' first"
@@ -408,15 +425,22 @@ let
         key=""
         fingerprint=""
         geometry=""
-        backend=login
 
-        if load_session ;then
+        # `login` asks for a session of one's own, so who sits in front of the
+        # machine is irrelevant and never looked at. `ro`/`rw` mirror a screen
+        # that has to exist: no session is a hard failure, never a silent
+        # promotion to a private one — an admin asking to watch a user must
+        # not end up somewhere else entirely.
+        if [ "$mode" = login ] ;then
+          backend=login
+          cert=$syscert
+          key=$syskey
+        else
+          load_session \
+            || die "nobody is logged in: '$mode' has no screen to mirror (the 'login' mode opens a session instead)"
           backend=$s_type
           cert="$s_runtime/dnf-remote-desktop.crt"
           key="$s_runtime/dnf-remote-desktop.key"
-        else
-          cert=$syscert
-          key=$syskey
         fi
 
         # Written BEFORE arming, not after: half-armed is exactly the state
@@ -502,9 +526,13 @@ let
             ${systemctl} stop gnome-remote-desktop.service >/dev/null 2>&1 || true
 
             # Restore what was there before, once nothing reads it any more.
+            # No backup means there was no file: the shipped default is empty,
+            # so dropping ours is what restores the host exactly.
             if [ -e "$sysconf_backup" ] ;then
               ${mv} -f "$sysconf_backup" "$sysconf"
               ${chown} gnome-remote-desktop "$sysconf"
+            else
+              ${rm} -f "$sysconf"
             fi
             ${rm} -f "$syscert" "$syskey"
             ;;
@@ -518,7 +546,7 @@ let
         start) cmd_start "''${2:-ro}" ;;
         stop) cmd_stop ;;
         *)
-          echo "usage: dnf-remote-desktop probe | start <ro|rw> | stop" >&2
+          echo "usage: dnf-remote-desktop probe | start <ro|rw|login> | stop" >&2
           exit 64
           ;;
       esac
