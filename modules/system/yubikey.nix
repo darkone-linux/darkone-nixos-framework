@@ -31,8 +31,9 @@
 # :::caution[No lockout by design]
 # The install passphrase keyslot and the sops session passwords are never
 # touched: losing a key at worst falls back to passphrase/password. This holds
-# at boot too, which is why no `fido2-device=` option is written to crypttab —
-# see the comment on the initrd block below.
+# at boot too: the FIDO2 attempt runs in a unit of its own that is allowed to
+# fail, so an unusable, untouched or absent key always ends on the passphrase
+# prompt — see the comment on the initrd block below.
 # :::
 #
 # :::caution[The boot touch cannot be waived]
@@ -59,6 +60,7 @@
   lib,
   config,
   pkgs,
+  utils,
   host,
   network,
   workDir,
@@ -116,6 +118,18 @@ let
   );
 
   luksActive = cfg.luks.enable && luksNames != [ ] && luksKeys != [ ];
+
+  # Volumes the FIDO2 unlock unit below can rebuild a crypttab line for. A key
+  # file or a detached header means fields it does not carry, and a wrong
+  # `systemd-cryptsetup attach` would fail on every boot for nothing: those
+  # volumes keep the passphrase path alone.
+  unlockable = lib.filter (
+    n:
+    let
+      d = config.boot.initrd.luks.devices.${n};
+    in
+    d.keyFile == null && d.header == null
+  ) luksNames;
 
   # Everything the enroll service needs, public data only (credential ids,
   # salts, device names, sops paths): safe in the store.
@@ -214,18 +228,103 @@ in
           "hid_generic"
         ];
 
-        # `crypttabExtraOpts = [ "fido2-device=auto" ]` is deliberately NOT set.
-        # The CID is read from the LUKS2 token metadata with or without it
-        # (crypttab(5)), so the key is tried either way — but with the option a
-        # token that is plugged in and left untouched makes systemd-cryptsetup
-        # exit 1 instead of falling back to the passphrase: no prompt, on the
-        # console or over ssh, and the boot dies in the initrd. Measured on
-        # systemd 261: `FIDO_ERR_OPERATION_DENIED` after ~29s of unanswered user
-        # presence, unit failed, initrd in emergency. A power cut on a headless
-        # host with a key left in its port was enough to strand it.
+        # `fido2-device=auto` is deliberately NOT put in the crypttab entry,
+        # and the token attempt is not dropped either. Both extremes are wrong:
+        #
+        # - with the option, a token plugged in and left untouched makes
+        #   systemd-cryptsetup exit 1 instead of falling back to the
+        #   passphrase — no prompt, on the console or over ssh, and the boot
+        #   dies in the initrd (measured on systemd 261:
+        #   `FIDO_ERR_OPERATION_DENIED` after ~29s of unanswered user presence).
+        #   A power cut on a headless host with a key left in its port was
+        #   enough to strand it;
+        # - without it, systemd-cryptsetup never takes the FIDO2 path at all
+        #   (`crypttab(5)`: "Use the fido2-device= option [...] to use this
+        #   mechanism"), so the enrolled keys stop unlocking anything. The
+        #   LUKS2 token metadata is read *by that path*, not instead of it.
+        #
+        # So the attempt lives in a unit of its own, ordered `Before=` the real
+        # `systemd-cryptsetup@` one and only `Wants=`-linked to it: it is
+        # allowed to fail, and its failure changes nothing. Three cases, all
+        # terminating:
+        #
+        # - key touched: volume open, the real unit logs "Volume data already
+        #   active" and succeeds;
+        # - key plugged, never touched: libfido2 gives up after ~30s, this unit
+        #   fails, the real unit prompts for the passphrase;
+        # - no key, or anything unforeseen: `TimeoutSec` below ends it, and the
+        #   real unit prompts.
+        #
+        # That last case is why the timeout is not `infinity`. Past the token
+        # attempt this unit has nothing useful left to do, but it is ordered
+        # `Before=` the prompt — so it must never be able to sit there. What
+        # systemd-cryptsetup does on its own when no token shows up is beside
+        # the point: the bound holds either way.
         #
         # A key is a convenience. It must never become the only way in — which
         # is what the "No lockout by design" note above promises.
+        boot.initrd.systemd.services = lib.listToAttrs (
+          map (name: {
+            name = "yubikey-luks-unlock-${name}";
+            value =
+              let
+                dev = config.boot.initrd.luks.devices.${name};
+                cryptsetupUnit = "systemd-cryptsetup@${utils.escapeSystemdPath name}.service";
+                sourceUnit = "${utils.escapeSystemdPath dev.device}.device";
+
+                # Same options as the crypttab line nixpkgs generates for this
+                # volume, plus the token. Volumes with a key file or a detached
+                # header are filtered out of `unlockable`: their line carries
+                # fields this rebuild does not reproduce.
+                opts = lib.concatStringsSep "," (
+                  [
+                    "fido2-device=auto"
+
+                    # Only bounds the wait for a token to *appear*; the
+                    # unattended-key case is bounded by libfido2, not here.
+                    # Paid in full on every boot without a key, hence short.
+                    "token-timeout=5s"
+                  ]
+                  ++ lib.optional dev.allowDiscards "discard"
+                  ++ lib.optionals dev.bypassWorkqueues [
+                    "no-read-workqueue"
+                    "no-write-workqueue"
+                  ]
+                  ++ dev.crypttabExtraOpts
+                );
+              in
+              {
+                description = "FIDO2 unlock attempt for LUKS volume ${name}";
+                wantedBy = [ cryptsetupUnit ];
+                requires = [ sourceUnit ];
+                after = [ sourceUnit ];
+                before = [
+                  cryptsetupUnit
+                  "initrd-switch-root.target"
+                  "shutdown.target"
+                ];
+                conflicts = [
+                  "initrd-switch-root.target"
+                  "shutdown.target"
+                ];
+                unitConfig.DefaultDependencies = false;
+                serviceConfig = {
+                  Type = "oneshot";
+
+                  # No ExecStop counterpart on purpose: closing the volume is
+                  # the real unit's business, whoever opened it.
+                  RemainAfterExit = true;
+
+                  # Bounds the whole attempt: 5s to find the token, ~30s
+                  # for libfido2 to give up on an unanswered touch. Anything
+                  # past that is this unit overstaying its turn, and the
+                  # passphrase prompt is waiting behind it.
+                  TimeoutSec = "60s";
+                  ExecStart = "/bin/systemd-cryptsetup attach ${name} ${dev.device} - ${opts}";
+                };
+              };
+          }) unlockable
+        );
 
         # Derived secrets (one per enrolled key) + the shared passphrase that
         # authorizes keyslot management. All created by `just yubikey`.
