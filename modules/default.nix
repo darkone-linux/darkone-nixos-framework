@@ -18,6 +18,7 @@
     ./mixin/host/minimal.nix
     ./mixin/host/portable.nix
     ./mixin/host/server.nix
+    ./mixin/host/umi.nix
     ./mixin/host/vm.nix
     ./mixin/profile/advanced.nix
     ./security/complement.nix
