@@ -276,64 +276,6 @@ let
     '';
   };
 
-  # Opens the client's settings dialog when the tray icon is out of reach.
-  #
-  # Client 34 moved every action out of the window: what a launcher opens is
-  # `ActivitiesWindow`, a read-only feed whose header is a plain label (no
-  # button, no menu), and the account/sync entries live only in the tray
-  # icon's menu. Lose that icon and the settings become unreachable — no
-  # command-line flag opens them, and on Wayland `showQtTrayPopup()` bails out
-  # ("Wayland cannot create an arbitrary QWidget popup from a tray
-  # activation") back to that same read-only window, as does relaunching the
-  # binary through the single-instance MSG_SHOWMAINDIALOG.
-  #
-  # `UnsetEnvironment` on the unit below keeps the icon alive, so this is a
-  # fallback rather than the main door: no launcher, just a command. It leans
-  # on the actions the client exports on the freedesktop CloudProviders bus
-  # (`Implements=org.freedesktop.CloudProviders` in its desktop entry),
-  # `opensettings` among them, which need no tray at all.
-  nextcloudSettings = pkgs.writeShellApplication {
-    name = "nextcloud-settings";
-    runtimeInputs = with pkgs; [
-      coreutils
-      glib
-      gnugrep
-      systemd
-    ];
-    text = ''
-      bus="com.nextcloudgmbh.Nextcloud"
-      root="/com/nextcloudgmbh/Nextcloud"
-
-      # Start the unit before touching the bus. The name is D-Bus activatable
-      # (the package ships a .service for it), so a bare call would spawn an
-      # instance outside the unit, hence without the PATH its browser login
-      # needs — see `nextcloudClientPath`. No-op when the client is up.
-      systemctl --user start nextcloud-client || true
-
-      # The action group belongs to the running process, which needs a moment
-      # to claim the name on a cold start.
-      for _ in $(seq 60); do
-        if gdbus introspect --session --dest "$bus" --object-path "$root" >/dev/null 2>&1; then
-          break
-        fi
-        sleep 0.5
-      done
-
-      # One `Folder/<n>` object per account, each exposing the same actions.
-      managed="$(gdbus call --session --dest "$bus" --object-path "$root" \
-        --method org.freedesktop.DBus.ObjectManager.GetManagedObjects 2>/dev/null || true)"
-      account="$(printf '%s' "$managed" | grep -o "$root/Folder/[0-9]\+" | head -n1 || true)"
-
-      if [ -z "$account" ]; then
-        echo "Aucun compte Nextcloud connecté : ouvrez d'abord le client." >&2
-        exit 1
-      fi
-
-      gdbus call --session --dest "$bus" --object-path "$account" \
-        --method org.gtk.Actions.Activate opensettings "[]" "{}" >/dev/null
-    '';
-  };
-
   # Common Firefox / Librewolf policies
   # https://mozilla.github.io/policy-templates/
   commonPolicies = {
@@ -647,7 +589,6 @@ in
       # `services.nextcloud-client` only defines the systemd unit; it never
       # installs the package, hence this explicit entry.
       (mkIf hasNextcloud nextcloud-client)
-      (mkIf hasNextcloud nextcloudSettings)
       (mkIf hasNextcloudWebdav nextcloudWebdavLogin)
       (mkIf hasVaultwarden bitwarden-cli)
     ];
@@ -795,21 +736,6 @@ in
       # `nextcloudClientPath`.
       Service.Environment = mkForce [ "PATH=${nextcloudClientPath}" ];
 
-      # Only way to restore the tray icon, which is where every action lives
-      # since v34. TODO: Commented because it degrades the QT theme.
-      #
-      # `QT_QPA_PLATFORMTHEME=gnome` loads QGnomePlatform, whose
-      # `createPlatformSystemTrayIcon()` is a hardcoded `return nullptr`
-      # (`xor %eax,%eax; ret`), so `QSystemTrayIcon::isSystemTrayAvailable()`
-      # is false and `Systray::create()` skips the icon altogether — no icon,
-      # hence no menu, hence no way to the settings dialog.
-      #
-      # `modules/graphic/gnome.nix` no longer sets that variable, so this is
-      # belt and braces: a home module cannot assume which desktop module a
-      # consumer enabled, and the client is the one application that becomes
-      # unusable rather than merely tray-less.
-      #Service.UnsetEnvironment = "QT_QPA_PLATFORMTHEME";
-
       # Computed rather than conditional: the unit stays defined either way, so
       # `systemctl --user start nextcloud-client` still works when auto-start
       # is off.
@@ -880,37 +806,12 @@ in
     # the first word is all the user gets to tell this icon apart from the
     # sync client sitting next to it.
     xdg.desktopEntries.nextcloud-webdav-login = mkIf hasNextcloudWebdav {
-      name = "Cloud Login (webdav)";
-      genericName = "Online Account";
+      name = "Webdav Login";
+      genericName = "Nextcloud Online Account";
       comment = "Link files, calendar and contacts to my Nextcloud account";
       exec = "${nextcloudWebdavLogin}/bin/nextcloud-webdav-login";
       icon = "nextcloud";
       terminal = true;
-      type = "Application";
-      categories = [
-        "Network"
-        "FileTransfer"
-      ];
-    };
-
-    # TODO: beaucoup de hacks parce que le tray icon de nextcloud ne s'affiche
-    # pas (problème avec QT + gnome). Lanceur supplémentaire à retirer quand
-    # tray icon fonctionnera.
-
-    # The only way in to the sync settings, see `nextcloudSettings`. A
-    # launcher rather than a tray menu entry: the client's window offers no
-    # action at all, so the user has nowhere else to look.
-    #
-    # Short name for the same reason as the account entry above: the GNOME
-    # grid ellipsises past ~14 characters, so "Synchro" is what tells this
-    # icon apart from the client's own.
-    xdg.desktopEntries.nextcloud-settings = mkIf hasNextcloud {
-      name = "Sync Settings";
-      genericName = "Sync Settings";
-      comment = "Choisir les dossiers synchronisés entre le cloud et cet ordinateur";
-      exec = "${nextcloudSettings}/bin/nextcloud-settings";
-      icon = "Nextcloud";
-      terminal = false;
       type = "Application";
       categories = [
         "Network"
