@@ -12,6 +12,7 @@
     ./mime.nix
     ./music.nix
     ./office.nix
+    ./umi.nix
     ./video.nix
   ];
 }
