@@ -99,6 +99,7 @@ let
   dirname = "${pkgs.coreutils}/bin/dirname";
   env = "${pkgs.coreutils}/bin/env";
   gdbus = "${pkgs.glib}/bin/gdbus";
+  grep = "${pkgs.gnugrep}/bin/grep";
   mkdir = "${pkgs.coreutils}/bin/mkdir";
   mktemp = "${pkgs.coreutils}/bin/mktemp";
   mv = "${pkgs.coreutils}/bin/mv";
@@ -114,10 +115,12 @@ let
   shadow = "${pkgs.freerdp}/bin/freerdp-shadow-cli";
   sleep = "${pkgs.coreutils}/bin/sleep";
   ss = "${pkgs.iproute2}/bin/ss";
+  stat = "${pkgs.coreutils}/bin/stat";
   systemctl = "${pkgs.systemd}/bin/systemctl";
   systemdRun = "${pkgs.systemd}/bin/systemd-run";
   touch = "${pkgs.coreutils}/bin/touch";
   tr = "${pkgs.coreutils}/bin/tr";
+  xdpyinfo = "${pkgs.xdpyinfo}/bin/xdpyinfo";
 
   remoteDesktopScript = pkgs.writeShellApplication {
     name = "dnf-remote-desktop";
@@ -190,6 +193,36 @@ let
         # /run/user/<uid>/bus is only a very good guess.
         s_dbus=$(environ_get "$s_leader" DBUS_SESSION_BUS_ADDRESS)
         [ -n "$s_dbus" ] || s_dbus="unix:path=$s_runtime/bus"
+      }
+
+      # DISPLAY and XAUTHORITY of an X11 session, into s_display / s_xauth.
+      #
+      # Deliberately NOT read from the session leader: when GDM opens the
+      # session — which is every session here — the leader is its own
+      # `gdm-session-worker` PAM helper, running as root with neither variable
+      # in its environment. The X11 coordinates live in the desktop processes
+      # it forked afterwards, so the session's processes are scanned instead
+      # and the first one carrying a DISPLAY wins.
+      #
+      # XDG_SESSION_ID pins the scan to this session — a second seat must not
+      # leak in — and the uid check skips the root helpers that lead it.
+      load_x11_env() {
+        local proc data
+
+        for proc in /proc/[0-9]* ;do
+          [ "$(${stat} -c %u "$proc" 2>/dev/null || true)" = "$s_uid" ] || continue
+
+          # Read once, then match in memory: a pipe per variable per process
+          # would fork thousands of times for nothing.
+          data=$(${tr} '\0' '\n' < "$proc/environ" 2>/dev/null || true)
+          ${grep} -qxF "XDG_SESSION_ID=$sid" <<< "$data" || continue
+
+          s_display=$(${sed} -n 's/^DISPLAY=//p' <<< "$data")
+          [ -n "$s_display" ] || continue
+          s_xauth=$(${sed} -n 's/^XAUTHORITY=//p' <<< "$data")
+          return 0
+        done
+        return 1
       }
 
       # Run a command inside the session owner's context.
@@ -303,14 +336,18 @@ let
       }
 
       start_x11() {
-        local display xauth
-        local args
+        local args main_pid listener
 
-        display=$(environ_get "$s_leader" DISPLAY)
-        xauth=$(environ_get "$s_leader" XAUTHORITY)
-        [ -n "$display" ] || die "no DISPLAY in the session leader's environment"
+        load_x11_env \
+          || die "no DISPLAY among the processes of session $sid: is the X server really up?"
 
-        args=( "/bind-address:127.0.0.1" "/port:$port" "-auth" )
+        # `+server-side-cursor` is what makes the client draw the *user's own*
+        # pointer: without it the server answers every cursor change with
+        # SYSPTR_DEFAULT (shadow_client.c), the client falls back to its own
+        # arrow, and — since the SDL client starts with its cursor hidden — an
+        # observer sees no pointer at all. Same intent as the EMBEDDED patch on
+        # the wayland side, except upstream ships the switch here.
+        args=( "/bind-address:127.0.0.1" "/port:$port" "-auth" "+server-side-cursor" )
 
         # -auth drops client authentication, which is sound here and only
         # here: the listener is loopback-only, so the ssh tunnel is the sole
@@ -321,11 +358,28 @@ let
         # created it, i.e. the ssh command about to return.
         ${systemdRun} --collect --quiet --unit="$shadow_unit" \
           --uid="$s_user" \
-          --setenv=DISPLAY="$display" \
-          --setenv=XAUTHORITY="$xauth" \
+          --setenv=DISPLAY="$s_display" \
+          --setenv=XAUTHORITY="$s_xauth" \
           -- ${shadow} "''${args[@]}" >/dev/null
 
         wait_port
+
+        # wait_port only proves *something* listens, and it is satisfied by
+        # whatever already squats the port — freerdp then exits on its failed
+        # bind and the admin gets a tunnel to a stranger. Owning the socket is
+        # the only real proof; the unit's state is not, systemd may not have
+        # reaped the process yet.
+        main_pid=$(${systemctl} show "$shadow_unit.service" -p MainPID --value)
+        listener=$(${ss} -H -ltnp "sport = :$port" 2>/dev/null || true)
+        [ -n "$main_pid" ] && [ "$main_pid" != 0 ] && [[ "$listener" == *"pid=$main_pid,"* ]] \
+          || die "the shadow server did not get port $port: something else is already on it"
+
+        # Same reason as the wayland path: a mirrored physical screen cannot be
+        # resized, so the client has to open at the remote geometry or the
+        # desktop arrives stretched. `dimensions:` reads "1920x1080 pixels
+        # (...)"; best effort, the recipe falls back on an empty answer.
+        geometry=$(as_user ${env} DISPLAY="$s_display" XAUTHORITY="$s_xauth" \
+          ${xdpyinfo} 2>/dev/null | ${awk} '/dimensions:/ { print $2 }' || true)
       }
 
       cmd_probe() {
@@ -457,13 +511,19 @@ let
           echo "key=$key"
         } > "$state"
 
+        # ...and undone as soon as anything below fails. A start that died
+        # partway used to leave the file behind, and every later attempt then
+        # bounced off "a support session is already open" until an admin ran
+        # `stop` by hand — a dead end right after the error that caused it.
+        trap cmd_stop EXIT
+
         case "$backend" in
           wayland) start_gnome ;;
-          x11)
-            rdp_user=""
-            rdp_pass=""
-            start_x11
-            ;;
+
+          # The credentials stay set even though `-auth` makes the shadow
+          # server ignore them: a client given no username stops on a login
+          # form before showing anything, and answering it is pure ceremony.
+          x11) start_x11 ;;
           login) start_login ;;
           *) die "unsupported session type: $backend" ;;
         esac
@@ -472,6 +532,10 @@ let
         # tunnel breaks, the session still closes on its own.
         ${systemdRun} --collect --quiet --unit="$timeout_unit" \
           --on-active="''${timeout}m" -- "$0" stop >/dev/null
+
+        # Armed, self-destruct included: the session is now the caller's to
+        # close, not this run's to undo.
+        trap - EXIT
 
         echo "backend=$backend"
         echo "session_user=''${s_user:-}"
@@ -488,7 +552,10 @@ let
       # timer, and by an admin cleaning up by hand.
       cmd_stop() {
         local backend
-        [ -e "$state" ] || exit 0
+
+        # `return`, never `exit`: cmd_start runs this from an EXIT trap, where
+        # an explicit exit would rewrite the failure status into a success.
+        [ -e "$state" ] || return 0
 
         backend=$(state_get backend)
         s_user=$(state_get session_user)
