@@ -355,6 +355,9 @@ in
 
                 show-mounts-network = true;
               };
+              "org/gnome/shell/extensions/status-tray" = {
+                icon-mode = "original";
+              };
               "org/gnome/settings-daemon/plugins/power" = {
                 sleep-inactive-ac-timeout = gvariant.mkUint32 1800;
                 sleep-inactive-ac-type = "nothing";
