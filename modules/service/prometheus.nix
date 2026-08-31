@@ -6,7 +6,9 @@
 # - Scrapes every zone node carrying the `monitoring-node:<zone>` feature.
 # - Alertmanager routes by severity: warning -> Matrix #warnings,
 #   critical -> Matrix #incidents + mail (local Postfix relay).
-# - blackbox_exporter probes gateway / tailnet / DNS reachability.
+# - blackbox_exporter probes gateway / tailnet / DNS reachability, plus the
+#   other zones' gateways: a zone's Prometheus lives on its own gateway, so
+#   only the peers can report that a whole site went dark.
 # - Node classes (critical/non-critical/disabled) come from the `alert-*`
 #   features or the host profile (see `dnf/lib/alerts.nix`).
 #
@@ -102,6 +104,33 @@ let
   hcsIp = hcsHost.vpnIp or "";
   dnsTarget = "${gwIp}:53";
 
+  # Gateways of the other zones, reached over the tailnet. Each zone's
+  # Prometheus runs *on* its own gateway and scrapes only its own nodes, so a
+  # gateway that dies takes its own observer down with it: nothing would ever
+  # report a whole site going dark. Probing the peers crosses that blind spot,
+  # and every remaining zone is a witness — losing one observer never leaves
+  # the outage unseen. The global zone is skipped: it is already `hcsIp`.
+  peerGateways =
+    lib.mapAttrsToList
+      (n: z: {
+        zoneName = n;
+        hostname = z.gateway.hostname or n;
+        ip = z.gateway.vpn.ipv4;
+      })
+      (
+        lib.filterAttrs (
+          n: z:
+          n != zone.name
+          && n != dnfLib.constants.globalZone
+          && (lib.hasAttrByPath [ "gateway" "vpn" "ipv4" ] z)
+          && !(builtins.elem z.gateway.vpn.ipv4 [
+            ""
+            gwIp
+            hcsIp
+          ])
+        ) network.zones
+      );
+
   # External targets pinged to tell "this zone lost internet" apart from "a
   # specific WAN-reached host is down". When all fail, ZoneInternetDown fires.
   internetTargets = alerting.network.internetProbeTargets;
@@ -131,6 +160,23 @@ let
         reach = "wan";
       };
     })
+    # A peer site is reached across the WAN like HCS, hence `reach = "wan"`:
+    # a local internet outage must raise ZoneInternetDown alone, not one alert
+    # per peer. `for` is generous — a gateway reboot or a switch must not page.
+    ++ (map (p: {
+      alert = "PeerGatewayDown";
+      name = "gateway ${p.zoneName} (${p.ip})";
+      instance = p.ip;
+      job = "blackbox-icmp";
+      severity = "critical";
+      "for" = "5m";
+      labels = {
+        reach = "wan";
+      };
+      summary = "Peer gateway ${p.hostname} (zone ${p.zoneName}) is down";
+      description = "ICMP probe from the ${zone.name} gateway to ${p.hostname} (${p.ip}, zone ${p.zoneName}) failed for 5m: that site is unreachable. Its own Prometheus is down with it, so this alert is the only witness.";
+    }) peerGateways)
+
     ++ (lib.optional (gwIp != "") {
       name = "DNS resolver ${gwIp}";
       instance = dnsTarget;
@@ -628,10 +674,15 @@ in
         # are derived once at module scope and shared with the network rules.)
         controlName = "idm.${network.domain}";
 
-        icmpTargets = lib.filter (x: x != "") [
-          gwIp
-          hcsIp
-        ];
+        icmpTargets = lib.unique (
+          lib.filter (x: x != "") (
+            [
+              gwIp
+              hcsIp
+            ]
+            ++ map (p: p.ip) peerGateways
+          )
+        );
 
         # Blackbox prober definitions (ICMP reachability + DNS resolution + HTTP
         # liveness/TLS). The HTTP module accepts 2xx and 3xx so an SSO redirect
