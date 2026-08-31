@@ -44,6 +44,15 @@ in
         ];
       }
 
+      # VBoxClient drag'n'drop speaks XDnD: in a Wayland session it exits 1 on
+      # startup and systemd restarts it every 2s forever (hundreds of failures
+      # per hour in the journal). nixpkgs gates `--seamless` on X11 but forgot
+      # `--draganddrop`; apply the same condition until it does.
+      (lib.mkIf (cfg.enableVirtualbox && config.virtualisation.virtualbox.guest.dragAndDrop) {
+        systemd.user.services.virtualboxClientDragAndDrop.unitConfig.ConditionEnvironment =
+          "XDG_SESSION_TYPE=x11";
+      })
+
       # Activate services declared in host.services via modules.nix triggers.
       (dnfLib.triggerProfileServices profileServicesArgs)
       { assertions = dnfLib.mkHostProfileServicesAssertions profileServicesArgs; }
