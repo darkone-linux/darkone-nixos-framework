@@ -257,7 +257,7 @@ in
               };
               "org/gnome/desktop/interface" = {
                 cursor-theme = "Bibata-Modern-Classic";
-                cursor-size = "48";
+                cursor-size = gvariant.mkInt32 48;
                 icon-theme = "Papirus-Dark";
                 gtk-theme = "Adw-dark"; # not Adwaita-dark
                 color-scheme = "prefer-dark";
