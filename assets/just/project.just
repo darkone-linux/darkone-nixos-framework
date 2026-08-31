@@ -1628,8 +1628,17 @@ remote-desktop host mode='ro':
 	"$client" /args-from:fd:3 3< <(
 		echo "/v:127.0.0.1:$lport"
 		echo "/t:{{host}} ({{mode}})"
-		echo "/gfx:AVC444"
 		echo "/network:lan"
+
+		# AVC444 asserts on an odd-width region and *aborts* the encoder
+		# (prim_YUV.c, RGBToAVC444YUVv2_BGRX_DOUBLE_ROW). gnome-remote-desktop
+		# never hands it one; freerdp-shadow-cli does, and dies mid-session —
+		# taking the pointer updates with it. Let GFX negotiate there instead.
+		if [ "$(get backend)" = x11 ] ;then
+			echo "/gfx"
+		else
+			echo "/gfx:AVC444"
+		fi
 
 		# Mirroring a physical monitor, the server cannot resize anything, so
 		# `+dynamic-resolution` would leave the client showing the top-left
