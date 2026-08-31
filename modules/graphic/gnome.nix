@@ -203,21 +203,7 @@ in
     qt = {
       enable = true;
       style = "adwaita-dark";
-
-      # That value exports `QT_QPA_PLATFORMTHEME=gnome`,
-      # which loads QGnomePlatform, whose `createPlatformSystemTrayIcon()` is
-      # a hardcoded `return nullptr`. `QSystemTrayIcon::isSystemTrayAvailable()`
-      # then answers false and every Qt application on the fleet silently gives
-      # up its tray icon — Nextcloud, which since v34 keeps its whole menu
-      # there, ends up with no reachable settings at all.
-      #
-      # Qt's own GNOME theme takes over and does return a real `QDBusTrayIcon`.
-      # Nothing else regresses: `style` still exports
-      # `QT_STYLE_OVERRIDE=adwaita-dark`, dark mode comes from the desktop
-      # portal, and QGnomePlatform's Wayland decoration was never in play
-      # anyway (it is opt-in through `QT_WAYLAND_DECORATION`, which the theme
-      # only sets for itself).
-      platformTheme = "qt5ct"; # gnome
+      platformTheme = "qt5ct"; # More efficient than "gnome", todo: qt6ct (not available for the moment)
     };
 
     # Devices connections
@@ -319,8 +305,8 @@ in
               "org/gnome/shell" = {
                 disable-user-extensions = false;
                 enabled-extensions = [
-                  #"appindicatorsupport@rgcjonas.gmail.com"
-                  "status-tray@keithvassallo.com"
+                  #"appindicatorsupport@rgcjonas.gmail.com" # old one
+                  "status-tray@keithvassallo.com" # new one
                   "blur-my-shell@aunetx"
                   "steal-my-focus-window@steal-my-focus-window"
                 ]
