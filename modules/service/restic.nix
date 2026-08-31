@@ -44,6 +44,23 @@
 # local and REST targets lets a repo move between the two without a rename.
 # :::
 #
+# :::note[An unreachable REST server skips the run]
+# Every `rest:` target carries an `ExecCondition` reachability probe. A backup
+# whose server is down is *skipped*, never failed: no nightly
+# SystemdUnitFailed, no quarter-hour of restic retries, and no `initialize`
+# creating an empty repo against a dead endpoint. The missing backup still
+# surfaces, through ResticBackupStale / ResticBackupCritical, which watch the
+# last successful run.
+# :::
+#
+# :::caution[`listenAll` widens the bind, not the firewall]
+# The server binds `params.ip`, i.e. the LAN address on a gateway. Clients
+# reaching it from another zone over the tailnet need `listenAll = true`
+# (bind `0.0.0.0`). The firewall stays the boundary: `lan0` gets the port from
+# `getInternalInterfaceFwPath`, `tailscale0` is already a trusted interface on
+# a gateway, and the WAN never opens it.
+# :::
+#
 # :::danger[Migrating repos created before this layout]
 # Repos written when the subpath mirrored the source directory sit under
 # `<hostname>/srv/{nfs,medias}`. Rename them on the server before the next run:
@@ -232,6 +249,27 @@ let
   textfileDir = "/var/lib/node-exporter-textfile";
   isNode = host.features ? "monitoring-node";
 
+  # Scheme + authority of a `rest:` repository ("http://host:port"), null for a
+  # local one. Matched on the final `services.restic.backups` so a job declared
+  # straight by a consumer (ms-a2's `medias-lg`) is covered like the generated
+  # ones.
+  restEndpoint =
+    repository:
+    let
+      m = builtins.match "rest:(https?://[^/]+).*" repository;
+    in
+    if m == null then null else builtins.head m;
+
+  # ExecCondition probe: exit 1 makes systemd skip the unit instead of failing
+  # it. curl covers both outages seen in production — the name no longer
+  # resolves (the off-site zone resolver died with its gateway) and the port no
+  # longer answers. A 401 from the REST server counts as reachable, which is
+  # exactly what we ask.
+  resticReachable = pkgs.writeShellScript "restic-reachable" ''
+    ${pkgs.curl}/bin/curl --silent --show-error --output /dev/null \
+      --connect-timeout 5 --max-time 15 "$1" || exit 1
+  '';
+
   # Run as ExecStartPost: oneshot ExecStartPost only fires when the backup
   # itself succeeded, so the stamp tracks the last *successful* run. Full store
   # paths: systemd units start with an empty PATH.
@@ -265,6 +303,7 @@ in
     #------------------------------------------------------------------------
 
     darkone.service.restic.enableServer = lib.mkEnableOption "Enable restic REST server";
+    darkone.service.restic.listenAll = lib.mkEnableOption "Bind the REST server on 0.0.0.0 (off-site clients)";
     darkone.service.restic.serverDataDir = lib.mkOption {
       type = lib.types.str;
       default = "/mnt/backup/restic";
@@ -429,6 +468,16 @@ in
           )
         ))
 
+        # Remote targets: an off-site server that is down must skip the run,
+        # not fail it (cf. the header note). Matched on the merged backup set
+        # so consumer-declared jobs are covered too.
+        (lib.mapAttrs' (
+          name: b:
+          lib.nameValuePair "restic-backups-${name}" {
+            serviceConfig.ExecCondition = [ "${resticReachable} ${restEndpoint b.repository}" ];
+          }
+        ) (lib.filterAttrs (_: b: restEndpoint b.repository != null) config.services.restic.backups))
+
         # Server: assemble the multi-user htpasswd before the REST server starts.
         # Unsandboxed oneshot so the file exists before the server's namespace
         # binds it read-only (cf. ReadOnlyPaths in the upstream unit).
@@ -469,7 +518,7 @@ in
         # REST server: stores every host's repository under serverDataDir.
         server = lib.mkIf cfg.enableServer {
           enable = true;
-          listenAddress = "${params.ip}:${toString srvPort}";
+          listenAddress = "${if cfg.listenAll then "0.0.0.0" else params.ip}:${toString srvPort}";
           dataDir = cfg.serverDataDir;
           htpasswd-file = htpasswdFile;
 
