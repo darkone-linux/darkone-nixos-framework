@@ -110,6 +110,13 @@ in
       user = cfg.autoLoginUser;
     };
 
+    # Consequence for the GNOME keyring: the session receives no password, so
+    # nothing unlocks it by itself. On an encrypted host the boot passphrase
+    # takes that role (systemd-cryptsetup caches it in root's kernel keyring,
+    # `pam_gdm` — already in the gdm-autologin stack — hands it to
+    # pam_gnome_keyring); elsewhere `darkone.home.umi` seeds a passwordless
+    # keyring. Both modes are documented in that home module's header.
+
     # Known GNOME + autologin workaround (double getty race)
     systemd.services."getty@tty1".enable = lib.mkIf (cfg.autoLoginUser != null) false;
     systemd.services."autovt@tty1".enable = lib.mkIf (cfg.autoLoginUser != null) false;
