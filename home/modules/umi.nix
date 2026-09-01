@@ -22,10 +22,34 @@
 # `idle-delay = 0` avoids triggering it, and the Cinnamon session has its
 # own lock fully disabled.
 # :::
+#
+# :::caution[Login keyring: two modes, decided by the host]
+# An autologin session types no password, so PAM has nothing to hand to
+# gnome-keyring and every secret-using app pops a gcr prompt the gaze user
+# cannot answer. How that is avoided depends on the host:
+#
+# - **Unencrypted host**: the login keyring is seeded with an empty password,
+#   which gnome-keyring stores in plain text and unlocks on its own (it tries
+#   an empty password before prompting). Any pre-existing password-protected
+#   keyring is deleted — its passphrase is untypable here, so it can only
+#   produce the prompt forever. Autologin already grants the whole session to
+#   whoever boots the machine, so this costs no real confidentiality.
+# - **Encrypted host** (`darkone.system.luks.volumes` non-empty): nothing is
+#   seeded. The passphrase typed at boot is cached in the kernel keyring and
+#   handed to gnome-keyring by `pam_gdm`, so the keyring stays encrypted with
+#   it. This is the only mode that protects the secrets at rest.
+#
+# Gotcha, encrypted hosts only: rotating the LUKS passphrase (sops value
+# changed, `luks-passphrase-sync`) leaves the keyring on the old one — GNOME
+# then reports "The password you use to log in to your computer no longer
+# matches that of your login keyring". Delete
+# `~/.local/share/keyrings/login.keyring` and log in again.
+# :::
 {
   lib,
   config,
   pkgs,
+  osConfig,
   ...
 }:
 let
@@ -60,6 +84,10 @@ let
     lock-after=false
   '';
   defaultKeyringName = pkgs.writeText "default-keyring" "login";
+
+  # An encrypted host feeds the boot passphrase to gnome-keyring through
+  # pam_gdm; seeding a passwordless keyring there would throw that away.
+  hostHasLuks = (osConfig.darkone.system.luks.volumes or [ ]) != [ ];
 in
 {
   options = {
@@ -216,18 +244,34 @@ in
       done
     '';
 
-    # An autologin session never types a password, so PAM cannot hand one to
-    # gnome-keyring: every secret-using app pops a gcr prompt that a gaze user
-    # cannot answer. Seed an empty-password login keyring, which gnome-keyring
-    # stores unencrypted and unlocks on its own. Only written when absent — an
-    # existing keyring may hold secrets and is never replaced.
-    home.activation.gazeLoginKeyring = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      keyringDir="$HOME/.local/share/keyrings"
-      if [ ! -e "$keyringDir/login.keyring" ] ; then
+    # Passwordless login keyring, for unencrypted hosts only (cf. the header):
+    # gnome-keyring tries an empty password before prompting, and stores such a
+    # keyring as plain ini instead of an encrypted blob.
+    home.activation.gazeLoginKeyring = lib.mkIf (!hostHasLuks) (
+      lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        keyringDir="$HOME/.local/share/keyrings"
         run ${pkgs.coreutils}/bin/mkdir -p -m 700 "$keyringDir"
-        run ${pkgs.coreutils}/bin/install -m 600 ${plainLoginKeyring} "$keyringDir/login.keyring"
-        run ${pkgs.coreutils}/bin/install -m 600 ${defaultKeyringName} "$keyringDir/default"
-      fi
-    '';
+
+        # A keyring that opens without a password starts with `[keyring]`;
+        # anything else is the encrypted binary format, locked behind a
+        # passphrase nobody can type here. Dropping it is the only way out of
+        # the prompt loop. `user.keystore` (PKCS#11 objects) is sealed with the
+        # same password and would prompt on its own, so it goes too.
+        if [ -e "$keyringDir/login.keyring" ] &&
+           [ "$(${pkgs.coreutils}/bin/head -c 9 "$keyringDir/login.keyring")" != "[keyring]" ] ; then
+          run ${pkgs.coreutils}/bin/rm -f "$keyringDir/login.keyring" "$keyringDir/user.keystore"
+        fi
+
+        if [ ! -e "$keyringDir/login.keyring" ] ; then
+          run ${pkgs.coreutils}/bin/install -m 600 ${plainLoginKeyring} "$keyringDir/login.keyring"
+        fi
+
+        # Without it, storing a secret in a home that never had a default
+        # collection pops the "create a keyring" prompt (cf. home/modules/office.nix).
+        if [ ! -e "$keyringDir/default" ] ; then
+          run ${pkgs.coreutils}/bin/install -m 600 ${defaultKeyringName} "$keyringDir/default"
+        fi
+      ''
+    );
   };
 }

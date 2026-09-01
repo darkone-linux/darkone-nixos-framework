@@ -137,6 +137,17 @@ in
       default = 2222;
       description = "Initrd sshd port; distinct from 22 so the initrd host key never clashes with the system one";
     };
+
+    # Detection only, deliberately ungated by `enable`/`provisioned`: other
+    # modules need to know whether the host boots on an encrypted volume
+    # (a passphrase is typed at boot) without re-deriving it from disko.
+    darkone.system.luks.volumes = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      internal = true;
+      readOnly = true;
+      default = luksNames;
+      description = "LUKS volumes declared by the host disko layout.";
+    };
   };
 
   config = lib.mkIf luksActive (
