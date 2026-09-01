@@ -362,7 +362,12 @@ in
                 sleep-inactive-ac-timeout = gvariant.mkUint32 1800;
                 sleep-inactive-ac-type = "nothing";
                 sleep-inactive-battery-timeout = gvariant.mkUint32 1800;
-                sleep-inactive-battery-type = "suspend";
+
+                # gnome-settings-daemon suspends on its own schedule, whatever
+                # logind was told: a host that must stay reachable cannot let it
+                # (the greeter side is handled by `gdm.autoSuspend` above).
+                sleep-inactive-battery-type =
+                  if config.darkone.system.core.enableAutoSuspend then "suspend" else "nothing";
               };
               "org/gnome/mutter" = {
                 check-alive-timeout = gvariant.mkUint32 30000;

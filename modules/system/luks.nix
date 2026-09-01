@@ -1,31 +1,49 @@
 # LUKS passphrase policy & remote unlock: shared + per-host passphrases, initrd SSH.
 #
 # Completes `modules/system/yubikey.nix` (FIDO2 keyslots) with the passphrase
-# side of the fleet LUKS policy. `just luks <host>` provisions a host
-# (idempotent, also called by `just configure`): it records it in the
-# **public** manifest `usr/secrets/luks.json` (committed), stores the
-# per-host passphrase in sops (`luks/<host>/passphrase`), ensures the shared
-# `luks-passphrase` exists, pre-generates the initrd SSH host key on the
-# target and, when no managed passphrase unlocks the volume yet, bootstraps
-# the shared keyslot with the install passphrase. The module then keeps
-# everything converged at each apply:
+# side of the fleet LUKS policy. Every encrypted volume carries exactly two
+# managed passphrases, plus one keyslot per enrolled YubiKey:
+#
+# | Keyslot | Secret | Audience |
+# |---|---|---|
+# | shared | sops `luks-passphrase` | the fleet admin. Also **authorizes** keyslot operations (`luksAddKey` / `luksKillSlot`) for the units below, and is the key disko formats the disk with. |
+# | per-host | sops `luks/<host>/passphrase` | the user of that one machine, without handing over the fleet. |
+# | FIDO2 | registry `usr/secrets/yubikeys.json` | one slot per key, on every encrypted host. |
+#
+# Two managed passphrases and not one, because they serve different people —
+# and because a rotation of either stays authorized by the other, so the sync
+# unit is never left without an authorizer (it adds the new slot before killing
+# the old one).
+#
+# There is no separate "install passphrase": `just install` formats the volume
+# through `nixos-anywhere --disk-encryption-keys` with the shared passphrase, so
+# the format keyslot *is* the shared keyslot.
+#
+# `just luks <host>` provisions a host (idempotent, also called by
+# `just configure`); its `pre` phase runs offline and is called by `just install`
+# before the build. It records the host in the **public** manifest
+# `usr/secrets/luks.json` (committed), stores the per-host passphrase and the
+# initrd SSH host key in sops, and ensures the shared `luks-passphrase` exists.
+# `just luks <host> show` prints the keyslot table and audits remote unlock.
+# The module then keeps everything converged at each apply:
 #
 # - **keyslots**: a oneshot service syncs the shared and per-host passphrases
 #   into every disko-declared LUKS2 header. A changed sops value rotates the
 #   corresponding keyslot (old slot killed, new one added). Keyslot operations
-#   are authorized by whichever managed passphrase still unlocks the volume,
-#   so one of them must remain valid — the disko install keyslot is never
-#   touched and remains the last-resort fallback.
+#   are authorized by whichever managed passphrase still unlocks the volume, so
+#   one of them must remain valid. Slots outside its ledger (FIDO2, manual
+#   enrollments) are never touched.
 # - **remote unlock**: initrd sshd on a dedicated port (2222), own persistent
 #   host key (`/var/lib/luks-initrd/`), root login with the `nix` deploy key
-#   (`usr/secrets/nix.pub`). `just enter <host>` detects a host waiting in
-#   initrd and answers the passphrase prompt via
-#   `systemd-tty-ask-password-agent`, falling back to the WAN IP recorded in
-#   the manifest when the VPN route died with the host. Regular hosts DHCP on
-#   wired interfaces (a laptop on Wi-Fi has no initrd network and falls back
-#   to console unlock); zone gateways replicate their production layout
-#   instead — static LAN IP on the lan0 bridge, DHCP on the WAN side — since
-#   they are themselves the DHCP server their initrd would otherwise wait on.
+#   (`usr/secrets/nix.pub`). `just unlock <host>` answers the passphrase prompt
+#   without a human (through the `dnf-unlock` helper shipped in the initrd);
+#   `just enter <host>` is the interactive path. Both fall back to the WAN IP
+#   recorded in the manifest when the VPN route died with the host. Regular
+#   hosts DHCP on wired interfaces (a laptop on Wi-Fi has no initrd network and
+#   falls back to console unlock); zone gateways replicate their production
+#   layout instead — static LAN IP on the lan0 bridge, DHCP on the WAN side —
+#   since they are themselves the DHCP server their initrd would otherwise wait
+#   on.
 #
 # :::note[Zero configuration]
 # Enabled by default but fully inert until the host appears in
@@ -33,20 +51,19 @@
 # Existing encrypted hosts are unaffected until `just luks <host>` is run.
 # :::
 #
-# :::caution[Provision before you apply]
-# The initrd host key must exist on the target when the bootloader is
-# installed (initrd secrets are appended at that point, *before* activation).
-# `just luks <host>` creates it over SSH; never add a host to `luks.json` by
-# hand. Reinstalling a provisioned host with nixos-anywhere needs the key
-# staged under `/mnt` (`--extra-files`) or the host dropped from the manifest
-# first.
+# :::caution[The initrd key must predate the bootloader]
+# Initrd secrets are appended when the bootloader is installed, *before*
+# activation. A fresh install is covered: `just install` stages the key under
+# `/mnt` (`nixos-anywhere --extra-files`) so the very first boot already listens
+# on 2222. On an already-running host, `just luks <host>` puts it in place over
+# SSH — never add a host to `luks.json` by hand, and never apply before the key
+# exists on the target.
 # :::
 #
 # :::danger[Keyslot budget]
 # LUKS2 headers hold at most 32 keyslots. Every enrolled YubiKey consumes one
-# slot on every encrypted host (fleet-wide policy), plus install + shared +
-# per-host passphrases: the module warns when the projected total nears the
-# limit.
+# slot on every encrypted host (fleet-wide policy), plus the shared and per-host
+# passphrases: the module warns when the projected total nears the limit.
 # :::
 
 {
@@ -111,7 +128,7 @@ let
   hostSecret = "luks/${host.hostname}/passphrase";
 
   # Projected keyslot usage: every registry credential lands on every
-  # encrypted host, plus install + shared + per-host passphrase slots.
+  # encrypted host, plus the shared and per-host passphrase slots.
   registryFile = workDir + "/usr/secrets/yubikeys.json";
   registry =
     if builtins.pathExists registryFile then
@@ -122,7 +139,50 @@ let
     n: _: keys:
     n + lib.count (k: (k.credId or "") != "") (lib.attrValues keys)
   ) 0 registry;
-  projectedSlots = credCount + 3;
+  projectedSlots = credCount + 2;
+
+  # Non-interactive counterpart of `systemd-tty-ask-password-agent`, which only
+  # talks to a terminal and cannot be driven by a script. `just unlock <host>`
+  # pipes the passphrase into this over the initrd sshd.
+  #
+  # `#!/bin/sh` on purpose: the initrd has its own /bin (built from
+  # `boot.initrd.systemd.initrdBin`) and make-initrd-ng resolves ELF
+  # dependencies only — a store-path shebang would point at a bash that was
+  # never copied in. Everything below is POSIX shell, no sed or grep exists
+  # there either.
+  initrdUnlock = pkgs.writeTextFile {
+    name = "dnf-unlock";
+    executable = true;
+    text = ''
+      #!/bin/sh
+      set -u
+      IFS= read -r passphrase || true
+      if [ -z "$passphrase" ]; then
+        echo "dnf-unlock: no passphrase on stdin" >&2
+        exit 1
+      fi
+      answered=0
+      for ask in /run/systemd/ask-password/ask.*; do
+        [ -e "$ask" ] || continue
+        socket=
+        while IFS= read -r line; do
+          case $line in
+            Socket=*) socket=''${line#Socket=} ;;
+          esac
+        done < "$ask"
+        [ -n "$socket" ] || continue
+        printf %s "$passphrase" \
+          | ${config.boot.initrd.systemd.package}/lib/systemd/systemd-reply-password 1 "$socket" \
+          || continue
+        answered=$((answered + 1))
+      done
+      if [ "$answered" -eq 0 ]; then
+        echo "dnf-unlock: no password request pending" >&2
+        exit 1
+      fi
+      echo "dnf-unlock: answered $answered request(s)"
+    '';
+  };
 in
 {
   options = {
@@ -213,15 +273,38 @@ in
         ];
 
         # The host key lives outside the store (appended to the initrd as a
-        # secret at bootloader install); `just luks <host>` pre-generates it,
-        # the oneshot below regenerates it if /var/lib is ever wiped (takes
-        # effect at the next rebuild).
+        # secret at bootloader install). It is generated once by
+        # `just luks <host> pre`, kept in sops, and staged into `/mnt` by
+        # `just install`; the oneshot below only covers a wiped /var/lib
+        # (takes effect at the next rebuild).
         boot.initrd.network.ssh = {
           enable = true;
           port = cfg.sshPort;
           hostKeys = [ "/var/lib/luks-initrd/ssh_host_ed25519_key" ];
           authorizedKeys = [ (lib.fileContents nixPubFile) ];
         };
+
+        # make-initrd-ng copies the binaries it is handed, not whole packages,
+        # and systemd-reply-password lives under lib/systemd: without this it is
+        # simply absent and only the interactive agent can be reached.
+        boot.initrd.systemd.storePaths = [
+          "${config.boot.initrd.systemd.package}/lib/systemd/systemd-reply-password"
+        ];
+        boot.initrd.systemd.extraBin.dnf-unlock = initrdUnlock;
+
+        # The bootloader appends this key to the initrd verbatim. `--extra-files`
+        # drops it in as root, but a key restored by hand — or inherited from an
+        # older provisioning — can be looser.
+        system.activationScripts.luksInitrdKeyPerms = ''
+          if [ -d /var/lib/luks-initrd ]; then
+            ${pkgs.coreutils}/bin/chown -R root:root /var/lib/luks-initrd
+            ${pkgs.coreutils}/bin/chmod 700 /var/lib/luks-initrd
+            [ ! -e /var/lib/luks-initrd/ssh_host_ed25519_key ] \
+              || ${pkgs.coreutils}/bin/chmod 600 /var/lib/luks-initrd/ssh_host_ed25519_key
+            [ ! -e /var/lib/luks-initrd/ssh_host_ed25519_key.pub ] \
+              || ${pkgs.coreutils}/bin/chmod 644 /var/lib/luks-initrd/ssh_host_ed25519_key.pub
+          fi
+        '';
 
         systemd.services.luks-initrd-keygen = {
           description = "Generate the initrd SSH host key when missing";
@@ -258,16 +341,16 @@ in
 
         warnings = lib.optional (projectedSlots >= 25) ''
           darkone.system.luks: ${toString credCount} YubiKey credentials are enrolled
-          fleet-wide; with the install, shared and per-host passphrases this projects
+          fleet-wide; with the shared and per-host passphrases this projects
           ${toString projectedSlots} keyslots per volume (LUKS2 caps at 32). Consider
           revoking unused keys.
         '';
 
         # Idempotent sync of the managed passphrase keyslots. A ledger records
         # (label, device, secret hash, slot) so a changed sops value rotates
-        # its keyslot; slots outside the ledger (install passphrase, FIDO2,
-        # manual enrollments) are never touched. Any failure is logged and
-        # skipped: this unit must never block a deployment or a boot.
+        # its keyslot; slots outside the ledger (FIDO2, manual enrollments) are
+        # never touched. Any failure is logged and skipped: this unit must never
+        # block a deployment or a boot.
         systemd.services.luks-passphrase-sync = {
           description = "Sync managed passphrases into LUKS headers";
           wantedBy = [ "multi-user.target" ];

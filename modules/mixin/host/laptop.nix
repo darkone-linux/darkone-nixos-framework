@@ -32,8 +32,11 @@ in
         boot.kernelModules = [ "coretemp" ];
         environment.systemPackages = with pkgs; [ lm_sensors ];
 
-        # suspend, sleep, hibernates are deactivated by default: activation
-        darkone.system.core.enableAutoSuspend = lib.mkDefault true;
+        # A fleet host must stay reachable: a machine that suspends on its own
+        # is unreachable until someone touches it, which cost a remote install
+        # once already. Suspend is therefore opt-in, never a profile default —
+        # `features: ["auto-suspend"]` in etc/config.yaml brings it back.
+        darkone.system.core.enableAutoSuspend = lib.mkDefault (host.features ? "auto-suspend");
 
         # Blank the screen earlier on laptops (battery saving): 15 min
         darkone.graphic.gnome.screenBlankDelay = lib.mkDefault 900;
