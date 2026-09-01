@@ -105,6 +105,16 @@ in
     expected = "external";
   };
 
+  testClassifyLuksInitrdKeyIsExternal = {
+    expr = classifySecret "luks/gw-ag/initrd-key";
+    expected = "external";
+  };
+
+  testClassifyLuksInitrdPubKeyIsExternal = {
+    expr = classifySecret "luks/gw-ag/initrd-key-pub";
+    expected = "external";
+  };
+
   testClassifyYubikeyIsExternal = {
     expr = classifySecret "yubikey/alice/main/luks-secret";
     expected = "external";

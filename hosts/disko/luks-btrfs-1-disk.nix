@@ -31,6 +31,14 @@
               content = {
                 type = "luks";
                 name = "crypted";
+
+                # Read only by `disko --mode disko`, never at boot. `just
+                # install` (nixos-anywhere --disk-encryption-keys) and `just
+                # install-key` materialise it from the sops `luks-passphrase`,
+                # so the format keyslot IS the shared fleet passphrase: no
+                # install-only secret to remember, no bootstrap prompt.
+                passwordFile = "/tmp/dnf-luks.key";
+
                 settings = {
                   allowDiscards = true;
                 };
