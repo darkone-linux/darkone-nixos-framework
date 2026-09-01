@@ -266,6 +266,12 @@ in
         boot.initrd.availableKernelModules = [
           "bridge"
           "virtio_net"
+
+          # `e1000` is the 82540EM emulated by VirtualBox and QEMU, a different
+          # driver from the `e1000e` of physical Intel NICs: without it a test
+          # VM boots into an initrd with no network at all, and remote unlock
+          # silently does not exist.
+          "e1000"
           "e1000e"
           "igb"
           "igc"
