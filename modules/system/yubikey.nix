@@ -410,6 +410,17 @@ in
             }
             trap cleanup EXIT TERM INT
 
+            # Membership in a jq-produced list. jq separates with newlines,
+            # so the caller must join with spaces first: a `case` glob on a
+            # newline-separated list silently never matches, and a keyslot
+            # inventory that matches nothing is a fleet-wide revocation.
+            in_list() {
+              case " $2 " in
+                *" $1 "*) return 0 ;;
+              esac
+              return 1
+            }
+
             # Ledger of the credentials this service enrolled (prune scope).
             state=/var/lib/yubikey-luks/managed
             ${pkgs.coreutils}/bin/mkdir -p /var/lib/yubikey-luks
@@ -430,8 +441,11 @@ in
                 echo "$dev is not a LUKS2 device, skipped"
                 continue
               fi
-              present=$(printf '%s' "$dump" \
-                | $jq -r '.tokens[]? | select(.type == "systemd-fido2") | ."fido2-credential"')
+              present=$(printf '%s' "$dump" | $jq -r '
+                .keyslots as $slots
+                | .tokens[]? | select(.type == "systemd-fido2")
+                | select([.keyslots[]? | select($slots[.] != null)] | length > 0)
+                | ."fido2-credential"')
 
               # Orphan suspects: keyslots claimed by no token and by neither
               # managed passphrase. Empty in steady state, so what follows
@@ -441,14 +455,12 @@ in
               # belong to a YubiKey.
               orphans=""
               if [ -r "$passledger" ]; then
-                claimed=$(printf '%s' "$dump" | $jq -r '[.tokens[]?.keyslots[]?] | .[]')
-                claimed="$claimed $($awk -v d="$dev" '$2 == d {print $4}' "$passledger")"
+                claimed=$(printf '%s' "$dump" | $jq -r '[.tokens[]?.keyslots[]?] | join(" ")')
+                claimed="$claimed $($awk -v d="$dev" '$2 == d {print $4}' "$passledger" | ${pkgs.coreutils}/bin/tr '\n' ' ')"
                 for s in $(printf '%s' "$dump" | $jq -r '.keyslots | keys[]'); do
-                  case " $claimed " in
-                    *" $s "*) ;;
-                    *) orphans="$orphans $s" ;;
-                  esac
+                  in_list "$s" "$claimed" || orphans="$orphans $s"
                 done
+                [ -z "$orphans" ] || echo "keyslots claimed by nothing on $dev:$orphans"
               fi
 
               # Ownership of an orphan slot is never assumed: the credential's
@@ -487,9 +499,21 @@ in
                   # a live secret nothing tracks, and a slot out of the 32.
                   if [ -n "$orphans" ] && [ -s "$secret" ] && dup=$(claim_orphan "$secret"); then
                     drop_orphan "$dup"
-                    $cs luksKillSlot -q --key-file="$pass" "$dev" "$dup" \
-                      && echo "removed duplicate keyslot $dup on $dev for $owner" \
-                      || echo "could not remove duplicate keyslot $dup on $dev"
+
+                    # Removing a keyslot is the one irreversible act here, so
+                    # it happens only against proof that the credential keeps
+                    # another one its token points at. A miscomputed orphan
+                    # list would otherwise revoke the whole fleet, one key at
+                    # a time — which is exactly what it once did.
+                    kept=$(printf '%s' "$dump" | $jq -r --arg c "$cred" \
+                      '[.tokens[]? | select(."fido2-credential" == $c) | .keyslots[]?] | join(" ")')
+                    if [ -z "$kept" ] || in_list "$dup" "$kept"; then
+                      echo "keeping keyslot $dup on $dev: $owner has no other enrollment"
+                    else
+                      $cs luksKillSlot -q --key-file="$pass" "$dev" "$dup" \
+                        && echo "removed duplicate keyslot $dup on $dev for $owner" \
+                        || echo "could not remove duplicate keyslot $dup on $dev"
+                    fi
                   fi
                   continue
                 fi
@@ -497,6 +521,16 @@ in
                   echo "secret of $owner is empty, skipped"
                   continue
                 fi
+
+                # A token left pointing at a dead keyslot (cryptsetup empties
+                # its keyslot list) is what `present` above now ignores; drop
+                # it here so the re-enrollment does not stack a second token
+                # for the same credential.
+                for tid in $(printf '%s' "$dump" | $jq -r --arg c "$cred" \
+                    '.tokens | to_entries[] | select(.value."fido2-credential" == $c) | .key'); do
+                  $cs token remove --token-id "$tid" "$dev" \
+                    && echo "dropped stale token $tid on $dev for $owner"
+                done
 
                 # An earlier run may have added the keyslot and died before
                 # naming it: adopt it, rather than pay a second slot and a
@@ -508,7 +542,7 @@ in
 
                   # The derived secret (base64 of the hmac-secret output) is the
                   # keyslot passphrase, exactly as systemd-cryptenroll stores it.
-                  before=$(printf '%s' "$dump" | $jq -r '.keyslots | keys[]')
+                  before=$(printf '%s' "$dump" | $jq -r '.keyslots | keys | join(" ")')
                   if ! $cs luksAddKey --key-file="$pass" "$dev" "$secret"; then
                     echo "luksAddKey failed on $dev for $owner (wrong luks-passphrase?), skipped"
                     continue
@@ -516,10 +550,7 @@ in
                   dump=$($cs luksDump --dump-json-metadata "$dev")
                   slot=""
                   for s in $(printf '%s' "$dump" | $jq -r '.keyslots | keys[]'); do
-                    case " $before " in
-                      *" $s "*) ;;
-                      *) slot=$s ;;
-                    esac
+                    in_list "$s" "$before" || slot=$s
                   done
                   pending=$slot
                   pendingdev=$dev
