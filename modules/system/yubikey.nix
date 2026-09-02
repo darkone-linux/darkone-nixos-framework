@@ -356,6 +356,10 @@ in
         # out-of-band enrollments (manual systemd-cryptenroll) survive; the
         # passphrase keyslot is never touched. Any failure is logged and
         # skipped: this unit must never block a deployment or a boot.
+        #
+        # An enrollment is two operations (keyslot, then token) and being
+        # interrupted between them strands the keyslot, so the unit rolls its
+        # own back on the way out and adopts any it finds on the next run.
         systemd.services.yubikey-luks-enroll = {
           description = "Sync FIDO2 credentials into LUKS headers";
           wantedBy = [ "multi-user.target" ];
@@ -369,14 +373,42 @@ in
           serviceConfig = {
             Type = "oneshot";
             RemainAfterExit = true;
+
+            # argon2 costs ~10s per keyslot, so a fleet of eight credentials
+            # already exceeds systemd's 90s default: the unit would be killed
+            # mid-enrollment, which is precisely what strands a keyslot.
+            TimeoutStartSec = "30min";
           };
           script = ''
             set -euo pipefail
             jq=${pkgs.jq}/bin/jq
             cs=${pkgs.cryptsetup}/bin/cryptsetup
             grep=${pkgs.gnugrep}/bin/grep
+            awk=${pkgs.gawk}/bin/awk
             data=${enrollData}
             pass=${config.sops.secrets.luks-passphrase.path}
+
+            # Slots of the managed passphrases, as recorded by
+            # luks-passphrase-sync. Needed to tell an orphan keyslot from a
+            # legitimately token-less one.
+            passledger=/var/lib/luks-passphrase/ledger
+
+            # A keyslot exists from `luksAddKey` until `token import` names it.
+            # Being stopped in that window is not hypothetical: partOf ties
+            # this unit to luks-passphrase-sync, so a passphrase converging
+            # mid-enrollment (every fresh install does it) sends a TERM here.
+            # Without this the keyslot survives with nothing pointing at it —
+            # invisible to systemd, and unreachable by the revocation loop
+            # below, which walks tokens to find the slots to kill.
+            pending=""
+            pendingdev=""
+            cleanup() {
+              [ -n "$pending" ] || return 0
+              $cs luksKillSlot -q --key-file="$pass" "$pendingdev" "$pending" \
+                && echo "rolled back incomplete keyslot $pending on $pendingdev" \
+                || echo "could not roll back keyslot $pending on $pendingdev"
+            }
+            trap cleanup EXIT TERM INT
 
             # Ledger of the credentials this service enrolled (prune scope).
             state=/var/lib/yubikey-luks/managed
@@ -401,6 +433,46 @@ in
               present=$(printf '%s' "$dump" \
                 | $jq -r '.tokens[]? | select(.type == "systemd-fido2") | ."fido2-credential"')
 
+              # Orphan suspects: keyslots claimed by no token and by neither
+              # managed passphrase. Empty in steady state, so what follows
+              # costs nothing on a healthy header. Without the passphrase
+              # ledger their slots would land here, so give up rather than
+              # spend an argon2 derivation per credential proving they do not
+              # belong to a YubiKey.
+              orphans=""
+              if [ -r "$passledger" ]; then
+                claimed=$(printf '%s' "$dump" | $jq -r '[.tokens[]?.keyslots[]?] | .[]')
+                claimed="$claimed $($awk -v d="$dev" '$2 == d {print $4}' "$passledger")"
+                for s in $(printf '%s' "$dump" | $jq -r '.keyslots | keys[]'); do
+                  case " $claimed " in
+                    *" $s "*) ;;
+                    *) orphans="$orphans $s" ;;
+                  esac
+                done
+              fi
+
+              # Ownership of an orphan slot is never assumed: the credential's
+              # own secret has to open it. That proof is what keeps a manual
+              # `systemd-cryptenroll` — equally token-less from here — safe.
+              claim_orphan() {
+                local o
+                for o in $orphans; do
+                  if $cs open --test-passphrase --key-slot "$o" \
+                      --key-file="$1" "$dev" >/dev/null 2>&1; then
+                    printf %s "$o"
+                    return 0
+                  fi
+                done
+                return 1
+              }
+              drop_orphan() {
+                local keep="" o
+                for o in $orphans; do
+                  [ "$o" = "$1" ] || keep="$keep $o"
+                done
+                orphans=$keep
+              }
+
               # Enroll every declared credential missing from this header.
               n=$($jq '.keys | length' "$data")
               for i in $(${pkgs.coreutils}/bin/seq 0 $((n - 1))); do
@@ -409,6 +481,16 @@ in
                 secret=$($jq -r ".keys[$i].secret" "$data")
                 owner=$($jq -r ".keys[$i].owner" "$data")
                 if printf '%s\n' "$present" | $grep -qxF "$cred"; then
+
+                  # Enrolled AND holding an orphan slot: the interrupted add
+                  # was retried on the next run, so this one is a duplicate —
+                  # a live secret nothing tracks, and a slot out of the 32.
+                  if [ -n "$orphans" ] && [ -s "$secret" ] && dup=$(claim_orphan "$secret"); then
+                    drop_orphan "$dup"
+                    $cs luksKillSlot -q --key-file="$pass" "$dev" "$dup" \
+                      && echo "removed duplicate keyslot $dup on $dev for $owner" \
+                      || echo "could not remove duplicate keyslot $dup on $dev"
+                  fi
                   continue
                 fi
                 if [ ! -s "$secret" ]; then
@@ -416,21 +498,33 @@ in
                   continue
                 fi
 
-                # The derived secret (base64 of the hmac-secret output) is the
-                # keyslot passphrase, exactly as systemd-cryptenroll stores it.
-                before=$(printf '%s' "$dump" | $jq -r '.keyslots | keys[]')
-                if ! $cs luksAddKey --key-file="$pass" "$dev" "$secret"; then
-                  echo "luksAddKey failed on $dev for $owner (wrong luks-passphrase?), skipped"
-                  continue
+                # An earlier run may have added the keyslot and died before
+                # naming it: adopt it, rather than pay a second slot and a
+                # second derivation for a secret already in the header.
+                if slot=$(claim_orphan "$secret"); then
+                  drop_orphan "$slot"
+                  echo "adopting stranded keyslot $slot on $dev for $owner"
+                else
+
+                  # The derived secret (base64 of the hmac-secret output) is the
+                  # keyslot passphrase, exactly as systemd-cryptenroll stores it.
+                  before=$(printf '%s' "$dump" | $jq -r '.keyslots | keys[]')
+                  if ! $cs luksAddKey --key-file="$pass" "$dev" "$secret"; then
+                    echo "luksAddKey failed on $dev for $owner (wrong luks-passphrase?), skipped"
+                    continue
+                  fi
+                  dump=$($cs luksDump --dump-json-metadata "$dev")
+                  slot=""
+                  for s in $(printf '%s' "$dump" | $jq -r '.keyslots | keys[]'); do
+                    case " $before " in
+                      *" $s "*) ;;
+                      *) slot=$s ;;
+                    esac
+                  done
+                  pending=$slot
+                  pendingdev=$dev
                 fi
-                dump=$($cs luksDump --dump-json-metadata "$dev")
-                slot=""
-                for s in $(printf '%s' "$dump" | $jq -r '.keyslots | keys[]'); do
-                  case " $before " in
-                    *" $s "*) ;;
-                    *) slot=$s ;;
-                  esac
-                done
+
                 # `fido2-up-required` is not a policy we get to choose: YubiKeys
                 # reject every hmac-secret assertion made without user presence
                 # (FIDO_ERR_UP_REQUIRED, raised before credential matching), so
@@ -446,6 +540,9 @@ in
                     "fido2-up-required": true,
                     "fido2-uv-required": false}' \
                   | $cs token import "$dev"
+
+                # The keyslot is named: it can no longer be stranded.
+                pending=""
                 echo "$cred" >> "$state"
                 echo "enrolled $owner on $dev (slot $slot)"
               done
