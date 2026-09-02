@@ -538,6 +538,11 @@ install host user='nix' ip='auto' do='install':
 	[ "$ans" = "y" ] || { just _log "Aborted." "INSTALL"; exit 1; }
 	just _fix_fs_permissions
 	just _check_infra_admin
+
+	# A run that died between `configure` and its final cleanup leaves this host
+	# redirected to an install-time address, host key checking disabled, for
+	# every later ssh and colmena. Start from a clean slate.
+	just roaming-clear "{{host}}"
 	just clean
 	just _log "Preparation..."
 	if [ ! -f "./usr/machines/{{host}}/default.nix" ]; then
@@ -762,7 +767,21 @@ configure host ip='auto':
 	# LUKS provisioning is a no-op on unencrypted hosts and idempotent on
 	# encrypted ones (secrets/manifest/initrd key created only when missing).
 	just luks "{{host}}" '' "$t"
-	[ "$t" = "{{host}}" ] || just roaming "{{host}}" "$t"
+
+	# Only a genuinely away address deserves a redirection. `full-install`
+	# always hands over an IP — whatever `_wait-any` found — so testing against
+	# the name alone installed one on EVERY install, including for a host
+	# sitting at home at its own declared address. The stanza disables host key
+	# checking for good, so an unnecessary one is not harmless.
+	home=$({{nix}} eval --raw --impure --expr '
+	  let
+	    hosts = import {{workDir}}/var/generated/hosts.nix;
+	    matches = builtins.filter (h: h.hostname == "{{host}}") hosts;
+	  in if matches == [ ] then "" else (builtins.head matches).ip or ""
+	' 2>/dev/null || echo "")
+	if [ "$t" != "{{host}}" ] && [ "$t" != "$home" ] ;then
+		just roaming "{{host}}" "$t"
+	fi
 	just _log "If no error occurs, do not forget to commit and apply:"
 	just _log "git add . && git commit -m 'Installing new host {{host}}'"
 	just _log "just apply-verbose {{host}}"
@@ -808,12 +827,31 @@ full-install host user='nixos' ip='auto':
 	just _log "Let's do that automatically..."
 	#just _fix_fs_permissions
 	just _log "Adding and committing (amend)..." "GIT"
-	git add . && (git diff --cached --quiet || git commit --amend --no-edit --allow-empty) && git reset
+
+	# Amend only what `just install` itself committed. When it had nothing to
+	# commit, HEAD is somebody else's work and amending would rewrite it in
+	# silence, so fold the install leftovers into a commit of their own.
+	msg="New host {{host}} dnf installation"
+	git add .
+	if git diff --cached --quiet ;then
+		git reset
+	elif [ "$(git log -1 --format=%s)" = "$msg" ] ;then
+		git commit --amend --no-edit --allow-empty && git reset
+	else
+		git commit -m "$msg" && git reset
+	fi
 	just apply-verbose {{host}}
 	just _log "Cleaning new system..."
 	just gc {{host}}
 	just _log "Last reboot..."
 	sudo -i -u nix colmena exec --config "{{workDir}}/flake.nix" --on "{{host}}" "nohup bash -c 'sleep 1; systemctl reboot' >/dev/null 2>&1 &"
+
+	# Without this an encrypted host ENDS the procedure sitting in its initrd,
+	# waiting for a passphrase nobody is there to type — the whole point of a
+	# remote install lost on the very last step. No-op on a clear host, and on
+	# an encrypted one that came back on 22 on its own.
+	just _wait-ssh "$target" down 180 || true
+	just unlock "{{host}}" "$target"
 
 	# The redirection was only meant to survive the install: from here the host
 	# answers under its own name, at home or wherever it is next plugged in.
@@ -2037,9 +2075,15 @@ unlock host ip='' timeout='600':
 				-o ConnectTimeout=10 root@"$addr" dnf-unlock >/dev/null 2>&1 || continue
 
 		# A refused passphrase leaves the initrd up and asking again; an
-		# accepted one tears its sshd down within a couple of seconds.
+		# accepted one opens the volume and switches root, taking the initrd
+		# sshd with it. The port going away IS the acceptance signal — and the
+		# only one available, since nothing reports back through dnf-unlock.
+		#
+		# 60s: unlocking is not instant on a real machine (argon2 KDF, then the
+		# root filesystem mount) and calling it a refusal too early would send
+		# the next passphrase into a host that is already booting.
 		refused=1
-		for _ in $(seq 1 15) ;do
+		for _ in $(seq 1 30) ;do
 			if ! timeout 2 bash -c ": < /dev/tcp/$addr/2222" 2>/dev/null ;then
 				refused=0
 				break
@@ -2051,16 +2095,12 @@ unlock host ip='' timeout='600':
 			continue
 		fi
 
-		# Accepted: the host now boots its real system. First boots are slow
-		# (initial activation, sops, home-manager), hence the long window.
-		for _ in $(seq 1 90) ;do
-			if timeout 2 bash -c ": < /dev/tcp/$addr/22" 2>/dev/null ;then
-				just _log "{{host}} unlocked at $addr." "LUKS"
-				exit 0
-			fi
-			sleep 2
-		done
-		just _fail "{{host}} left its initrd but never answered on 22 at $addr."
+		# Deliberately NOT waiting for port 22 here: the volume is open, which
+		# is all this recipe promises. Waiting for a first boot to finish is
+		# the caller's job (`full-install` does it with its own timeout), and
+		# doing it twice only adds a way to fail on a host that is fine.
+		just _log "{{host}} unlocked at $addr." "LUKS"
+		exit 0
 	done
 	just _fail "Could not unlock {{host}} at $addr — try 'just enter {{host}}'."
 
