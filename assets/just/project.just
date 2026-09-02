@@ -579,6 +579,25 @@ install host user='nix' ip='auto' do='install':
 	fi
 
 	TARGET_HOST=$(just _resolve "{{host}}" "{{ip}}")
+
+	# nixos-anywhere pins --target-host for the whole run and has no option to
+	# follow a renumbering (only a port change, --post-kexec-ssh-port). So the
+	# address must already be one the machine will KEEP: installing over an OS
+	# still holding an older dynamic lease strands the run the moment the
+	# installer re-runs DHCP and lands on the reserved address.
+	#
+	# `_candidates` without an explicit ip lists exactly the addresses the host
+	# legitimately answers on — its own, its roaming reservation, its name — so
+	# a host installed while visiting another zone still passes.
+	if [ -n "$zonegw" ] ;then
+		expected=$(just _candidates "{{host}}")
+		if ! printf '%s\n' "$expected" | grep -qx -- "$TARGET_HOST" ;then
+			just _err "Installing {{host}} on $TARGET_HOST, which is not an address it keeps."
+			just _err "The installer re-runs DHCP and will move to its reservation mid-install,"
+			just _err "leaving nixos-anywhere talking to nothing. Expected: $(echo $expected)."
+			just _fail "Put the machine on its reserved address first (reboot it), then install there."
+		fi
+	fi
 	just _log "We need to add, commit and build..."
 
 	# Offline half of the LUKS provisioning, BEFORE the build: the module only
