@@ -103,6 +103,87 @@ update-dnf:
 # Installation
 #==============================================================================
 
+# Effective etc/config.yaml entry of one CONCRETE host, as JSON.
+#
+# A `hosts:` entry is not always a host: a `range:` group declares a template
+# and its bounds (`fl-%'02s` + `range: [1, 2]`), a `hosts:` group a `%s`
+# template over named sub-hosts. Only the generator expands them, into
+# var/generated/hosts.nix. So the obvious `select(.hostname == "fl-01")` on the
+# raw config matches NOTHING, and every recipe keyed on the config by host name
+# saw half the fleet as unknown (`just luks fl-01` refused to run on a host it
+# had itself encrypted) or as declaring nothing (`just install` and its DHCP
+# reservation guard).
+#
+# Expansion mirrors `load_hosts` in the generator (nix_generator/configuration.rs):
+# same template syntax, same keys inherited from the group, same per-index
+# `mac:` map. Prints nothing (exit 0) when no group yields that name — the
+# caller decides whether that is fatal.
+_host_conf host:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	cfg={{workDir}}/etc/config.yaml
+	host="{{host}}"
+
+	# `%'<pad><width>s` first, then `%d` and `%s`: the generator's apply_template.
+	tpl() {
+		local out=$1 i=$2 pad width value
+		while [[ $out =~ %\'(.)([0-9]+)s ]] ;do
+			pad=${BASH_REMATCH[1]} ; width=${BASH_REMATCH[2]} ; value=$i
+			while [ ${#value} -lt "$width" ] ;do value="$pad$value" ;done
+			out=${out/"${BASH_REMATCH[0]}"/$value}
+		done
+		out=${out//%d/$i}
+		printf '%s' "${out//%s/$i}"
+	}
+
+	# One pass over the groups: index, hostname template, range bounds, sub-host
+	# keys. Joined with '|' rather than a tab, which is IFS whitespace: bash would
+	# collapse the empty fields of a static host and shift every column.
+	group='' ; index='' ; key=''
+	while IFS='|' read -r g name from to keys ;do
+		[ -n "$name" ] || continue
+		if [ -n "$from" ] ;then
+			for ((i = from; i <= to; i++)) ;do
+				if [ "$(tpl "$name" "$i")" = "$host" ] ;then group=$g ; index=$i ; break ;fi
+			done
+		elif [ -n "$keys" ] ;then
+			for k in ${keys//,/ } ;do
+				if [ "${name//%s/$k}" = "$host" ] ;then group=$g ; key=$k ; break ;fi
+			done
+		elif [ "$name" = "$host" ] ;then
+			group=$g
+		fi
+		[ -z "$group" ] || break
+	done < <(yq -r '.hosts | to_entries | .[] | [.key, (.value.hostname // ""), (.value.range[0] // ""), (.value.range[1] // ""), ((.value.hosts // {}) | keys | join(","))] | join("|")' "$cfg")
+	[ -n "$group" ] || exit 0
+
+	if [ -n "$index" ] ;then
+
+		# Range member: templated hostname/name/zone, MAC read from the indexed
+		# map. `ipv4`, `arch`, `aliases` and `services` stay group-level, a member
+		# never inherits them (cf. build_range_entry).
+		HN="$host" \
+		NM="$(tpl "$(yq -r ".hosts[$group].name // \"\"" "$cfg")" "$index")" \
+		ZN="$(tpl "$(yq -r ".hosts[$group].zone // \"\"" "$cfg")" "$index")" \
+		MC="$(yq -r ".hosts[$group].mac.\"$index\" // \"\"" "$cfg")" \
+			yq -o=json ".hosts[$group]
+				| del(.range, .hosts, .ipv4, .arch, .aliases, .services)
+				| .hostname = strenv(HN) | .name = strenv(NM)
+				| .zone = strenv(ZN) | .mac = strenv(MC)" "$cfg"
+	elif [ -n "$key" ] ;then
+
+		# List member: its own entry, the group keys winning over it, both names
+		# templated on the sub-host (cf. build_list_entry).
+		gname=$(yq -r ".hosts[$group].name // \"\"" "$cfg")
+		sname=$(yq -r ".hosts[$group].hosts.\"$key\".name // \"$key\"" "$cfg")
+		HN="$host" NM="${gname//%s/$sname}" \
+			yq -o=json "(.hosts[$group].hosts.\"$key\" | del(.profile, .users, .groups, .features, .tags, .disko))
+				* (.hosts[$group] | pick([\"profile\", \"users\", \"groups\", \"features\", \"tags\", \"disko\"]))
+				| .hostname = strenv(HN) | .name = strenv(NM)" "$cfg"
+	else
+		yq -o=json ".hosts[$group]" "$cfg"
+	fi
+
 # Address to reach {{host}} from the machine running just.
 #
 # Its own name when both sit in the same zone. Otherwise the address the local
@@ -554,9 +635,10 @@ install host user='nix' ip='auto' do='install':
 	# machine again. dnsmasq keys its reservation on the MAC and DNS publishes
 	# the fixed address of the host's zone: without both, the installed system
 	# takes a random lease and everything after this points at nothing.
-	mac=$(yq -r '(.hosts[] | select(.hostname == "{{host}}") | .mac) // ""' {{workDir}}/etc/config.yaml)
-	zonespec=$(yq -r '(.hosts[] | select(.hostname == "{{host}}") | .zone) // ""' {{workDir}}/etc/config.yaml)
-	extip=$(yq -r '(.hosts[] | select(.hostname == "{{host}}") | .ipv4.external) // ""' {{workDir}}/etc/config.yaml)
+	hostconf=$(just _host_conf "{{host}}")
+	mac=$(echo "$hostconf" | yq -p=json -r '.mac // ""')
+	zonespec=$(echo "$hostconf" | yq -p=json -r '.zone // ""')
+	extip=$(echo "$hostconf" | yq -p=json -r '.ipv4.external // ""')
 
 	# Only where a gateway actually serves the zone: the very first host of a
 	# network has nothing to reserve an address for it, and is installed on an
@@ -1133,8 +1215,8 @@ luks host action='' ip='auto':
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just luks "{{host}}" "{{action}}" "{{ip}}"
 	case "{{action}}" in ''|pre|passwd|show) ;; *) just _fail "Unknown action '{{action}}' — valid: pre, passwd, show" ;; esac
 	manifest={{secretsDir}}/luks.json
-	yq -e '.hosts[] | select(.hostname == "{{host}}")' {{workDir}}/etc/config.yaml >/dev/null 2>&1 \
-		|| just _fail "Unknown host '{{host}}' (see etc/config.yaml)."
+	hostconf=$(just _host_conf "{{host}}")
+	[ -n "$hostconf" ] || just _fail "Unknown host '{{host}}' (see etc/config.yaml)."
 
 	# No LUKS = no-op: keeps the recipe safely callable from `just configure`.
 	if ! grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/disko.nix 2>/dev/null ;then
@@ -1301,9 +1383,7 @@ luks host action='' ip='auto':
 	# re-run). The gateway hostname comes from var/generated/network.nix (same
 	# source as the luks module): the raw config.yaml does not carry it, the
 	# generator derives it from the host profiles.
-	# NB: the parentheses + explicit `| .zone` matter — `select(...).zone`
-	# makes yq emit one empty line per non-matching host, corrupting $zone.
-	zone=$(yq -r '(.hosts[] | select(.hostname == "{{host}}") | .zone) // ""' {{workDir}}/etc/config.yaml)
+	zone=$(echo "$hostconf" | yq -p=json -r '.zone // ""')
 	zone="${zone%%:*}"
 	wanif=$(yq -r ".zones.\"$zone\".gateway.wan.interface // \"\"" {{workDir}}/etc/config.yaml)
 	gwhost=$({{nix}} eval --impure --raw \
@@ -1521,7 +1601,7 @@ _luks-show host target:
 		warn "the running system predates the current configuration (apply pending)"
 	fi
 
-	zone=$(yq -r '(.hosts[] | select(.hostname == "{{host}}") | .zone) // ""' {{workDir}}/etc/config.yaml)
+	zone=$(just _host_conf "{{host}}" | yq -p=json -r '.zone // ""')
 	gwhost=$({{nix}} eval --impure --raw \
 		--expr "(import {{workDir}}/var/generated/network.nix).zones.\"${zone%%:*}\".gateway.hostname or \"\"" 2>/dev/null || echo "")
 	if [ "$gwhost" = "{{host}}" ] ;then
