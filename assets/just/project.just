@@ -1142,12 +1142,18 @@ luks host action='' ip='auto':
 			sops set {{sopsSecretsFile}} '["luks-passphrase"]' "\"$LP\""
 		fi
 
-		# Per-host passphrase: created once, rotated only on explicit 'passwd'.
-		# Empty input degrades to a strong random value: the host stays
-		# unlockable via the shared passphrase and the YubiKeys anyway.
-		if [ "{{action}}" = "passwd" ] \
-			|| ! sops -d --extract '["luks"]["{{host}}"]["passphrase"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
-			echo -n "LUKS passphrase for {{host}} (empty = random): "
+		# Per-host passphrase: the slot handed to the machine's own user, so
+		# they can unlock their station without holding the fleet key. Created
+		# once, rotated only on an explicit 'passwd'.
+		#
+		# NEVER asked at install time: an interactive stop is precisely what
+		# breaks a remote install, and at format time nobody knows yet who will
+		# use the machine — the answer was always "empty". A random value still
+		# earns its slot (a spare that opens the volume, and the fallback of
+		# `just unlock`); `just luks <host> passwd` gives it a chosen value the
+		# day that becomes a question.
+		if [ "{{action}}" = "passwd" ] ;then
+			echo -n "New LUKS passphrase for {{host}} (empty = random): "
 			read -s PP ; echo
 			if [ -n "$PP" ]; then
 				echo -n "Confirm: "
@@ -1158,6 +1164,10 @@ luks host action='' ip='auto':
 				just _log "Random passphrase generated (kept in sops only)." "LUKS"
 			fi
 			sops set {{sopsSecretsFile}} '["luks"]["{{host}}"]["passphrase"]' "\"$PP\""
+		elif ! sops -d --extract '["luks"]["{{host}}"]["passphrase"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
+			sops set {{sopsSecretsFile}} '["luks"]["{{host}}"]["passphrase"]' \
+				"\"$(openssl rand -base64 32)\""
+			just _log "Per-host passphrase generated at random (set one with 'just luks {{host}} passwd')." "LUKS"
 		else
 			just _log "Per-host passphrase already in sops (rotate with 'just luks {{host}} passwd')." "LUKS"
 		fi
