@@ -166,6 +166,28 @@ let
         echo "dnf-unlock: no passphrase on stdin" >&2
         exit 1
       fi
+
+      # `sleep` comes from the initrd's own /bin, like `sh` above.
+      # The initrd sshd answers several seconds before systemd-cryptsetup asks
+      # for anything (measured: four consecutive empty polls on a plain VM).
+      # Failing on an empty queue made `just unlock` spend both its passphrases
+      # on a window where there was nothing to answer, then report a wrong
+      # passphrase — so wait for the request instead of racing it.
+      waited=0
+      while :; do
+        pending=0
+        for ask in /run/systemd/ask-password/ask.*; do
+          [ -e "$ask" ] && pending=1
+        done
+        [ "$pending" -eq 1 ] && break
+        if [ "$waited" -ge 120 ]; then
+          echo "dnf-unlock: no password request after ''${waited}s" >&2
+          exit 1
+        fi
+        sleep 1
+        waited=$((waited + 1))
+      done
+
       answered=0
       for ask in /run/systemd/ask-password/ask.*; do
         [ -e "$ask" ] || continue
@@ -182,7 +204,7 @@ let
         answered=$((answered + 1))
       done
       if [ "$answered" -eq 0 ]; then
-        echo "dnf-unlock: no password request pending" >&2
+        echo "dnf-unlock: request vanished before it could be answered" >&2
         exit 1
       fi
       echo "dnf-unlock: answered $answered request(s)"
