@@ -2022,13 +2022,45 @@ unlock host ip='' timeout='600':
 		exit 0
 	fi
 
-	# Per-host passphrase first — the shared one is the fallback for a volume
-	# whose per-host keyslot is not enrolled yet (fresh install).
-	for key in '["luks"]["{{host}}"]["passphrase"]' '["luks-passphrase"]' ;do
+	# Shared passphrase FIRST: disko formats the volume with it, and the
+	# per-host keyslot is only added later by luks-passphrase-sync, from the
+	# booted system — at the very first boot the shared slot is the only one
+	# that exists. The per-host passphrase stays as the fallback for a host
+	# installed before that was true.
+	#
+	# `dnf-unlock` can only report that it ANSWERED the prompt, never that the
+	# passphrase was accepted: a refused one just makes systemd ask again. So
+	# every attempt is confirmed from here instead.
+	for key in '["luks-passphrase"]' '["luks"]["{{host}}"]["passphrase"]' ;do
 		sops -d --extract "$key" {{sopsSecretsFile}} 2>/dev/null \
 			| ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-				-o ConnectTimeout=10 root@"$addr" dnf-unlock >/dev/null 2>&1 \
-			&& { just _log "{{host}} unlocked at $addr." "LUKS" ; exit 0 ; }
+				-o ConnectTimeout=10 root@"$addr" dnf-unlock >/dev/null 2>&1 || continue
+
+		# A refused passphrase leaves the initrd up and asking again; an
+		# accepted one tears its sshd down within a couple of seconds.
+		refused=1
+		for _ in $(seq 1 15) ;do
+			if ! timeout 2 bash -c ": < /dev/tcp/$addr/2222" 2>/dev/null ;then
+				refused=0
+				break
+			fi
+			sleep 2
+		done
+		if [ "$refused" = "1" ] ;then
+			just _warn "{{host}} refused that passphrase, trying the next one."
+			continue
+		fi
+
+		# Accepted: the host now boots its real system. First boots are slow
+		# (initial activation, sops, home-manager), hence the long window.
+		for _ in $(seq 1 90) ;do
+			if timeout 2 bash -c ": < /dev/tcp/$addr/22" 2>/dev/null ;then
+				just _log "{{host}} unlocked at $addr." "LUKS"
+				exit 0
+			fi
+			sleep 2
+		done
+		just _fail "{{host}} left its initrd but never answered on 22 at $addr."
 	done
 	just _fail "Could not unlock {{host}} at $addr — try 'just enter {{host}}'."
 
