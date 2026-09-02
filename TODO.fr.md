@@ -43,7 +43,7 @@
   - [ ] ISO NixOS + DNF facile à installer.
   - [ ] Documentation user-friendly.
 - [ ] Compléter et améliorer les alertes.
-  - [ ] Plus d'internet : il me dit que hcs est "down" -> faire plutôt une alerte sur hcs qui dit que la zone AG n'est plus accessible.
+  - [x] Plus d'internet : il me dit que hcs est "down" -> faire plutôt une alerte sur hcs qui dit que la zone AG n'est plus accessible.
   - [ ] Pas d'alerte pour les workstations sans service critique.
 
 ### Axes d'amélioration
@@ -85,6 +85,13 @@
 
 ### Fait
 
+- [x] Chiffrement LUKS de la flotte : passphrase partagée + par hôte (sops), keyslots FIDO2 YubiKey, déverrouillage distant par SSH initrd (`just unlock`).
+- [x] Installation d'un hôte chiffré robuste au premier redémarrage (port 2222, sonde d'adresse, roaming, résolution des hôtes groupés).
+- [x] Bureau à distance admin en RDP (`just remote-desktop`) : modes ro / rw / login, tunnel SSH, aucun port ouvert.
+- [x] Profil d'hôte accessibilité `umi` : pilotage au regard (Tobii + Talon), session Cinnamon X11, clavier visuel Onboard.
+- [x] Alerte `PeerGatewayDown` : chaque zone sonde les passerelles voisines, une zone ne pouvant pas signaler sa propre mort.
+- [x] Restic : bind `listenAll` pour les clients hors-zone, run sauté (et non en échec) si le serveur distant est injoignable.
+- [x] Nextcloud : client de bureau pré-lié au SSO, compte en ligne GNOME, secrets internes générés par `just passwd-nextcloud`.
 - [x] Full-OIDC -> immich, nextcloud, forgejo, lasuite docs
 - [x] Ponts Mautrix pour Matrix (whatsapp, telegram, messenger, discord).
   - [x] POC -> implémentation locale.
