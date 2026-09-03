@@ -8,6 +8,12 @@
 #
 # Zsh alias "h" for "headscale".
 # :::
+#
+# :::caution[Public SSH]
+# Port 22 is open on every interface, Internet included — the only host of the
+# fleet in that case: it runs the tailnet control plane, so reaching it must
+# not require the tailnet.
+# :::
 
 {
   lib,
@@ -45,6 +51,12 @@ in
           enable = true;
           isExitNode = true;
         };
+
+        # Public SSH, on purpose. `core.nix` gives a global-zone host SSH on
+        # the tailnet only; but headscale runs here, so a tailnet-only SSH
+        # locks the admin out of the very incident to repair. Compensations
+        # must hold: key-only auth, fail2ban, hardening level.
+        networking.firewall.allowedTCPPorts = [ 22 ];
 
         # Zsh aliases
         programs.zsh.shellAliases.h = "sudo headscale";

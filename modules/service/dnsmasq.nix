@@ -122,6 +122,11 @@ in
       # 67, 68 -> DHCP
       # 80 -> homepage / caddy
       # 8502 -> packages proxy (nix-cache, nginx)
+      #
+      # No 22: `system/core.nix` owns SSH exposure and already opens it here
+      # for a gateway. No WAN block either — the former empty
+      # `interfaces.<wan>` ("No access from internet") closed nothing,
+      # per-interface rules being additive.
       firewall = {
         enable = true;
 
@@ -129,7 +134,6 @@ in
         allowPing = false;
         interfaces.${lanInterface} = {
           allowedTCPPorts = [
-            22
             53
           ]
           ++ lib.optional config.services.caddy.enable 80
@@ -139,12 +143,6 @@ in
             67
             68
           ];
-        };
-
-        # No access from internet
-        interfaces.${wanInterface} = {
-          allowedTCPPorts = [ ];
-          allowedUDPPorts = [ ];
         };
 
         extraInputRules = ''
