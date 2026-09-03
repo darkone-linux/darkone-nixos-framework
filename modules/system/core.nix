@@ -18,17 +18,42 @@
 # Activates the host's profile mixin (`darkone.host.${host.profile}.enable`)
 # and propagates `enableSops` to the sops module.
 # :::
+#
+# :::caution[SSH is opened per interface, not globally]
+# Port 22 is opened globally only on hosts that have no WAN leg. A zone gateway
+# gets it on the LAN bridge (plus the tailnet, a trusted interface there), and
+# a host of the Internet-facing global zone gets it on the tailnet only — a
+# public SSH there is a deliberate decision, taken in the host profile.
+# :::
 
 {
   lib,
   config,
+  dnfLib,
   host,
   pkgs,
   workDir,
+  zone,
   ...
 }:
 let
   cfg = config.darkone.system.core;
+  inherit (dnfLib.constants) lanInterface vpnInterface;
+
+  # SSH exposure depends on how many legs the host has.
+  #
+  # `networking.firewall.allowedTCPPorts` is emitted without any `iifname`:
+  # the rule lands on every interface at once. That is harmless on a machine
+  # whose only link is the zone LAN, and it publishes an SSH server on the
+  # Internet on a machine that also holds a WAN address. Two roles are in that
+  # second case: the gateway of a local zone, and any host of the global
+  # (Internet-facing) zone.
+  isZoneGateway = dnfLib.isGateway host zone;
+  hasWanInterface = isZoneGateway || !(dnfLib.inLocalZone zone);
+
+  # Read from the sshd module rather than hardcoded, so a host that moves its
+  # SSH port keeps a firewall that matches its server.
+  sshPorts = config.services.openssh.ports;
 in
 {
   options = {
@@ -124,7 +149,23 @@ in
       firewall = {
         enable = cfg.enableFirewall;
         allowPing = lib.mkDefault true;
-        allowedTCPPorts = [ 22 ];
+
+        # Single-legged hosts: the only interface is the internal one, so a
+        # global rule and a per-interface rule would emit the same thing.
+        allowedTCPPorts = lib.optionals (!hasWanInterface) sshPorts;
+
+        # Hosts with a WAN leg: name the interface SSH is served on, and only
+        # that one. A gateway is reachable from its zone and, `tailscale0`
+        # being a trusted interface there (service/tailscale.nix), from the
+        # tailnet. A host of the global zone has no LAN: it is reachable
+        # through the tailnet, and a public SSH — if it needs one, as the HCS
+        # does — is declared and justified in its own profile.
+        interfaces = lib.mkIf hasWanInterface (
+          lib.optionalAttrs isZoneGateway { ${lanInterface}.allowedTCPPorts = sshPorts; }
+          // lib.optionalAttrs config.services.tailscale.enable {
+            ${vpnInterface}.allowedTCPPorts = sshPorts;
+          }
+        );
       };
     };
 
@@ -229,7 +270,18 @@ in
     systemd.services."kmsconvt@" = lib.mkIf cfg.enableKmscon { restartIfChanged = lib.mkForce true; };
 
     # To manage nodes, openssh must be activated
-    services.openssh.enable = true;
+    services.openssh = {
+      enable = true;
+
+      # The sshd module's own `openFirewall` (true upstream) emits
+      # `networking.firewall.allowedTCPPorts = ports` — global, no `iifname`,
+      # hence on every interface including a gateway's WAN. It was the real
+      # source of the port 22 open to the Internet on the whole fleet; the
+      # duplicate that used to sit in the `networking.firewall` block above
+      # merely hid it. SSH exposure is decided there, per role, and nowhere
+      # else.
+      openFirewall = false;
+    };
 
     # Write installed packages in /etc/installed-packages
     # environment.etc."installed-packages".text =

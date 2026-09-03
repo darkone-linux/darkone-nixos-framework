@@ -172,8 +172,12 @@ in
         (lib.mkIf (isActive "C4" "minimal" "base" [ ]) {
           networking.firewall.enable = true;
 
-          # Deny-by-default policy: no port open unless explicitly declared
-          networking.firewall.allowedTCPPorts = lib.mkDefault [ 22 ];
+          # Deny-by-default policy: no port open unless explicitly declared.
+          # SSH is NOT re-declared here. It used to be, as a global
+          # `mkDefault [ 22 ]` — a rule with no `iifname`, therefore on every
+          # interface, WAN included: a hardening module reopening the very
+          # hole it is meant to close. `system/core.nix` owns port 22 and
+          # binds it to the interfaces the host's role justifies.
         })
 
         # C4 (egress) — outbound deny-by-default + destination allowlist (reinforced, base)
