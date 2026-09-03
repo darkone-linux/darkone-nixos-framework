@@ -16,6 +16,12 @@
 # once monitoring and Caddy are active.
 # :::
 #
+# :::caution[No authentication, tailnet only]
+# Loki accepts reads and writes from anyone who reaches it. Port 3100 is
+# therefore opened on `tailscale0` alone; `auth_enabled` is Loki's
+# multi-tenancy switch, not a login, and stays `false`.
+# :::
+#
 # :::tip[Debugging & manual cleanup]
 # Most common symptoms after a Loki (de)activation or Caddy log format change:
 #
@@ -27,9 +33,10 @@
 #    sudo journalctl -u alloy -n 100 --no-pager | grep -iE 'error|permission'
 #    ls -la /var/log/caddy/access-*.log   # must be caddy:caddy
 #
-#    # On the monitoring host: is Loki receiving anything?
+#    # On the monitoring host itself, or from the tailnet: is Loki receiving?
 #    # (replace <IP> with the monitoring host's internal IP, Loki does NOT
-#    # bind on 127.0.0.1 — see http_listen_address = bindAddr)
+#    # bind on 127.0.0.1 — see http_listen_address = bindAddr. From a plain
+#    # LAN client the connection is refused, by design.)
 #    curl -s http://<IP>:3100/loki/api/v1/labels | jq
 #    curl -sG http://<IP>:3100/loki/api/v1/query \
 #         --data-urlencode 'query={job="caddy"}' | jq '.data.result | length'
@@ -105,8 +112,21 @@ let
   lokiAddr = dnfLib.preferredIp monitoringHost;
   lokiUrl = "http://${lokiAddr}:${toString port.loki}";
 
-  # Local bind address (VPN if available, otherwise LAN).
+  # Local bind address (VPN if available, otherwise LAN). A gateway usually has
+  # no declared tailnet address and binds on its LAN IP, which stays reachable
+  # from the tailnet: subnet routes keep the LAN address as destination.
   bindAddr = dnfLib.preferredIp host;
+
+  # Exposure is decided by the interface, not by the bind address. Without a
+  # tailnet the internal interface is the only path left.
+  lokiFwPath =
+    if network.coordination.enable then
+      [
+        "interfaces"
+        dnfLib.constants.vpnInterface
+      ]
+    else
+      dnfLib.getInternalInterfaceFwPath host zone;
 in
 {
   options = {
@@ -270,13 +290,10 @@ in
       environment.etc."grafana-dashboards/monitoring-home.json".source = ./loki/monitoring-home.json;
       darkone.service.monitoring.kioskTarget = lib.mkDefault "d/dnf-monitoring-home/home?kiosk";
 
-      # Loki listens on the internal interface (VPN or LAN depending on
-      # topology). On a host without an internal interface, the port opens
-      # globally, which is safe since Loki only runs on the monitoring host
-      # (typically the HCS, already filtered upstream).
-      networking.firewall = lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) {
-        allowedTCPPorts = [ port.loki ];
-      };
+      # Read AND write on the logs, unauthenticated: the LAN opening handed both
+      # to any Wi-Fi client. Grafana and the local Alloy go through `lo`, the
+      # only remote producers are on the tailnet.
+      networking.firewall = lib.setAttrByPath lokiFwPath { allowedTCPPorts = [ port.loki ]; };
     })
 
     #--------------------------------------------------------------------------

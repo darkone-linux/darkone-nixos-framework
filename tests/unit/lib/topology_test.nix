@@ -58,6 +58,7 @@ let
   nfsClientHost = {
     hostname = "nfsclient";
     zone = "lan";
+    ip = "192.168.1.20";
     features.nfs-client = "lan";
   };
   nfsHosts = [
@@ -204,6 +205,7 @@ in
       hasServer = true;
       isServer = true;
       isClient = false;
+      clientIps = [ "192.168.1.20" ];
     };
   };
   testResolveNfsClient = {
@@ -271,7 +273,48 @@ in
       hasServer = false;
       isServer = false;
       isClient = false;
+      clientIps = [ ];
     };
+  };
+
+  # `clientIps` feeds /etc/exports: a host without the feature, the server
+  # itself and a cross-zone client must all stay out of it.
+  testResolveNfsClientIpsExcludesNonClients = {
+    expr =
+      (dnfLib.resolveNfs {
+        host = nfsSrvHost;
+        hosts = nfsHosts ++ [
+          {
+            hostname = "crosszone";
+            zone = "lan";
+            ip = "192.168.1.30";
+            features.nfs-client = "dmz";
+          }
+        ];
+        zone = mockZone;
+        services = nfsServices;
+      }).clientIps;
+    expected = [ "192.168.1.20" ];
+  };
+
+  # A client declared without an address would export to the empty string,
+  # which `exportfs` reads as "everyone".
+  testResolveNfsClientIpsDropsAddressless = {
+    expr =
+      (dnfLib.resolveNfs {
+        host = nfsSrvHost;
+        hosts = [
+          nfsSrvHost
+          {
+            hostname = "noaddr";
+            zone = "lan";
+            features.nfs-client = "lan";
+          }
+        ];
+        zone = mockZone;
+        services = nfsServices;
+      }).clientIps;
+    expected = [ ];
   };
 
   # Two servers in one zone: `count` lets the caller assert the invariant.
