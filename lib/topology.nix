@@ -85,14 +85,24 @@ rec {
       count = builtins.length matches;
       server = if matches == [ ] then null else (builtins.head matches).host;
       serverHost = if server == null then { } else findFirst (h: h.hostname == server) { } hosts;
-      features = host.features or { };
       hasServer = count == 1;
       isServer = server != null && host.hostname == server;
-      isClient =
+
+      # Client predicate, applied to any host of the fleet.
+      isClientHost =
+        h:
         hasServer
-        && !isServer
-        && hasAttr "nfs-client" features
-        && features.nfs-client == (serverHost.zone or null);
+        && h.hostname != server
+        && hasAttr "nfs-client" (h.features or { })
+        && h.features.nfs-client == (serverHost.zone or null);
+      isClient = isClientHost host;
+
+      # `exports(5)` client list: a zone prefix there shares every home with
+      # whatever obtains a LAN address, Wi-Fi guest included. Sorted for a
+      # stable /etc/exports across regenerations.
+      clientIps = lib.sort (a: b: a < b) (
+        lib.unique (map (h: h.ip) (lib.filter (h: isClientHost h && (h.ip or "") != "") hosts))
+      );
     in
     {
       inherit
@@ -101,6 +111,7 @@ rec {
         hasServer
         isServer
         isClient
+        clientIps
         ;
     };
 }

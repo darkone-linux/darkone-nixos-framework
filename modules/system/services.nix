@@ -138,6 +138,9 @@ let
     abort @external
   '';
 
+  # Noise filter, not an access control: `User-Agent` is chosen by the caller,
+  # so one header defeats the whole list. Kept for the log volume it removes;
+  # never count it as a security measure in an audit.
   badBotsSection = ''
     @badbots {
 
@@ -663,15 +666,15 @@ in
         #
         # `tls_server_name` forces the upstream SNI to the FQDN: the gateway
         # dial address is a tailnet IP, but its on-demand TLS keys certs by SNI
-        # and would reject the IP (`tls: internal error`). With the FQDN it
-        # finds the cert synced from the HCS; skip-verify covers the sync window.
+        # and would reject the IP (`tls: internal error`). Under that FQDN the
+        # gateway serves the very certificate issued here and synced to it, so
+        # the peer is verified against the system roots — no skip-verify.
         ++ map (e: {
           "${e.fqdn}" = {
             logFormat = mkIf accessLogEnabled (mkLogFormat e.fqdn);
             extraConfig = ''
               reverse_proxy https://${e.target} {
                 transport http {
-                  tls_insecure_skip_verify
                   tls_server_name {http.request.host}
                 }
                 header_up Host {host}

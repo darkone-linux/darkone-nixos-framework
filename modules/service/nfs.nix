@@ -12,6 +12,12 @@
 # - Only one host have a service `service.nfs`.
 # - Clients need `features = [ "nfs-client" ]`.
 # :::
+#
+# :::caution[Exports are per client IP]
+# Only the declared `nfs-client` hosts of the zone appear in `/etc/exports`; a
+# machine absent from `config.yaml` gets no mount. Root is squashed on every
+# share: a client root is `nobody` on the server.
+# :::
 
 {
   lib,
@@ -33,8 +39,17 @@ let
     inherit host hosts zone;
     inherit (network) services;
   };
-  inherit (nfs) hasServer isServer isClient;
+  inherit (nfs)
+    hasServer
+    isServer
+    isClient
+    clientIps
+    ;
   inherit (config.darkone.system) srv-dirs; # Read only
+
+  # `exports(5)` takes a space-separated list of client specs; a path left
+  # without any spec is exported to the world, hence the guard below.
+  exportTo = opts: lib.concatMapStringsSep " " (ip: "${ip}(${opts})") clientIps;
 in
 assert
   nfs.count <= 1 || builtins.throw "Only one 'nfs' server can be used, found ${toString nfs.count}";
@@ -99,17 +114,28 @@ assert
       # SERVER
       #--------------------------------------------------------------------------
 
-      # Server
+      # No `no_root_squash` on the homes: that single word turns "read another
+      # user's files" into "drop a key in a wheel member's authorized_keys".
+      # No `insecure` either — every client is a Linux kernel mount, which binds
+      # under 1024.
+      #
       # TODO: see if all_squash can work by tweaking idmapd config:
       # https://search.nixos.org/options?channel=unstable&show=services.nfs.idmapd.settings&query=idmapd
       services.nfs.server = lib.mkIf isServer {
         enable = true;
-        exports = ''
-          ${srv-dirs.nfs}    ${zone.networkIp}/${toString zone.prefixLength}(rw,fsid=0,no_subtree_check)
-          ${srv-dirs.homes}  ${zone.networkIp}/${toString zone.prefixLength}(rw,sync,no_subtree_check,no_root_squash)
-          ${srv-dirs.common} ${zone.networkIp}/${toString zone.prefixLength}(rw,nohide,insecure,sync,no_subtree_check,all_squash,anonuid=65534,anongid=100)
+        exports = lib.optionalString (clientIps != [ ]) ''
+          ${srv-dirs.nfs}    ${exportTo "rw,fsid=0,no_subtree_check"}
+          ${srv-dirs.homes}  ${exportTo "rw,sync,no_subtree_check"}
+          ${srv-dirs.common} ${exportTo "rw,nohide,sync,no_subtree_check,all_squash,anonuid=65534,anongid=100"}
         '';
       };
+
+      # Silence is the safe degradation here, but it is worth saying out loud:
+      # the share exists and nothing can reach it.
+      warnings = lib.optional (isServer && clientIps == [ ]) ''
+        darkone.service.nfs: no host declares `features.nfs-client = "${zone.name}"`,
+        ${host.hostname} exports nothing.
+      '';
 
       # Open NFS port, only for lan0 on gateway
       networking.firewall = lib.mkIf isServer (
