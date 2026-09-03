@@ -123,17 +123,10 @@ in
       # 80 -> homepage / caddy
       # 8502 -> packages proxy (nix-cache, nginx)
       #
-      # Port 22 is NOT here: SSH exposure is decided once, per host role, in
-      # `system/core.nix` — which already opens it on this bridge for a
-      # gateway. Two modules opening the same port is how one of them ends up
-      # being the only thing still holding it open.
-      #
-      # Nothing is declared for the WAN interface either. There used to be an
-      # empty `interfaces.<wan>` block here, commented "No access from
-      # internet"; it did nothing. Per-interface rules are additive — an empty
-      # list adds no rule and cancels none. What actually keeps the WAN shut
-      # is that no module emits a rule without an `iifname`, and that is
-      # asserted where those rules are written, not here.
+      # No 22: `system/core.nix` owns SSH exposure and already opens it here
+      # for a gateway. No WAN block either — the former empty
+      # `interfaces.<wan>` ("No access from internet") closed nothing,
+      # per-interface rules being additive.
       firewall = {
         enable = true;
 

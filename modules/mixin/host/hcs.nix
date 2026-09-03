@@ -10,10 +10,9 @@
 # :::
 #
 # :::caution[Public SSH]
-# This profile opens port 22 on every interface, the Internet included. It is
-# the one host of the fleet that does: it runs the tailnet control plane, so
-# reaching it must not require the tailnet. Key-only authentication and
-# fail2ban are what make that acceptable.
+# Port 22 is open on every interface, Internet included — the only host of the
+# fleet in that case: it runs the tailnet control plane, so reaching it must
+# not require the tailnet.
 # :::
 
 {
@@ -53,17 +52,10 @@ in
           isExitNode = true;
         };
 
-        # Public SSH, on purpose.
-        #
-        # The HCS lives in the global zone: its only leg is the Internet, and
-        # `system/core.nix` therefore opens port 22 on the tailnet interface
-        # alone. That is not enough here — the tailnet's own control plane
-        # runs on this host, so a tailnet-only SSH would lock the
-        # administrator out of exactly the incident they need to repair.
-        #
-        # The exposure is real and stated rather than inherited. What makes it
-        # acceptable belongs elsewhere and must stay true: key-only
-        # authentication, fail2ban, and the hardening level of the host.
+        # Public SSH, on purpose. `core.nix` gives a global-zone host SSH on
+        # the tailnet only; but headscale runs here, so a tailnet-only SSH
+        # locks the admin out of the very incident to repair. Compensations
+        # must hold: key-only auth, fail2ban, hardening level.
         networking.firewall.allowedTCPPorts = [ 22 ];
 
         # Zsh aliases
