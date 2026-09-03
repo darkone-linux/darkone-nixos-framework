@@ -42,6 +42,10 @@
 #         --data-urlencode 'query={job="caddy"}' | jq '.data.result | length'
 #    ```
 #
+#    An empty reply on `/loki/api/v1/*` while `/ready` answers 200 is the
+#    frontend advertising the wrong address (see `common.instance_addr`);
+#    `journalctl -u loki | grep frontend=` names it. Restart Loki after a fix.
+#
 # **2. `alloy.service: mkdir data-alloy/remotecfg: permission denied`.**
 #    Orphaned ownership of `/var/lib/alloy` inherited from a former DynamicUser.
 #    The service `ExecStartPre` normally fixes it, but if stuck (e.g. unit in
@@ -189,6 +193,14 @@ in
           common = {
             path_prefix = "/var/lib/loki";
             replication_factor = 1;
+
+            # Propagated to the component rings AND to the query frontend's
+            # advertised address. Loki otherwise picks the host's first private
+            # address, which on a gateway behind a box is the WAN leg: the
+            # querier then dialled `<wan>:9096` while gRPC listened on
+            # `bindAddr`, and every `/loki/api/v1/*` died on a refused dial.
+            instance_addr = bindAddr;
+
             ring = {
               kvstore.store = "inmemory";
               instance_addr = bindAddr;
