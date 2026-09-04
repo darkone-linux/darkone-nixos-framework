@@ -66,9 +66,9 @@ let
   };
 
   # Big cursor and text for gaze precision (~15-30 px). `cursor-size` is
-  # absent from the GNOME set on purpose: the DNF gnome module locks
-  # /org/gnome/desktop/interface/cursor-size host-wide at the same value,
-  # and a write to a locked key aborts the whole `dconf load` at activation.
+  # absent from the GNOME set on purpose: the key is locked host-wide by the
+  # DNF gnome module (`darkone.host.umi` raises it to 48 there), and a write
+  # to a locked key aborts the whole `dconf load` at activation.
   interfaceSettings = {
     text-scaling-factor = 1.25;
   };

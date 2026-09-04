@@ -77,6 +77,11 @@ in
     # Full workstation base (GNOME Wayland for non-gaze users)
     darkone.host.desktop.enable = lib.mkDefault true;
 
+    # Gaze precision: big pointer. Host-wide because the GNOME key is locked
+    # by the DNF gnome module — a home-manager write to it would abort the
+    # whole `dconf load` (cf. `darkone.home.umi`).
+    darkone.graphic.gnome.cursorSize = lib.mkDefault 48;
+
     # Microphone for Talon voice commands, speakers for typing feedback
     darkone.service.audio.enable = lib.mkDefault true;
 
