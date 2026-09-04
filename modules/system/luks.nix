@@ -358,6 +358,23 @@ in
       })
 
       #========================================================================
+      # Clock: the initrd networkd state leaks into stage 2 through /run
+      #========================================================================
+
+      (lib.mkIf (hasNixPub && !config.systemd.network.enable) {
+
+        # Stage 1 networkd's `/run/systemd/netif/state` survives switch-root;
+        # NetworkManager in stage 2 never refreshes it, so timesyncd reads a
+        # frozen `ONLINE_STATE=offline` and never polls NTP. Frozen only when
+        # the unlock outran the DHCP carrier, hence intermittent.
+        systemd.tmpfiles.rules = [ "r! /run/systemd/netif/state" ];
+
+        # timesyncd is `DefaultDependencies=no`: without this edge it races
+        # tmpfiles and can read the state file before the removal.
+        systemd.services.systemd-timesyncd.after = [ "systemd-tmpfiles-setup.service" ];
+      })
+
+      #========================================================================
       # Keyslots: converge shared + per-host passphrases into every header
       #========================================================================
 
