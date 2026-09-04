@@ -441,16 +441,13 @@ copy-id host target='auto':
 	if sudo -i -u nix ssh -o PreferredAuthentications=publickey -o PasswordAuthentication=no -o BatchMode=yes nix@"$t" "true"; then
 		just _info "SSH key already exists for {{host}}, continue..." "SSH"
 	else
-		just _log "Copying id to {{host}} ($t)..." "SSH"
 
-		# Restates the fleet policy (core.nix) rather than relying on it: a
-		# recorded-then-changed key disables password auth, the very thing
-		# ssh-copy-id needs to bootstrap a freshly installed node.
-		sudo -i -u nix ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -f nix@"$t"
+		# No bootstrap left to attempt: core.nix disables password and
+		# keyboard-interactive auth and drops `~/.ssh/authorized_keys`, so
+		# ssh-copy-id has neither a way in nor a file sshd would read. The
+		# deploy key is declarative (`usr/secrets/nix.pub`).
+		just _fail "nix@{{host}} ($t) refuses the deploy key. Check usr/secrets/nix.pub, then re-apply from a channel that still works (console, initrd sshd on 2222)."
 	fi
-	just _log "Cleaning authorized_keys..." "SSH"
-	sudo -i -u nix ssh nix@"$t" '[ -f ~/.ssh/authorized_keys ] && sort -u -o ~/.ssh/authorized_keys ~/.ssh/authorized_keys || true'
-	sudo -i -u nix ssh -o PasswordAuthentication=no -o PubkeyAuthentication=yes nix@"$t" 'echo "OK, it works!"'
 
 	# Gateways pull TLS certs from the HCS over SSH as `nix` (sync-caddy-certs),
 	# so they need the shared deploy PRIVATE key, not just authorized_keys.

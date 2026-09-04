@@ -3,6 +3,11 @@
 # :::danger[Required module]
 # This module is enabled by default (required by DNF configuration).
 # :::
+#
+# :::note[SSH denial by logical group]
+# `sshDeniedGroups` (default `guests`) expands to `DenyUsers` on each host: a
+# member keeps its local session and loses SSH.
+# :::
 
 {
   lib,
@@ -67,6 +72,13 @@ let
           };
     };
   cfg = config.darkone.user.build;
+
+  # `config.yaml` groups are logical (module routing, colmena tags), never
+  # materialised as Unix groups: `DenyGroups` would match nothing. The rule
+  # stays on the group, only its expansion is computed.
+  sshDeniedLogins = lib.filter (
+    login: lib.any (group: lib.elem group (users.${login}.groups or [ ])) cfg.sshDeniedGroups
+  ) host.users;
 in
 {
   options = {
@@ -75,10 +87,26 @@ in
       default = true;
       description = "Users common builder (enabled by default)";
     };
+    darkone.user.build.sshDeniedGroups = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ "guests" ];
+      example = [
+        "guests"
+        "kiosk"
+      ];
+      description = ''
+        Logical groups (`config.yaml`) whose members must never open an SSH
+        session. Expanded per host into `services.openssh.settings.DenyUsers`.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
     users.users = builtins.listToAttrs (map mkUser host.users);
+
+    # Guest accounts exist to open a local session on a shared machine, and
+    # share one password: no SSH. `DenyUsers` wins over any `AllowUsers`.
+    services.openssh.settings.DenyUsers = lib.mkIf (sshDeniedLogins != [ ]) sshDeniedLogins;
 
     # sops is the only password source in DNF: without it every declared account
     # would be created without any credential.

@@ -24,6 +24,12 @@
 # bridge and the tailnet; a global-zone host on the tailnet only — a public SSH
 # there is decided in the host profile.
 # :::
+#
+# :::danger[SSH is key-only]
+# Passwords and keyboard-interactive are off fleet-wide, and only
+# `/etc/ssh/authorized_keys.d/%u` is read: an account without a declared key
+# has no SSH access at all, and `ssh-copy-id` has no bootstrap channel left.
+# :::
 
 {
   lib,
@@ -266,6 +272,19 @@ in
       # `iifname`, so on the WAN too. It was the real source of the
       # fleet-wide public port 22. SSH exposure is decided above, per role.
       openFirewall = false;
+
+      # Public keys only: a password on sshd is the first step of the
+      # password → passwordless sudo → root chain. Keyboard-interactive too,
+      # or PAM reopens the same door.
+      settings = {
+        PasswordAuthentication = false;
+        KbdInteractiveAuthentication = false;
+      };
+
+      # `~/.ssh/authorized_keys` escapes the declarative model: a key dropped
+      # there grants the account for good, unseen by any rebuild. Keys come
+      # from `users.users.<login>.openssh.authorizedKeys` only.
+      authorizedKeysInHomedir = false;
     };
 
     # Write installed packages in /etc/installed-packages
