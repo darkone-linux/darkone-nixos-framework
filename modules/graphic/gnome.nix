@@ -40,6 +40,11 @@ in
       default = 1800;
       description = "Screen-blank delay in seconds (0 = never). Laptops override it to 900 (15 min).";
     };
+    darkone.graphic.gnome.cursorSize = mkOption {
+      type = types.ints.positive;
+      default = 24;
+      description = "Pointer size in pixels, locked host-wide. Gaze hosts (`darkone.host.umi`) raise it to 48.";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -257,7 +262,7 @@ in
               };
               "org/gnome/desktop/interface" = {
                 cursor-theme = "Bibata-Modern-Classic";
-                cursor-size = gvariant.mkInt32 48;
+                cursor-size = gvariant.mkInt32 cfg.cursorSize;
                 icon-theme = "Papirus-Dark";
                 gtk-theme = "Adw-dark"; # not Adwaita-dark
                 color-scheme = "prefer-dark";
