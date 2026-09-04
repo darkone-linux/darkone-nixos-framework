@@ -1,4 +1,10 @@
 # A full-configured forgejo git forge.
+#
+# :::note[SSH access]
+# Push/pull over SSH goes through `AuthorizedKeysCommand`, not through the
+# `authorized_keys` file Forgejo writes in its home: `core.nix` sets
+# `authorizedKeysInHomedir = false`, so sshd never reads that file.
+# :::
 
 {
   lib,
@@ -31,6 +37,16 @@ let
     idmUrl
     ;
   oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
+
+  # sshd key lookup hook: `forgejo keys` queries the forge database and prints
+  # the same `command="… serv key-N"` line Forgejo used to cache in its home.
+  # Copied into /etc because sshd's `safe_path` refuses a group-writable
+  # parent, and `/nix/store` is 1775 root:nixbld.
+  authorizedKeysCommand = pkgs.writeShellScript "forgejo-authorized-keys" ''
+    export GITEA_WORK_DIR=${fjCfg.stateDir}
+    export GITEA_CUSTOM=${fjCfg.customDir}
+    exec ${lib.getExe fjCfg.package} keys -e ${fjCfg.user} -u "$1" -t "$2" -k "$3"
+  '';
 
   # No Kanidm on this network ⇒ skip the OIDC auth-source provisioning.
   hasIdm = idmUrl != null;
@@ -117,6 +133,26 @@ in
       users.users.forgejo = {
         extraGroups = [ "postdrop" ];
       };
+
+      #------------------------------------------------------------------------
+      # SSH access to the forge
+      #------------------------------------------------------------------------
+
+      environment.etc."forgejo-authorized-keys" = {
+        source = authorizedKeysCommand;
+
+        # Not group/other-writable, else sshd rejects the command.
+        mode = "0555";
+      };
+
+      # Scoped to the forge account: a global `AuthorizedKeysCommand` would
+      # query the database on every SSH login of the host. `extraConfig` is
+      # emitted last, so the `Match` block closes the file.
+      services.openssh.extraConfig = ''
+        Match User ${fjCfg.user}
+          AuthorizedKeysCommand /etc/forgejo-authorized-keys %u %t %k
+          AuthorizedKeysCommandUser ${fjCfg.user}
+      '';
 
       #------------------------------------------------------------------------
       # OIDC auth source (Kanidm)
@@ -213,6 +249,10 @@ in
             ROOT_URL = params.href; # URL before reverse proxy
             HTTP_PORT = dnfConfig.network.ports.forgejo;
             LANDING_PAGE = "explore";
+
+            # Keys are served from the database; the home-dir file would be a
+            # cache nothing reads.
+            SSH_CREATE_AUTHORIZED_KEYS_FILE = false;
           };
           DEFAULT = {
             APP_NAME = params.title;
