@@ -13,7 +13,6 @@ sopsAdminKeyDir := home_directory() + '/.config/sops/age'
 sopsAdminKeyFile := sopsAdminKeyDir + '/keys.txt'
 sopsYamlFile := secretsDir + '/.sops.yaml'
 sopsInfraTargetFile := sopsInfraTargetDir + '/infra.key'
-generatedConfigFile := workDir + '/var/generated/config.yaml'
 dnfInstallDir := '/mnt/dnf-install'
 
 # Deploy build location. Empty (default): build each node closure on the host
@@ -957,7 +956,8 @@ full-install host user='nixos' ip='auto':
 	just _done
 	just _log "Don't forget to comment or remove disko config in etc/config.yaml."
 
-# Update the default DNF password
+# Record the fleet default password (hash only, sops). Configures no account:
+# `just passwd <login>` is what opens a session with it.
 [group('install')]
 passwd-default:
 	#!/usr/bin/env bash
@@ -973,7 +973,6 @@ passwd-default:
 	if [ "$PASSWORD" != "$PASSWORD_CONFIRM" ]; then
 		just _fail "Error: not corresponding."
 	fi
-	export PASSWORD
 	BCRYPT_HASH=$(mkpasswd --method=bcrypt --rounds=12 "$PASSWORD")
 	export BCRYPT_HASH
 	just _sops_before_edit
@@ -984,25 +983,10 @@ passwd-default:
 	else
 		echo "{}" >> {{sopsSecretsFile}}
 	fi
-	yq --inplace '."default-password" = strenv(PASSWORD)' {{sopsSecretsFile}}
 	yq --inplace '."default-password-hash" = strenv(BCRYPT_HASH)' {{sopsSecretsFile}}
 	sops -e -i {{sopsSecretsFile}}
-
-	# var/generated/ is owned by the workspace user (generator output, committed
-	# to git). yq --inplace does an atomic rename and needs write access on the
-	# parent dir, not just on the file. Hand both to nix for the duration of the
-	# write; _fix_fs_permissions (below) restores ownership via --reference=. at the end.
-	sudo mkdir -p "$(dirname {{generatedConfigFile}})"
-	sudo chown nix "$(dirname {{generatedConfigFile}})"
-	if [ -f {{generatedConfigFile}} ] ;then
-		sudo chown nix {{generatedConfigFile}}
-	fi
-	if [ ! -f {{generatedConfigFile}} ] ;then
-		echo "{}" >> {{generatedConfigFile}}
-	fi
-	yq --inplace '.network.default."password-hash" = strenv(BCRYPT_HASH)' {{generatedConfigFile}}
 	just _fix_fs_permissions
-	just _log "Password updated, don't forget to deploy" "SOPS"
+	just _log "Default password updated, apply it with 'just passwd <login>'" "SOPS"
 
 # Update a user password
 [group('install')]

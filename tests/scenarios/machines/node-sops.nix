@@ -10,7 +10,11 @@
   testScript = ''
     node1.wait_for_unit("multi-user.target")
 
-    # default-password-hash secret was decrypted and placed by sops-nix.
-    node1.succeed("test -s /run/secrets/default-password-hash")
+    # Per-user hash decrypted before the accounts exist (neededForUsers).
+    node1.succeed("test -s /run/secrets-for-users/user/nix/password-hash")
+
+    # F4: the fleet default password reaches no host.
+    node1.fail("test -e /run/secrets/default-password")
+    node1.fail("test -e /run/secrets/default-password-hash")
   '';
 }

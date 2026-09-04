@@ -37,7 +37,7 @@ die() {
 # calling recipe turns into its step line.
 new() { printf -- '- new secret: %s\n' "$1" >&2; }
 
-for bin in jq nix openssl sops yq; do
+for bin in jq mkpasswd nix openssl sops yq; do
   command -v "$bin" >/dev/null 2>&1 || die "missing dependency: $bin (enter 'nix develop')."
 done
 [ -f "$secrets" ] || die "secrets file not found ($secrets)."
@@ -132,6 +132,16 @@ singleValue() {
   esac
 }
 
+# A login password the admin will have to type (AdGuard web interface) plus the
+# bcrypt hash the service stores. The clear value lands in the companion key
+# `<name>` so `just sops` can hand it back; only the hash reaches a host.
+generateBcrypt() {
+  local key="$1" pass
+  pass="$(singleValue b64)"
+  putSecret "${key%-hash}" "$pass"
+  putSecret "$key" "$(mkpasswd --method=bcrypt --rounds=12 "$pass")"
+}
+
 # Self-signed pair for Kanidm's internal HTTPS listener, as documented in
 # modules/service/idm.nix. Both PEM blocks come back on stdout — key first,
 # certificate second — so the private key never lands on a filesystem.
@@ -155,6 +165,11 @@ generateUnit() {
       *-key) putSecret "$key" "$x509Key" ;;
       *) putSecret "$key" "$x509Chain" ;;
       esac
+      new "$key"
+    done
+  elif [ "$gen" = "bcrypt" ]; then
+    for key in "$@"; do
+      generateBcrypt "$key"
       new "$key"
     done
   else

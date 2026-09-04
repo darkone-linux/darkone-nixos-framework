@@ -39,6 +39,7 @@ rec {
   #
   # - `hex16` / `hex32` : `openssl rand -hex <n>`
   # - `b64`             : `openssl rand -base64 24` (account-style passwords)
+  # - `bcrypt`          : a `b64` password + its bcrypt hash (see below)
   # - `b64url32`        : 32 URL-safe base64 bytes (oauth2-proxy cookie key)
   # - `s3-key-id`       : `GK` + 12 hex bytes (Garage access-key format)
   # - `rsa4096`         : PKCS#8 RSA private key
@@ -46,6 +47,7 @@ rec {
   secretGenerators = [
     "b64"
     "b64url32"
+    "bcrypt"
     "hex16"
     "hex32"
     "rsa4096"
@@ -237,14 +239,29 @@ rec {
       gen = "hex32";
     }
 
+    # open-webui hashes it itself at first start.
+    {
+      pattern = "ai-admin-password";
+      gen = "b64";
+    }
+
+    # AdGuard stores a bcrypt hash and nothing else, but the admin still has to
+    # log in: `bcrypt` also writes the clear password under the companion key
+    # `adguardhome-admin-password`, never materialised on a host.
+    {
+      pattern = "adguardhome-admin-password-hash";
+      gen = "bcrypt";
+    }
+
     #--------------------------------------------------------------------------
     # External: chosen by a human
     #--------------------------------------------------------------------------
 
     # Interactive by design (`just passwd-default`, `just passwd <user>`):
-    # a hash the admin cannot type back is worthless.
+    # a hash the admin cannot type back is worthless. No module consumes
+    # `default-password-hash`; it records the fleet default, nothing more.
     {
-      pattern = "default-password(-hash)?";
+      pattern = "default-password-hash";
       gen = "external";
     }
     {

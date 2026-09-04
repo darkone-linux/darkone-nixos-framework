@@ -178,10 +178,9 @@ _fixtures_gen_secrets:
 		echo "      - *test"
 	} > "$SEC/.sops.yaml"
 
-	# Plaintext secrets the test modules need (default password + per-user hash).
+	# Plaintext secrets the test modules need (fleet default + per-user hash).
 	HASH=$(mkpasswd --method=bcrypt --rounds=12 "test")
 	{
-		echo "default-password: test"
 		echo "default-password-hash: \"${HASH}\""
 		echo "user:"
 		echo "  nix:"
