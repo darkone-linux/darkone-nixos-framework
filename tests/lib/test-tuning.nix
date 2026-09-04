@@ -7,7 +7,7 @@
 # import it into a plain `nixosSystem`; VM sizing lives in the VM helpers.
 # :::
 
-{ lib, ... }: {
+{ lib, config, ... }: {
 
   # Seam: skip workDir-only bits + neutralize headscale/tailscale.
   darkone.test.standalone = true;
@@ -22,7 +22,19 @@
   sops.age.sshKeyPaths = lib.mkForce [ ];
   sops.age.keyFile = lib.mkForce "/etc/sops/age/infra.key";
   sops.age.generateKey = lib.mkForce false;
-  environment.etc."sops/age/infra.key".source = ../fixtures/keys/test-infra.age;
+
+  # `neededForUsers` secrets are installed right after `specialfs`, before the
+  # `etc` snippet: an `environment.etc` key lands too late and the per-user
+  # hashes stay undeployed. Placed by hand, ahead of it.
+  system.activationScripts = lib.mkMerge [
+    {
+      testSopsKey = lib.stringAfter [ "specialfs" ] ''
+        mkdir -p /etc/sops/age
+        install -m 0400 ${../fixtures/keys/test-infra.age} /etc/sops/age/infra.key
+      '';
+    }
+    (lib.mkIf (config.sops.secrets != { }) { setupSecretsForUsers.deps = [ "testSopsKey" ]; })
+  ];
 
   # Provide the self-signed cert fixture for scenarios that need TLS.
   darkone.test.tlsCert = ../fixtures/tls/cert.pem;

@@ -108,13 +108,14 @@ in
       # Open WebUI Service
       #------------------------------------------------------------------------
 
-      # Sops secret
+      # Sops secrets. The admin account gets its own generated password, read
+      # back with `just sops` — open-webui hashes it at first start.
       sops.secrets.${secret} = { };
-      sops.secrets.default-password = { };
+      sops.secrets.ai-admin-password = { };
       sops.templates.open-webui-env-file = {
         content = ''
           OAUTH_CLIENT_SECRET=${config.sops.placeholder.${secret}}
-          WEBUI_ADMIN_PASSWORD=${config.sops.placeholder.default-password}
+          WEBUI_ADMIN_PASSWORD=${config.sops.placeholder.ai-admin-password}
         '';
         mode = "0400";
         owner = "open-webui"; # (non) dynamic user name

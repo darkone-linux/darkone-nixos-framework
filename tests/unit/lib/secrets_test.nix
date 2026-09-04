@@ -100,6 +100,30 @@ in
     expected = "external";
   };
 
+  # Records the fleet default; no module consumes it.
+  testClassifyDefaultHashIsExternal = {
+    expr = classifySecret "default-password-hash";
+    expected = "external";
+  };
+
+  # The clear counterpart was removed from the framework (F4).
+  testClassifyDefaultClearIsUnknown = {
+    expr = classifySecret "default-password";
+    expected = null;
+  };
+
+  # Writes the hash under this key and the clear password under
+  # `adguardhome-admin-password`.
+  testClassifyAdguardAdminHashIsBcrypt = {
+    expr = classifySecret "adguardhome-admin-password-hash";
+    expected = "bcrypt";
+  };
+
+  testClassifyAiAdminPasswordIsGenerated = {
+    expr = classifySecret "ai-admin-password";
+    expected = "b64";
+  };
+
   testClassifyLuksIsExternal = {
     expr = classifySecret "luks/gw-ag/passphrase";
     expected = "external";

@@ -25,6 +25,24 @@ let
 
   # Local PTR domain prefix derived from the LAN network address.
   inherit (dnfLib) extractReversePrefix;
+
+  adminHash = config.sops.secrets.adguardhome-admin-password-hash.path;
+
+  # AdGuard keeps its credentials in its own state file: anything passed
+  # through `settings` lands world-readable in the nix store. Runs as root
+  # (`+` prefix), the unit itself being a DynamicUser barred from /run/secrets.
+  setAdminUser = pkgs.writeShellScript "adguardhome-admin-user" ''
+    set -eu
+    conf="$STATE_DIRECTORY/AdGuardHome.yaml"
+
+    # Rewritten through the existing inode: the file belongs to the dynamic
+    # user, which saves web interface changes back into it.
+    HASH="$(${pkgs.coreutils}/bin/cat ${adminHash})" \
+      ${pkgs.yq-go}/bin/yq '.users = [{"name": "admin", "password": strenv(HASH)}]' \
+      "$conf" > "$conf.new"
+    ${pkgs.coreutils}/bin/cat "$conf.new" > "$conf"
+    ${pkgs.coreutils}/bin/rm -f "$conf.new"
+  '';
 in
 {
   options = {
@@ -109,7 +127,13 @@ in
       # AdguardHome Service
       #------------------------------------------------------------------------
 
-      # TODO: clients from config.yaml + update password
+      # Own admin secret, never the fleet default password. Declarative: a
+      # password changed from the web interface is overwritten at next start.
+      sops.secrets.adguardhome-admin-password-hash = { };
+
+      systemd.services.adguardhome.serviceConfig.ExecStartPre = lib.mkAfter [ "+${setAdminUser}" ];
+
+      # TODO: clients from config.yaml
       services.adguardhome = {
         enable = true;
 
@@ -128,12 +152,6 @@ in
             address = "${toString agh.host}:${toString agh.port}";
             session_ttl = "720h";
           };
-          users = [
-            {
-              name = "admin";
-              password = network.default.password-hash;
-            }
-          ];
           auth_attempts = 5;
           block_auth_min = 1;
           language = zone.lang;
