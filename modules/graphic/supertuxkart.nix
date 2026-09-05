@@ -4,6 +4,13 @@
 # To use in conjonction with homemanager games module!
 # :::
 #
+# :::note[Shared tracks]
+# The tracks share itself lives in `service/stk.nix`. `enableNfsClient` and
+# `nfsServer` are the only knobs a host needs: they wire
+# `darkone.service.stk.{enableClient,serverName}` so a machine configuration
+# never has to name two modules for one game.
+# :::
+#
 # :::caution[Zone-scoped firewall]
 # Game and discovery ports are accepted from the zone prefix only. A STK host
 # that also holds a WAN or tailnet address does not publish the game there.
@@ -14,35 +21,12 @@
   config,
   dnfLib,
   zone,
-  network,
   host,
-  hosts,
   pkgs,
   ...
 }:
 let
   cfg = config.darkone.graphic.supertuxkart;
-
-  # Same resolution as `service/nfs.nix`: the tracks share rides on the zone NFS
-  # server. The former hand-rolled lookup aborted evaluation in a zone with no
-  # NFS service (`.host` on a `""` sentinel).
-  nfs = dnfLib.resolveNfs {
-    inherit host hosts zone;
-    inherit (network) services;
-  };
-  isMainNfsServer = config.darkone.service.nfs.enable && nfs.isServer;
-  nfsServer = "nfs"; # TODO: find a way to obtain the right service fqdn
-  inherit (config.darkone.system) srv-dirs;
-  sharePrefix = if cfg.isNfsServer then srv-dirs.nfs else "/mnt/nfs";
-
-  # Exported to the declared `nfs-client` hosts, like every other share of the
-  # zone; an empty spec would mean "everyone".
-  exportTo = opts: lib.concatMapStringsSep " " (ip: "${ip}(${opts})") nfs.clientIps;
-  hasClients = nfs.clientIps != [ ];
-
-  # `service/nfs.nix` already exports the NFSv4 root on the same host; a second
-  # identical line only earns an `exportfs` duplicate warning.
-  exportsRoot = !config.darkone.service.nfs.enable;
 
   # The global zone carries no prefix: nothing to anchor a source match on.
   inLocalZone = dnfLib.inLocalZone zone;
@@ -50,13 +34,12 @@ let
 in
 {
   options = {
-    darkone.graphic.supertuxkart.enable = lib.mkEnableOption "SuperTuxKart + firewall config + tracks share";
-
-    # TODO: force the central NFS server to be the one sharing
-    darkone.graphic.supertuxkart.isNfsServer = lib.mkOption {
-      type = lib.types.bool;
-      default = isMainNfsServer;
-      description = "NFS server (share tracks), default is the main NFS server. (wip, enable on main server)";
+    darkone.graphic.supertuxkart.enable = lib.mkEnableOption "SuperTuxKart + firewall config";
+    darkone.graphic.supertuxkart.enableNfsClient = lib.mkEnableOption "Mount the shared tracks of the zone's `stk` server";
+    darkone.graphic.supertuxkart.nfsServer = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "Hostname serving the tracks, default is the zone's `stk` service host";
     };
   };
 
@@ -72,31 +55,12 @@ in
     # STK package
     environment.systemPackages = with pkgs; [ supertuxkart ];
 
-    # NFS Share (server)
-    systemd.tmpfiles.rules = [ "d ${sharePrefix}/stk-tracks 0775 nobody users -" ];
-    services.nfs.server = lib.mkIf cfg.isNfsServer {
-      enable = true;
-      exports = lib.optionalString hasClients (
-        lib.optionalString exportsRoot ''
-          ${srv-dirs.nfs}            ${exportTo "rw,fsid=0,no_subtree_check"}
-        ''
-        + ''
-          ${srv-dirs.nfs}/stk-tracks ${exportTo "ro,nohide,async,no_subtree_check,all_squash,anonuid=65534,anongid=100"}
-        ''
-      );
-    };
-
-    # NFS mount (clients)
-    fileSystems."/mnt/nfs/stk-tracks" = lib.mkIf ((!cfg.isNfsServer) && nfs.hasServer) {
-      device = "${nfsServer}.${host.zoneDomain}:/stk-tracks";
-      fsType = "nfs";
-      options = [
-        "x-systemd.automount" # Mount on demand
-        "x-systemd.idle-timeout=600" # Unmount after 10min with no activity
-        "noauto"
-        "noatime"
-        "ro"
-      ];
+    # Facade over the share. Only ever asserts the positive, so the service's
+    # own defaults — false, and the zone's `stk` host — still apply, and a
+    # direct `darkone.service.stk.*` definition does not collide with it.
+    darkone.service.stk = {
+      enableClient = lib.mkIf cfg.enableNfsClient true;
+      serverName = lib.mkIf (cfg.nfsServer != null) cfg.nfsServer;
     };
 
     # Open ports & accept broadcasts (local servers discovery)

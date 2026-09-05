@@ -7,8 +7,8 @@
 # beginner / child profiles.
 #
 # :::caution[NFS bookmarks]
-# Do not declare `gtk.gtk3.bookmarks` from this module — the NFS module
-# (`service/nfs.nix`) owns this file and will overwrite it.
+# Do not declare `gtk.gtk3.bookmarks` from this module — while NFS home shares
+# are on, `home/profiles/minimal/nfs.nix` owns this file and overwrites it.
 # :::
 
 {
