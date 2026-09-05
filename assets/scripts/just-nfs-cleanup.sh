@@ -82,6 +82,7 @@ declare -A GONE=()
 declare -A MADE=()
 declare -A EMPTY=()
 declare -A CLAIMED=()
+declare -A WARNED=()
 
 mark_gone() { GONE["$1"]=1; unset "MADE[$1]" "EMPTY[$1]"; }
 mark_made() { MADE["$1"]=1; EMPTY["$1"]="$2"; unset "GONE[$1]"; }
@@ -182,8 +183,12 @@ purge_duplicates() {
 		done
 		[ "${#present[@]}" -gt 1 ] || continue
 
+		# Both passes see the same unresolvable conflict; report it once.
 		if [ "${#full[@]}" -gt 1 ]; then
-			warn "$kind: doublons non vides (${full[*]}) — arbitrage manuel"
+			if [ -z "${WARNED[$kind]:-}" ]; then
+				WARNED["$kind"]=1
+				warn "$kind: doublons non vides (${full[*]}) — arbitrage manuel"
+			fi
 			continue
 		fi
 
@@ -259,6 +264,7 @@ for HOME_DIR in "$HOMES_ROOT"/*; do
 	echo
 	echo "--- $USER_NAME ($HOME_DIR)"
 	CLAIMED=()
+	WARNED=()
 
 	#--------------------------------------------------------------------------
 	# 1. Our symlinks
