@@ -174,6 +174,10 @@ let
       "/var/lib/immich/thumbs/*"
       "/var/lib/immich/encoded-video/*"
 
+      # Specific home paths
+      "/home/*/src" # projects sources (git)
+      "/home/*/backups" # local backups
+
       # Cloud sync folders, caught by path: a current client writes none of the
       # markers above. `[0-9]*` — it numbers the folder when ~/Nextcloud
       # already exists.
