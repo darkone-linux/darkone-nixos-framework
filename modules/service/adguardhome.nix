@@ -262,12 +262,12 @@ in
                 "https://adguardteam.github.io/HostlistsRegistry/assets/filter_11.txt"
                 "https://adguardteam.github.io/HostlistsRegistry/assets/filter_59.txt"
               ];
-          user_rules = [
-            "! Youtube kids"
-            "@@||youtubekids.com^"
-            "@@||ytimg.com^"
-            "@@||googlevideo.com^"
-          ];
+          # user_rules = [
+          #   "! Youtube kids"
+          #   "@@||youtubekids.com^"
+          #   "@@||ytimg.com^"
+          #   "@@||googlevideo.com^"
+          # ];
           dhcp.enable = false;
         };
       };
