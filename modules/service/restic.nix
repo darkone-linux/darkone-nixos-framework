@@ -52,6 +52,12 @@
 # surfaces, through ResticBackupStale / ResticBackupCritical, which watch the
 # last successful run.
 # :::
+
+# :::note[Cloud sync folders are never backed up]
+# A Nextcloud/ownCloud sync folder replicates a server-side original that is
+# backed up on its own, and restic never dedups across repositories. Caught by
+# path (`/home/*/Nextcloud`, numbered variants included) and by journal marker.
+# :::
 #
 # :::caution[`listenAll` widens the bind, not the firewall]
 # The server binds `params.ip`, i.e. the LAN address on a gateway. Clients
@@ -104,7 +110,17 @@ let
     # REST credential (username + password), unused for local repositories.
     environmentFile = config.sops.templates."restic-rest-env".path;
     timerConfig.Persistent = false;
-    extraBackupArgs = lib.optionals cfg.enableDryRun [
+    # Cloud sync replicas: the server-side original is backed up already, and
+    # restic never dedups across repositories. Legacy folders only — client 34
+    # dropped SyncRunFileLog, and the `.sync_<hash>.db` it still writes is out
+    # of reach of `--exclude-if-present`, which matches literally.
+    extraBackupArgs = [
+      "--exclude-if-present"
+      ".nextcloudsync.log"
+      "--exclude-if-present"
+      ".owncloudsync.log"
+    ]
+    ++ lib.optionals cfg.enableDryRun [
       "--dry-run"
       "-v"
     ];
@@ -134,7 +150,8 @@ let
     ];
   };
 
-  # Specific options for the "system" category (full root, minus volatile data).
+  # Specific options for the "system" category (full root, minus volatile data
+  # and cloud replicas).
   systemBkpConfig = {
     paths = [ "/" ];
     exclude = [
@@ -156,6 +173,12 @@ let
       "/var/lock"
       "/var/lib/immich/thumbs/*"
       "/var/lib/immich/encoded-video/*"
+
+      # Cloud sync folders, caught by path: a current client writes none of the
+      # markers above. `[0-9]*` — it numbers the folder when ~/Nextcloud
+      # already exists.
+      "/home/*/Nextcloud"
+      "/home/*/Nextcloud[0-9]*"
     ];
   };
 
