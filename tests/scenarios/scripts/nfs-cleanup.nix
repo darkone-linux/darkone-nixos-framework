@@ -4,7 +4,9 @@
 # regression there costs files, not a red tick. Three bugs found while writing
 # it are locked down here — a non-predictive `check`, a share directory reached
 # by two localized names being repatriated twice, and leftovers reported from
-# sources the run had already moved.
+# sources the run had already moved. A fourth, found in production: the purge
+# ran before xdg-user-dirs recreated the locale names, so the duplicates that
+# creation itself made were never swept.
 #
 # Runs the script in `check` mode only: it writes nothing, needs no root, and
 # carries the whole decision table. `apply` executes the very same list, which
@@ -26,14 +28,16 @@ let
       [check] restaure Images.bak -> Images (N)
       [check] restaure Pictures.bak -> Pictures (N)
       [check] rmdir Pictures (vide, doublon de Images)
-      [check] régénère les répertoires XDG (recrée : DESKTOP DOWNLOAD MUSIC PUBLICSHARE TEMPLATES VIDEOS)
+      [check] régénère user-dirs.dirs (crée : Desktop Downloads Music Pictures Public Templates Videos)
+      [check] rmdir Pictures (vide, doublon de Images)
       [check] rm .config/gtk-3.0/bookmarks (signets vers le partage)
     === SERVER ===
       [check] rapatrie TMP/srv/nfs/homes/USER/Documents (N) -> Documents
       [check] rapatrie TMP/srv/nfs/homes/USER/Pictures (N) -> Images
       [check] rm Pictures -> TMP/srv/nfs/homes/USER/Pictures (déjà rapatrié dans Images)
       [check] rm Public -> TMP/srv/nfs/common (partage commun, données laissées en place)
-      [check] régénère les répertoires XDG (recrée : DESKTOP DOWNLOAD MUSIC PUBLICSHARE TEMPLATES VIDEOS)
+      [check] régénère user-dirs.dirs (crée : Desktop Downloads Music Pictures Public Templates Videos)
+      [check] rmdir Pictures (vide, doublon de Images)
       [!] reste dans le partage : TMP/srv/nfs/homes/USER/Desktop (N) — aucun lien ne le réclamait
   '';
 in
