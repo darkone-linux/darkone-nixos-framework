@@ -52,6 +52,9 @@
       laptop.triggers.always = [ "loadAll" ];
     };
   };
+  stk = {
+    reverseProxy = false;
+  };
   restic = {
     reverseProxy = false;
     activation.profiles.minimal.triggers.keys = {

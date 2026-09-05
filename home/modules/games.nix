@@ -20,10 +20,12 @@ let
   moreCli = cfg.enableMore && cli;
   stk = isChildOrTeen || cfg.enableStk;
 
-  # STK
-  hasStkShare = stk && osConfig.darkone.graphic.supertuxkart.enable;
-  isStkServer = osConfig.darkone.graphic.supertuxkart.isNfsServer;
-  stkSharePrefix = if isStkServer then osConfig.darkone.system.srv-dirs.nfs else "/mnt/nfs";
+  # STK shared tracks: local on the serving host, NFS mount elsewhere.
+  stkCfg = osConfig.darkone.service.stk;
+  isStkServer = stkCfg.enable;
+  hasStkShare = stk && (isStkServer || stkCfg.enableClient);
+  stkTracks =
+    if isStkServer then osConfig.darkone.system.srv-dirs.stkTracks else "/mnt/nfs/stk-tracks";
 in
 {
   options = {
@@ -35,11 +37,6 @@ in
     darkone.home.games.enableCli = lib.mkEnableOption "Cli Games";
     darkone.home.games.enableStk = lib.mkEnableOption "SuperTuxKart (only)";
     darkone.home.games.enableMore = lib.mkEnableOption "More (secondary) games in each categories";
-    darkone.home.games.stkServer = lib.mkOption {
-      type = lib.types.str;
-      default = osConfig.darkone.service.nfs.serverDomain;
-      description = "STK server domain name";
-    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -102,7 +99,7 @@ in
     # STK link to shared tracks
     systemd.user.tmpfiles.rules = lib.mkIf hasStkShare [
       "d ${config.home.homeDirectory}/.local/share/supertuxkart/addons 0755 ${config.home.username} users -"
-      "L+ ${config.home.homeDirectory}/.local/share/supertuxkart/addons/tracks - - - - ${stkSharePrefix}/stk-tracks"
+      "L+ ${config.home.homeDirectory}/.local/share/supertuxkart/addons/tracks - - - - ${stkTracks}"
     ];
   };
 }

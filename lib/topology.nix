@@ -63,6 +63,31 @@ rec {
     else
       "127.0.0.1";
 
+  # Resolve which host serves `name` in this zone, seen from `host`.
+  #
+  # Server side only: a service whose clients are opt-in per host (cf. `stk`)
+  # has no fleet-wide client list to derive. `count` is exposed so callers can
+  # assert the single-server invariant.
+  resolveZoneService =
+    {
+      name,
+      host,
+      hosts,
+      zone,
+      services,
+    }:
+    let
+      matches = builtins.filter (s: s.name == name && s.zone == zone.name) services;
+      count = builtins.length matches;
+      server = if matches == [ ] then null else (builtins.head matches).host;
+      serverHost = if server == null then { } else findFirst (h: h.hostname == server) { } hosts;
+    in
+    {
+      inherit count server serverHost;
+      hasServer = count == 1;
+      isServer = server != null && host.hostname == server;
+    };
+
   # Resolve the NFS topology seen from `host`: who serves the zone, and is this
   # host the server or one of its clients?
   #

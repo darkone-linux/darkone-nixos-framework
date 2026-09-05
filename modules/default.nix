@@ -70,6 +70,7 @@
     ./service/prometheus.nix
     ./service/restic.nix
     ./service/searx.nix
+    ./service/stk.nix
     ./service/tailscale.nix
     ./service/turn.nix
     ./service/vaultwarden.nix

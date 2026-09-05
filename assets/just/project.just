@@ -2230,6 +2230,41 @@ fix-zsh on:
 	just _log "Fixing ZSH on {{on}}..."
 	colmena exec --on "{{on}}" "rm -f .zshrc.bkp"
 
+# Undo the NFS home wiring left by `home/profiles/minimal/nfs.nix`: dead XDG
+# symlinks removed, `<dir>.bak` restored, empty FR/EN duplicates dropped, XDG
+# dirs regenerated for the current locale. On the former NFS server the data is
+# repatriated from /srv/nfs/homes into each home.
+#
+# Run it AFTER NFS has been disabled and the host re-applied — the script
+# refuses to touch a home while /mnt/nfs/homes is still mounted. `check` (the
+# default) writes nothing and prints exactly what `apply` would do.
+#
+# `on` is a comma-separated list of hostnames, or `all` for every hive node.
+#
+# Clean up the homes of a host that has left NFS (check | apply)
+[group('manage')]
+nfs-cleanup on mode='check':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just nfs-cleanup "{{on}}" "{{mode}}"
+	case "{{mode}}" in check|apply) ;; *) just _fail "mode must be 'check' or 'apply'." ;; esac
+	script="{{assetsDir}}/scripts/just-nfs-cleanup.sh"
+	[ -f "$script" ] || just _fail "missing $script"
+	if [ "{{on}}" = "all" ] ;then
+		nodes=$(just _hive-nodes)
+	else
+		nodes=$(echo "{{on}}" | tr ',' ' ')
+	fi
+	[ -n "$nodes" ] || just _fail "No target host."
+	for node in $nodes ;do
+		just _log "Cleaning homes on $node ({{mode}})..." "NFS"
+
+		# `-H` gives ssh the nix user's HOME so it uses ~nix/.ssh. The script is
+		# piped in rather than copied: nothing is left behind on the host.
+		ssh -o BatchMode=yes nix@"$node" "sudo MODE={{mode}} bash -s" < "$script" \
+			|| just _warn "$node: cleanup exited non-zero."
+	done
+
 # Multi garbage collector (using colmena)
 [group('manage')]
 gc on:

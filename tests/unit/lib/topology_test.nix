@@ -334,4 +334,110 @@ in
       }).count;
     expected = 2;
   };
+
+  # ----- resolveZoneService -----
+
+  # `serverHost` is the resolved host attrset, needed to address the share.
+  testResolveZoneServiceServer = {
+    expr = dnfLib.resolveZoneService {
+      name = "stk";
+      host = nfsSrvHost;
+      hosts = nfsHosts;
+      zone = mockZone;
+      services = [
+        {
+          name = "stk";
+          host = "nfssrv";
+          zone = "lan";
+        }
+      ];
+    };
+    expected = {
+      count = 1;
+      server = "nfssrv";
+      serverHost = nfsSrvHost;
+      hasServer = true;
+      isServer = true;
+    };
+  };
+
+  # Seen from a non-server host of the same zone.
+  testResolveZoneServiceOtherHost = {
+    expr =
+      (dnfLib.resolveZoneService {
+        name = "stk";
+        host = nfsClientHost;
+        hosts = nfsHosts;
+        zone = mockZone;
+        services = [
+          {
+            name = "stk";
+            host = "nfssrv";
+            zone = "lan";
+          }
+        ];
+      }).isServer;
+    expected = false;
+  };
+
+  # A server declared in another zone must not leak into this one.
+  testResolveZoneServiceOtherZone = {
+    expr = dnfLib.resolveZoneService {
+      name = "stk";
+      host = nfsClientHost;
+      hosts = nfsHosts;
+      zone = mockZone;
+      services = [
+        {
+          name = "stk";
+          host = "nfssrv";
+          zone = "dmz";
+        }
+      ];
+    };
+    expected = {
+      count = 0;
+      server = null;
+      serverHost = { };
+      hasServer = false;
+      isServer = false;
+    };
+  };
+
+  # Another service of the same zone must not answer for `stk`.
+  testResolveZoneServiceOtherName = {
+    expr =
+      (dnfLib.resolveZoneService {
+        name = "stk";
+        host = nfsClientHost;
+        hosts = nfsHosts;
+        zone = mockZone;
+        services = nfsServices;
+      }).hasServer;
+    expected = false;
+  };
+
+  # Two servers in one zone: `count` lets the caller assert the invariant.
+  testResolveZoneServiceTwoServers = {
+    expr =
+      (dnfLib.resolveZoneService {
+        name = "stk";
+        host = nfsClientHost;
+        hosts = nfsHosts;
+        zone = mockZone;
+        services = [
+          {
+            name = "stk";
+            host = "nfssrv";
+            zone = "lan";
+          }
+          {
+            name = "stk";
+            host = "otherhost";
+            zone = "lan";
+          }
+        ];
+      }).count;
+    expected = 2;
+  };
 }

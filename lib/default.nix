@@ -56,6 +56,7 @@ in
     isHcs
     preferredIp
     resolveNfs
+    resolveZoneService
     ;
   inherit (serviceParams)
     buildServiceParams

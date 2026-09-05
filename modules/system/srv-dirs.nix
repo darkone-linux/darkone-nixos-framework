@@ -22,11 +22,12 @@ in
   options = {
     darkone.system.srv-dirs.enable = mkOption {
       type = types.bool;
-      default = cfg.enableNfs || cfg.enableMedias;
+      default = cfg.enableNfs || cfg.enableMedias || cfg.enableStk;
       description = "Enable srv dirs, create the root dir (default /srv)";
     };
     darkone.system.srv-dirs.enableNfs = mkEnableOption "Enable nfs service paths (nfs/common, nfs/homes)";
     darkone.system.srv-dirs.enableMedias = mkEnableOption "Enable media services paths (medias/[videos|music|incomming/...])";
+    darkone.system.srv-dirs.enableStk = mkEnableOption "Enable SuperTuxKart tracks share path (nfs/stk-tracks)";
 
     darkone.system.srv-dirs.root = mkOption {
       type = types.str;
@@ -44,6 +45,10 @@ in
     darkone.system.srv-dirs.common = mkOption {
       type = types.str;
       description = "Shared common directory (/srv/nfs/common linked to ~/Public)";
+    };
+    darkone.system.srv-dirs.stkTracks = mkOption {
+      type = types.str;
+      description = "SuperTuxKart shared tracks directory (/srv/nfs/stk-tracks)";
     };
     darkone.system.srv-dirs.medias = mkOption {
       type = types.str;
@@ -77,6 +82,7 @@ in
       darkone.system.srv-dirs.nfs = mkDefault "${cfg.root}/nfs";
       darkone.system.srv-dirs.homes = mkDefault "${cfg.nfs}/homes";
       darkone.system.srv-dirs.common = mkDefault "${cfg.nfs}/common";
+      darkone.system.srv-dirs.stkTracks = mkDefault "${cfg.nfs}/stk-tracks";
       darkone.system.srv-dirs.medias = mkDefault "${cfg.root}/medias";
       darkone.system.srv-dirs.music = mkDefault "${cfg.medias}/music";
       darkone.system.srv-dirs.videos = mkDefault "${cfg.medias}/videos";
@@ -95,6 +101,10 @@ in
           message = "Missing enable with enableMedias";
         }
         {
+          assertion = cfg.enable || !cfg.enableStk;
+          message = "Missing enable with enableStk";
+        }
+        {
           assertion = hasPrefix cfg.root cfg.nfs;
           message = "Root dir isn't nfs dir prefix";
         }
@@ -105,6 +115,10 @@ in
         {
           assertion = hasPrefix cfg.nfs cfg.common;
           message = "Nfs dir isn't common dir prefix";
+        }
+        {
+          assertion = hasPrefix cfg.nfs cfg.stkTracks;
+          message = "Nfs dir isn't stkTracks dir prefix";
         }
         {
           assertion = hasPrefix cfg.root cfg.medias;
@@ -145,8 +159,10 @@ in
       systemd.tmpfiles.rules = [
         "d ${cfg.root} 0755 root root -"
       ]
+      ++ optional (cfg.enableNfs || cfg.enableStk) "d ${cfg.nfs} 0755 root root -"
       ++ optional cfg.enableNfs "d ${cfg.homes} 0755 root root -"
       ++ optional cfg.enableNfs "d ${cfg.common} 0770 common-files users -"
+      ++ optional cfg.enableStk "d ${cfg.stkTracks} 0775 nobody users -"
       ++ optional cfg.enableMedias "d ${cfg.music} 0770 common-files common-files -"
       ++ optional cfg.enableMedias "d ${cfg.videos} 0770 common-files common-files -"
       ++ optional cfg.enableMedias "d ${cfg.incoming} 0770 common-files common-files -"
