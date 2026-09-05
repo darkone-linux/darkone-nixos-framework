@@ -59,6 +59,7 @@ C_OK=$'\033[32m'; C_WARN=$'\033[33m'; C_ERR=$'\033[31m'; C_OFF=$'\033[0m'
 
 ACTIONS=0
 WARNINGS=0
+TOTAL_KB=0
 
 is_empty_dir() { [ -z "$(ls -A -- "$1" 2>/dev/null)" ]; }
 
@@ -113,15 +114,45 @@ p_empty() {
 
 human() { du -sh --apparent-size -- "$1" 2>/dev/null | cut -f1; }
 
-# Repatriate a directory across btrfs subvolumes. `/home` and `/srv` are two
-# subvolumes of the same filesystem, so rename() returns EXDEV; a reflink copy
-# is near-free there and degrades to a plain copy anywhere else.
+# Free space, in KiB, of the filesystem holding `$1`.
+avail_kb() { df -Pk -- "$1" | awk 'NR == 2 { print $4 }'; }
+
+# Apparent size, in KiB.
+size_kb() { du -s --apparent-size -- "$1" 2>/dev/null | cut -f1; }
+
+# Move a share directory back into the home, cheapest way first.
+#
+# `/home` and `/srv` are usually two subvolumes of one btrfs: rename() returns
+# EXDEV, but a reflink shares the extents instead of duplicating them. Which
+# matters — the share can hold far more than the filesystem has free, and
+# `--reflink=auto` would degrade to a full copy without saying a word.
 repatriate() {
 	local src="$1" dst="$2" owner="$3"
-	cp -a --reflink=auto -T -- "$src" "$dst" || return 1
+
+	# Same subvolume: instant, no space, nothing to verify afterwards.
+	if mv -T -- "$src" "$dst" 2>/dev/null; then
+		chown -R -- "$owner:users" "$dst"
+		return
+	fi
+
+	# Same filesystem, different subvolume: extents shared, near-free.
+	if ! cp -a --reflink=always -T -- "$src" "$dst" 2>/dev/null; then
+
+		# Genuinely distinct filesystems: a real copy, so refuse to start one
+		# that cannot finish rather than fill the disk halfway through.
+		local need avail
+		need=$(size_kb "$src")
+		avail=$(avail_kb "$(dirname -- "$dst")")
+		if [ "${need:-0}" -ge "${avail:-0}" ]; then
+			echo "not enough free space: ${need}K needed, ${avail}K available" >&2
+			return 1
+		fi
+		cp -a -T -- "$src" "$dst" || return 1
+	fi
+
 	local a b
-	a=$(du -s --apparent-size -- "$src" 2>/dev/null | cut -f1)
-	b=$(du -s --apparent-size -- "$dst" 2>/dev/null | cut -f1)
+	a=$(size_kb "$src")
+	b=$(size_kb "$dst")
 	[ "$a" = "$b" ] || { echo "size mismatch $a != $b" >&2; return 1; }
 	chown -R -- "$owner:users" "$dst" || return 1
 	rm -rf -- "$src"
@@ -197,6 +228,7 @@ for HOME_DIR in "$HOMES_ROOT"/*; do
 					if [ -d "$TARGET" ]; then
 						SRC_EMPTY=0
 						is_empty_dir "$TARGET" && SRC_EMPTY=1
+						TOTAL_KB=$((TOTAL_KB + $(size_kb "$TARGET")))
 						act "rapatrie $TARGET ($(human "$TARGET")) -> $NAME"
 						run rm -f -- "$P"
 						if [ "$MODE" = "apply" ] && ! repatriate "$TARGET" "$P" "$USER_NAME"; then
@@ -365,5 +397,16 @@ done
 
 echo
 echo "=== ${HOSTNAME:-$(uname -n)}: $ACTIONS action(s), $WARNINGS avertissement(s) — mode=$MODE ==="
+
+# The share routinely holds more than the target filesystem has free: say so
+# up front, since only a same-btrfs reflink makes that a non-issue.
+if [ "$TOTAL_KB" -gt 0 ]; then
+	AVAIL_KB=$(avail_kb "$HOMES_ROOT")
+	echo "    à rapatrier : $(numfmt --to=iec --from-unit=1024 "$TOTAL_KB")" \
+		"| libre sur $HOMES_ROOT : $(numfmt --to=iec --from-unit=1024 "$AVAIL_KB")"
+	if [ "$TOTAL_KB" -ge "${AVAIL_KB:-0}" ]; then
+		echo "    ${C_WARN}le partage dépasse la place libre : seul un reflink (même btrfs) rend l'opération possible${C_OFF}"
+	fi
+fi
 [ "$MODE" = "check" ] && echo "    (aucune écriture ; relancer avec 'apply' pour exécuter)"
 exit 0
