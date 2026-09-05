@@ -131,8 +131,8 @@ repatriate() {
 # Guards
 #------------------------------------------------------------------------------
 
-[ "$(id -u)" -eq 0 ] || die "must run as root."
 case "$MODE" in check|apply) ;; *) die "unknown mode '$MODE' (check|apply)." ;; esac
+[ "$MODE" = "check" ] || [ "$(id -u)" -eq 0 ] || die "apply must run as root."
 
 # NFS must already be off: while /mnt/nfs/homes is mounted the links are alive
 # and indistinguishable from the server's own.
@@ -143,7 +143,7 @@ fi
 IS_SERVER=0
 [ -d "$SRV_NFS/homes" ] && IS_SERVER=1
 
-echo "=== nfs-cleanup on $(hostname) — mode=$MODE, server=$IS_SERVER ==="
+echo "=== nfs-cleanup on ${HOSTNAME:-$(uname -n)} — mode=$MODE, server=$IS_SERVER ==="
 
 #------------------------------------------------------------------------------
 # Per-home pass
@@ -364,6 +364,6 @@ for HOME_DIR in "$HOMES_ROOT"/*; do
 done
 
 echo
-echo "=== $(hostname): $ACTIONS action(s), $WARNINGS avertissement(s) — mode=$MODE ==="
+echo "=== ${HOSTNAME:-$(uname -n)}: $ACTIONS action(s), $WARNINGS avertissement(s) — mode=$MODE ==="
 [ "$MODE" = "check" ] && echo "    (aucune écriture ; relancer avec 'apply' pour exécuter)"
 exit 0
