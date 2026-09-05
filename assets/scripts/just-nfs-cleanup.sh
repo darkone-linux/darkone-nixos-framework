@@ -159,6 +159,48 @@ repatriate() {
 }
 
 #------------------------------------------------------------------------------
+# Duplicate purge
+#------------------------------------------------------------------------------
+#
+# Runs twice: once after the `.bak` restores, once after xdg-user-dirs has
+# recreated what the locale wants — which itself creates duplicates when an
+# English leftover held the kind on its own.
+
+purge_duplicates() {
+	local home="$1" kind name keep p
+	local -a all present full
+
+	for kind in $KINDS; do
+		read -ra all <<< "$(names_of "$kind")"
+		present=()
+		full=()
+		for name in "${all[@]}"; do
+			p="$home/$name"
+			p_isdir "$p" || continue
+			present+=("$name")
+			p_empty "$p" || full+=("$name")
+		done
+		[ "${#present[@]}" -gt 1 ] || continue
+
+		if [ "${#full[@]}" -gt 1 ]; then
+			warn "$kind: doublons non vides (${full[*]}) — arbitrage manuel"
+			continue
+		fi
+
+		# Keep the one holding data; failing that, the name this locale wants.
+		keep="${LOCALE_NAME[$kind]:-${all[0]}}"
+		[ "${#full[@]}" -eq 1 ] && keep="${full[0]}"
+
+		for name in "${present[@]}"; do
+			[ "$name" = "$keep" ] && continue
+			act "rmdir $name (vide, doublon de $keep)"
+			run rmdir -- "$home/$name"
+			mark_gone "$home/$name"
+		done
+	done
+}
+
+#------------------------------------------------------------------------------
 # Guards
 #------------------------------------------------------------------------------
 
@@ -173,6 +215,34 @@ fi
 
 IS_SERVER=0
 [ -d "$SRV_NFS/homes" ] && IS_SERVER=1
+
+#------------------------------------------------------------------------------
+# Locale probe
+#------------------------------------------------------------------------------
+#
+# Ask xdg-user-dirs itself which name each kind takes here, in a throwaway HOME.
+# The table above only says which names to *consider*; guessing which one the
+# locale wants would hardcode fr_FR into the decision logic.
+
+XDU=$(command -v xdg-user-dirs-update || true)
+declare -A LOCALE_NAME=()
+
+if [ -n "$XDU" ]; then
+	XDG_SHARE="$(dirname "$(dirname "$(readlink -f "$XDU")")")/share"
+	PROBE=$(mktemp -d)
+	trap 'rm -rf -- "$PROBE"' EXIT
+	HOME="$PROBE" XDG_DATA_DIRS="$XDG_SHARE" "$XDU" --force >/dev/null 2>&1 || true
+	if [ -f "$PROBE/.config/user-dirs.dirs" ]; then
+
+		# shellcheck disable=SC1091 # generated file, read in a subshell HOME
+		while IFS='=' read -r K V; do
+			case "$K" in XDG_*_DIR) ;; *) continue ;; esac
+			K=${K#XDG_}; K=${K%_DIR}
+			V=${V%\"}; V=${V##*/}
+			[ -n "$V" ] && LOCALE_NAME["$K"]="$V"
+		done < "$PROBE/.config/user-dirs.dirs"
+	fi
+fi
 
 echo "=== nfs-cleanup on ${HOSTNAME:-$(uname -n)} — mode=$MODE, server=$IS_SERVER ==="
 
@@ -278,34 +348,7 @@ for HOME_DIR in "$HOMES_ROOT"/*; do
 	# 3. Drop empty FR/EN duplicates
 	#--------------------------------------------------------------------------
 
-	for KIND in $KINDS; do
-		read -ra ALL <<< "$(names_of "$KIND")"
-		PRESENT=()
-		FULL=()
-		for NAME in "${ALL[@]}"; do
-			P="$HOME_DIR/$NAME"
-			p_isdir "$P" || continue
-			PRESENT+=("$NAME")
-			p_empty "$P" || FULL+=("$NAME")
-		done
-		[ "${#PRESENT[@]}" -gt 1 ] || continue
-
-		if [ "${#FULL[@]}" -gt 1 ]; then
-			warn "$KIND: doublons non vides (${FULL[*]}) — arbitrage manuel"
-			continue
-		fi
-
-		# Nothing to arbitrate: keep the one holding data, else the fr_FR name.
-		KEEP="${ALL[0]}"
-		[ "${#FULL[@]}" -eq 1 ] && KEEP="${FULL[0]}"
-
-		for NAME in "${PRESENT[@]}"; do
-			[ "$NAME" = "$KEEP" ] && continue
-			act "rmdir $NAME (vide, doublon de $KEEP)"
-			run rmdir -- "$HOME_DIR/$NAME"
-			mark_gone "$HOME_DIR/$NAME"
-		done
-	done
+	purge_duplicates "$HOME_DIR"
 
 	#--------------------------------------------------------------------------
 	# 4. Regenerate XDG dirs for the current locale
@@ -315,53 +358,38 @@ for HOME_DIR in "$HOMES_ROOT"/*; do
 	# find its .mo files — its absence is exactly what produced the English
 	# names being cleaned up above.
 
-	XDU=$(command -v xdg-user-dirs-update || true)
 	if [ -z "$XDU" ]; then
 		warn "xdg-user-dirs-update absent, régénération XDG sautée"
 	else
-		XDG_SHARE="$(dirname "$(dirname "$(readlink -f "$XDU")")")/share"
 
-		# Which kinds no longer have any directory at all. The exact names come
-		# from xdg-user-dirs and its locale, not from the table above, so they
-		# are named by kind here rather than guessed.
-		MISSING=()
+		# It rewrites user-dirs.dirs — which still names the links just removed —
+		# and creates every directory the locale wants, English leftover or not.
+		CREATED=()
 		for KIND in $KINDS; do
-			read -ra ALL <<< "$(names_of "$KIND")"
-			FOUND=0
-			for NAME in "${ALL[@]}"; do
-				p_isdir "$HOME_DIR/$NAME" && FOUND=1 && break
-			done
-			[ "$FOUND" -eq 0 ] && MISSING+=("$KIND")
+			NAME="${LOCALE_NAME[$KIND]:-}"
+			[ -n "$NAME" ] || continue
+			p_exists "$HOME_DIR/$NAME" && continue
+			CREATED+=("$NAME")
+			mark_made "$HOME_DIR/$NAME" 1
 		done
-		if [ "${#MISSING[@]}" -gt 0 ]; then
-			act "régénère les répertoires XDG (recrée : ${MISSING[*]})"
+		if [ "${#CREATED[@]}" -gt 0 ]; then
+			act "régénère user-dirs.dirs (crée : ${CREATED[*]})"
 		else
 			act "régénère user-dirs.dirs (tous les répertoires sont déjà là)"
 		fi
 
-		# One child shell as the user: `user-dirs.dirs` holds `$HOME`-relative
-		# values, so it must be sourced with that user's HOME, never root's.
+		# shellcheck disable=SC2016 # expanded by the child shell, not here
 		if [ "$MODE" = "apply" ]; then
-
-			# shellcheck disable=SC2016 # expanded by the child shell, not here
 			runuser -u "$USER_NAME" -- env "HOME=$HOME_DIR" "XDG_DATA_DIRS=$XDG_SHARE" \
 				bash -c '
 					rm -f "$HOME/.config/user-dirs.dirs" "$HOME/.config/user-dirs.locale"
 					"$1" --force
-					[ -f "$HOME/.config/user-dirs.dirs" ] || exit 0
-					. "$HOME/.config/user-dirs.dirs"
-					for D in "${XDG_DESKTOP_DIR:-}" "${XDG_DOCUMENTS_DIR:-}" \
-					         "${XDG_DOWNLOAD_DIR:-}" "${XDG_MUSIC_DIR:-}" \
-					         "${XDG_PICTURES_DIR:-}" "${XDG_PUBLICSHARE_DIR:-}" \
-					         "${XDG_TEMPLATES_DIR:-}" "${XDG_VIDEOS_DIR:-}" ;do
-						[ -n "$D" ] || continue
-
-						# A leftover foreign symlink under an XDG name makes
-						# `mkdir -p` fail on a path that is not ours to fix.
-						[ -e "$D" ] || [ -L "$D" ] || mkdir -p -- "$D"
-					done
 				' _ "$XDU" || warn "$USER_NAME: régénération XDG en échec"
 		fi
+
+		# Second pass: the creation above can pair a fresh locale-named
+		# directory with an English one that held the kind alone.
+		purge_duplicates "$HOME_DIR"
 	fi
 
 	#--------------------------------------------------------------------------
