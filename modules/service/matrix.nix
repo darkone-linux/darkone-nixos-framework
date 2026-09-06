@@ -536,9 +536,11 @@ in
           if cfg.mas.enable then masPort else (builtins.elemAt srv.settings.listeners 0).port;
         proxy.extraConfig = ''
 
-          # Redirect to Synapse
+          # Redirect to Synapse. The whole `/_synapse/*` prefix, admin API
+          # included: MAS owns nothing under it, and with delegated auth the
+          # catch-all below answers 404 with no CORS ("Failed to fetch").
           reverse_proxy /_matrix/* http://127.0.0.1:${toString synapsePort}
-          reverse_proxy /_synapse/client/* http://127.0.0.1:${toString synapsePort}
+          reverse_proxy /_synapse/* http://127.0.0.1:${toString synapsePort}
         ''
         + lib.optionalString cfg.mas.enable ''
 
