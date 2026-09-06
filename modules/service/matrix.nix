@@ -71,6 +71,9 @@
 # credentials directory from the sops files, so it works whether the service
 # is up or down (syn2mas needs it down).
 #
+# `mas-cli` only acts, never lists: enable the `matrix-admin` service for the
+# read side (accounts, devices, sessions), it speaks both admin APIs.
+#
 # :::danger[Immutable once started]
 # `mas-encryption-secret` and the Kanidm provider ULID must never change
 # after MAS's first start (encrypted DB data / upstream account links).
@@ -896,6 +899,11 @@ in
                 { name = "oauth"; }
                 { name = "compat"; }
                 { name = "graphql"; }
+
+                # `/api/admin/*`, gated by the `urn:mas:admin` scope: what the
+                # `matrix-admin` UI reads. Absent, its login still succeeds and
+                # every MAS panel (sessions, tokens, emails) then fails.
+                { name = "adminapi"; }
                 { name = "assets"; }
                 { name = "health"; }
               ];
