@@ -109,6 +109,12 @@
     externalAccess = true;
     activation.profiles.minimal.triggers.keys.matrix = [ "enable" ];
   };
+  matrix-admin = {
+
+    # No `externalAccess`: the module binds its vhost to the LAN + tailnet
+    # (`proxy.isInternal`), and the two are mutually exclusive (assertion).
+    activation.profiles.minimal.triggers.keys.matrix-admin = [ "enable" ];
+  };
   mealie = {
     externalAccess = true;
     activation.profiles.minimal.triggers.keys.mealie = [ "enable" ];
