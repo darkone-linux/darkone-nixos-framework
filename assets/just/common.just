@@ -142,7 +142,7 @@ check:
 [group('check')]
 check-flake:
 	{{nix}} flake check --quiet 2>&1 \
-	  | sed -E "/^warning: unknown flake output '(colmena|colmenaHive|homeManagerModules|libTests|mkNodes|secretsPlan)'\$/d"
+	  | sed -E "/^warning: unknown flake output '(colmena|colmenaHive|homeManagerModules|libTests|mkNodes|secretsPlan|version)'\$/d"
 
 # Check with statix
 [group('check')]

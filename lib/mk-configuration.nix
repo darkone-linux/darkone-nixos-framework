@@ -29,6 +29,13 @@ let
   # NixOS state version applied to fresh hosts/homes
   unstableStateVersion = "26.05";
 
+  # What `modules/system/dnf-release.nix` stamps on every host. `rev` is absent
+  # on a dirty co-dev tree, where `dirtyShortRev` carries the `-dirty` suffix.
+  dnfVersion = {
+    release = nixpkgs.lib.fileContents ../VERSION;
+    rev = inputs.self.shortRev or inputs.self.dirtyShortRev or "unknown";
+  };
+
   supportedSystems = [
     "x86_64-linux"
     "aarch64-linux"
@@ -131,6 +138,7 @@ let
   commonNodeArgsFor = forAllSystems (system: {
     inherit
       dnfConfig
+      dnfVersion
       network
       users
       userNixosProfiles

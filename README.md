@@ -17,6 +17,22 @@
 
 This project is constantly evolving according to my needs. If you'd like to be informed about upcoming stable versions, please let me know on [GitHub](https://github.com/darkone-linux/darkone-nixos-framework) or by subscribing to my [YouTube channel](https://www.youtube.com/@DarkoneLinux) (FR). Thank you!
 
+## Versioning
+
+Releases follow [SemVer](https://semver.org/). While in `0.x`, **MINOR carries
+the breaking changes** (`etc/config.yaml` schema, `darkone.*` options, public
+`just` recipes, `usr/` layout); PATCH never does. `1.0.0` marks the public launch.
+
+Pin a release and commit your `flake.lock`:
+
+```nix
+dnf.url = "github:darkone-linux/darkone-nixos-framework/v0.1.0";
+```
+
+See the [CHANGELOG](CHANGELOG.md), the
+[upgrade guide](https://darkone-linux.github.io/en/doc/admin-guide/maintain/versions/)
+and, for contributors, the [release procedure](https://darkone-linux.github.io/en/doc/dev-guide/releasing/).
+
 ## Main features
 
 |   | Feature | Description |

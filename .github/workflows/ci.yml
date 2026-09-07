@@ -3,12 +3,46 @@ name: CI
 # No `paths:` filter on purpose. The former one restricted CI to `lib/**` and
 # `tests/unit/**`, so a PR touching only `modules/`, `home/`, `hosts/` or
 # `flake.nix` ran no workflow at all and merged green.
+#
+# `workflow_call`: release.yml replays the exact same gates on a tag, instead of
+# duplicating them and letting the two drift.
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 jobs:
+  # Conventional commits are what `git-cliff` turns into the CHANGELOG. A single
+  # off-vocabulary type is silently dropped from the release notes, so the
+  # vocabulary is a gate, not a convention.
+  commits:
+    name: Commit messages
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate subjects
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          types='feat|fix|perf|refactor|docs|test|build|ci|chore|security|revert'
+          status=0
+          while IFS= read -r subject; do
+            [ -z "$subject" ] && continue
+            if ! printf '%s' "$subject" | grep -qE "^($types)(\([a-z0-9._/-]+\))?!?: .+"; then
+              echo "::error::Type not in [$types]: $subject"
+              status=1
+            elif [ "${#subject}" -gt 80 ]; then
+              echo "::error::Subject over 80 chars (${#subject}): $subject"
+              status=1
+            fi
+          done < <(git log --format=%s "$BASE..HEAD")
+          exit $status
   unit-tests:
     name: Unit tests (nix-unit)
     runs-on: ubuntu-latest
@@ -63,7 +97,7 @@ jobs:
         run: |
           set -euo pipefail
           nix flake check --no-build --option system ${{ matrix.system }} 2>&1 \
-            | sed -u -E "/^warning: unknown flake output '(colmena|colmenaHive|homeManagerModules|libTests|mkNodes)'$/d"
+            | sed -u -E "/^warning: unknown flake output '(colmena|colmenaHive|homeManagerModules|libTests|mkNodes|version)'$/d"
 
   lint:
     name: Lint and format

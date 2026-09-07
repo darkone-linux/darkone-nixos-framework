@@ -61,11 +61,13 @@ update-flake:
 	just _log "Updating dnf/ flake inputs..." "FLAKE"
 	(cd {{workDir}}/dnf && {{nix}} flake update)
 	last_msg=$(git -C {{workDir}}/dnf log -1 --format=%s 2>/dev/null || echo "")
-	if [[ "$last_msg" == "update(flake):"* ]]; then
-		just _log "Amending existing update(flake) commit..." "FLAKE"
+	if [[ "$last_msg" == "chore(flake):"* ]]; then
+		just _log "Amending existing chore(flake) commit..." "FLAKE"
 		just amend
 	else
-		just commit "update(flake): Regular NixOS Update"
+
+		# `chore`: routine input bumps are filtered out of the CHANGELOG.
+		just commit "chore(flake): regular nixpkgs update"
 	fi
 	just _log "Updating root flake inputs..." "FLAKE"
 	cd {{workDir}} && {{nix}} flake update

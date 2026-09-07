@@ -16,4 +16,5 @@ tmp/
 *.md
 !README*.md
 !TODO*.md
+!CHANGELOG*.md
 

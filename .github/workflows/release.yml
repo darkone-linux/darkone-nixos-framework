@@ -1,0 +1,87 @@
+name: Release
+
+# A tag is the only thing consumers pin, so it is the only place worth spending
+# a hard gate: the tree must agree with the tag, and the release must not carry
+# a generator taken from a moving branch.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  guard:
+    name: Release guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: VERSION matches the tag
+        run: |
+          set -euo pipefail
+          declared="v$(cat VERSION)"
+          if [ "$declared" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::VERSION says $declared, tag says $GITHUB_REF_NAME — run 'just bump'."
+            exit 1
+          fi
+
+      - name: CHANGELOG documents the release
+        run: |
+          set -euo pipefail
+          if ! grep -qE "^## \[${GITHUB_REF_NAME#v}\] - " CHANGELOG.md; then
+            echo "::error::No '## [${GITHUB_REF_NAME#v}]' entry in CHANGELOG.md."
+            exit 1
+          fi
+
+      # The generator owns the etc/config.yaml schema: shipping a release that
+      # locks a branch commit makes that contract unreproducible.
+      - name: Generator is pinned to a published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ref=$(jq -r '.nodes["dnf-generator"].original.ref // ""' flake.lock)
+          rev=$(jq -r '.nodes["dnf-generator"].locked.rev' flake.lock)
+          if [ -z "$ref" ]; then
+            echo "::error::dnf-generator input has no ref — pin a tag (just release, step 3)."
+            exit 1
+          fi
+          gh api repos/darkone-linux/dnf-generator/tags --paginate \
+            --jq '.[] | select(.name | startswith("v")) | .commit.sha' > /tmp/tags
+          if ! grep -qx "$rev" /tmp/tags; then
+            echo "::error::Locked dnf-generator rev $rev ($ref) is not a published v* tag."
+            exit 1
+          fi
+          echo "dnf-generator $ref ($rev) — published."
+
+  verify:
+    name: Verify
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Publish GitHub release
+    needs: [guard, verify]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The tag's own CHANGELOG section, verbatim: the release notes and the
+      # file cannot say two different things.
+      - name: Extract release notes
+        run: |
+          set -euo pipefail
+          awk -v v="${GITHUB_REF_NAME#v}" '
+            $0 ~ "^## \\[" v "\\] - " { inside = 1; next }
+            inside && /^## \[/ { exit }
+            inside { print }
+          ' CHANGELOG.md > notes.md
+          [ -s notes.md ] || { echo "::error::Empty release notes."; exit 1; }
+          cat notes.md
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag

@@ -24,6 +24,9 @@ pkgs.mkShell {
     cargo
     deadnix
     git
+
+    # Changelog generation behind `just bump` / `just release`.
+    git-cliff
     just
     mkpasswd
     nix-unit

@@ -97,6 +97,11 @@
     # repo; consumers in co-dev (arthur-network) can override with a path or
     # `git+file://` URL to pick up local changes:
     #   --override-input dnf/dnf-generator path:./src/generator
+    #
+    # The generator owns the `etc/config.yaml` schema and the `var/generated/*`
+    # format: a release pins an exact tag here (`just release`, step 3) and
+    # `.github/workflows/release.yml` refuses a tag whose lock points anywhere
+    # but a published `dnf-generator` release.
     dnf-generator.url = "github:darkone-linux/dnf-generator";
     dnf-generator.inputs.nixpkgs.follows = "nixpkgs";
 
@@ -142,6 +147,11 @@
 
       # Consumers call `inputs.dnf.lib.mkConfigurations ./.` from their flake.
       lib.mkConfigurations = mkConfigurations;
+
+      # Release of this tree, single source of truth for `just bump`, the CI
+      # tag guard and `/etc/dnf-release` on every deployed host. A plain file,
+      # so bash and CI read it without evaluating Nix.
+      version = nixpkgs.lib.fileContents ./VERSION;
 
       #------------------------------------------------------------------------
       # FRAMEWORK-OWNED OUTPUTS (no consumer workDir required)
