@@ -116,11 +116,6 @@ rec {
       gen = "hex32";
     }
 
-    # Synapse registration shared secret.
-    {
-      pattern = "matrix-rss-password";
-      gen = "hex32";
-    }
     {
       pattern = "matrix-db-password";
       gen = "b64";

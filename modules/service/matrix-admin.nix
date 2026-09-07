@@ -10,12 +10,10 @@
 # Reachable from the LAN and the tailnet only (`proxy.isInternal`): the bundle
 # holds no secret, but an admin login page has no reason to face the Internet.
 #
-# :::caution[Two server-side prerequisites]
-# - MAS must serve its `adminapi` resource — done by `matrix.nix` as soon as
-#   `mas.enable`. Without it login succeeds, then every MAS panel (sessions,
-#   registration tokens, emails) fails.
-# - The administrator account needs `can_request_admin`:
-#   `sudo dnf-mas manage promote-admin <login>`.
+# :::caution[Log in with a declared administrator]
+# Only an account listed in `network.matrix.admins` may log in: the MAS policy
+# grants it the `urn:mas:admin` and `urn:synapse:admin:*` scopes this UI needs
+# on both APIs. Anyone else logs in fine, then every panel fails.
 # :::
 
 {
