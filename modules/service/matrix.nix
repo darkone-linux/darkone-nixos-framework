@@ -3,8 +3,8 @@
 # Bridges (whatsapp, signal, telegram, messenger, discord) are usable by every
 # local account: each user links its own remote account by talking to the
 # bridge bot (`@whatsappbot`, `@signalbot`, ... then `login`); sessions are
-# isolated per user. The declared `network.matrix.admin` administrates the
-# bridges.
+# isolated per user. The declared `network.matrix.admins` administrate the
+# bridges and the server (cf. "Administrators" below).
 #
 # Double puppeting uses the official appservice method
 # (https://docs.mau.fi/bridges/general/double-puppeting.html): a shared
@@ -37,10 +37,8 @@
 # :::
 #
 # Friend self-registration (`friendRegistration.enable`) opens token-gated
-# local password accounts alongside Kanidm OIDC users. Without MAS, minting a
-# token goes through the Synapse admin API (a server admin is required); with
-# MAS, mint it on the host with
-# `sudo dnf-mas manage issue-user-registration-token`.
+# local password accounts alongside Kanidm OIDC users. Mint a token on the host
+# with `sudo dnf-mas manage issue-user-registration-token`.
 #
 # :::caution[One namespace, permanent ids]
 # Friends and declared users draw from the same localpart namespace, and a
@@ -51,12 +49,13 @@
 # procedure in the admin guide (`operate/matrix.mdx`).
 # :::
 #
-# #### Next-gen auth (MAS)
+# #### Authentication (MAS)
 #
-# `mas.enable` delegates all authentication to Matrix Authentication Service
-# (required by Element X, QR login, `/account` self-service portal). Kanidm
-# stays the identity source: MAS becomes the OIDC client instead of synapse,
-# and synapse only asks MAS to introspect tokens. Served on the same vhost:
+# All authentication is delegated to Matrix Authentication Service, always:
+# Element X, QR login and the `/account` self-service portal only exist there,
+# and synapse's own auth is deprecated upstream (MSC3861). Kanidm stays the
+# identity source: MAS is the OIDC client instead of synapse, and synapse only
+# asks MAS to introspect tokens. Served on the same vhost:
 # MAS owns the root + compat auth endpoints, synapse keeps `/_matrix/*` and
 # `/_synapse/*`; client discovery is automatic (synapse serves
 # `auth_metadata` itself), so no well-known change.
@@ -79,20 +78,28 @@
 # after MAS's first start (encrypted DB data / upstream account links).
 # :::
 #
-# :::caution[Migrating an existing instance]
-# Enabling `mas.enable` on a live homeserver requires the `syn2mas` migration
-# (accounts, passwords, sessions, external ids). Deploy first, then, with both
-# services stopped: `sudo dnf-mas syn2mas check`, `... migrate --dry-run`,
-# `... migrate`. Bridges need no registration regen: synapse forces MSC4190 on
-# every appservice as soon as auth is delegated. Procedure in
+# :::danger[Migrating a pre-MAS instance]
+# A homeserver that predates MAS needs the `syn2mas` migration (accounts,
+# passwords, sessions, external ids) or nobody logs in again. Deploy first,
+# then, with both services stopped: `sudo dnf-mas syn2mas check`,
+# `... migrate --dry-run`, `... migrate`. Procedure in
 # `.specs/matrix-authentication-service.md`.
 # :::
 #
-# :::caution[No shared-secret registration under MAS]
-# Synapse's `/_synapse/admin/v1/register` (registration shared secret) is
-# disabled in delegated mode, which is what `just configure-alert-bot` uses to
-# create a missing bot account. Create it beforehand, or with
-# `sudo dnf-mas manage register-user`.
+# #### Administrators
+#
+# `network.matrix.admins` (local parts) is the single declarative source for
+# both administrations, applied at rebuild with no database write:
+#
+# - bridges: `admin` level in every mautrix `permissions` map;
+# - server: `policy.data.admin_users`, which the bundled MAS policy turns into
+#   the `urn:mas:admin` and `urn:synapse:admin:*` scopes (MAS admin API, synapse
+#   admin API, `matrix-admin` UI login).
+#
+# :::caution[Imperative promotions survive]
+# The policy grants admin on `admin_users` OR the `can_request_admin` database
+# flag `dnf-mas manage promote-admin` sets. Audit leftovers with
+# `list-admin-users`, drop them with `demote-admin`.
 # :::
 
 # #### Audio/video calls
@@ -329,18 +336,20 @@ let
     };
   };
 
-  # Every local account may use a bridge with its own remote account; the
-  # declared matrix admin gets bridge administration. The user level differs
-  # per bridge generation: bridgev2/go expect "user", legacy telegram needs
-  # "full" to allow own-account login.
+  # Declared matrix administrators (local parts), single source for bridge
+  # administration and for the MAS admin scopes (cf. header).
+  matrixAdmins = network.matrix.admins or [ ];
+
+  # Every local account may use a bridge with its own remote account; declared
+  # admins get bridge administration. The user level differs per bridge
+  # generation: bridgev2/go expect "user", legacy telegram needs "full" to
+  # allow own-account login.
   mkBridgePermissions =
     userLevel:
     {
       "${network.domain}" = userLevel;
     }
-    // lib.optionalAttrs (network ? matrix && network.matrix ? admin) {
-      "@${network.matrix.admin}:${network.domain}" = "admin";
-    };
+    // lib.genAttrs (map (a: "@${a}:${network.domain}") matrixAdmins) (_: "admin");
 
   # Official appservice double puppeting: one shared as_token for all bridges,
   # substituted by envsubst from each bridge's environmentFile.
@@ -359,9 +368,8 @@ let
       pickle_key = "$ENCRYPTION_PICKLE_KEY";
       require = false;
 
-      # Mandatory with MAS; needs a registration regen when flipped
-      # (cf. header)
-      msc4190 = cfg.mas.enable;
+      # Mandatory with delegated auth; synapse forces it on every appservice
+      msc4190 = true;
     };
   };
 
@@ -440,6 +448,15 @@ let
   oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
 in
 {
+  imports = [
+
+    # Auth is delegated to MAS unconditionally: a leftover `false` would have
+    # silently kept a homeserver on deprecated synapse auth.
+    (lib.mkRemovedOptionModule [ "darkone" "service" "matrix" "mas" "enable" ]
+      "MAS is always enabled. A pre-MAS homeserver must run the syn2mas migration (cf. dnf/modules/service/matrix.nix header)."
+    )
+  ];
+
   options = {
     darkone.service.matrix = {
       enable = lib.mkEnableOption "Enable matrix (synapse) service";
@@ -455,11 +472,6 @@ in
           description = "Empty = federate with all servers; non-empty = only these domains (inbound + outbound).";
         };
       };
-
-      # Next-gen auth: synapse delegates every auth decision to MAS (cf.
-      # header). Default off: flipping it on a live server needs the syn2mas
-      # migration first.
-      mas.enable = lib.mkEnableOption "Delegate all authentication to Matrix Authentication Service (Element X support).";
 
       # MatrixRTC backend (cf. header). Default off: it binds a public UDP
       # range and a TCP fallback, which only a host reachable from the outside
@@ -513,14 +525,8 @@ in
         displayName = "Matrix Synapse";
         imageFile = ./../../assets/app-icons/synapse.svg;
 
-        # Both callbacks are always registered: this template is evaluated on
-        # the IDM host, which cannot see the matrix host's `mas.enable`. The
-        # unused one is inert (same trusted vhost).
-        # -> https://element-hq.github.io/synapse/latest/openid.html
-        redirectPaths = [
-          "/_synapse/client/oidc/callback"
-          "/upstream/callback/${masKanidmUlid}"
-        ];
+        # MAS is the OIDC client, never synapse (cf. header).
+        redirectPaths = [ "/upstream/callback/${masKanidmUlid}" ];
         landingPath = "/";
         preferShortUsername = true;
       };
@@ -530,10 +536,9 @@ in
         displayOnHomepage = false;
         persist.dirs = [ srv.dataDir ];
 
-        # With MAS the vhost root belongs to MAS (login pages, `/account`,
-        # `/oauth2/*`, `/upstream/callback/*`); synapse keeps its prefixes.
-        proxy.servicePort =
-          if cfg.mas.enable then masPort else (builtins.elemAt srv.settings.listeners 0).port;
+        # The vhost root belongs to MAS (login pages, `/account`, `/oauth2/*`,
+        # `/upstream/callback/*`); synapse keeps its prefixes.
+        proxy.servicePort = masPort;
         proxy.extraConfig = ''
 
           # Redirect to Synapse. The whole `/_synapse/*` prefix, admin API
@@ -542,9 +547,9 @@ in
           reverse_proxy /_matrix/* http://127.0.0.1:${toString synapsePort}
           reverse_proxy /_synapse/* http://127.0.0.1:${toString synapsePort}
         ''
-        + lib.optionalString cfg.mas.enable ''
+        + ''
 
-          # Next-gen auth: MAS owns the whole compat auth surface, sub-paths
+          # MAS owns the whole compat auth surface, sub-paths
           # included (`logout/all`, and the legacy `login/sso/redirect[/<idp>]`
           # that Element Desktop and every pre-OIDC client still use). Synapse
           # answers M_UNRECOGNIZED on all of them once auth is delegated.
@@ -596,20 +601,8 @@ in
       # Sops
       #------------------------------------------------------------------------
 
-      # Registration Shared Secret
-      sops.secrets.matrix-rss-password = {
-        mode = "0400";
-        owner = "matrix-synapse";
-      };
-
-      # OIDC secret
-      # -> Note: put client secret in extra config do not works.
+      # Kanidm client secret: read by MAS as a credential, never by synapse.
       sops.secrets.${secret} = { };
-      sops.templates.oidc-secret-synapse = {
-        content = config.sops.placeholder.${secret};
-        mode = "0400";
-        owner = "matrix-synapse";
-      };
 
       # Coturn secret
       sops.secrets.turn-secret-matrix = lib.mkIf hasTurn {
@@ -785,16 +778,10 @@ in
 
           enable_metrics = isNode;
 
-          # Token-gated friend registration. `registration_requires_token`
-          # satisfies Synapse's guard against open registration and coexists
-          # with Kanidm OIDC login. With MAS, registration moves to MAS
-          # (`account.*` below) and synapse must keep it off.
-          enable_registration = !cfg.mas.enable && cfg.friendRegistration.enable;
-          registration_requires_token = !cfg.mas.enable && cfg.friendRegistration.enable;
+          # Registration belongs to MAS (`account.*` below); synapse refuses
+          # any auth config once delegated.
+          enable_registration = false;
           suppress_key_server_warning = true;
-          registration_shared_secret_path = lib.mkIf (
-            !cfg.mas.enable
-          ) config.sops.secrets.matrix-rss-password.path;
           auto_join_rooms = [ ]; # TODO
 
           # Double puppeting appservice for the mautrix bridges (the bridges'
@@ -806,27 +793,6 @@ in
             user = "matrix-synapse";
             database = "matrix-synapse";
           };
-
-          # Kanidm. Legacy direct OIDC: superseded by the MAS upstream
-          # provider when `mas.enable` (synapse rejects auth config in
-          # delegated mode).
-          oidc_providers = lib.mkIf (!cfg.mas.enable) [
-            {
-              idp_id = "kanidm";
-              idp_name = "IDM";
-              issuer = oidc.issuerUrl;
-              client_id = clientId;
-              client_secret_path = config.sops.templates.oidc-secret-synapse.path;
-              scopes = [
-                "openid"
-                "profile"
-              ];
-              user_mapping_provider.config = {
-                localpart_template = "{{ user.preferred_username.split('@')[0] | lower }}";
-                display_name_template = "{{ user.displayname }}";
-              };
-            }
-          ];
 
           # Coturn (visio)
           turn_uris = lib.optionals hasTurn [
@@ -862,7 +828,7 @@ in
     # Matrix Authentication Service (next-gen auth, cf. header)
     #------------------------------------------------------------------------
 
-    (lib.mkIf (cfg.enable && cfg.mas.enable) {
+    (lib.mkIf cfg.enable {
 
       # Immutable after first start (cf. header)
       sops.secrets.mas-encryption-secret.restartUnits = [ "matrix-authentication-service.service" ];
@@ -962,6 +928,11 @@ in
             password_registration_token_required = cfg.friendRegistration.enable;
             password_registration_email_required = false;
           };
+
+          # Declarative server administration: the bundled policy turns these
+          # local parts into `urn:mas:admin` + `urn:synapse:admin:*`, so no
+          # `promote-admin` and no database write (cf. header).
+          policy.data.admin_users = matrixAdmins;
 
           upstream_oauth2.providers = [
             {
@@ -1350,9 +1321,8 @@ in
                 };
                 login_shared_secret_map."${network.domain}" = doublePuppetSecret;
 
-                # Mandatory with MAS; needs a registration regen when flipped
-                # (cf. header)
-                encryption.msc4190 = cfg.mas.enable;
+                # Mandatory with delegated auth (cf. header)
+                encryption.msc4190 = true;
               };
             };
           };

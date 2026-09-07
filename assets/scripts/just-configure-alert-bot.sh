@@ -4,21 +4,25 @@
 #
 # Run via `just configure-alert-bot` (which sets WORKDIR and fixes fs perms).
 # Re-running is safe: each step checks current state before acting.
-#  - bot account      : created once via the registration shared secret;
-#                       password + access token kept in sops.
-#  - access token     : reused while valid (whoami), re-issued by login else.
-#  - webhook secret    : generated once, kept in sops.
+#  - bot account      : created once with `dnf-mas manage register-user`.
+#  - access token     : reused while valid (whoami), re-issued otherwise with
+#                       `dnf-mas manage issue-compatibility-token`; kept in sops.
+#  - webhook secret   : generated once, kept in sops.
 #  - rooms            : resolved by alias, created only if missing; the bot
-#                       (their creator) is a member, the human admin is invited.
+#                       (their creator) is a member, the admins are invited.
 #  - bot + room IDs   : written to var/generated/matrix.nix (NOT config.yaml,
 #                       which stays manual-only). Merged into network.matrix.*
 #                       by dnf/lib/mk-configuration.nix.
 #
-# Source of truth: etc/config.yaml `network.matrix.admin` and `network.domain`
+# Source of truth: etc/config.yaml `network.matrix.admins` and `network.domain`
 # (manual). The bot local part defaults to `alertbot` (override with ALERT_BOT).
 # The Matrix host is read from the generated network. Client API calls go to
-# https://matrix.<domain>; the admin-only registration endpoint falls back to an
-# SSH tunnel (as the nix deploy user) when it is not exposed publicly.
+# https://matrix.<domain>.
+#
+# The bot has no password: auth is delegated to MAS, whose account lifecycle
+# lives on the host (`dnf-mas`, root-only, reads the sops secrets from
+# systemd credentials). Every account operation is therefore an ssh call as
+# the `nix` deploy user, like `just hardware-config` does.
 
 set -euo pipefail
 
@@ -37,7 +41,7 @@ mx() { curl -A "$UA" "$@"; }
 
 [ -f "$cfg" ] || die "config.yaml not found ($cfg)."
 [ -f "$secrets" ] || die "secrets file not found ($secrets) — run 'just configure-admin-host' first."
-for bin in yq jq curl openssl python3 sops nix; do
+for bin in yq jq curl openssl sops nix; do
   command -v "$bin" >/dev/null 2>&1 || die "missing dependency: $bin (enter 'nix develop')."
 done
 
@@ -48,20 +52,22 @@ adminKey="$HOME/.config/sops/age/keys.txt"
 
 # --- auto-detected variables ------------------------------------------------
 domain="$(yq -r '.network.domain' "$cfg")"
-admin="$(yq -r '.network.matrix.admin // ""' "$cfg")"
 bot="${ALERT_BOT:-alertbot}"
 [ -n "$domain" ] && [ "$domain" != "null" ] || die "network.domain missing in config.yaml."
-[ -n "$admin" ] || die "Set network.matrix.admin (your local part) in config.yaml."
+
+mapfile -t ADMINS < <(yq -r '.network.matrix.admins[]? // empty' "$cfg")
+[ "${#ADMINS[@]}" -gt 0 ] || die "Set network.matrix.admins (local parts) in config.yaml."
 
 BOT_USER="@${bot}:${domain}"
-HUMAN="@${admin}:${domain}"
 PUBLIC_HS="https://matrix.${domain}"
 
 matrixHost="$(nix eval --impure --raw --extra-experimental-features 'nix-command flakes' --expr \
   "let n = import $workDir/var/generated/network.nix; s = builtins.filter (x: x.name == \"matrix\") n.services; in if s == [ ] then \"\" else (builtins.head s).host" \
   2>/dev/null || true)"
 
-log "Domain=$domain  bot=$BOT_USER  admin=$HUMAN  matrixHost=${matrixHost:-?}"
+[ -n "$matrixHost" ] || die "matrix service not found in var/generated/network.nix — run 'just generate'."
+
+log "Domain=$domain  bot=$BOT_USER  admins=${ADMINS[*]}  matrixHost=$matrixHost"
 
 # --- sops helpers (admin key) ----------------------------------------------
 sops_get() { sops -d --extract "[\"$1\"]" "$secrets" 2>/dev/null || true; }
@@ -75,69 +81,45 @@ token_valid() {
     | jq -e --arg u "$BOT_USER" '.user_id == $u' >/dev/null 2>&1
 }
 
-login_token() {
-  mx -fsS -XPOST "$PUBLIC_HS/_matrix/client/v3/login" -H 'Content-Type: application/json' \
-    -d "{\"type\":\"m.login.password\",\"identifier\":{\"type\":\"m.id.user\",\"user\":\"$bot\"},\"password\":\"$1\"}" \
-    | jq -r '.access_token // empty'
+# --- MAS host helpers -------------------------------------------------------
+# `dnf-mas` is root-only on the matrix host (cf. header). One ssh round-trip
+# per call; `$1` is the argument string, already shell-safe (local parts).
+mas_remote() {
+  sudo -i -u nix ssh -o BatchMode=yes "nix@${matrixHost}" "sudo dnf-mas $1" 2>&1
 }
 
-# Register the bot via the nonce + HMAC shared-secret flow; echoes the token
-# the admin register endpoint returns. Opens an SSH tunnel to the Matrix host
-# when /_synapse/admin is not reachable publicly.
-register_token() {
-  local pass="$1" shared admin_hs nonce mac resp tunnel=""
-  shared="$(sops_get matrix-rss-password)"
-  [ -n "$shared" ] || die "registration shared secret (matrix-rss-password) missing in sops."
+# register-user is not idempotent: an existing account is the nominal
+# re-run case, not a failure.
+ensure_bot_account() {
+  local out
+  out="$(mas_remote "manage register-user --yes --display-name Alertes $bot")" || true
+  case "$out" in
+    *"User registered"*) log "Bot account $BOT_USER created." ;;
+    *"already exists"*)  log "Bot account $BOT_USER already present." ;;
+    *) die "bot registration failed: $out" ;;
+  esac
+}
 
-  admin_hs="$PUBLIC_HS"
-  if ! mx -fsS -o /dev/null "$PUBLIC_HS/_synapse/admin/v1/register" 2>/dev/null; then
-    [ -n "$matrixHost" ] || die "admin API not public and Matrix host unknown — cannot tunnel."
-    log "Admin API not public: opening SSH tunnel to $matrixHost (as nix)..."
-    sudo -i -u nix ssh -fN -o ExitOnForwardFailure=yes -L 18008:localhost:8008 "nix@${matrixHost}"
-    tunnel="nix@${matrixHost}"
-    admin_hs="http://localhost:18008"
-  fi
-
-  nonce="$(mx -fsS "$admin_hs/_synapse/admin/v1/register" | jq -r .nonce)"
-
-  # The shared secret reaches the HMAC helper through its environment, never
-  # through argv: /proc/<pid>/cmdline is world-readable, so `openssl -hmac
-  # "$secret"` exposed the homeserver registration secret to every local user
-  # for the lifetime of the call. /proc/<pid>/environ is owner-only.
-  mac="$(printf '%s\0%s\0%s\0notadmin' "$nonce" "$bot" "$pass" \
-    | DNF_HS_SECRET="$shared" python3 -c 'import hashlib, hmac, os, sys
-sys.stdout.write(hmac.new(os.environb[b"DNF_HS_SECRET"], sys.stdin.buffer.read(), hashlib.sha1).hexdigest())')"
-  resp="$(mx -sS -XPOST "$admin_hs/_synapse/admin/v1/register" -H 'Content-Type: application/json' \
-    -d "{\"nonce\":\"$nonce\",\"username\":\"$bot\",\"displayname\":\"Alertes\",\"password\":\"$pass\",\"admin\":false,\"mac\":\"$mac\"}" || true)"
-
-  [ -n "$tunnel" ] && sudo -i -u nix pkill -f '18008:localhost:8008' 2>/dev/null || true
-
-  if printf '%s' "$resp" | grep -q M_USER_IN_USE; then
-    die "Bot $BOT_USER already exists but no password is stored. Reset it or add alertmanager-matrix-password to sops."
-  fi
-  printf '%s' "$resp" | jq -r '.access_token // empty'
+# Compatibility token: what a legacy client API call expects, and the only
+# credential the bot ever holds. Random device id, so re-issuing never
+# invalidates a session still in use.
+issue_token() {
+  mas_remote "manage issue-compatibility-token $bot" \
+    | sed -n 's/^Compatibility token issued: //p' | tr -d '[:space:]'
 }
 
 # --- 1. Bot credentials (idempotent) ---------------------------------------
 TOKEN="$(sops_get alertmanager-matrix-token)"
-PASS="$(sops_get alertmanager-matrix-password)"
 
-if [ -z "$PASS" ]; then
-  log "Creating bot account $BOT_USER..."
-  PASS="$(openssl rand -hex 24)"
-  TOKEN="$(register_token "$PASS")"
-  [ -n "$TOKEN" ] || die "bot registration failed."
-  sops_set alertmanager-matrix-password "$PASS"
-  sops_set alertmanager-matrix-token "$TOKEN"
-  log "Bot created, password + token stored in sops."
-elif token_valid; then
+if token_valid; then
   log "Existing bot token still valid — keeping it."
 else
-  log "Bot token missing/invalid — logging in to refresh..."
-  TOKEN="$(login_token "$PASS")"
-  [ -n "$TOKEN" ] || die "login failed (wrong stored password?)."
+  log "Bot token missing/invalid — provisioning..."
+  ensure_bot_account
+  TOKEN="$(issue_token)"
+  [ -n "$TOKEN" ] || die "could not issue a compatibility token for $BOT_USER."
   sops_set alertmanager-matrix-token "$TOKEN"
-  log "Token refreshed."
+  log "Token issued and stored in sops."
 fi
 
 # --- 2. Webhook secret (idempotent) ----------------------------------------
@@ -173,10 +155,12 @@ INC_ID="$(ensure_room alert-incidents 'Alertes — incidents')"
 log "warnings  = $WARN_ID"
 log "incidents = $INC_ID"
 
-# Invite the human admin (tolerant: already-invited/joined returns an error).
+# Invite every declared admin (tolerant: already-invited/joined errors out).
 for R in "$WARN_ID" "$INC_ID"; do
-  mx -fsS -XPOST "$PUBLIC_HS/_matrix/client/v3/rooms/$R/invite" -H "Authorization: Bearer $TOKEN" \
-    -H 'Content-Type: application/json' -d "{\"user_id\":\"$HUMAN\"}" >/dev/null 2>&1 || true
+  for A in "${ADMINS[@]}"; do
+    mx -fsS -XPOST "$PUBLIC_HS/_matrix/client/v3/rooms/$R/invite" -H "Authorization: Bearer $TOKEN" \
+      -H 'Content-Type: application/json' -d "{\"user_id\":\"@${A}:${domain}\"}" >/dev/null 2>&1 || true
+  done
 done
 
 # --- 4. Persist bot + room IDs into var/generated/matrix.nix ----------------
