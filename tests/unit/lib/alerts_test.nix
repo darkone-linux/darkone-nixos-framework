@@ -59,6 +59,16 @@ let
   # Shared filesystem selector: the node's own real mounts only (no pseudo
   # filesystem, no remote share).
   fsSel = ''fstype!~"tmpfs|ramfs|overlay|squashfs|fuse.*|nfs.*|cifs|smb.*|9p",mountpoint!~"/(boot|nix/store).*"'';
+
+  # Filesystem rules alert once per partition: the per-mount series are
+  # collapsed on `device`. `mountpoint` is deliberately out of the grouping,
+  # `host`/`job` deliberately in it (the Matrix bot titles on `host`).
+  perDev = op: v: "${op} by (instance, job, host, device, fstype) (${v})";
+
+  # Trailing sentence of every filesystem description: PromQL cannot
+  # concatenate label values, so the mounts are resolved by the annotation
+  # template while the alert is active.
+  mountsSentence = ''Mounts: {{ range $i, $m := sortByLabel "mountpoint" (query (printf "node_filesystem_size_bytes{instance=%q,device=%q}" $labels.instance $labels.device)) }}{{ if $i }}, {{ end }}{{ $m.Labels.mountpoint }}{{ end }}.'';
 in
 {
 
@@ -592,7 +602,7 @@ in
           }).groups
         ).rules
       ).annotations.description;
-    expected = "{{ $labels.mountpoint }} below 15% free on {{ $labels.instance }}.";
+    expected = "{{ $labels.device }} below 15% free on {{ $labels.instance }}. ${mountsSentence}";
   };
 
   testSynapseErrorRateGroupsHost = {
@@ -608,14 +618,17 @@ in
   # `FilesystemReadOnly` excludes those fstypes on top of the shared selector.
   testFilesystemReadOnlyExcludesByDesignFstypes = {
     expr = (resourceRule { } "FilesystemReadOnly").expr;
-    expected = ''node_filesystem_readonly{${fsSel},fstype!~"iso9660|udf|erofs"} == 1'';
+    expected =
+      perDev "max" ''node_filesystem_readonly{${fsSel},fstype!~"iso9660|udf|erofs"}'' + " == 1";
   };
 
   # Remote mounts leave every filesystem rule, not just the read-only one: their
   # space is the exporting server's, and it is scraped there.
   testDiskSpaceLowExcludesRemoteMounts = {
     expr = (resourceRule { } "DiskSpaceLow").expr;
-    expected = "100 * node_filesystem_avail_bytes{${fsSel}} / node_filesystem_size_bytes{${fsSel}} < 15";
+    expected =
+      perDev "min" "100 * node_filesystem_avail_bytes{${fsSel}} / node_filesystem_size_bytes{${fsSel}}"
+      + " < 15";
   };
 
   # Emptying the list puts network shares back under watch, for a NAS that runs
@@ -626,20 +639,49 @@ in
       let
         sel = ''fstype!~"tmpfs|ramfs|overlay|squashfs|fuse.*",mountpoint!~"/(boot|nix/store).*"'';
       in
-      "100 * node_filesystem_files_free{${sel}} / node_filesystem_files{${sel}} < 10";
+      perDev "min" "100 * node_filesystem_files_free{${sel}} / node_filesystem_files{${sel}}" + " < 10";
   };
 
   # An empty override disarms the exclusion without leaving a dangling, empty
   # fstype matcher behind.
   testFilesystemReadOnlyEmptyExclusion = {
     expr = (resourceRule { readOnlyByDesignFstypes = [ ]; } "FilesystemReadOnly").expr;
-    expected = "node_filesystem_readonly{${fsSel}} == 1";
+    expected = perDev "max" "node_filesystem_readonly{${fsSel}}" + " == 1";
   };
 
   # Overrides replace the default list (attrset merge), they do not append to it.
   testFilesystemReadOnlyCustomExclusion = {
     expr = (resourceRule { readOnlyByDesignFstypes = [ "vfat" ]; } "FilesystemReadOnly").expr;
-    expected = ''node_filesystem_readonly{${fsSel},fstype!~"vfat"} == 1'';
+    expected = perDev "max" ''node_filesystem_readonly{${fsSel},fstype!~"vfat"}'' + " == 1";
+  };
+
+  # ----- mkResourceRuleGroups (one alert per partition) -----
+
+  # A btrfs holding `/`, `/nix`, `/home` and `/.swapfile` exports four
+  # identical series: unaggregated, one full disk pages four times.
+  testDiskSpaceCriticalAggregatesPerDevice = {
+    expr = (resourceRule { } "DiskSpaceCritical").expr;
+    expected =
+      perDev "min" "100 * node_filesystem_avail_bytes{${fsSel}} / node_filesystem_size_bytes{${fsSel}}"
+      + " < 5";
+  };
+
+  # Both sides of the `and` are aggregated: an unaggregated side still carries
+  # `mountpoint` and matches nothing against the aggregated one.
+  testDiskWillFillSoonAggregatesBothSides = {
+    expr = (resourceRule { } "DiskWillFillSoon").expr;
+    expected =
+      perDev "min" "predict_linear(node_filesystem_avail_bytes{${fsSel}}[6h], 24*3600)"
+      + " < 0 and "
+      + perDev "min" "node_filesystem_avail_bytes{${fsSel}} / node_filesystem_size_bytes{${fsSel}}"
+      + " < 0.4";
+  };
+
+  # `mountpoint` is gone from filesystem alerts: the description names the
+  # partition, then the mounts it carries.
+  testInodesLowDescriptionNamesDeviceAndMounts = {
+    expr = (resourceRule { } "InodesLow").annotations.description;
+    expected = "{{ $labels.device }} below 10% free inodes on {{ $labels.instance }}. ${mountsSentence}";
   };
 
   # ----- mkSilenceRoutes -----
