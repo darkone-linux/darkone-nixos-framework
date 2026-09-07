@@ -1,7 +1,6 @@
 /.*
 !/.gitignore
 !/.ignore
-!/.specs
 !/.github
 /*.md
 !/README.*
