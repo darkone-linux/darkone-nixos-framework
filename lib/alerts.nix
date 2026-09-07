@@ -29,6 +29,19 @@ let
   # `<ip>:<port>` must therefore travel in the description to stay visible.
   instLabel = "{{ $labels.instance }}";
 
+  # Filesystem rules aggregate per partition (cf. `byDevice`), so `device` is
+  # what the description can name; `mountpoint` no longer exists on them.
+  devLabel = "{{ $labels.device }}";
+
+  # Mounts of the alerting partition: PromQL cannot concatenate label values, so
+  # the Go template engine Prometheus applies to annotations fans the aggregated
+  # series back out via `query`. Costs one instant query per active alert per
+  # evaluation, none while the rule is silent.
+  deviceMounts = ''{{ range $i, $m := sortByLabel "mountpoint" (query (printf "node_filesystem_size_bytes{instance=%q,device=%q}" $labels.instance $labels.device)) }}{{ if $i }}, {{ end }}{{ $m.Labels.mountpoint }}{{ end }}'';
+
+  # Appended to every filesystem description, hence the leading space.
+  mountsSentence = " Mounts: ${deviceMounts}.";
+
   # Profiles considered critical by default when no explicit `alert-*` feature
   # overrides the node class. A down gateway/HCS/server escalates; a laptop or
   # desktop does not.
@@ -351,9 +364,21 @@ rec {
         + optionalString (
           t.readOnlyByDesignFstypes != [ ]
         ) '',fstype!~"${concatStringsSep "|" t.readOnlyByDesignFstypes}"'';
-      diskFreeExpr =
-        pct:
-        "100 * node_filesystem_avail_bytes{${fsSelector}} / node_filesystem_size_bytes{${fsSelector}} < ${toString pct}";
+
+      # `node_filesystem_*` is per *mount*, not per partition: one btrfs holding
+      # `/`, `/nix`, `/home` and `/.swapfile` reports four identical series, so
+      # a single full disk pages four times. Aggregating on `device` collapses
+      # them to one alert per partition. `host`/`job` stay in the grouping — an
+      # aggregation drops every label it does not group on, and losing `host`
+      # retitles the Matrix message with the bare `<ip>:<port>`.
+      byDevice = "instance, job, host, device, fstype";
+
+      # `min`/`max` are no-ops on the identical values sibling mounts report;
+      # they pick the alarming side should the two ever diverge.
+      perDevice = op: v: "${op} by (${byDevice}) (${v})";
+
+      diskFreeRatio = "node_filesystem_avail_bytes{${fsSelector}} / node_filesystem_size_bytes{${fsSelector}}";
+      diskFreeExpr = pct: "${perDevice "min" "100 * ${diskFreeRatio}"} < ${toString pct}";
       memAvailExpr =
         pct: "100 * node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < ${toString pct}";
 
@@ -374,7 +399,7 @@ rec {
               labels.severity = "warning";
               annotations = {
                 summary = "Low disk space on {{ $labels.instance }}";
-                description = "{{ $labels.mountpoint }} below ${toString t.diskFreePercentWarn}% free on ${instLabel}.";
+                description = "${devLabel} below ${toString t.diskFreePercentWarn}% free on ${instLabel}.${mountsSentence}";
               };
             }
             {
@@ -384,17 +409,17 @@ rec {
               labels.severity = "critical";
               annotations = {
                 summary = "Critically low disk space on {{ $labels.instance }}";
-                description = "{{ $labels.mountpoint }} below ${toString t.diskFreePercentCrit}% free on ${instLabel}.";
+                description = "${devLabel} below ${toString t.diskFreePercentCrit}% free on ${instLabel}.${mountsSentence}";
               };
             }
             {
               alert = "InodesLow";
-              expr = "100 * node_filesystem_files_free{${fsSelector}} / node_filesystem_files{${fsSelector}} < ${toString t.inodeFreePercentWarn}";
+              expr = "${perDevice "min" "100 * node_filesystem_files_free{${fsSelector}} / node_filesystem_files{${fsSelector}}"} < ${toString t.inodeFreePercentWarn}";
               "for" = "10m";
               labels.severity = "warning";
               annotations = {
                 summary = "Low inodes on {{ $labels.instance }}";
-                description = "{{ $labels.mountpoint }} below ${toString t.inodeFreePercentWarn}% free inodes on ${instLabel}.";
+                description = "${devLabel} below ${toString t.inodeFreePercentWarn}% free inodes on ${instLabel}.${mountsSentence}";
               };
             }
             {
@@ -453,26 +478,27 @@ rec {
               # corruption: page immediately. Mounts that are read-only by
               # design never reach here (cf. `roSelector`).
               alert = "FilesystemReadOnly";
-              expr = "node_filesystem_readonly{${roSelector}} == 1";
+              expr = "${perDevice "max" "node_filesystem_readonly{${roSelector}}"} == 1";
               "for" = "5m";
               labels.severity = "critical";
               annotations = {
                 summary = "Read-only filesystem on {{ $labels.instance }}";
-                description = "{{ $labels.mountpoint }} is mounted read-only on ${instLabel} (I/O errors?).";
+                description = "${devLabel} is mounted read-only on ${instLabel} (I/O errors?).${mountsSentence}";
               };
             }
             {
 
-              # Trend-based early warning: at the current 6h slope the mount
-              # fills within 24h AND is already under 40% free. Catches slow
-              # leaks long before the static `DiskSpaceLow` threshold.
+              # Trend-based early warning: at the current 6h slope the
+              # partition fills within 24h AND is already under 40% free.
+              # Catches slow leaks long before the static `DiskSpaceLow`
+              # threshold.
               alert = "DiskWillFillSoon";
-              expr = "predict_linear(node_filesystem_avail_bytes{${fsSelector}}[6h], 24*3600) < 0 and node_filesystem_avail_bytes{${fsSelector}} / node_filesystem_size_bytes{${fsSelector}} < 0.4";
+              expr = "${perDevice "min" "predict_linear(node_filesystem_avail_bytes{${fsSelector}}[6h], 24*3600)"} < 0 and ${perDevice "min" diskFreeRatio} < 0.4";
               "for" = "1h";
               labels.severity = "warning";
               annotations = {
                 summary = "Disk filling up on {{ $labels.instance }}";
-                description = "{{ $labels.mountpoint }} on ${instLabel} is projected to fill within 24h.";
+                description = "${devLabel} on ${instLabel} is projected to fill within 24h.${mountsSentence}";
               };
             }
             {
