@@ -3,6 +3,7 @@
 # TODO: filter only usefull actions here.
 
 import 'assets/just/common.just'
+import 'assets/just/release.just'
 import 'assets/just/testing.just'
 
 _default:
