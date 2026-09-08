@@ -1,11 +1,19 @@
 # Video tools and applications.
 #
-# Always installs the GNOME viewer (`showtime`) and gates the rest by
-# audience: `enableTools` (ffmpeg, mlt, vlc, video-trimmer, parabolic),
-# `enableEditing` (kdenlive + shotcut from stable nixpkgs),
-# `enableCreator` (OBS Studio with `obs-backgroundremoval`,
+# Always installs the default player (`celluloid`, GTK4/libadwaita front-end
+# over mpv) and gates the rest by audience: `enableTools` (ffmpeg, mlt, vlc,
+# video-trimmer, parabolic), `enableEditing` (kdenlive + shotcut from stable
+# nixpkgs), `enableCreator` (OBS Studio with `obs-backgroundremoval`,
 # `obs-vkcapture`, etc.), `enableUnfree` (davinci-resolve from stable),
 # and `enableAlternative` (mpv).
+#
+# :::caution[Not GNOME Showtime]
+# Showtime 50 deadlocks on some files — `get_state(CLOCK_TIME_NONE)` on the
+# main thread, [GNOME/showtime#299](https://gitlab.gnome.org/GNOME/showtime/-/work_items/299).
+# The stuck process keeps the `org.gnome.Showtime` D-Bus name, so every later
+# launch is activated onto it and silently does nothing: no window, no log.
+# Unfixed upstream as of 50.0.
+# :::
 
 {
   pkgs,
@@ -32,7 +40,7 @@ in
 
     home.packages = with pkgs; [
       #(lib.mkIf cfg.enableTools handbrake)
-      showtime
+      celluloid
       (lib.mkIf cfg.enableAlternative mpv)
       (lib.mkIf cfg.enableEditing pkgs-stable.kdePackages.kdenlive)
       (lib.mkIf cfg.enableEditing pkgs-stable.shotcut)

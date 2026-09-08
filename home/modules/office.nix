@@ -555,11 +555,11 @@ in
       (mkIf cfg.enableCalendarContacts gnome-calendar)
       (mkIf cfg.enableCalendarContacts gnome-contacts)
       (mkIf cfg.enableEmail thunderbird)
+      (mkIf cfg.enableEssentials celluloid) # Video player
       (mkIf cfg.enableEssentials evince) # Reader
       (mkIf cfg.enableEssentials gnome-calculator)
       (mkIf cfg.enableEssentials gnome-clocks)
       (mkIf cfg.enableEssentials gnome-usage)
-      (mkIf cfg.enableEssentials showtime)
       (mkIf cfg.enableFirefox gnomeExtensions.pip-on-top)
       (mkIf cfg.enableFirefox shadowfox)
       (mkIf cfg.enableOffice hunspell)

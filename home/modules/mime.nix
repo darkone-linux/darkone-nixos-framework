@@ -12,7 +12,7 @@
 # - adoc (text/plain) -> gnome text (vs zed)
 # - image -> geeqie (vs browser)
 # - sh -> zed
-# - mp4, mkv & videos -> Gnome video ; vlc ; mpv (vs handbrake)
+# - mp4, mkv & videos -> celluloid ; vlc ; mpv (vs handbrake)
 # - svg : geeqie ; inkscape ; krita (vs gimp)
 
 { lib, config, ... }:
@@ -43,9 +43,8 @@ let
       "dev.zed.Zed.desktop"
     ];
     vid = [
-      "org.gnome.Showtime.desktop"
+      "io.github.celluloid_player.Celluloid.desktop"
       "vlc.desktop"
-      "org.gnome.Totem.desktop"
       "mpv.desktop"
     ];
     mp3 = [
