@@ -151,13 +151,21 @@ in
           # host. `wheel` is the fleet's administrator set, `nix` included.
           # (plain definition: nixpkgs also defines `members`, and list options
           # concatenate — a `mkDefault` here would simply be overridden.)
-          users.groups.proc.members = lib.attrNames (
-            lib.filterAttrs (_: u: lib.elem "wheel" u.extraGroups) config.users.users
-          );
+          users.groups.proc = {
+            gid = config.ids.gids.proc;
+            members = lib.attrNames (lib.filterAttrs (_: u: lib.elem "wheel" u.extraGroups) config.users.users);
+          };
+
+          # `gid=` must be numeric. procfs parses the option in the kernel, with
+          # no NSS lookup, and `specialfs` remounts /proc long before the group
+          # exists anyway: `gid=proc` made the remount fail, leaving /proc
+          # unmounted for the rest of activation. The `modprobe` snippet then
+          # could not write /proc/sys/kernel/modprobe, module autoload stayed on
+          # the non-existent /sbin/modprobe, and nftables died at boot.
           boot.specialFileSystems."/proc" = {
             options = [
               "hidepid=2"
-              "gid=proc"
+              "gid=${toString config.ids.gids.proc}"
             ];
           };
 
