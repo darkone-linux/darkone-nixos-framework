@@ -33,9 +33,10 @@ let
   cfg = config.darkone.security.users;
   isActive = dnfLib.mkIsActive (mainSecurityCfg // { inherit (cfg) enable; });
 
-  # R32 — idle TTY logout, shared by both login shells.
+  # R32 — idle TTY logout, shared by both login shells. `readonly` is the
+  # point of the rule: no user can unset it, so opting out needs an option.
   tmoutInit = ''
-    readonly TMOUT=600
+    readonly TMOUT=${toString cfg.idleTimeout}
     export TMOUT
   '';
 
@@ -71,6 +72,16 @@ in
 {
   options = {
     darkone.security.users.enable = lib.mkEnableOption "Enable ANSSI account management (R30–R36).";
+
+    darkone.security.users.idleTimeout = lib.mkOption {
+      type = lib.types.ints.unsigned;
+      default = 600;
+      description = ''
+        Seconds before an idle login shell exits (R32, `TMOUT`). `0` drops the
+        TTY timeout entirely; the GNOME idle lock is unaffected. Workstations
+        holding long-lived terminals (build farm, agent tooling) set `0`.
+      '';
+    };
   };
 
   config = lib.mkMerge [
@@ -131,8 +142,8 @@ in
 
           # TTY lock: TMOUT set readonly (10 minutes). Both shells — DNF makes
           # zsh the default login shell, bash alone left every real session out.
-          programs.bash.loginShellInit = tmoutInit;
-          programs.zsh.loginShellInit = tmoutInit;
+          programs.bash.loginShellInit = lib.mkIf (cfg.idleTimeout > 0) tmoutInit;
+          programs.zsh.loginShellInit = lib.mkIf (cfg.idleTimeout > 0) tmoutInit;
 
           # Graphical console: GNOME idle-lock defaults when the DNF GNOME
           # profile is active. Shipped as a non-locked dconf database (own

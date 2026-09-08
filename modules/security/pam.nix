@@ -15,9 +15,11 @@
 # :::
 #
 # :::danger[R67 — pam_faillock locks accounts for real]
-# Three failed passwords lock the account for 15 minutes by default. Keep a
-# root session open when first deploying it, and know the way back:
-# `faillock --user <login> --reset`.
+# Three failed passwords lock the account for 15 minutes by default, on
+# `login`, `su`, `sudo` and — through the `login` substack — the GNOME
+# greeter. Keep a root session open when first deploying it, and know the way
+# back: `faillock --user <login> --reset`. SSH is deliberately spared so that
+# a key-based rescue session always stays open.
 # :::
 
 {
@@ -41,16 +43,26 @@ let
     even_deny_root = false;
   };
 
-  # Stacks that actually gate a credential. Derived from the services' own
+  # Stacks that actually gate a password. Derived from the services' own
   # `enable` flags, never from `security.pam.services` itself — reading an
   # option this block also defines would recurse.
+  #
+  # - `sshd` stays out: DNF forbids password authentication, so faillock can
+  #   never count there — it could only refuse a key-based rescue session for
+  #   a lock earned on the console.
+  # - `gdm-password` stays out: it substacks `login`, and a second pair would
+  #   count every failure twice (lock-out at 2 attempts, not `deny`).
   faillockServices = [
     "login"
     "su"
   ]
-  ++ lib.optional config.services.openssh.enable "sshd"
-  ++ lib.optional config.security.sudo.enable "sudo"
-  ++ lib.optional config.services.displayManager.gdm.enable "gdm-password";
+  ++ lib.optional config.security.sudo.enable "sudo";
+
+  # faillock must bracket the stack's own `pam_unix`: `preauth` refuses just
+  # before the credential is checked, `authfail` counts just after. The order
+  # differs per service (11700 on su/sudo, 13100 on login), so hardcoding it
+  # pushed both rules past `pam_deny` on every stack but `login`.
+  unixAuthOrder = service: config.security.pam.services.${service}.rules.auth.unix.order;
 in
 {
   options = {
@@ -82,14 +94,12 @@ in
           # A faillock stack needs all three rules: `preauth` counts, `authfail`
           # denies, and the account rule refuses an already-locked user. The
           # lone `preauth` rule shipped before counted and never locked.
-          security.pam.services = lib.genAttrs faillockServices (_: {
+          security.pam.services = lib.genAttrs faillockServices (service: {
             rules = {
               auth.faillock-preauth = {
                 control = "required";
                 modulePath = faillockModule;
-
-                # pam_unix sits at 13100, pam_deny at 13900.
-                order = 13050;
+                order = unixAuthOrder service - 50;
                 settings = faillockSettings // {
                   preauth = true;
                 };
@@ -98,7 +108,7 @@ in
               auth.faillock-authfail = {
                 control = "[default=die]";
                 modulePath = faillockModule;
-                order = 13150;
+                order = unixAuthOrder service + 50;
                 settings = faillockSettings // {
                   authfail = true;
                 };

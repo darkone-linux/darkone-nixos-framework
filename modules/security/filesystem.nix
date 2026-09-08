@@ -12,9 +12,11 @@
 # :::
 #
 # :::caution[R28 — noexec /tmp]
-# `noexec` on /tmp breaks installers and compilers that run what they unpack
-# (pip, cargo, gcc). Nix builds are covered — the daemon's TMPDIR moves to
-# /var/tmp — but interactive tooling may need `export TMPDIR=$XDG_RUNTIME_DIR`.
+# `noexec` on /tmp blocks execution *and* `dlopen`: it breaks installers and
+# compilers running what they unpack (pip, cargo, gcc) and any runtime
+# extracting native libraries there (Bun, Electron, agent tooling). Nix builds
+# are covered — the daemon's TMPDIR moves to /var/tmp. Opt out per host with
+# `darkone.security.filesystem.tmpNoexec = false`.
 # :::
 #
 # :::caution[R29 — /boot noauto]
@@ -54,6 +56,28 @@ in
       description = "Allowlist of tolerated setuid/setgid binaries (R56, R57).";
     };
 
+    darkone.security.filesystem.tmpfs = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Whether R28 owns `/tmp` as a hardened tmpfs sized on
+        `boot.tmp.tmpfsSize`. Set to `false` to leave `/tmp` on the filesystem
+        it already lives on — a host keeping several GB of persistent scratch
+        there loses both the data and the RAM otherwise.
+      '';
+    };
+
+    darkone.security.filesystem.tmpNoexec = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Whether the R28 `/tmp` carries `noexec`. `noexec` blocks direct
+        execution *and* `dlopen`, so it breaks any runtime unpacking native
+        libraries there (Bun, Electron, agent tooling) and anything compiling
+        then running in `TMPDIR`. Only meaningful when `tmpfs` is `true`.
+      '';
+    };
+
     darkone.security.filesystem.extraMountHardening = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
@@ -86,7 +110,7 @@ in
           # R28 owns /tmp. `boot.tmp.useTmpfs` writes a static `tmp.mount` that
           # carries no `noexec` and outranks the fstab entry generated here:
           # two contradictory definitions, the weaker one winning silently.
-          boot.tmp.useTmpfs = lib.mkForce false;
+          boot.tmp.useTmpfs = lib.mkIf cfg.tmpfs (lib.mkForce false);
           boot.tmp.tmpfsSize = lib.mkDefault "25%";
 
           # `noexec` breaks any build unpacking and running a configure script
@@ -99,21 +123,19 @@ in
           # through `mkMerge`. Extra paths only add `options` to filesystems
           # the operator already declared — never a phantom mount.
           fileSystems = lib.mkMerge (
-            [
-              {
-                "/tmp" = {
-                  device = "tmpfs";
-                  fsType = "tmpfs";
-                  options = [
-                    "nosuid"
-                    "nodev"
-                    "noexec"
-                    "mode=1777"
-                    "size=${toString config.boot.tmp.tmpfsSize}"
-                  ];
-                };
-              }
-            ]
+            lib.optional cfg.tmpfs {
+              "/tmp" = {
+                device = "tmpfs";
+                fsType = "tmpfs";
+                options = [
+                  "nosuid"
+                  "nodev"
+                  "mode=1777"
+                  "size=${toString config.boot.tmp.tmpfsSize}"
+                ]
+                ++ lib.optional cfg.tmpNoexec "noexec";
+              };
+            }
             ++ map (mountPoint: {
               ${mountPoint}.options = [
                 "nosuid"
@@ -124,8 +146,14 @@ in
           );
 
           # /proc with hidepid=2 (hides non-root processes)
-          # proc group required for legitimate tools (ps, htop as root)
-          users.groups.proc = lib.mkDefault { };
+          # Without members the group hides every process from `ps`, `htop`
+          # and the GNOME monitor — including from the operators repairing the
+          # host. `wheel` is the fleet's administrator set, `nix` included.
+          # (plain definition: nixpkgs also defines `members`, and list options
+          # concatenate — a `mkDefault` here would simply be overridden.)
+          users.groups.proc.members = lib.attrNames (
+            lib.filterAttrs (_: u: lib.elem "wheel" u.extraGroups) config.users.users
+          );
           boot.specialFileSystems."/proc" = {
             options = [
               "hidepid=2"
