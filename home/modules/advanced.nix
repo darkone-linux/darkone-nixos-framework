@@ -22,7 +22,7 @@ let
   # Ghostty activation
   hasGhostty = graphic && cfg.enableTools;
 
-  # Ghostty, zellij
+  # Ghostty, zellij, tmux
   termBgColor = "#0F0F0F";
   termFgColor = "#F0F0F0";
 
@@ -332,8 +332,67 @@ in
       shellWrapperName = "y";
     };
 
+    # Terminal multiplexer, tuned for TUI agents (claude code, opencode).
+    #
+    # :::tip[Copy to the outside with a plain mouse selection]
+    # `set-clipboard on` + `copy-pipe-and-cancel` on drag end: a selection is
+    # copied through OSC 52, so the host clipboard is fed by the terminal
+    # emulator itself — works identically over ssh, no wl-copy needed.
+    # :::
+    programs.tmux = lib.mkIf cfg.enableEssentials {
+      enable = true;
+
+      # `vi` copy-mode, and 0ms escape so Esc is not swallowed by the agents.
+      keyMode = "vi";
+      escapeTime = 0;
+      mouse = true;
+      historyLimit = 100000;
+      terminal = "tmux-256color";
+      baseIndex = 1;
+
+      extraConfig = ''
+        # Agents redraw on focus and emit OSC sequences (progress, clipboard,
+        # images): passthrough keeps them reaching the outer terminal.
+        set -g focus-events on
+        set -g allow-passthrough on
+
+        # Clipboard via OSC 52, announced to the outer terminal.
+        set -s set-clipboard on
+        set -as terminal-features ",*:clipboard:RGB:usstyle"
+
+        # CSI u: claude code and opencode need Shift+Enter / Ctrl+Enter to be
+        # distinguishable from a plain Return.
+        set -s extended-keys on
+        set -as terminal-features ",*:extkeys"
+
+        # Drag = select + copy + leave copy-mode, mouse-only workflow.
+        bind -T copy-mode-vi MouseDragEnd1Pane send -X copy-pipe-and-cancel
+        bind -T copy-mode MouseDragEnd1Pane send -X copy-pipe-and-cancel
+
+        # Double/triple click copy word/line without entering copy-mode by hand.
+        bind -T copy-mode-vi DoubleClick1Pane send -X select-word \; send -X copy-pipe-and-cancel
+        bind -T copy-mode-vi TripleClick1Pane send -X select-line \; send -X copy-pipe-and-cancel
+
+        # Middle-click pastes the outer selection into the pane.
+        bind -n MouseDown2Pane paste-buffer -p
+
+        # Splits and new windows inherit the current directory.
+        bind '"' split-window -c "#{pane_current_path}"
+        bind % split-window -h -c "#{pane_current_path}"
+        bind c new-window -c "#{pane_current_path}"
+
+        # Discreet status bar, dark background matching ghostty/zellij.
+        set -g status-style "bg=${termBgColor},fg=${termFgColor}"
+        set -g status-left "#[fg=#57e389] #S "
+        set -g status-right "#[fg=#666666]#h "
+        set -g window-status-current-style "fg=${termBgColor},bg=#57e389"
+        set -g pane-active-border-style "fg=#57e389"
+        set -g pane-border-style "fg=#666666"
+      '';
+    };
+
     # Zellij
-    programs.zellij = lib.mkIf cfg.enableEssentials {
+    programs.zellij = lib.mkIf cfg.enableTools {
       enable = true;
       settings = {
         copy_on_select = true;
