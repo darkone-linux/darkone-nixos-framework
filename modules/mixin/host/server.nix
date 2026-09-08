@@ -38,6 +38,14 @@ in
         # Load minimal configuration
         darkone.host.minimal.enable = true;
 
+        # ANSSI machine category. Written here and not in `gateway`, `hcs` or
+        # `vm`, which all enable this profile: two definitions of different
+        # values on the same option conflict. `mkDefault` because `vm` also
+        # enables this profile, and a hypervisor guest that runs a desktop
+        # (`vbox-umi`) is a client — `desktop` states its own category plainly
+        # and wins. A server that must state it anyway uses `mkForce`.
+        darkone.system.security.category = lib.mkDefault "server";
+
         # Do not suspend!
         darkone.system.core.disableSuspend = lib.mkForce true;
 
