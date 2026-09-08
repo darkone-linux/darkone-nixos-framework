@@ -29,8 +29,10 @@
 # :::
 #
 # :::caution[C5 — Hardened SSH]
-# SSH tunnels, agent forwarding, and X11 disabled. Adapt admin workflows
-# to ProxyJump (`ssh -J`). This module overrides `core.nix` for SSH.
+# Tunnels, agent forwarding and X11 are off. `ssh -J` goes too: ProxyJump
+# opens a `direct-tcpip` channel, which is exactly what `AllowTcpForwarding`
+# refuses — admin access is direct over the tailnet, never bounced. This
+# module overrides `core.nix` for SSH.
 # :::
 
 {

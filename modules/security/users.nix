@@ -33,6 +33,12 @@ let
   cfg = config.darkone.security.users;
   isActive = dnfLib.mkIsActive (mainSecurityCfg // { inherit (cfg) enable; });
 
+  # R32 — idle TTY logout, shared by both login shells.
+  tmoutInit = ''
+    readonly TMOUT=600
+    export TMOUT
+  '';
+
   # R30 — locked/empty password hashes do not grant authentication.
   lockedHashes = [
     ""
@@ -123,11 +129,10 @@ in
         # sideEffects: TMOUT may kill foreground tmux/screen sessions
         (lib.mkIf (isActive "R32" "intermediary" "base" [ ]) {
 
-          # TTY lock: TMOUT set readonly (10 minutes)
-          programs.bash.loginShellInit = ''
-            readonly TMOUT=600
-            export TMOUT
-          '';
+          # TTY lock: TMOUT set readonly (10 minutes). Both shells — DNF makes
+          # zsh the default login shell, bash alone left every real session out.
+          programs.bash.loginShellInit = tmoutInit;
+          programs.zsh.loginShellInit = tmoutInit;
 
           # Graphical console: GNOME idle-lock defaults when the DNF GNOME
           # profile is active. Shipped as a non-locked dconf database (own

@@ -10,8 +10,14 @@
 # :::
 #
 # :::note[Complements]
-# pam_faillock (anti brute-force) is configured here for R67 and in
-# complement.nix (C10). The complexity policy (R31) is in users.nix.
+# pam_faillock (anti brute-force) is configured here for R67; complement.nix
+# (C10) only sets session limits. The complexity policy (R31) is in users.nix.
+# :::
+#
+# :::danger[R67 — pam_faillock locks accounts for real]
+# Three failed passwords lock the account for 15 minutes by default. Keep a
+# root session open when first deploying it, and know the way back:
+# `faillock --user <login> --reset`.
 # :::
 
 {
@@ -25,10 +31,42 @@ let
   mainSecurityCfg = config.darkone.system.security;
   cfg = config.darkone.security.pam;
   isActive = dnfLib.mkIsActive (mainSecurityCfg // { inherit (cfg) enable; });
+
+  faillockModule = "${pkgs.pam}/lib/security/pam_faillock.so";
+  faillockSettings = {
+    inherit (cfg.faillock) deny;
+    unlock_time = cfg.faillock.unlockTime;
+
+    # Root stays reachable: it is the way back from a lock-out.
+    even_deny_root = false;
+  };
+
+  # Stacks that actually gate a credential. Derived from the services' own
+  # `enable` flags, never from `security.pam.services` itself — reading an
+  # option this block also defines would recurse.
+  faillockServices = [
+    "login"
+    "su"
+  ]
+  ++ lib.optional config.services.openssh.enable "sshd"
+  ++ lib.optional config.security.sudo.enable "sudo"
+  ++ lib.optional config.services.displayManager.gdm.enable "gdm-password";
 in
 {
   options = {
     darkone.security.pam.enable = lib.mkEnableOption "Enable ANSSI PAM module — authentication and passwords (R67–R68).";
+
+    darkone.security.pam.faillock.deny = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 3;
+      description = "Failed attempts before pam_faillock locks the account (R67).";
+    };
+
+    darkone.security.pam.faillock.unlockTime = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 900;
+      description = "Seconds an account stays locked (R67). Unlock early with `faillock --reset`.";
+    };
   };
 
   config = lib.mkMerge [
@@ -38,21 +76,41 @@ in
       lib.mkMerge [
 
         # R67 — Secure remote PAM authentication (intermediary, base)
-        # sideEffects: SSSD requires an additional service and a local cache
+        # sideEffects: a locked-out admin needs `faillock --reset` from root
         (lib.mkIf (isActive "R67" "intermediary" "base" [ ]) {
 
-          # pam_faillock: anti brute-force locking
-          # deny=3: 3 attempts max, unlock_time=900: 15 min lockout
-          security.pam.services.login.rules.auth.faillock = {
-            control = "required";
-            modulePath = "${pkgs.pam}/lib/security/pam_faillock.so";
-            settings = {
-              preauth = true;
-              deny = 3;
-              unlock_time = 900;
-              even_deny_root = false; # Do not block root (lock-out risk)
+          # A faillock stack needs all three rules: `preauth` counts, `authfail`
+          # denies, and the account rule refuses an already-locked user. The
+          # lone `preauth` rule shipped before counted and never locked.
+          security.pam.services = lib.genAttrs faillockServices (_: {
+            rules = {
+              auth.faillock-preauth = {
+                control = "required";
+                modulePath = faillockModule;
+
+                # pam_unix sits at 13100, pam_deny at 13900.
+                order = 13050;
+                settings = faillockSettings // {
+                  preauth = true;
+                };
+              };
+
+              auth.faillock-authfail = {
+                control = "[default=die]";
+                modulePath = faillockModule;
+                order = 13150;
+                settings = faillockSettings // {
+                  authfail = true;
+                };
+              };
+
+              account.faillock = {
+                control = "required";
+                modulePath = faillockModule;
+                order = 10050;
+              };
             };
-          };
+          });
 
           # Remote PAM/LDAP TLS enforcement is deferred: DNF does not ship a
           # remote directory (no SSSD/nslcd), so there is nothing to validate
