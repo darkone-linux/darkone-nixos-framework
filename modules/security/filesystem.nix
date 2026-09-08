@@ -163,10 +163,10 @@ in
         (lib.mkIf (isActive "R50" "intermediary" "base" [ ]) {
           systemd.tmpfiles.rules = [
 
-            # Audit and sudo journals
+            # Audit journals. `/var/log/sudo-io` is R39's (sudo.nix), which
+            # already creates it 0750 root adm along with its rotation.
             "d /etc/audit          0750 root adm   -"
             "d /var/log/audit      0750 root adm   -"
-            "d /var/log/sudo-io    0750 root adm   -"
 
             # System logs (if directory exists)
             "Z /var/log/nginx      0640 nginx adm  -"

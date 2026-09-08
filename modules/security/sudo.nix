@@ -11,9 +11,11 @@
 # defined in `darkone.system.security` (via `isActive`).
 # :::
 #
-# :::caution[R39 — requiretty]
-# `requiretty` makes `ssh user@host sudo cmd` fail without an allocated TTY.
-# The SSH `-t` option is required: `ssh -t user@host sudo cmd`.
+# :::caution[R39 — `noexec` and `requiretty` dropped]
+# Both are incompatible with an agent-driven deployment: colmena escalates
+# with `sudo -H --` over SSH (no PTY, so `requiretty` refuses), and
+# `switch-to-configuration` spawns children (so `noexec` blocks it).
+# Accountability rests on `use_pty` + `log_input`/`log_output` instead.
 # :::
 #
 # :::caution[R39 — rootpw]
@@ -33,6 +35,10 @@ let
   isActive = dnfLib.mkIsActive (mainSecurityCfg // { inherit (cfg) enable; });
 
   adminMail = mainSecurityCfg.adminMailbox;
+
+  # Single owner of the sudo I/O log path: R33 (users.nix) and R50
+  # (filesystem.nix) used to declare it too, yielding duplicate tmpfiles rules.
+  ioLogDir = "/var/log/sudo-io";
 
   # sudoers introspection (R40, R42, R44). A command entry is either a bare
   # string or a `{ command, options }` submodule; normalise both to strings.
@@ -87,19 +93,34 @@ in
         })
 
         # R39 — Hardened sudo directives (intermediary, base)
+        # sideEffects: iolog_dir writes a few MB/day on interactive servers
         (lib.mkIf (isActive "R39" "intermediary" "base" [ ]) {
+
+          # `noexec` and `requiretty` are deliberately absent — cf. the header:
+          # they break colmena and `nixos-rebuild`. `use_pty` keeps the session
+          # capture that R39 is really after.
           security.sudo.extraConfig = ''
-            Defaults  noexec, requiretty, use_pty, umask=0027
+            Defaults  use_pty, umask=0027
             Defaults  ignore_dot, env_reset
-            Defaults  log_input, log_output, iolog_dir=/var/log/sudo-io
+            Defaults  log_input, log_output, iolog_dir=${ioLogDir}
             Defaults  passwd_timeout=1, timestamp_timeout=5
             ${lib.optionalString (
               adminMail != ""
             ) "Defaults  mailto=\"${adminMail}\", mail_badpass, mail_no_user"}
           '';
 
-          # Directory for sudo I/O logs
-          systemd.tmpfiles.rules = [ "d /var/log/sudo-io 0750 root adm -" ];
+          systemd.tmpfiles.rules = [ "d ${ioLogDir} 0750 root adm -" ];
+
+          # Session captures grow unbounded; sudo names each one after a
+          # sequence, so age is the only usable rotation criterion.
+          services.logrotate.settings.sudo-io = {
+            files = "${ioLogDir}/*/*/*/log";
+            frequency = "weekly";
+            rotate = 12;
+            compress = true;
+            missingok = true;
+            notifempty = true;
+          };
         })
 
         # R40 — Non-root targets for sudo (intermediary, base)

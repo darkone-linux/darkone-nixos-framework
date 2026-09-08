@@ -17,9 +17,17 @@
 # servers before enabling the `intermediary` level.
 # :::
 #
-# :::caution[R9 — unprivileged_userns_clone=0]
-# Breaks rootless Docker, rootless Podman, non-suid bubblewrap, and Flatpak.
-# Use the R9 exception if these tools are required.
+# :::caution[R9 — restricting user namespaces is opt-in]
+# `kernel.unprivileged_userns_clone` is a Debian / linux-hardened key, absent
+# from mainline: writing it fails `systemd-sysctl`. The mainline equivalent
+# (`user.max_user_namespaces = 0`) breaks Flatpak, bubblewrap and rootless
+# Podman, hence `restrictUserns` — off by default.
+# :::
+#
+# :::caution[R12 — reverse path filtering]
+# Strict mode (`rp_filter = 1`) drops any asymmetric return path. A tailscale
+# subnet router advertising routes with `--snat-subnet-routes=false` is exactly
+# that case, so routers fall back to loose mode (2).
 # :::
 #
 # :::caution[R10 — Modules disabled]
@@ -37,10 +45,34 @@ let
   mainSecurityCfg = config.darkone.system.security;
   cfg = config.darkone.security.kernel-params;
   isActive = dnfLib.mkIsActive (mainSecurityCfg // { inherit (cfg) enable; });
+
+  # R12: strict RPF (1) drops asymmetric returns. A tailscale router keeps the
+  # tailnet source address (`--snat-subnet-routes=false`), so it needs loose (2).
+  tailscaleCfg = config.darkone.service.tailscale;
+  rpFilterMode = if (tailscaleCfg.isGateway || tailscaleCfg.isExitNode) then 2 else 1;
 in
 {
   options = {
     darkone.security.kernel-params.enable = lib.mkEnableOption "Enable ANSSI dynamic kernel parameters (R8–R14).";
+
+    darkone.security.kernel-params.restrictUserns = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        R9: forbid unprivileged user namespaces (`user.max_user_namespaces`).
+        Breaks Flatpak, bubblewrap and rootless Podman, so it stays opt-in and
+        belongs on servers that run none of them.
+      '';
+    };
+
+    darkone.security.kernel-params.disableIpv6 = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        R13: disable IPv6 entirely. Off by default — ANSSI itself prefers
+        hardening IPv6 over dropping it, and a public host generally needs it.
+      '';
+    };
   };
 
   config = lib.mkMerge [
@@ -74,12 +106,11 @@ in
         })
 
         # R9 — Kernel sysctls (intermediary, base)
-        # sideEffects: unprivileged_userns_clone=0 breaks rootless Docker/Podman, Flatpak
+        # sideEffects: restrictUserns breaks rootless Docker/Podman, Flatpak
         (lib.mkIf (isActive "R9" "intermediary" "base" [ ]) {
           boot.kernel.sysctl = {
             # Memory and processes
             "kernel.kexec_load_disabled" = 1; # Disable kexec (except tag needs-kexec)
-            "kernel.unprivileged_userns_clone" = 0; # linux-hardened: no unprivileged userns
             "kernel.core_uses_pid" = 1; # core dump with PID in the name
             "vm.unprivileged_userfaultfd" = 0; # Forbid unprivileged userfaultfd
             "kernel.kptr_restrict" = 2; # Hide kernel pointers (/proc/kallsyms)
@@ -92,7 +123,10 @@ in
 
             # General networking
             "net.core.bpf_jit_harden" = 2; # Harden the BPF JIT
-          };
+          }
+
+          # Mainline knob, opt-in: no sandbox runtime survives it.
+          // lib.optionalAttrs cfg.restrictUserns { "user.max_user_namespaces" = 0; };
         })
 
         # R10 — Disable module loading (reinforced, base, tag: disable-kernel-module-loading)
@@ -121,8 +155,8 @@ in
           boot.kernel.sysctl = {
 
             # Antispoofing and filtering
-            "net.ipv4.conf.all.rp_filter" = 1;
-            "net.ipv4.conf.default.rp_filter" = 1;
+            "net.ipv4.conf.all.rp_filter" = rpFilterMode;
+            "net.ipv4.conf.default.rp_filter" = rpFilterMode;
             "net.ipv4.conf.all.accept_redirects" = 0;
             "net.ipv4.conf.default.accept_redirects" = 0;
             "net.ipv4.conf.all.secure_redirects" = 0;
@@ -147,10 +181,12 @@ in
           };
         })
 
-        # R13 — Disable IPv6 (intermediary, base, tag: no-ipv6)
-        # sideEffects: breaks IPv6-only services (Cloudflare, AWS Egress-only)
-        # Note: inactive by default (tag absent). Prefer IPv6 hardening over disabling.
-        (lib.mkIf (isActive "R13" "intermediary" "base" [ "no-ipv6" ]) {
+        # R13 — Disable IPv6 (intermediary, base, opt-in: disableIpv6)
+        # sideEffects: breaks IPv6-only services (ACME, Cloudflare, egress-only)
+        #
+        # Gated by an option, not by an exclusion tag: tags only remove a rule,
+        # so `no-ipv6` made R13 active by default and cut IPv6 fleet-wide.
+        (lib.mkIf (cfg.disableIpv6 && isActive "R13" "intermediary" "base" [ ]) {
           networking.enableIPv6 = false;
           boot.kernelParams = [ "ipv6.disable=1" ];
           boot.kernel.sysctl = {
@@ -170,10 +206,11 @@ in
             "fs.suid_dumpable" = 0; # No core dump for setuid binaries
           }
 
-          # binfmt_misc disabled unless tag needs-binfmt present (consistent with R23)
-          // lib.optionalAttrs (!(lib.elem "needs-binfmt" mainSecurityCfg.excludes)) {
-            "fs.binfmt_misc.status" = 0;
-          };
+          # binfmt_misc off unless the host actually emulates an architecture
+          # (cross-building SD images) or keeps the `needs-binfmt` tag (R23).
+          // lib.optionalAttrs (
+            config.boot.binfmt.emulatedSystems == [ ] && !(lib.elem "needs-binfmt" mainSecurityCfg.excludes)
+          ) { "fs.binfmt_misc.status" = 0; };
         })
       ]
     ))
