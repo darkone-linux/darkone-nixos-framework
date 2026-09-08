@@ -12,8 +12,9 @@
 # :::
 #
 # :::caution[R28 — noexec /tmp]
-# `noexec` on /tmp breaks many installers and compilers (pip, cargo, gcc).
-# Workaround: `export TMPDIR=$XDG_RUNTIME_DIR` in shell profiles.
+# `noexec` on /tmp breaks installers and compilers that run what they unpack
+# (pip, cargo, gcc). Nix builds are covered — the daemon's TMPDIR moves to
+# /var/tmp — but interactive tooling may need `export TMPDIR=$XDG_RUNTIME_DIR`.
 # :::
 #
 # :::caution[R29 — /boot noauto]
@@ -82,9 +83,15 @@ in
         # sideEffects: noexec /tmp breaks compilers; hidepid=2 hides non-root processes
         (lib.mkIf (isActive "R28" "intermediary" "base" [ ]) {
 
-          # /tmp as tmpfs with restrictive options
-          boot.tmp.useTmpfs = lib.mkDefault true;
+          # R28 owns /tmp. `boot.tmp.useTmpfs` writes a static `tmp.mount` that
+          # carries no `noexec` and outranks the fstab entry generated here:
+          # two contradictory definitions, the weaker one winning silently.
+          boot.tmp.useTmpfs = lib.mkForce false;
           boot.tmp.tmpfsSize = lib.mkDefault "25%";
+
+          # `noexec` breaks any build unpacking and running a configure script
+          # in TMPDIR. Nix 2.34 has no `build-dir` setting, so move the daemon.
+          systemd.services.nix-daemon.environment.TMPDIR = lib.mkDefault "/var/tmp";
 
           # Mount options for /tmp and any operator-declared extra partitions
           # (R28). A single `fileSystems` definition: mixing dotted-path and
@@ -93,7 +100,7 @@ in
           # the operator already declared — never a phantom mount.
           fileSystems = lib.mkMerge (
             [
-              (lib.mkIf config.boot.tmp.useTmpfs {
+              {
                 "/tmp" = {
                   device = "tmpfs";
                   fsType = "tmpfs";
@@ -101,11 +108,11 @@ in
                     "nosuid"
                     "nodev"
                     "noexec"
-                    "size=25%"
                     "mode=1777"
+                    "size=${toString config.boot.tmp.tmpfsSize}"
                   ];
                 };
-              })
+              }
             ]
             ++ map (mountPoint: {
               ${mountPoint}.options = [
