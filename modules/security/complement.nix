@@ -288,9 +288,29 @@ in
         (lib.mkIf (isActive "C7" "intermediary" "base" [ ]) {
           services.chrony = {
             enable = true;
-            servers = cfg.ntpServers;
-            extraConfig = lib.optionalString cfg.useNts ''
-              ${lib.concatMapStringsSep "\n" (s: "server ${s} nts") cfg.ntpServers}
+
+            # NTS *replaces* the plain servers, it does not double them. Feeding
+            # the same host to both `servers` and `extraConfig` left an
+            # unauthenticated source alongside the authenticated one — and
+            # chrony picked the unauthenticated one to step the clock at boot,
+            # which is exactly what NTS is there to prevent.
+            servers = lib.optionals (!cfg.useNts) cfg.ntpServers;
+
+            # `rtcautotrim`, the NixOS default, excludes `rtcsync` — and only
+            # `rtcsync` clears the kernel's STA_UNSYNC flag. Left as it was,
+            # `adjtimex` reported an unsynchronised clock for ever, so the
+            # ClockSkew alert fired on every host raised to this tier: C7
+            # replaced timesyncd, which used to set that flag.
+            enableRTCTrimming = false;
+
+            # `iburst` on the NTS lines too: without it the first sync waits for
+            # the NTS-KE handshake plus several 64 s polls — measured at nearly
+            # four minutes without a synchronised clock after a reboot.
+            extraConfig = ''
+              rtcsync
+            ''
+            + lib.optionalString cfg.useNts ''
+              ${lib.concatMapStringsSep "\n" (s: "server ${s} iburst nts") cfg.ntpServers}
             '';
           };
         })
