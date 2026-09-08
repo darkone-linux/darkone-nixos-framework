@@ -29,6 +29,10 @@ in
         #darkone.host.laptop.enable = true;
         darkone.host.minimal.enable = true;
 
+        # ANSSI machine category: a USB key is used as a workstation, and it
+        # inherits `minimal`, which stays `base`.
+        darkone.system.security.category = "client";
+
         # More hardware drivers
         darkone.system.hardware = {
           enable = true;
