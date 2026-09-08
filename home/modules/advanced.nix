@@ -711,8 +711,10 @@ in
         highlight GitGutterDelete ctermfg=167 ctermbg=237 guifg=#fb4934 guibg=NONE
         highlight GitGutterChange ctermfg=108 ctermbg=237 guifg=#8ec07c guibg=NONE
 
-        " Use system clipboard
-        set clipboard=unnamedplus
+        " System clipboard. `autoselectplus` mirrors ghostty's copy-on-select:
+        " under `mouse=a` a drag starts Visual mode, and vim then owns the
+        " CLIPBOARD selection. Needs a vim built with +clipboard and +X11.
+        set clipboard=unnamedplus,autoselectplus
 
         " Start NERDTree when Vim is started without file arguments.
         autocmd StdinReadPre * let s:std_in=1
