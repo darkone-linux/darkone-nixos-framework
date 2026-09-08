@@ -212,9 +212,14 @@ in
             "d /var/log/audit      0750 root adm   -"
 
             # System logs (if directory exists)
-            "Z /var/log/nginx      0640 nginx adm  -"
             "Z /var/log/sshd       0640 root  adm  -"
-          ];
+          ]
+
+          # `Z` does nothing when the path is absent, but tmpfiles still
+          # resolves the owner while parsing: on a host without nginx the rule
+          # fails at every boot ("Unknown user"), which defeats the empty
+          # journal this tier is checked against.
+          ++ lib.optional config.services.nginx.enable "Z /var/log/nginx      0640 nginx adm  -";
         })
 
         # R51 — Change secrets from installation (reinforced, base)
