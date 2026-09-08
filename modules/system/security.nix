@@ -51,7 +51,9 @@
 # :::note[Exclusion tags]
 # - `kernel-recompile`             : ignores R15–R27, C1 (no custom kernel).
 # - `disable-kernel-module-loading`: ignores R10 (may break devices).
-# - `no-ipv6`                      : ignores R13, R22 (IPv6 disable).
+# - `no-ipv6`                      : ignores R22 (IPv6 kernel options). Dropping
+#                                    IPv6 itself (R13) is the opt-in option
+#                                    `darkone.security.kernel-params.disableIpv6`.
 # - `no-mac`                       : ignores R37, R45 (no active MAC).
 # - `no-sealing`                   : ignores R76, R77 (no HIDS/AIDE).
 # - `no-auditd`                    : ignores R73 (auditd not configurable).

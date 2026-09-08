@@ -156,13 +156,9 @@ in
           # SSH: no direct root login
           services.openssh.settings.PermitRootLogin = lib.mkDefault "no";
 
-          # sudo with I/O logging (see sudo.nix for full config)
-          security.sudo.extraConfig = lib.mkDefault ''
-            Defaults log_input, log_output, iolog_dir=/var/log/sudo-io
-          '';
-
-          # Directory for sudo logs
-          systemd.tmpfiles.rules = [ "d /var/log/sudo-io 0750 root adm -" ];
+          # sudo I/O logging, its directory and its rotation belong to R39
+          # (sudo.nix), which owns `iolog_dir` — duplicating them here produced
+          # a second tmpfiles rule and a dead `mkDefault` sudoers fragment.
         })
 
         # R34 — Disable service accounts (intermediary, base)
