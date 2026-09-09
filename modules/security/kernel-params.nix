@@ -17,12 +17,13 @@
 # build farm cannot always pay. `disableSmt = false` keeps the rest of R8.
 # :::
 #
-# :::caution[R8 — the allocator extras cost more than the wipe they replace]
+# :::caution[R8 — the allocator extras replace the wipe ANSSI asks for]
 # `page_poison=on` takes precedence over `init_on_alloc`/`init_on_free` — the
 # kernel says as much at boot — so R8 ships a debug facility where ANSSI asks
 # for a memory wipe, and `slub_debug=FZP` rides along on every slab cache.
-# Measured together at +56% on a compile. `memoryDebug = false` drops the
-# three and gives `init_on_*` back.
+# `memoryDebug = false` drops the three and gives `init_on_*` back; measured
+# at 7% of a compile (95s to 88s, ms-a2, SMT on), so the reason is conformity
+# rather than speed.
 # :::
 #
 # :::caution[R9 — restricting user namespaces is opt-in]
@@ -91,9 +92,9 @@ in
         R8: the allocator extras — `slub_debug=FZP`, `page_poison=on` and
         `slab_nomerge=yes`. None of the three is in the ANSSI R8 list, and
         `page_poison` displaces `init_on_alloc`/`init_on_free`, which are:
-        the kernel says so at boot, and honours the costlier debug facility
-        instead. Measured at +56% on a compile (61s to 95s, ms-a2, SMT on),
-        so a build farm turns it off and gets the specified wipe back.
+        the kernel says so at boot, and honours the debug facility instead.
+        Turning it off restores the specified wipe and gives back 7% of a
+        compile (95s to 88s, ms-a2, SMT on).
       '';
     };
 
@@ -138,7 +139,7 @@ in
           # Allocator extras, none of them from the ANSSI R8 list — and
           # `page_poison` overrides the `init_on_*` above rather than adding to
           # them, so this block *replaces* the specified wipe with a debug
-          # facility that costs far more (cf. `memoryDebug`).
+          # facility (cf. `memoryDebug`).
           ++ lib.optionals cfg.memoryDebug [
             "page_poison=on" # Poisoning of freed pages
             "slab_nomerge=yes" # No slab merging (complicates heap overflow)
