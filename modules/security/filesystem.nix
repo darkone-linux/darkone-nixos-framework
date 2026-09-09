@@ -19,6 +19,17 @@
 # `darkone.security.filesystem.tmpNoexec = false`.
 # :::
 #
+# :::caution[R28 — cross to the hardened /tmp at boot, not at switch]
+# A host already on `boot.tmp.useTmpfs` carries a static `tmp.mount`, which
+# this rule replaces with an fstab entry: the switch therefore *stops* it, and
+# `PrivateTmp=yes` implies `RequiresMountsFor=/tmp`, so every such unit goes
+# down with it — `dbus-broker` included. `switch-to-configuration` drives
+# systemd over D-Bus, so it loses its own transport mid-run and aborts, every
+# time. Use `apply <host> boot` and reboot; the tier needs a reboot for
+# `boot.kernelParams` anyway. Hosts that never used `useTmpfs` only gain a
+# mount, which is harmless.
+# :::
+#
 # :::caution[R29 — /boot noauto]
 # `noauto` on /boot requires a manual remount on every NixOS update.
 # A `nixos-rebuild` wrapper must ensure automatic mount/unmount.
