@@ -12,9 +12,9 @@
 # :::
 #
 # :::caution[R8 — SMT disabled]
-# `mds=full,nosmt` and `mitigations=auto,nosmt` disable hyperthreading,
-# which reduces multi-threaded throughput by around 30%. Evaluate on compute
-# servers before enabling the `intermediary` level.
+# `l1tf=full,force`, `mds=full,nosmt` and `mitigations=auto,nosmt` disable
+# hyperthreading, worth around 30% of multi-threaded throughput — a price a
+# build farm cannot always pay. `disableSmt = false` keeps the rest of R8.
 # :::
 #
 # :::caution[R9 — restricting user namespaces is opt-in]
@@ -65,6 +65,17 @@ in
       '';
     };
 
+    darkone.security.kernel-params.disableSmt = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        R8: turn hyperthreading off. Three parameters carry it; `false` falls
+        each back to its SMT-preserving form and leaves the other fourteen
+        alone. Note `l1tf=full` drops SMT even without `force` — it only
+        leaves the sysfs knob behind — so the fallback there is `flush`.
+      '';
+    };
+
     darkone.security.kernel-params.disableIpv6 = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -85,14 +96,15 @@ in
         # sideEffects: init_on_* ~1-3% CPU, nosmt ~-30% multi-thread, debugfs=off breaks perf
         (lib.mkIf (isActive "R8" "intermediary" "base" [ ]) {
           boot.kernelParams = [
-            "l1tf=full,force" # L1 Terminal Fault: full mitigation + SMT disabled
+            # L1 Terminal Fault: full mitigation + SMT disabled
+            (if cfg.disableSmt then "l1tf=full,force" else "l1tf=flush")
             "page_poison=on" # Poisoning of freed pages
             "pti=on" # Page Table Isolation (Meltdown)
             "slab_nomerge=yes" # No slab merging (complicates heap overflow)
             "slub_debug=FZP" # Slab debug: Freelist / Zero / Poison
             "spec_store_bypass_disable=seccomp" # Spectre v4 via seccomp
             "spectre_v2=on" # Spectre v2
-            "mds=full,nosmt" # MDS + SMT disabled
+            (if cfg.disableSmt then "mds=full,nosmt" else "mds=full") # MDS
             "mce=0" # Panic on uncorrected MCE
             "page_alloc.shuffle=1" # Page allocator randomization
             "rng_core.default_quality=500" # HWRNG quality for CSPRNG
@@ -100,7 +112,8 @@ in
             "init_on_free=1" # Memory wipe on free
             "randomize_kstack_offset=on" # Kernel stack ASLR
             "vsyscall=none" # Disable legacy vsyscall
-            "mitigations=auto,nosmt" # All CPU vulnerabilities (belt-and-suspenders)
+            # All CPU vulnerabilities (belt-and-suspenders)
+            (if cfg.disableSmt then "mitigations=auto,nosmt" else "mitigations=auto")
             "debugfs=off" # Forbid /sys/kernel/debug
           ];
         })
