@@ -153,6 +153,7 @@ in
       (lib.mkIf cfg.enableEssentials microfetch)
       (lib.mkIf cfg.enableEssentials nodejs_24) # CoC, required for vim
       (lib.mkIf cfg.enableEssentials rename)
+      (lib.mkIf cfg.enableEssentials rename-simple) # dnf/pkgs, not in nixpkgs
       (lib.mkIf cfg.enableEssentials rsync)
       (lib.mkIf cfg.enableEssentials tree)
       (lib.mkIf cfg.enableEssentials unzip)
