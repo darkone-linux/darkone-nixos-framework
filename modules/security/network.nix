@@ -16,6 +16,14 @@
 # only set on a fully controlled domain.
 # :::
 #
+# :::caution[R79 — nginx headers are opt-in per vhost]
+# `add_header` replaces the parent set instead of adding to it, so a global
+# block is dropped by the first vhost or location declaring a header of its
+# own — and gixy fails the build over the shadowing. The set therefore ships
+# as `/etc/nginx/dnf-security-headers.conf`, to `include` from the vhost's own
+# `extraConfig`. Only the TLS directives stay global.
+# :::
+#
 # :::caution[R79 — Every jail needs a filter]
 # fail2ban runs on the systemd backend here: a jail needs both a `filter.d`
 # definition and a `journalmatch`, or it aborts the whole daemon at startup —
@@ -156,17 +164,35 @@ in
             }
           ];
 
-          # Custom filter definitions, dropped next to the stock filter.d ones.
-          environment.etc = lib.mapAttrs' (
-            name: f:
-            lib.nameValuePair "fail2ban/filter.d/${name}.conf" {
-              text = ''
-                [Definition]
-                failregex = ${f.failregex}
-                ignoreregex =
+          environment.etc = lib.mkMerge [
+
+            # Custom filter definitions, next to the stock filter.d ones.
+            (lib.mapAttrs' (
+              name: f:
+              lib.nameValuePair "fail2ban/filter.d/${name}.conf" {
+                text = ''
+                  [Definition]
+                  failregex = ${f.failregex}
+                  ignoreregex =
+                '';
+              }
+            ) (lib.filterAttrs (name: f: f.failregex != "" && lib.elem name cfg.exposedServices) cfg.filters))
+
+            # Opt-in header set, symmetric with the Caddy snippet below. A vhost
+            # takes it with `include /etc/nginx/dnf-security-headers.conf;` in
+            # its own `extraConfig` — at the level where it already sets
+            # headers, so nothing is shadowed. An origin behind a DNF Caddy has
+            # no use for it: the edge carries them.
+            (lib.mkIf (config.services.nginx.enable && cfg.httpsHeaders) {
+              "nginx/dnf-security-headers.conf".text = ''
+                add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+                add_header X-Content-Type-Options "nosniff" always;
+                add_header X-Frame-Options "DENY" always;
+                add_header Content-Security-Policy "default-src 'self'" always;
+                add_header Referrer-Policy "no-referrer" always;
               '';
-            }
-          ) (lib.filterAttrs (name: f: f.failregex != "" && lib.elem name cfg.exposedServices) cfg.filters);
+            })
+          ];
 
           services.fail2ban = lib.mkIf (cfg.exposedServices != [ ]) {
             enable = true;
@@ -187,14 +213,17 @@ in
             });
           };
 
-          # ANSSI HTTP security headers in Nginx
+          # TLS hardening is global: these directives inherit normally.
+          #
+          # The headers are NOT here. `add_header` replaces the parent set
+          # wholesale rather than adding to it, so a block at `http` level is
+          # dropped by the first vhost or location carrying a header of its own
+          # — nextcloud's vhost, the nix-cache `location /`. gixy refuses the
+          # shadowing outright and the nginx.conf no longer builds: the rule
+          # took every nginx host of the fleet down with it, while protecting
+          # none of them. Hence a snippet to include, as on the Caddy side.
           services.nginx = lib.mkIf (config.services.nginx.enable && cfg.httpsHeaders) {
             commonHttpConfig = ''
-              add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
-              add_header X-Content-Type-Options "nosniff" always;
-              add_header X-Frame-Options "DENY" always;
-              add_header Content-Security-Policy "default-src 'self'" always;
-              add_header Referrer-Policy "no-referrer" always;
               ssl_protocols TLSv1.3 TLSv1.2;
               ssl_ciphers "${lib.concatStringsSep ":" cfg.tlsCiphers}";
               ssl_prefer_server_ciphers on;
