@@ -10,6 +10,8 @@ observable defaults, `lib.mkConfigurations`, public `just` recipes, the expected
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-09
+
 First versioned release. The framework and its ecosystem existed before this
 tag; what is new is the contract — a version consumers can pin, a changelog,
 and companion releases known to work together. The entry below inventories the
@@ -60,8 +62,10 @@ framework as it stands, not the commits that built it.
 
 | Project | Version |
 |---|---|
-| [dnf-generator](https://github.com/darkone-linux/dnf-generator) | pinned in `flake.lock` |
+| [dnf-generator](https://github.com/darkone-linux/dnf-generator) | `v0.1.0` |
 | [dnf-doc](https://github.com/darkone-linux/dnf-doc) | `0.1.x` |
 | [dnf-boilerplate](https://github.com/darkone-linux/dnf-boilerplate) | `v0.1.0` |
 | [dnf-example](https://github.com/darkone-linux/dnf-example) | `v0.1.0` |
 
+[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/darkone-linux/darkone-nixos-framework/releases/tag/v0.1.0
