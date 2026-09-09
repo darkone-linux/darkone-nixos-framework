@@ -20,16 +20,16 @@
 
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "rename-simple";
-  version = "0.7.1";
+  version = "0.7.2";
 
   src = fetchFromGitHub {
     owner = "darkone-linux";
     repo = "rename-simple";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-Q21V04uUgSwEm1UBhbNQyFRL+k/sRybTXbOBkWXTRyQ=";
+    hash = "sha256-YGP5FNgIp/d6TyHkBgDzwvcn1J2MktQnQkuQvvrWLBo=";
   };
 
-  cargoHash = "sha256-oZj6oQktwRZkHt/RS1KvrVw80lMXOLp3xFnShsF9xUw=";
+  cargoHash = "sha256-ydoIQPmMnpRCfRYRRbfMUPkEoLTfI/meIPg4bcrin9s=";
 
   # buildRustPackage installs binaries only; without this `man rename-simple`
   # is lost. Nix compresses man pages itself: install the uncompressed source.
