@@ -17,6 +17,14 @@
 # build farm cannot always pay. `disableSmt = false` keeps the rest of R8.
 # :::
 #
+# :::caution[R8 — the allocator extras cost more than the wipe they replace]
+# `page_poison=on` takes precedence over `init_on_alloc`/`init_on_free` — the
+# kernel says as much at boot — so R8 ships a debug facility where ANSSI asks
+# for a memory wipe, and `slub_debug=FZP` rides along on every slab cache.
+# Measured together at +56% on a compile. `memoryDebug = false` drops the
+# three and gives `init_on_*` back.
+# :::
+#
 # :::caution[R9 — restricting user namespaces is opt-in]
 # `kernel.unprivileged_userns_clone` is a Debian / linux-hardened key, absent
 # from mainline: writing it fails `systemd-sysctl`. The mainline equivalent
@@ -76,6 +84,19 @@ in
       '';
     };
 
+    darkone.security.kernel-params.memoryDebug = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        R8: the allocator extras — `slub_debug=FZP`, `page_poison=on` and
+        `slab_nomerge=yes`. None of the three is in the ANSSI R8 list, and
+        `page_poison` displaces `init_on_alloc`/`init_on_free`, which are:
+        the kernel says so at boot, and honours the costlier debug facility
+        instead. Measured at +56% on a compile (61s to 95s, ms-a2, SMT on),
+        so a build farm turns it off and gets the specified wipe back.
+      '';
+    };
+
     darkone.security.kernel-params.disableIpv6 = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -98,10 +119,7 @@ in
           boot.kernelParams = [
             # L1 Terminal Fault: full mitigation + SMT disabled
             (if cfg.disableSmt then "l1tf=full,force" else "l1tf=flush")
-            "page_poison=on" # Poisoning of freed pages
             "pti=on" # Page Table Isolation (Meltdown)
-            "slab_nomerge=yes" # No slab merging (complicates heap overflow)
-            "slub_debug=FZP" # Slab debug: Freelist / Zero / Poison
             "spec_store_bypass_disable=seccomp" # Spectre v4 via seccomp
             "spectre_v2=on" # Spectre v2
             (if cfg.disableSmt then "mds=full,nosmt" else "mds=full") # MDS
@@ -115,6 +133,16 @@ in
             # All CPU vulnerabilities (belt-and-suspenders)
             (if cfg.disableSmt then "mitigations=auto,nosmt" else "mitigations=auto")
             "debugfs=off" # Forbid /sys/kernel/debug
+          ]
+
+          # Allocator extras, none of them from the ANSSI R8 list — and
+          # `page_poison` overrides the `init_on_*` above rather than adding to
+          # them, so this block *replaces* the specified wipe with a debug
+          # facility that costs far more (cf. `memoryDebug`).
+          ++ lib.optionals cfg.memoryDebug [
+            "page_poison=on" # Poisoning of freed pages
+            "slab_nomerge=yes" # No slab merging (complicates heap overflow)
+            "slub_debug=FZP" # Slab debug: Freelist / Zero / Poison
           ];
         })
 
