@@ -71,10 +71,10 @@
 # :::
 #
 # :::caution[Side effects]
-# Some rules may break common usage: `noexec /tmp` (R28),
-# SMT disabled (R8), unsigned modules (R18), rootless containers (R9),
-# JIT (R63). Check `sideEffects` comments in each themed file before
-# raising the level on a production system.
+# Some rules may break common usage: `noexec /tmp` (R28), SMT disabled (R8 —
+# keep it with `darkone.security.kernel-params.disableSmt = false`), unsigned
+# modules (R18), rootless containers (R9), JIT (R63). Check `sideEffects`
+# comments in each themed file before raising the level on a production system.
 # :::
 
 {
