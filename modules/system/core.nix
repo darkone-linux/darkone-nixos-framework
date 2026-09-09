@@ -194,6 +194,13 @@ in
         LogLevel ERROR
     '';
 
+    # nixpkgs holds `stable` at 2.34: a major Nix bump goes through `staging`.
+    # Pinned for the daemon-side gains — scheduler memory, transfer backoff,
+    # lazy source copying. Also moves fleet evaluation: colmena's default
+    # `chunked` evaluator shells out to `nix-instantiate`. Drop this line once
+    # `nixVersions.stable` reaches 2.35.
+    nix.package = lib.mkDefault pkgs.nixVersions.nix_2_35;
+
     # Nix store optimize and GC
     nix.optimise.automatic = true;
     nix.optimise.dates = [ "03:45" ];
