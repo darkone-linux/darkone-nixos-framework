@@ -212,6 +212,9 @@
       # recipes (`just/project.just`) so a consumer can symlink them into
       # `.dnf/` via `nix run .#init` and then `import? '.dnf/just/project.just'`
       # from its own Justfile.
+      #
+      # `pkgs/` adds the DNF-only packages (absent from nixpkgs), so each one is
+      # buildable and CI-covered on its own: `nix build .#rename-simple`.
 
       packages = forAllSystems (
         system:
@@ -227,6 +230,10 @@
             cp -r ${./assets}/. $out/
           '';
         }
+
+        # DNF-only packages, auto-discovered from `pkgs/` (same set the
+        # `pkgs/overlay.nix` applied in `mk-configuration.nix` exposes).
+        // import ./pkgs { inherit pkgs; }
 
         # The Rust generator only builds for x86_64-linux. Declaring it for
         # every supported system made `.#packages.aarch64-linux` — and the
@@ -298,6 +305,9 @@
                 astro-language-server
                 d2
                 nix-output-monitor
+
+                # `just pkg-update <name>`: bumps a `pkgs/` derivation in place.
+                nix-update
 
                 # doc/ toolchain: astro/starlight build + rsync deploy
                 nodejs_24

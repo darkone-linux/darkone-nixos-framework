@@ -87,6 +87,10 @@ let
   # attribute absent elsewhere). Consumed by gaze-driven host profiles.
   talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
 
+  # DNF-only packages (`pkgs/`), absent from nixpkgs. Permanent until each one
+  # is upstreamed — unrelated to the temporary patch overlays above.
+  dnfPackagesOverlay = import ../pkgs/overlay.nix;
+
   # Per-system nixpkgs instances
   nixpkgsFor = forAllSystems (
     system:
@@ -188,14 +192,13 @@ let
         # inert while `services.geneweb.enable = false`.
         "${nixpkgs-geneweb}/nixos/modules/services/web-apps/geneweb.nix"
 
-        # Temporary overlays, to drop along with their upstream imports/inputs:
-        #
-        # - geneweb  : injects `pkgs.geneweb` from nixpkgs PR #522751;
-        # - oxicloud : neutralises `target-cpu=native` for a binary portable
-        #              across nodes (cf. oxicloudOverlay above);
-        # - gimp     : forces `__structuredAttrs = false` (build broken otherwise).
+        # `dnfPackagesOverlay` exposes `pkgs/` and is permanent; the others are
+        # temporary, dropped with their upstream imports/inputs — geneweb
+        # (nixpkgs PR #522751), oxicloud (`target-cpu=native`), gimp
+        # (`__structuredAttrs`), logseq (AppImage), talon (x86_64 only).
         {
           nixpkgs.overlays = [
+            dnfPackagesOverlay
             (genewebOverlay system)
             oxicloudOverlay
             gimpOverlay
