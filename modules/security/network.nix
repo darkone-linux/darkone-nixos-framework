@@ -213,7 +213,13 @@ in
             });
           };
 
-          # TLS hardening is global: these directives inherit normally.
+          # TLS hardening, through the nginx module's own options.
+          #
+          # `ssl_protocols` and `ssl_ciphers` are emitted unconditionally by
+          # that module, so writing them again in `commonHttpConfig` is always
+          # a duplicate — nginx refuses to start on "ssl_ciphers directive is
+          # duplicate", and neither the nginx.conf derivation nor gixy sees it.
+          # `mkDefault` so a host keeps the last word.
           #
           # The headers are NOT here. `add_header` replaces the parent set
           # wholesale rather than adding to it, so a block at `http` level is
@@ -223,9 +229,13 @@ in
           # took every nginx host of the fleet down with it, while protecting
           # none of them. Hence a snippet to include, as on the Caddy side.
           services.nginx = lib.mkIf (config.services.nginx.enable && cfg.httpsHeaders) {
-            commonHttpConfig = ''
-              ssl_protocols TLSv1.3 TLSv1.2;
-              ssl_ciphers "${lib.concatStringsSep ":" cfg.tlsCiphers}";
+            sslProtocols = lib.mkDefault "TLSv1.3 TLSv1.2";
+            sslCiphers = lib.mkDefault cfg.tlsCiphers;
+
+            # ANSSI wants the server to arbitrate. `recommendedTlsSettings`
+            # emits this directive itself (as `off`, per Mozilla — TLS 1.3
+            # ignores it anyway), so only write it when nothing else does.
+            commonHttpConfig = lib.mkIf (!config.services.nginx.recommendedTlsSettings) ''
               ssl_prefer_server_ciphers on;
             '';
           };
