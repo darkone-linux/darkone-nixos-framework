@@ -222,15 +222,23 @@ in
             "d /etc/audit          0750 root adm   -"
             "d /var/log/audit      0750 root adm   -"
 
-            # System logs (if directory exists)
-            "Z /var/log/sshd       0640 root  adm  -"
+            # System logs (if directory exists). `~0750`: files 0640, directories
+            # 0750 — a bare 0640 on `Z` also strips `x` from the directories.
+            "Z /var/log/sshd       ~0750 root  adm  -"
           ]
 
           # `Z` does nothing when the path is absent, but tmpfiles still
           # resolves the owner while parsing: on a host without nginx the rule
           # fails at every boot ("Unknown user"), which defeats the empty
           # journal this tier is checked against.
-          ++ lib.optional config.services.nginx.enable "Z /var/log/nginx      0640 nginx adm  -";
+          ++ lib.optionals config.services.nginx.enable [
+
+            # `~` only removes bits: `d` (applied before `Z`) restores the `x` a
+            # bare 0640 stripped, else `logrotate-checkconf` (`su nginx`) cannot
+            # stat `*.log` at boot, before nginx's `LogsDirectoryMode` repairs it.
+            "d /var/log/nginx      0750  nginx adm  -"
+            "Z /var/log/nginx      ~0750 nginx adm  -"
+          ];
         })
 
         # R51 — Change secrets from installation (reinforced, base)
