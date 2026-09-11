@@ -25,9 +25,11 @@ let
   configSchema = import ./config-schema.nix { inherit lib; };
   matrix = import ./matrix.nix { inherit lib; };
   secrets = import ./secrets.nix { inherit lib; };
+  headscalePolicy = import ./headscale-policy.nix { inherit lib topology; };
 in
 {
   inherit constants;
+  inherit (headscalePolicy) tailnetNodeTags tailnetUsers mkHeadscalePolicy;
   inherit (strings)
     ucFirst
     cleanString
