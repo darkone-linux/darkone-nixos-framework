@@ -176,7 +176,10 @@ install host user='nix' ip='auto' do='install':
 		# are what matters here, not ownership. Lives in /run: never on disk.
 		stage=$(sudo mktemp -d -p /run dnf-extra-XXXXXX)
 		pwfile=$(sudo mktemp -p /run dnf-luks-XXXXXX)
-		trap 'sudo rm -rf "$stage" "$pwfile"' EXIT
+
+		# Ownership handed back on failure too: a host dir left to nix makes the
+		# next `just generate` die on a permission error.
+		trap 'sudo rm -rf "$stage" "$pwfile"; just _fix_fs_permissions' EXIT
 		sudo chown nix "$stage" "$pwfile"
 		sudo chmod 700 "$stage" ; sudo chmod 600 "$pwfile"
 
@@ -223,7 +226,6 @@ install host user='nix' ip='auto' do='install':
 			"${naflags[@]}" \
 			--generate-hardware-config nixos-generate-config {{workDir}}/usr/machines/{{host}}/hardware-configuration.nix \
 			--target-host {{user}}@$TARGET_HOST
-		just _fix_fs_permissions
 	else
 		just _fail "Unknown action '{{do}}' — valid values: install, test"
 	fi
