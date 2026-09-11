@@ -1,12 +1,33 @@
 # A full-configured headscale service for HCS.
+#
+# The tailnet ACL policy is generated from the topology (zones, hosts, users)
+# by `dnfLib.mkHeadscalePolicy`, validated by `headscale policy check` at build
+# time, then reloaded on change (SIGHUP) without restarting headscale.
+#
+# - Machines are tagged: `tag:hcs`, `tag:gw-<zone>`, `tag:admin` (host whose
+#   `groups` contains `admin`).
+# - Machines and zone LANs reach each other; personal devices get the HCS DNS
+#   and HTTPS services; SSH from admin stations and `policy.adminDevices`.
+#
+# ```nix
+# darkone.service.headscale.policy.adminDevices.phone-alice = "100.64.0.9";
+# ```
+#
+# :::caution[Open mode]
+# `policy.enforce = false` keeps the identities but allows all traffic: for a
+# migration only, while nodes get tagged.
+# :::
 
 # TODO: works but can be simplified / optimized.
 {
   lib,
   dnfLib,
+  pkgs,
   config,
   network,
   host,
+  hosts,
+  users,
   zone,
   ...
 }:
@@ -22,11 +43,107 @@ let
   };
   hcsTailnetIpv4 = network.zones.www.gateway.vpn.ipv4;
   params = dnfLib.extractServiceParams host network "headscale" defaultParams;
+
+  policyFile = (pkgs.formats.json { }).generate "headscale-policy.json" (
+    dnfLib.mkHeadscalePolicy {
+      inherit network hosts users;
+      inherit (cfg.policy)
+        enforce
+        adminDevices
+        exitNodeSources
+        extraAcls
+        extraHosts
+        ;
+    }
+  );
+
+  # Throwaway offline instance: a rejected policy fails the build instead of
+  # the running server. Users are unknown here, tags, groups and aliases are
+  # still checked.
+  checkedPolicy =
+    pkgs.runCommand "headscale-policy.hujson" { nativeBuildInputs = [ srv.package ]; }
+      ''
+        export HOME=$TMPDIR
+        cat > config.yaml <<EOF
+        server_url: http://127.0.0.1:8080
+        listen_addr: 127.0.0.1:8080
+        noise:
+          private_key_path: $TMPDIR/noise.key
+        prefixes:
+          v4: 100.64.0.0/10
+          v6: fd7a:115c:a1e0::/48
+        derp:
+          server:
+            enabled: false
+          urls: []
+          auto_update_enabled: false
+        database:
+          type: sqlite
+          sqlite:
+            path: $TMPDIR/db.sqlite
+        dns:
+          magic_dns: true
+          override_local_dns: false
+          base_domain: tailnet.internal
+        unix_socket: $TMPDIR/headscale.sock
+        EOF
+        headscale --config config.yaml --force policy check \
+          --bypass-grpc-and-access-database-directly -f ${policyFile}
+        cp ${policyFile} $out
+      '';
 in
 {
   options = {
     darkone.service.headscale.enable = lib.mkEnableOption "Enable headscale DNF service";
     darkone.service.headscale.enableGRPC = lib.mkEnableOption "Open GRPC TCP port";
+
+    darkone.service.headscale.nodeExpiry = lib.mkOption {
+      type = lib.types.str;
+      default = "180d";
+      description = "Key expiry of personal devices (`0`: never). Tagged machines never expire.";
+    };
+
+    darkone.service.headscale.policy = {
+      enforce = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Default-deny tailnet ACLs. `false` allows all traffic, for a migration only.";
+      };
+      adminDevices = lib.mkOption {
+        type = lib.types.attrsOf lib.types.str;
+        default = { };
+        example = {
+          phone-alice = "100.64.0.9";
+        };
+        description = "Personal devices granted SSH on every machine and zone: name -> tailnet IPv4.";
+      };
+      exitNodeSources = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        example = [ "group:admins" ];
+        description = "Policy sources allowed to use the HCS as exit node.";
+      };
+      extraHosts = lib.mkOption {
+        type = lib.types.attrsOf lib.types.str;
+        default = { };
+        example = {
+          printer = "10.1.3.1/32";
+        };
+        description = "Extra policy host aliases (name -> CIDR), to use in `extraAcls`.";
+      };
+      extraAcls = lib.mkOption {
+        type = lib.types.listOf (lib.types.attrsOf lib.types.anything);
+        default = [ ];
+        example = [
+          {
+            action = "accept";
+            src = [ "group:admins" ];
+            dst = [ "printer:631" ];
+          }
+        ];
+        description = "ACL rules appended after the generated ones.";
+      };
+    };
   };
 
   config = lib.mkMerge [
@@ -109,7 +226,7 @@ in
       # Headscale main configuration
       #------------------------------------------------------------------------
 
-      # TODO: Derp relay, ACLs, OIDC
+      # TODO: OIDC
       services.headscale = {
         enable = true;
         settings = {
@@ -131,9 +248,6 @@ in
 
             # Force headscale DNS config over node local DNS
             override_local_dns = false;
-
-            # ACLs (TODO)
-            #acl_policy_path = "/var/lib/headscale/acls.json";
 
             # OIDC (for future integration with Authelia)
             # https://github.com/juanfont/headscale/blob/9c4c017eac2e81908d2ae7d8d777e143a13a1772/config-example.yaml#L329
@@ -221,6 +335,28 @@ in
           allowedTCPPorts = [ 53 ];
           allowedUDPPorts = [ 53 ];
         };
+      };
+    })
+
+    #------------------------------------------------------------------------
+    # Tailnet ACL policy and node expiry
+    #------------------------------------------------------------------------
+
+    (lib.mkIf cfg.enable {
+
+      # Stable path: a policy change leaves config.yaml and the unit untouched,
+      # so it reloads headscale instead of restarting it.
+      environment.etc."headscale/policy.hujson".source = checkedPolicy;
+
+      services.headscale.settings = {
+        policy.path = "/etc/headscale/policy.hujson";
+        node.expiry = cfg.nodeExpiry;
+      };
+
+      # The nixpkgs unit has no reload; headscale re-reads the policy on SIGHUP.
+      systemd.services.headscale = {
+        reloadTriggers = [ checkedPolicy ];
+        serviceConfig.ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
       };
     })
   ];
