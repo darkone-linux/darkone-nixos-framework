@@ -14,6 +14,7 @@ in
   lib_alerts = import ./lib/alerts_test.nix { inherit dnfLib; };
   lib_service_params = import ./lib/service-params_test.nix { inherit dnfLib; };
   lib_firewall = import ./lib/firewall_test.nix { inherit dnfLib; };
+  lib_headscale_policy = import ./lib/headscale-policy_test.nix { inherit dnfLib; };
   lib_oidc = import ./lib/oidc_test.nix { inherit dnfLib; };
   lib_homepage = import ./lib/homepage_test.nix { inherit dnfLib; };
   lib_security = import ./lib/security_test.nix { inherit dnfLib; };
