@@ -1350,8 +1350,11 @@ luks host action='' ip='auto':
 	# invalidate the one `just install` staged.
 	if [ -z "$targetpub" ] ;then
 		just _log "Restoring the initrd SSH host key from sops..." "LUKS"
+
+		# `sudo tee`, never `sudo cmd > file`: a remote redirection runs in the nix
+		# user's shell, which cannot write into the root-only key directory.
 		sops -d --extract '["luks"]["{{host}}"]["initrd-key"]' {{sopsSecretsFile}} \
-			| ssh nix@"$target" 'sudo mkdir -p /var/lib/luks-initrd && sudo base64 -d > /var/lib/luks-initrd/ssh_host_ed25519_key'
+			| ssh nix@"$target" 'sudo mkdir -p /var/lib/luks-initrd && base64 -d | sudo tee /var/lib/luks-initrd/ssh_host_ed25519_key >/dev/null'
 		sops -d --extract '["luks"]["{{host}}"]["initrd-key-pub"]' {{sopsSecretsFile}} \
 			| ssh nix@"$target" 'sudo tee /var/lib/luks-initrd/ssh_host_ed25519_key.pub >/dev/null'
 		ssh nix@"$target" 'sudo chown -R root:root /var/lib/luks-initrd \
