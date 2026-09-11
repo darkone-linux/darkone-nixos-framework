@@ -86,8 +86,12 @@ in
     darkone.security.complement.sshBanner = lib.mkOption {
       type = lib.types.str;
       default = ''
-        *** Access restricted to authorized personnel ***
-        All connections are logged and may be subject to prosecution.
+        ╔═════════════════════════════════════════════════════════╗
+        ║                    DNF NETWORK NODE                     ║
+        ║             Restricted and monitored access.            ║
+        ║ Unauthorized access may result in criminal prosecution  ║
+        ║ under Articles 323-1 to 323-8 of the French Penal Code. ║
+        ╚═════════════════════════════════════════════════════════╝
       '';
       description = "SSH banner displayed before authentication (C11).";
     };
