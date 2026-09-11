@@ -23,6 +23,8 @@ sops:
 
 # Record the fleet default password (hash only, sops). Configures no account:
 # `just passwd <login>` is what opens a session with it.
+#
+# Set the fleet default password (hash in sops)
 [group('secrets')]
 passwd-default:
 	#!/usr/bin/env bash

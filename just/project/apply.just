@@ -24,7 +24,7 @@ apply on what='switch':
 		sudo -i -u nix colmena apply --config "{{workDir}}/flake.nix" ${bot} --on "{{on}}" {{what}}
 	fi
 
-# Apply force with verbose options
+# Apply with verbose output and traces
 [group('apply')]
 apply-verbose on what='switch':
 	#!/usr/bin/env bash
