@@ -169,7 +169,7 @@ install host user='nix' ip='auto' do='install':
 		NIX_HOME=$(getent passwd nix | cut -d: -f6)
 		mkdir -p {{workDir}}/usr/machines/{{host}}
 		sudo chown -R nix {{workDir}}/usr/machines/{{host}}
-		sudo chown -R nix /etc/nixos/.git
+		sudo chown -R nix {{workDir}}/.git
 
 		# Everything the FIRST boot needs, staged into /mnt before nixos-install
 		# runs. nixos-anywhere untars it as root with --no-same-owner, so modes

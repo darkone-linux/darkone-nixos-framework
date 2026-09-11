@@ -60,8 +60,7 @@ passwd user:
 	set -euo pipefail
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd "{{user}}"
 	if [ ! -f {{sopsSecretsFile}} ] ;then
-		echo "No secrets sops file found, run 'just install-admin-host' before."
-		exit 1
+		just _fail "No secrets sops file found: run 'just configure-admin-host' first."
 	fi
 	cd {{secretsDir}}
 	echo -n "New password for {{user}}: "
@@ -221,7 +220,7 @@ yubikey user key='main' action='enroll':
 		'."{{user}}"."{{key}}" = {"pam": strenv(PAM), "credId": strenv(CID), "salt": strenv(SALT)}' "$registry"
 	just _fix_fs_permissions
 	just _log "Enrolled {{user}}/{{key}}." "YUBIKEY"
-	just _log "Now: git add usr/secrets/yubikeys.json && just commit ... && just apply" "YUBIKEY"
+	just _log "Now: git add usr/secrets/yubikeys.json && git commit ... && just apply" "YUBIKEY"
 
 	# Kanidm passkey: interactive web ceremony (once for the whole SSO). Mint
 	# the reset link now if possible, else print the manual procedure.

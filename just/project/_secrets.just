@@ -1,14 +1,12 @@
 # DNF just — private secrets helpers: infra key guard, sops permissions and files.
 
-# Check that the infra age key is present on this host. Called by admin
-# recipes that have already auto-switched to the `nix` user, so the
-# previous `USER == nix` guard is now redundant (only the file check remains).
+# Guard for recipes that need the infra age key: only the admin host holds it.
 _check_infra_admin:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	if [ ! -f {{sopsInfraKeyFile}} ] ;then
 		just _err "Infra private key not found, you must do that from the admin host."
-		just _fail "If you are on the admin host, type 'just install-admin-host' before."
+		just _fail "If you are on the admin host, run 'just configure-admin-host' first."
 	fi
 
 _sops_before_edit:
