@@ -8,6 +8,8 @@
 #   `groups` contains `admin`).
 # - Machines and zone LANs reach each other; personal devices get the HCS DNS
 #   and HTTPS services; SSH from admin stations and `policy.adminDevices`.
+# - Personal devices log in through Kanidm (OIDC), for members of the Kanidm
+#   `tailnet` group; their keys expire after `nodeExpiry`.
 #
 # ```nix
 # darkone.service.headscale.policy.adminDevices.phone-alice = "100.64.0.9";
@@ -16,6 +18,11 @@
 # :::caution[Open mode]
 # `policy.enforce = false` keeps the identities but allows all traffic: for a
 # migration only, while nodes get tagged.
+# :::
+#
+# :::note[Kanidm outage]
+# headscale still starts without Kanidm and falls back to CLI registration
+# until its next restart. Registered nodes are unaffected.
 # :::
 
 # TODO: works but can be simplified / optimized.
@@ -43,6 +50,22 @@ let
   };
   hcsTailnetIpv4 = network.zones.www.gateway.vpn.ipv4;
   params = dnfLib.extractServiceParams host network "headscale" defaultParams;
+  inherit
+    (dnfLib.mkOidcContext {
+      name = "headscale";
+      inherit params network hosts;
+    })
+    clientId
+    secret
+    idmUrl
+    ;
+  oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
+
+  # headscale sets up OIDC once, at startup: start after the issuer (Kanidm
+  # behind Caddy) is served when it runs on this host.
+  issuerUnits =
+    lib.optional config.darkone.service.idm.enable "kanidm.service"
+    ++ lib.optional config.services.caddy.enable "caddy.service";
 
   policyFile = (pkgs.formats.json { }).generate "headscale-policy.json" (
     dnfLib.mkHeadscalePolicy {
@@ -159,6 +182,24 @@ in
         persist.dirs = [ "/var/lib/headscale" ];
         proxy.servicePort = srv.port;
       };
+
+      # Kanidm OAuth2 client template. Scopes are mapped to `tailnet` only:
+      # Kanidm turns other users away before headscale checks the group.
+      darkone.service.idm.oauth2.headscale = {
+        displayName = "Headscale VPN";
+        imageFile = ./../../assets/app-icons/headscale.svg;
+        redirectPaths = [ "/oidc/callback" ];
+        landingPath = "/";
+
+        # Short `preferred_username`: the policy names `alice@`, not the SPN.
+        preferShortUsername = true;
+        extra.scopeMaps.tailnet = [
+          "openid"
+          "email"
+          "profile"
+          "groups"
+        ];
+      };
     }
 
     (lib.mkIf cfg.enable {
@@ -226,7 +267,6 @@ in
       # Headscale main configuration
       #------------------------------------------------------------------------
 
-      # TODO: OIDC
       services.headscale = {
         enable = true;
         settings = {
@@ -248,14 +288,6 @@ in
 
             # Force headscale DNS config over node local DNS
             override_local_dns = false;
-
-            # OIDC (for future integration with Authelia)
-            # https://github.com/juanfont/headscale/blob/9c4c017eac2e81908d2ae7d8d777e143a13a1772/config-example.yaml#L329
-            # oidc = {
-            #   issuer = "https://auth.mydomain.tld";
-            #   client_id = "headscale";
-            #   client_secret_path = "/var/lib/headscale/oidc_secret";
-            # };
 
             nameservers = {
 
@@ -301,9 +333,6 @@ in
             #   value = "100.64.${z.ipPrefix}";
             # }) hcsClientZones;
           }; # dns
-
-          # TODO: https://search.nixos.org/options?channel=unstable&query=services.headscale.settings.oidc
-          #oidc = {};
         };
       };
 
@@ -357,6 +386,46 @@ in
       systemd.services.headscale = {
         reloadTriggers = [ checkedPolicy ];
         serviceConfig.ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
+      };
+    })
+
+    #------------------------------------------------------------------------
+    # Personal devices: OIDC login through Kanidm
+    #------------------------------------------------------------------------
+
+    (lib.mkIf (cfg.enable && idmUrl != null) {
+
+      # Re-encrypted alias of the kanidm-owned OAuth2 secret, readable by
+      # headscale (sops `key` field unmaps the master secret name).
+      sops.secrets."${secret}-service" = {
+        mode = "0400";
+        owner = srv.user;
+        key = secret;
+      };
+
+      services.headscale.settings.oidc = {
+
+        # A Kanidm outage must not keep the control plane down: CLI
+        # registration only, until the next restart.
+        only_start_if_oidc_is_available = false;
+        issuer = oidc.issuerUrl;
+        client_id = clientId;
+        client_secret_path = config.sops.secrets."${secret}-service".path;
+        scope = [
+          "openid"
+          "profile"
+          "email"
+          "groups"
+        ];
+
+        # Kanidm sends groups as SPNs.
+        allowed_groups = [ "tailnet@${network.domain}" ];
+        pkce.enabled = true;
+      };
+
+      systemd.services.headscale = {
+        wants = issuerUnits;
+        after = issuerUnits;
       };
     })
   ];

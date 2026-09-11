@@ -616,7 +616,11 @@ in
             devs.members = mapAttrsToList (name: _: name) (
               filterAttrs (_: u: any (g: g == "idm-devs") u.groups) users
             );
-          };
+          }
+
+          # Logins allowed to register a personal device on the tailnet: the
+          # headscale OAuth2 client maps its scopes to this group only.
+          // optionalAttrs network.coordination.enable { tailnet.members = dnfLib.tailnetUsers users; };
 
           #----------------------------------------------------------------------
           # OAuth2 provisioning
