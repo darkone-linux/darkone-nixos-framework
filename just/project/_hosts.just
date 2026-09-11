@@ -81,27 +81,17 @@ _host_conf host:
 		yq -o=json ".hosts[$group]" "$cfg"
 	fi
 
-# Address to reach {{host}} from the machine running just.
-#
-# Its own name when both sit in the same zone. Otherwise the address the local
-# zone reserves for it: every gateway holds a DHCP reservation for each known
-# fleet MAC that is not native to its zone (`zone.roaming`, generated), so a
-# machine plugged anywhere is predictable before it has even booted.
+# The addresses of {{host}} seen from here, one per line: the fixed address of
+# its own zone, then the one the local zone reserves for it. Empty when unknown.
 #
 # The local zone is the one whose gateway actually routes this machine, NOT the
 # zone it is declared in — an admin laptop is precisely the thing that moves.
 # Declaration is only the fallback (deploying over the VPN, gateway itself).
-#
-# Falls back to the host name when nothing matches: a host with no declared MAC
-# is simply not reachable outside its zone.
-#
-# A reservation is an expectation, not evidence, so the roaming address is
-# probed before being returned — see the comment on the probe below.
-_target host:
+_zone-addrs host:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	gw=$(ip -4 route show default 2>/dev/null | awk '{print $3; exit}' || true)
-	addr=$({{nix}} eval --raw --impure --expr '
+	{{nix}} eval --raw --impure --expr '
 	  let
 	    hosts = import {{workDir}}/var/generated/hosts.nix;
 	    network = import {{workDir}}/var/generated/network.nix;
@@ -117,10 +107,32 @@ _target host:
 	      else null;
 	    target = findHost "{{host}}";
 	  in
-	  if here == null || target == null || target.zone == here.name
-	  then "{{host}}"
-	  else here.roaming."{{host}}" or "{{host}}"
-	')
+	  (if target == null then "" else target.ip or "")
+	  + "\n"
+	  + (if here == null then "" else here.roaming."{{host}}" or "")
+	  + "\n"
+	'
+
+# Address to reach {{host}} from the machine running just.
+#
+# Its own name when both sit in the same zone. Otherwise the address the local
+# zone reserves for it: every gateway holds a DHCP reservation for each known
+# fleet MAC that is not native to its zone (`zone.roaming`, generated), so a
+# machine plugged anywhere is predictable before it has even booted.
+#
+# Falls back to the host name when nothing matches: a host with no declared MAC
+# is simply not reachable outside its zone.
+#
+# A reservation is an expectation, not evidence, so the roaming address is
+# probed before being returned — see the comment on the probe below.
+_target host:
+	#!/usr/bin/env bash
+	set -euo pipefail
+
+	# A zone never reserves an address for its own hosts (the generator skips
+	# the home zone): no reservation means same zone, or an unknown host.
+	addr=$(just _zone-addrs "{{host}}" | sed -n 2p)
+	addr=${addr:-{{host}}}
 
 	# The roaming reservation says where the host WOULD be if plugged in here.
 	# During an install it is right — the machine is on the bench, answering on
@@ -192,36 +204,13 @@ _wait-ssh target state='up' timeout='600':
 _candidates host ip='':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	gw=$(ip -4 route show default 2>/dev/null | awk '{print $3; exit}' || true)
 	addrs=()
 	case "{{ip}}" in
 		''|auto) ;;
 		*) addrs+=("{{ip}}") ;;
 	esac
 
-	# Same zone detection as `_target`: the zone that actually routes THIS
-	# machine, falling back to the one it is declared in.
-	mapfile -t derived < <({{nix}} eval --raw --impure --expr '
-	  let
-	    hosts = import {{workDir}}/var/generated/hosts.nix;
-	    network = import {{workDir}}/var/generated/network.nix;
-	    findHost = n:
-	      let matches = builtins.filter (h: h.hostname == n) hosts;
-	      in if matches == [ ] then null else builtins.head matches;
-	    localZones = builtins.filter (z: z.name != "www") (builtins.attrValues network.zones);
-	    routedBy = builtins.filter (z: (z.gateway.lan.ip or "") == "'"$gw"'") localZones;
-	    me = findHost "'"$(hostname -s)"'";
-	    here =
-	      if routedBy != [ ] then builtins.head routedBy
-	      else if me != null then network.zones.${me.zone} or null
-	      else null;
-	    target = findHost "{{host}}";
-	  in
-	  (if target == null then "" else target.ip or "")
-	  + "\n"
-	  + (if here == null then "" else here.roaming."{{host}}" or "")
-	  + "\n"
-	')
+	mapfile -t derived < <(just _zone-addrs "{{host}}")
 	addrs+=("${derived[@]}")
 	addrs+=("{{host}}")
 	printf '%s\n' "${addrs[@]}" | awk 'NF && !seen[$0]++'
