@@ -38,7 +38,6 @@ sopsInfraKeyFile := sopsInfraTargetDir + '/infra.key'
 sopsInfraCurKeyFile := sopsInfraTargetDir + '/infra.key.cur'
 sopsInfraOldKeyFile := sopsInfraTargetDir + '/infra.key.old'
 nix := 'nix --extra-experimental-features "nix-command flakes"'
-logPrefix := '[ {{CYAN}}DNF{{NORMAL}} ] '
 
 import 'common/_helpers.just'
 import 'common/check.just'

@@ -23,7 +23,6 @@ secretsGitIgnore := secretsDir + '/.gitignore'
 sopsAdminKeyDir := home_directory() + '/.config/sops/age'
 sopsAdminKeyFile := sopsAdminKeyDir + '/keys.txt'
 sopsYamlFile := secretsDir + '/.sops.yaml'
-sopsInfraTargetFile := sopsInfraTargetDir + '/infra.key'
 dnfInstallDir := '/mnt/dnf-install'
 
 # Deploy build location. Empty (default): build each node closure on the host

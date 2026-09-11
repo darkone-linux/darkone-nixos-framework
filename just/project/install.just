@@ -60,9 +60,9 @@ push-key host target='auto':
 	just _log "Pushing infra key file..." "SOPS"
 	ssh nix@"$t" 'sudo mkdir -p {{sopsInfraTargetDir}}'
 	ssh nix@"$t" 'sudo chown -R nix {{sopsInfraTargetDir}}'
-	scp {{sopsInfraKeyFile}} nix@"$t":{{sopsInfraTargetFile}} > /dev/null
+	scp {{sopsInfraKeyFile}} nix@"$t":{{sopsInfraKeyFile}} > /dev/null
 	ssh nix@"$t" 'sudo chown -R root {{sopsInfraTargetDir}}'
-	ssh nix@"$t" 'sudo chmod 600 {{sopsInfraTargetFile}}'
+	ssh nix@"$t" 'sudo chmod 600 {{sopsInfraKeyFile}}'
 
 # Confirmation prompt is inlined (instead of using the `[confirm]` attribute)
 # so it fires only once, after the sudo re-exec.
@@ -182,7 +182,7 @@ install host user='nix' ip='auto' do='install':
 
 		# sops age key: without it the first activation decrypts nothing —
 		# `just push-key` only runs later, at `just configure`.
-		sudo install -D -m 600 {{sopsInfraKeyFile}} "$stage{{sopsInfraTargetFile}}"
+		sudo install -D -m 600 {{sopsInfraKeyFile}} "$stage{{sopsInfraKeyFile}}"
 		sudo chown -R nix "$stage"
 
 		naflags=()
@@ -342,7 +342,6 @@ full-install host user='nixos' ip='auto':
 	just _log "{{host}} is back at $target." "INSTALL"
 	just configure {{host}} "$target"
 	just _log "Let's do that automatically..."
-	#just _fix_fs_permissions
 	just _log "Adding and committing (amend)..." "GIT"
 
 	# Amend only what `just install` itself committed. When it had nothing to
