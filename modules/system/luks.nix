@@ -370,8 +370,12 @@ in
         systemd.tmpfiles.rules = [ "r! /run/systemd/netif/state" ];
 
         # timesyncd is `DefaultDependencies=no`: without this edge it races
-        # tmpfiles and can read the state file before the removal.
-        systemd.services.systemd-timesyncd.after = [ "systemd-tmpfiles-setup.service" ];
+        # tmpfiles and can read the state file before the removal. Guard the
+        # whole unit, not `after`: on a chrony host (C7) a lone `after` defines
+        # an empty unit that systemd refuses at each switch.
+        systemd.services.systemd-timesyncd = lib.mkIf config.services.timesyncd.enable {
+          after = [ "systemd-tmpfiles-setup.service" ];
+        };
       })
 
       #========================================================================
