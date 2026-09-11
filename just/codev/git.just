@@ -31,7 +31,7 @@ git-commit msg on="all":
 		just git-commit "{{msg}}" "."
 	else
 		if [ ! -d "{{on}}/.git" ]; then
-			just _fail "Project '{{on}}' do not exists!";
+			just _fail "Project '{{on}}' does not exist!";
 		fi
 		git -C {{on}} add -A
 		if git -C {{on}} diff --cached --quiet ;then
@@ -90,7 +90,7 @@ git-amend on="all":
 		fi
 	else
 		if [ ! -d "{{on}}/.git" ]; then
-			just _fail "Project '{{on}}' do not exists!";
+			just _fail "Project '{{on}}' does not exist!";
 		fi
 
 		# `--allow-empty` keeps the recipe idempotent even when a tree is clean.
@@ -126,7 +126,7 @@ git-push on="all":
 		done <<< "{{repos}}"
 	else
 		if [ ! -d "{{on}}/.git" ]; then
-			just _fail "Project '{{on}}' do not exists!";
+			just _fail "Project '{{on}}' does not exist!";
 		fi
 		if ! upstream=$(git -C {{on}} rev-parse --abbrev-ref @{u} 2>/dev/null); then
 			just _info "No upstream branch — set one with 'git push -u origin HEAD'" "GIT"
@@ -179,7 +179,7 @@ git cmd on="all" label="":
 		done <<< "{{repos}}"
 	else
 		if [ ! -d "{{on}}/.git" ]; then
-			just _fail "Project '{{on}}' do not exists!";
+			just _fail "Project '{{on}}' does not exist!";
 		fi
 		if [ -n "{{label}}" ]; then
 			LABEL="{{label}}"

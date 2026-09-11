@@ -23,7 +23,7 @@ configure-admin-host:
 	just _sops_before_edit
 	if [ ! -f "{{secretsDir}}/nix.pub" ] ;then
 		if [ ! -f "$HOME/.ssh/id_ed25519.pub" ] ;then
-			just _fail "Nix user public key not found!" "SSH"
+			just _fail "Nix user public key not found!"
 		else
 			cp "$HOME/.ssh/id_ed25519.pub" "{{secretsDir}}/nix.pub"
 		fi
@@ -52,7 +52,7 @@ configure-admin-host:
 		just _info "Infra key file already exists." "SOPS"
 	fi
 	if [ ! -f {{sopsYamlFile}} ] ;then
-		just _log "[SOPS] .sops.yaml file generation..."
+		just _log ".sops.yaml file generation..." "SOPS"
 		just _regen-sops-yaml
 	else
 		just _info ".sops.yaml file already exists." "SOPS"
