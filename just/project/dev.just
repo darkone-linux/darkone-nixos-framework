@@ -19,15 +19,15 @@ update-flake:
 	last_msg=$(git -C {{workDir}}/dnf log -1 --format=%s 2>/dev/null || echo "")
 	if [[ "$last_msg" == "chore(flake):"* ]]; then
 		just _log "Amending existing chore(flake) commit..." "FLAKE"
-		just amend
+		just amend  # codev-only
 	else
 
 		# `chore`: routine input bumps are filtered out of the CHANGELOG.
-		just commit "chore(flake): regular nixpkgs update"
+		just commit "chore(flake): regular nixpkgs update"  # codev-only
 	fi
 	just _log "Updating root flake inputs..." "FLAKE"
 	cd {{workDir}} && {{nix}} flake update
-	just amend
+	just amend  # codev-only
 
 # Refresh flake.lock's dnf input to the framework's HEAD (co-dev)
 [group('dev')]
