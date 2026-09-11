@@ -122,3 +122,8 @@ jobs:
         run: |
           nix shell nixpkgs#treefmt nixpkgs#nixfmt --command \
             treefmt --config-file assets/treefmt.toml --no-cache --fail-on-change
+
+      # Nested `just` calls resolve at runtime only: parse every bootstrap and
+      # check each call names a recipe of its own context.
+      - name: just recipes
+        run: nix shell nixpkgs#just nixpkgs#jq --command bash just/scripts/check-recipes.sh

@@ -14,6 +14,13 @@ unit-tests:
 	just _log "Running unit tests..." "TESTS"
 	nix-unit --gc-roots-dir /tmp --flake .#libTests
 
+# Nested `just` calls resolve at runtime only; CI runs the same guard.
+#
+# Check every bootstrap parses and every nested recipe call resolves
+[group('test')]
+check-recipes:
+	bash {{scriptsDir}}/check-recipes.sh
+
 # Run simulation tests (NixOS Test Driver).
 #
 # Usage:
