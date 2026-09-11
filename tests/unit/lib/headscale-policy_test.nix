@@ -16,13 +16,19 @@ let
         name = "lan";
         networkIp = "10.1.0.0";
         prefixLength = 16;
-        gateway.hostname = "gw-lan";
+        gateway = {
+          hostname = "gw-lan";
+          lan.ip = "10.1.1.1";
+        };
       };
       far = {
         name = "far";
         networkIp = "10.2.0.0";
         prefixLength = 16;
-        gateway.hostname = "gw-far";
+        gateway = {
+          hostname = "gw-far";
+          lan.ip = "10.2.1.1";
+        };
       };
     };
   };
@@ -170,6 +176,8 @@ in
     expected = {
       zone-far = "10.2.0.0/16";
       zone-lan = "10.1.0.0/16";
+      gateway-far = "10.2.1.1/32";
+      gateway-lan = "10.1.1.1/32";
       laptop = "10.1.12.1/32";
     };
   };
@@ -234,7 +242,9 @@ in
       src = [ "group:admins" ];
       dst = [
         "tag:gw-far:443"
+        "gateway-far:443"
         "tag:gw-lan:443"
+        "gateway-lan:443"
       ];
     };
     expected = true;
@@ -243,10 +253,41 @@ in
     expr = hasRule enforced.acls {
       action = "accept";
       src = [ "group:zone-far" ];
-      dst = [ "tag:gw-far:443" ];
+      dst = [
+        "tag:gw-far:443"
+        "gateway-far:443"
+      ];
     };
     expected = true;
   };
+
+  # A gateway without a LAN address is reached on its tailnet IPs only.
+  testGatewayWithoutLanIp =
+    let
+      noLanIp = policy {
+        network = network // {
+          zones = network.zones // {
+            far = network.zones.far // {
+              gateway.hostname = "gw-far";
+            };
+          };
+        };
+      };
+    in
+    {
+      expr = {
+        alias = noLanIp.hosts ? gateway-far;
+        rule = hasRule noLanIp.acls {
+          action = "accept";
+          src = [ "group:zone-far" ];
+          dst = [ "tag:gw-far:443" ];
+        };
+      };
+      expected = {
+        alias = false;
+        rule = true;
+      };
+    };
   testSelfRule = {
     expr = hasRule enforced.acls {
       action = "accept";

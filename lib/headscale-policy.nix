@@ -8,6 +8,7 @@
 let
   inherit (lib)
     attrNames
+    concatMap
     elem
     filter
     filterAttrs
@@ -51,6 +52,7 @@ let
 
   zoneCidr = zone: "${zone.networkIp}/${toString zone.prefixLength}";
   zoneAlias = zoneName: "zone-${zoneName}";
+  gatewayLanAlias = zoneName: "gateway-${zoneName}";
   userRef = login: "${login}@";
 
   accept = src: dst: {
@@ -111,6 +113,14 @@ in
 
       toEverywhere = ports: map (target: "${target}:${ports}") (allTags ++ zoneAliases);
 
+      # Zone service names resolve to the gateway LAN address, outside
+      # `tag:gw-<zone>` (tailnet IPs only): both are named.
+      gatewayLanIps = filterAttrs (_: ip: ip != null) (
+        mapAttrs (_: zone: zone.gateway.lan.ip or null) zones
+      );
+      gatewayHttps =
+        z: [ "${gatewayTag z}:443" ] ++ optional (hasAttr z gatewayLanIps) "${gatewayLanAlias z}:443";
+
       enforcedAcls = [
 
         # Machines and zone LANs reach each other on every port, for now.
@@ -119,10 +129,8 @@ in
         # Personal devices: internal DNS and global services on the HCS.
         (accept [ "autogroup:member" ] [ "${hcsTag}:53,443" ])
       ]
-      ++ optional (hasGroup "group:admins") (
-        accept [ "group:admins" ] (map (tag: "${tag}:443") gatewayTags)
-      )
-      ++ map (z: accept [ "group:zone-${z}" ] [ "${gatewayTag z}:443" ]) (
+      ++ optional (hasGroup "group:admins") (accept [ "group:admins" ] (concatMap gatewayHttps zoneNames))
+      ++ map (z: accept [ "group:zone-${z}" ] (gatewayHttps z)) (
         filter (z: hasGroup "group:zone-${z}") zoneNames
       )
       ++ [
@@ -149,6 +157,7 @@ in
       tagOwners = genAttrs allTags (_: optional (hasGroup "group:admins") "group:admins");
       hosts =
         mapAttrs' (z: zone: nameValuePair (zoneAlias z) (zoneCidr zone)) zones
+        // mapAttrs' (z: ip: nameValuePair (gatewayLanAlias z) "${ip}/32") gatewayLanIps
         // listToAttrs (map (h: nameValuePair h.hostname "${h.ip}/32") adminHosts)
         // mapAttrs (_: ip: "${ip}/32") adminDevices
         // extraHosts;
