@@ -981,6 +981,23 @@ in
         secret_path = config.sops.secrets.mas-synapse-secret.path;
       };
 
+      # MAS notifies `READY=1` once its listeners are bound (sd-notify): with
+      # `Type=notify`, synapse's `after` waits for a listening MAS, even
+      # through slow migrations after an upgrade.
+      systemd.services.matrix-authentication-service.serviceConfig.Type = "notify";
+
+      # Delegated auth needs MAS up before synapse serves clients. `wants`, not
+      # `requires`: a MAS restart must not take synapse down with it.
+      systemd.services.matrix-synapse = {
+        after = [ "matrix-authentication-service.service" ];
+        wants = [ "matrix-authentication-service.service" ];
+      };
+
+      # Upstream default orders MAS after synapse (appservice boilerplate), the
+      # reverse of the above: an ordering cycle. MAS never calls synapse at
+      # startup (lazy homeserver connection), so the default is dropped.
+      services.matrix-authentication-service.serviceDependencies = [ ];
+
       # QR-code login ("link a new device", required by Element X). MSC4108
       # adds synapse's rendezvous channel, which pairs with the device
       # authorization grant MAS already exposes; without it clients report
