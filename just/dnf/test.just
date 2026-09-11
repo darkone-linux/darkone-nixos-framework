@@ -25,6 +25,8 @@ unit-tests:
 # Scenario names match the auto-discovery convention in
 # `tests/scenarios/default.nix`: relative path with `/` → `-`, minus `.nix`
 # (e.g. `modules/node-console-git.nix` ⇒ `just simulate modules-node-console-git`).
+#
+# Run simulation scenarios: list, one, all, or full
 [group('test')]
 simulate what="":
 	#!/usr/bin/env bash
@@ -60,6 +62,8 @@ simulate what="":
 # Useful to step through a failing scenario: `start_all()`, then drive nodes
 # (`node1.succeed(...)`, `node1.shell_interact()`, ...). Pipe a heredoc on
 # stdin for non-interactive smoke-runs.
+#
+# Interactive test driver for one simulation scenario
 [group('test')]
 simulate-debug what:
 	#!/usr/bin/env bash

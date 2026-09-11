@@ -4,7 +4,7 @@
 # which returns the host name in its own zone and the reserved roaming address
 # elsewhere. The machine identity stays {{host}} whatever the address used.
 #
-# Copy pub key to the node (nix user must exist)
+# Check the deploy key reaches the node (gateways also get its private half)
 [group('install')]
 copy-id host target='auto':
 	#!/usr/bin/env bash

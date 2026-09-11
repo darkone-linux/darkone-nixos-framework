@@ -3,7 +3,7 @@
 alias c := clean
 alias d := develop
 
-# format: fix + check + generate + format
+# Statix fix, code check, generate, format (run before committing)
 [group('dev')]
 clean: _statix check-code generate format _fix_fs_permissions
 
