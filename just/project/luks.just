@@ -408,7 +408,10 @@ _luks-show host target:
 		warn "could not compare the initrd key and bootloader dates"
 	fi
 
-	built=$({{nix}} eval --raw {{workDir}}#nixosConfigurations."{{host}}".config.system.build.toplevel 2>/dev/null || echo "")
+	# The colmena node, not `nixosConfigurations`: the hive imports nixpkgs without
+	# its flake revision (`pre-git` version), so the two toplevels never match and
+	# every deployed host looked out of date.
+	built=$({{nix}} eval --raw --impure --expr '(builtins.getFlake "git+file://{{workDir}}").colmenaHive.nodes."{{host}}".config.system.build.toplevel.outPath' 2>/dev/null || echo "")
 	running=$(ssh nix@"{{target}}" 'readlink -f /run/current-system' 2>/dev/null || echo "")
 	if [ -n "$built" ] && [ "$built" = "$running" ] ;then
 		pass "the running system is the configuration audited above"
