@@ -17,7 +17,7 @@ format:
 
 	# A `dnf/` symlink points into the nix store (read-only): only a real
 	# co-development checkout is formatted here.
-	if [ -d dnf ] && [ ! -L dnf ] ;then
+	if [ "{{isCodev}}" = "true" ] ;then
 		just _log "Formatting also dnf..." "TREEFMT"
 		cd dnf && treefmt --config-file {{dnfDir}}/assets/treefmt.toml --no-cache --quiet
 	fi
@@ -30,18 +30,15 @@ _statix:
 	just _log "Full fixing..." "STATIX"
 	statix fix .
 
-# Detects the running context:
-#   - Consumer project (workDir has etc/config.yaml): full generation including
-#     Rust-generated files (var/generated/*.nix) and consumer-side paths.
-#   - Framework standalone (workDir is dnf/ itself): only framework module
-#     default.nix files, no Rust generator (no config.yaml to consume).
+# Consumer project: framework and local `default.nix` import lists, then the
+# Rust-generated `var/generated/*.nix`. Framework alone: its own import lists.
 #
 # Update the nix generated files.
 [group('dev')]
 generate:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	if [ -f "{{workDir}}/etc/config.yaml" ]; then
+	if [ "{{isProject}}" = "true" ]; then
 		just _gen-default "dnf/modules"
 		just _gen-default "usr/modules"
 		just _gen-default "dnf/home/modules"

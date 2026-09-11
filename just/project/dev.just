@@ -7,9 +7,9 @@ update-flake:
 	set -euo pipefail
 
 	# Co-development only: `dnf/` is a git checkout carrying its own lock, and
-	# the dual-repo commit helpers of dev.just are imported. In release mode
+	# the multi-repo commit helpers of `codev.just` are imported. In release mode
 	# `dnf/` is a read-only store symlink (or absent) — only the root lock moves.
-	if [ ! -d "{{workDir}}/dnf/.git" ]; then
+	if [ "{{isCodev}}" != "true" ]; then
 		just _log "Updating flake inputs..." "FLAKE"
 		cd {{workDir}} && {{nix}} flake update
 		exit 0
@@ -37,7 +37,7 @@ update-dnf:
 
 	# Release mode (no dnf/ checkout): framework pinned to a remote rev, nothing
 	# local to track — leave the lock untouched.
-	if [ ! -d "{{workDir}}/dnf/.git" ]; then
+	if [ "{{isCodev}}" != "true" ]; then
 		just _info "No dnf/ checkout — leaving lock untouched." "FLAKE"
 		exit 0
 	fi

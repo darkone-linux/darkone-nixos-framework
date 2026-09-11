@@ -15,6 +15,12 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 
 workDir := justfile_directory()
 
+# Workspace context, read from its layout: a consumer declares `etc/config.yaml`,
+# a co-development workspace holds a `dnf/` checkout (a store symlink has no `.git`).
+isProject := path_exists(workDir / 'etc/config.yaml')
+isCodev := path_exists(workDir / 'dnf/.git')
+dnfCheckout := if isProject == 'true' { isCodev } else { 'true' }
+
 # `dnfDir`: framework root, a real checkout or the `dnf/` store symlink alike.
 dnfDir := source_directory() / '..'
 scriptsDir := source_directory() / 'scripts'
