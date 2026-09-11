@@ -6,10 +6,11 @@ check:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	cd {{workDir}} && just check-code
-	if [ -d {{workDir}}/dnf ] ;then
-		cd {{workDir}}/dnf && just unit-tests | grep -v '✅'
-	elif [ -d {{workDir}}/modules ] ;then
-		cd {{workDir}} && just unit-tests | grep -v '✅'
+
+	# Framework unit tests on a checkout only: a store symlink is read-only and
+	# was tested before its release.
+	if [ "{{dnfCheckout}}" = "true" ] ;then
+		just --justfile {{dnfDir}}/Justfile unit-tests | grep -v '✅'
 	fi
 	cd {{workDir}} && just check-flake
 

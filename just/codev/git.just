@@ -25,7 +25,7 @@ git-commit msg on="all":
 
 		# Dev mode only: sync the root flake.lock onto the freshly committed dnf
 		# HEAD so the upcoming root commit pins a coherent framework revision.
-		if [ -d "{{workDir}}/dnf/.git" ]; then
+		if [ "{{isCodev}}" = "true" ]; then
 			just update-dnf
 		fi
 		just git-commit "{{msg}}" "."
@@ -68,7 +68,7 @@ git-amend on="all":
 		# Dev mode only: refresh the root lock onto the amended dnf HEAD, then
 		# keep the root coherent with dnf. The pass above already committed the
 		# root's own changes, so only the flake.lock delta remains here.
-		if [ -d "{{workDir}}/dnf/.git" ]; then
+		if [ "{{isCodev}}" = "true" ]; then
 			just update-dnf
 			dnf_msg=$(git -C dnf log -1 --format=%s 2>/dev/null || echo "")
 			root_msg=$(git -C . log -1 --format=%s 2>/dev/null || echo "")
