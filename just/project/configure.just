@@ -110,7 +110,7 @@ configure host ip='auto':
 
 	# LUKS provisioning is a no-op on unencrypted hosts and idempotent on
 	# encrypted ones (secrets/manifest/initrd key created only when missing).
-	#just luks "{{host}}" '' "$t"
+	just luks "{{host}}" '' "$t"
 
 	# Only a genuinely away address deserves a redirection. `full-install`
 	# always hands over an IP — whatever `_wait-any` found — so testing against
