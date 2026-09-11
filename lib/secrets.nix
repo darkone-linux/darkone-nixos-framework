@@ -12,7 +12,7 @@
 # the authority for that is each host's `sops.secrets`, collected by the
 # `secretsPlan` flake output (cf. `lib/mk-configuration.nix`) and fed to
 # `mkSecretPlan`. Generator ids are implemented by
-# `assets/scripts/just-generate-secrets.sh`, run by `just configure-admin-host`.
+# `just/scripts/generate-secrets.sh`, run by `just configure-admin-host`.
 #
 # :::caution[Declaring a new sops secret in a module]
 # A `sops.secrets.<name>` matching no rule below is reported as unknown on

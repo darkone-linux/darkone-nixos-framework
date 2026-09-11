@@ -1,10 +1,9 @@
-# DNF main Justfile.
-# TODO: optional import (import?) local over global (in nix store)
-# TODO: filter only usefull actions here.
+# DNF framework Justfile — framework-only recipes (tests, fixtures, release).
+#
+# Consumer projects import `dnf/just/project.just` instead; the co-development
+# workspace imports `dnf/just/codev.just`.
 
-import 'assets/just/common.just'
-import 'assets/just/release.just'
-import 'assets/just/testing.just'
+import 'just/dnf.just'
 
 _default:
 	@just --list

@@ -423,7 +423,7 @@ in
     isoNixosConfigurations // sdImageNixosConfigurations // consumerNixosConfigurations;
 
   # Internal-secrets generation plan consumed by `just configure-admin-host`
-  # (`assets/scripts/just-generate-secrets.sh`).
+  # (`just/scripts/generate-secrets.sh`).
   #
   # The authority for *which* secrets the fleet needs is each host's own
   # `sops.secrets`, so a service enabled anywhere brings its entries along with

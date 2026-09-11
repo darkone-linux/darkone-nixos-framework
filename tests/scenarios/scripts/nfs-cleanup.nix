@@ -1,4 +1,4 @@
-# Decision table of `assets/scripts/just-nfs-cleanup.sh`, pinned.
+# Decision table of `just/scripts/nfs-cleanup.sh`, pinned.
 #
 # The script removes symlinks, moves user data and deletes directories: a
 # regression there costs files, not a red tick. Three bugs found while writing
@@ -52,7 +52,7 @@ pkgs.runCommand "nfs-cleanup-check"
       util-linux
       xdg-user-dirs
     ];
-    script = ../../../assets/scripts/just-nfs-cleanup.sh;
+    script = ../../../just/scripts/nfs-cleanup.sh;
     expected = builtins.toFile "expected.txt" expected;
   }
   ''

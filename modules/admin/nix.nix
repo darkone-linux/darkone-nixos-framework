@@ -2,7 +2,7 @@
 #
 # :::tip[Build farm (remote builders)]
 # An admin host builds every node closure locally and pushes it (`buildOnTarget`
-# empty, see `assets/just/project.just`), so it is the machine that actually
+# empty, see `just/project.just`), so it is the machine that actually
 # compiles. Any fleet host flagged `build-farm` in `config.yaml` becomes one of
 # its `nix.buildMachines`, reached over SSH as the `nix` deploy user.
 #

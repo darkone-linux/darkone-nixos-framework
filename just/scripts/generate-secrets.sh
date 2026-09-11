@@ -26,7 +26,7 @@ umask 077
 workDir="${WORKDIR:-$PWD}"
 secrets="$workDir/usr/secrets/secrets.yaml"
 
-# Same rendering as the `_warn` / `_err` recipes of assets/just/common.just.
+# Same rendering as the `_warn` / `_err` recipes of just/common/_helpers.just.
 warn() { printf '[ \033[1;36mDNF\033[0m ] \033[1;33mWRN\033[0m • %s\n' "$*" >&2; }
 die() {
   printf '[ \033[1;36mDNF\033[0m ] \033[1;31mERR\033[0m • %s\n' "$*" >&2

@@ -33,7 +33,7 @@ pkgs.mkShell {
     nixfmt
     openssl
 
-    # HMAC helper of just-configure-alert-bot.sh (keeps the homeserver
+    # HMAC helper of just/scripts/configure-alert-bot.sh (keeps the homeserver
     # registration shared secret out of argv).
     python3
     rustc

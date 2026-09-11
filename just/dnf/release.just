@@ -1,22 +1,12 @@
-# Darkone framework — release recipes (framework repo)
+# DNF just — framework release: version, changelog, tag.
 #
-# Imported by dnf/Justfile after common.just, whose `assetsDir` / `dnfDir` these
-# recipes reuse. The ecosystem-wide train lives in dev.just, at the root of a
-# co-development workspace; here we only cut the framework's own release.
-#
-# dnf-doc and dnf-generator are separate repos with their own Justfile: they
-# call the same assets/scripts/just-bump.sh through their own `bump` recipe.
-
-cliffConfig := assetsDir + '/release/cliff.toml'
-
-#==============================================================================
-# Release
-#==============================================================================
+# The ecosystem-wide train lives in `codev/release.just`. dnf-doc and
+# dnf-generator call the same `just/scripts/bump.sh` through their own `bump`.
 
 # Bump VERSION, prepend the CHANGELOG entry, commit and tag (no push)
 [group('release')]
 bump level="auto" *args:
-	bash {{ assetsDir }}/scripts/just-bump.sh \
+	bash {{ scriptsDir }}/bump.sh \
 	    --repo {{ dnfDir }} --config {{ cliffConfig }} --level {{ level }} {{ args }}
 
 # Preview the entry the next release would carry — writes nothing

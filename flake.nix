@@ -208,10 +208,7 @@
       #
       # Surface artefacts consumers fetch without a local checkout of the
       # framework. `dnf-generator` re-exposes the Rust binary built by the
-      # `dnf-generator` flake input. `assets` packages the shared Justfile
-      # recipes (`just/project.just`) so a consumer can symlink them into
-      # `.dnf/` via `nix run .#init` and then `import? '.dnf/just/project.just'`
-      # from its own Justfile.
+      # `dnf-generator` flake input.
       #
       # `pkgs/` adds the DNF-only packages (absent from nixpkgs), so each one is
       # buildable and CI-covered on its own: `nix build .#rename-simple`.
@@ -224,16 +221,10 @@
             config.allowUnfree = true;
           };
         in
-        {
-          assets = pkgs.runCommand "dnf-assets" { } ''
-            mkdir -p $out
-            cp -r ${./assets}/. $out/
-          '';
-        }
 
         # DNF-only packages, auto-discovered from `pkgs/` (same set the
         # `pkgs/overlay.nix` applied in `mk-configuration.nix` exposes).
-        // import ./pkgs { inherit pkgs; }
+        import ./pkgs { inherit pkgs; }
 
         # The Rust generator only builds for x86_64-linux. Declaring it for
         # every supported system made `.#packages.aarch64-linux` — and the
