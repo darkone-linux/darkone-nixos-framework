@@ -170,8 +170,13 @@ let
       job = "blackbox-icmp";
       severity = "critical";
       "for" = "5m";
+
+      # `host` names the peer: bot rendering and per-site silences. It also
+      # keeps each rule's label set unique — promtool lints same-name rules
+      # with identical labels as duplicates.
       labels = {
         reach = "wan";
+        host = p.hostname;
       };
       summary = "Peer gateway ${p.hostname} (zone ${p.zoneName}) is down";
       description = "ICMP probe from the ${zone.name} gateway to ${p.hostname} (${p.ip}, zone ${p.zoneName}) failed for 5m: that site is unreachable. Its own Prometheus is down with it, so this alert is the only witness.";
