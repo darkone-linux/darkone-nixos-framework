@@ -6,8 +6,9 @@
 #
 # - Machines are tagged: `tag:hcs`, `tag:gw-<zone>`, `tag:admin` (host whose
 #   `groups` contains `admin`).
-# - Machines and zone LANs reach each other; personal devices get the HCS DNS
-#   and HTTPS services; SSH from admin stations and `policy.adminDevices`.
+# - Machines and zone LANs reach each other. Personal devices: DNS and HTTPS
+#   on the HCS, HTTPS on zone gateways (every zone for admins, else their
+#   `zone-*` groups). SSH from admin stations and `policy.adminDevices`.
 # - Personal devices log in through Kanidm (OIDC), for members of the Kanidm
 #   `tailnet` group; their keys expire after `nodeExpiry`.
 #
