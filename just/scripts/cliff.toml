@@ -3,17 +3,17 @@
 # One config for the whole ecosystem: framework (Nix), dnf-generator (Rust),
 # dnf-doc (Astro). Renders ONE Keep a Changelog version block; the surrounding
 # file (header, `## [Unreleased]`, reference-link footer) is owned by
-# `assets/scripts/just-bump.sh`, which preserves the hand-written history of
+# `just/scripts/bump.sh`, which preserves the hand-written history of
 # dnf-doc.
 #
 # Consumed with an explicit relative path, never auto-discovered:
-#   dnf/           just bump  ->  assets/release/cliff.toml
-#   doc/           just bump  ->  ../dnf/assets/release/cliff.toml
-#   src/generator/ just bump  ->  ../../dnf/assets/release/cliff.toml
+#   dnf/           just bump  ->  just/scripts/cliff.toml
+#   doc/           just bump  ->  ../dnf/just/scripts/cliff.toml
+#   src/generator/ just bump  ->  ../../dnf/just/scripts/cliff.toml
 
 [changelog]
 
-# Empty: `just-bump.sh` writes the file header once, at creation.
+# Empty: `bump.sh` writes the file header once, at creation.
 header = ""
 
 # `striptags` drops the `<!-- n -->` sort keys carried by group names.
@@ -30,7 +30,7 @@ _No user-visible change._
 {% endif %}
 """
 
-# Reference links live at the end of the file, maintained by `just-bump.sh`.
+# Reference links live at the end of the file, maintained by `bump.sh`.
 footer = ""
 
 trim = true

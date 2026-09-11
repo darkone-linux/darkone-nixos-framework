@@ -12,8 +12,8 @@
 # history it accumulated before conventional commits.
 #
 # Usage:
-#   just-bump.sh --config <cliff.toml> [--repo <dir>] [--level <l>]
-#                [--line <X.Y>] [--yes] [--dry-run]
+#   bump.sh --config <cliff.toml> [--repo <dir>] [--level <l>]
+#           [--line <X.Y>] [--yes] [--dry-run]
 #
 #   --level   auto (default) | patch | minor | major | X.Y.Z
 #             `auto` asks git-cliff for the SemVer implied by the commits.
@@ -22,7 +22,7 @@
 
 set -euo pipefail
 
-# Same rendering as the `_log` / `_warn` / `_err` recipes of assets/just/common.just.
+# Same rendering as the `_log` / `_warn` / `_err` recipes of just/common/_helpers.just.
 log() { printf '[ \033[1;36mDNF\033[0m ] \033[1;32mBMP\033[0m • %s\n' "$*" >&2; }
 warn() { printf '[ \033[1;36mDNF\033[0m ] \033[1;33mWRN\033[0m • %s\n' "$*" >&2; }
 die() {

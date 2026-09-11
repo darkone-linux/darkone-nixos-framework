@@ -7,8 +7,8 @@
 #   profiles (`dnf/hosts/disko/`) and the machine template on disk, under the
 #   workspace root.
 #
-# Both symlinks are gitignored by the consumer templates. `.dnf` is kept for
-# the legacy `import? '.dnf/just/project.just'` form.
+# The symlink is gitignored by the consumer templates, whose Justfile imports
+# `dnf/just/project.just`.
 #
 # :::tip[Run it from the project]
 # `nix run .#init` links the revision the consumer's own `flake.lock` pins, so
@@ -21,14 +21,12 @@
 
 {
   type = "app";
-  meta.description = "Link the DNF framework tree into a consumer workspace (dnf/, .dnf/)";
+  meta.description = "Link the DNF framework tree into a consumer workspace (dnf/)";
   program = toString (
     pkgs.writeShellScript "dnf-init" ''
       set -euo pipefail
       ln -sfn ${frameworkRoot} dnf
-      ln -sfn ${frameworkRoot}/assets .dnf
-      echo "Linked dnf  -> $(readlink dnf)"
-      echo "Linked .dnf -> $(readlink .dnf)"
+      echo "Linked dnf -> $(readlink dnf)"
       echo "Next: 'nix develop' then 'just --list'."
     ''
   );

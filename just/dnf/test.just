@@ -1,16 +1,16 @@
-# Darkone framework — testing just file
-# Imported by dnf/Justfile alongside assets/just/common.just.
+# DNF just — framework tests: unit tests, VM scenarios, fixtures.
 #
-# Variables (nix, dnfDir, fixturesDir, …) and helper recipes
-# (_log, _err, _fail, …) are provided by common.just; always import both.
+# Imported by `dnf.just` and `codev.just`: recipes work from `dnfDir`, never
+# from the current directory, so they also run from the workspace root.
 
-#==============================================================================
-# Tests
-#==============================================================================
+fixturesDir := dnfDir + '/tests/fixtures'
 
 # Run unit tests
 [group('test')]
 unit-tests:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	cd {{dnfDir}}
 	just _log "Running unit tests..." "TESTS"
 	nix-unit --gc-roots-dir /tmp --flake .#libTests
 
@@ -29,6 +29,7 @@ unit-tests:
 simulate what="":
 	#!/usr/bin/env bash
 	set -euo pipefail
+	cd {{dnfDir}}
 	system=$({{nix}} eval --raw --impure --expr 'builtins.currentSystem')
 	case "{{what}}" in
 	  "")
@@ -64,6 +65,7 @@ simulate-debug what:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	just _log "Interactive driver for {{what}}..." "SIMULATE"
+	cd {{dnfDir}}
 	system=$({{nix}} eval --raw --impure --expr 'builtins.currentSystem')
 	{{nix}} run ".#checks.${system}.{{what}}.driverInteractive"
 
