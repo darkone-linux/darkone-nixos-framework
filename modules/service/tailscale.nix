@@ -221,6 +221,10 @@ in
     services.tailscale = lib.mkIf hasHeadscale {
       enable = true;
 
+      # HCS: public VPS, one interface, so the global upstream rule is its WAN
+      # rule. Peers behind a strict NAT reach it without hole punching.
+      openFirewall = dnfLib.isHcs host zone network;
+
       # To use in conjonction with tailscale up --advertise-exit-node
       # https://search.nixos.org/options?channel=unstable&show=services.tailscale.useRoutingFeatures&query=services.tailscale
       # server -> enable IP forwarding.
