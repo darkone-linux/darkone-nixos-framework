@@ -321,9 +321,8 @@ in
         (lib.mkIf cfg.isExitNode "--advertise-exit-node")
         "--accept-routes"
 
-        # NOTE: for now we can leave false but we no longer have MagicDNS, it is
-        # dnsmasq that manages DNS behind AGH. But this is complicated and not very clean.
-        # Solution to investigate: tailscale manages DNS with AGH as intermediary.
+        # Gateways keep their own resolver (AdGuard Home → dnsmasq), which their
+        # zone depends on. Clients take MagicDNS: node names, split DNS to the HCS.
         (if cfg.isGateway then "--accept-dns=false" else "--accept-dns")
         "--reset" # Reload.
       ]
