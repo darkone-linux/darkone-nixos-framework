@@ -629,35 +629,44 @@ rec {
   # `by (instance, backup, host)`: one series per backup job, so a sibling that
   # still succeeds cannot mask a failing one. `host` is listed too, else the
   # aggregation drops it and Matrix titles the alert `<ip>:<port>`.
-  mkResticRuleGroups = { zoneName }: {
-    groups = [
-      {
-        name = "dnf-restic-${zoneName}";
-        rules = [
-          {
-            alert = "ResticBackupStale";
-            expr = "time() - max by (instance, backup, host) (dnf_restic_last_success_timestamp) > ${toString (36 * 3600)}";
-            "for" = "0m";
-            labels.severity = "warning";
-            annotations = {
-              summary = "Restic backup stale on {{ $labels.instance }}";
-              description = "No successful restic backup ({{ $labels.backup }}) on ${instLabel} for over 36h.";
-            };
-          }
-          {
-            alert = "ResticBackupCritical";
-            expr = "time() - max by (instance, backup, host) (dnf_restic_last_success_timestamp) > ${toString (7 * 24 * 3600)}";
-            "for" = "0m";
-            labels.severity = "critical";
-            annotations = {
-              summary = "Restic backup critically stale on {{ $labels.instance }}";
-              description = "No successful restic backup ({{ $labels.backup }}) on ${instLabel} for over 7 days.";
-            };
-          }
-        ];
-      }
-    ];
-  };
+  #
+  # `or dnf_restic_declared_timestamp`: a job without any success stamp ages
+  # from its first declaration, so one that never succeeds still fires. The
+  # left side wins when both exist; a node without the list behaves as before.
+  mkResticRuleGroups =
+    { zoneName }:
+    let
+      age = "time() - (max by (instance, backup, host) (dnf_restic_last_success_timestamp) or max by (instance, backup, host) (dnf_restic_declared_timestamp))";
+    in
+    {
+      groups = [
+        {
+          name = "dnf-restic-${zoneName}";
+          rules = [
+            {
+              alert = "ResticBackupStale";
+              expr = "${age} > ${toString (36 * 3600)}";
+              "for" = "0m";
+              labels.severity = "warning";
+              annotations = {
+                summary = "Restic backup stale on {{ $labels.instance }}";
+                description = "No successful restic backup ({{ $labels.backup }}) on ${instLabel} for over 36h.";
+              };
+            }
+            {
+              alert = "ResticBackupCritical";
+              expr = "${age} > ${toString (7 * 24 * 3600)}";
+              "for" = "0m";
+              labels.severity = "critical";
+              annotations = {
+                summary = "Restic backup critically stale on {{ $labels.instance }}";
+                description = "No successful restic backup ({{ $labels.backup }}) on ${instLabel} for over 7 days.";
+              };
+            }
+          ];
+        }
+      ];
+    };
 
   # Maintenance rule: a node under rebuild exports `dnf_maintenance 1` via the
   # node_exporter textfile collector, firing this alert. Alertmanager routes it
