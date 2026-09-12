@@ -614,8 +614,10 @@ in
           set -u
           ${lib.optionalString autoPauseEnable ''
 
-            # Intentionally paused on a home LAN (autopause) → stand down.
+            # Intentionally paused on a home LAN (autopause) → stand down, metric
+            # included: a value frozen by the pause keeps TailscaleUnhealthy firing.
             if [ "$(${pkgs.coreutils}/bin/cat ${autoPauseStateFile} 2>/dev/null || echo away)" = "home" ]; then
+              ${pkgs.coreutils}/bin/rm -f "${textfileDir}/tailscale.prom"
               exit 0
             fi
           ''}
