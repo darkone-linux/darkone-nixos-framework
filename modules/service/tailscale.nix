@@ -4,6 +4,12 @@
 # A tailscale client to connect an external host to HCS.
 # Do not use it to connect a gateway for a tailnet subnet.
 # :::
+#
+# :::note[Enrollment]
+# No shared key. `just tailnet-enroll <host>`, also run by `just configure`,
+# mints a single-use key tagged for the host on the HCS and hands it to
+# `dnf-tailnet-join`. Idempotent: an enrolled node is left untouched.
+# :::
 
 {
   lib,
@@ -185,6 +191,44 @@ let
       fi
     fi
   '';
+
+  # Single-use key dropped by `dnf-tailnet-join`, consumed by autoconnect. tmpfs:
+  # never on persistent storage, gone at reboot.
+  enrollDir = "/run/tailscale-enroll";
+  enrollKeyFile = "${enrollDir}/authKey";
+
+  # Enrollment while autopaused on a home LAN: registers without the routes and
+  # DNS autopause avoids there; the next resume re-applies extraUpFlags.
+  enrollHomeFlags = [
+    "--login-server"
+    "https://${hcsFqdn}"
+    "--accept-routes=false"
+    "--accept-dns=false"
+    "--reset"
+  ];
+
+  # Root side of `just tailnet-enroll`: key on stdin, handed to autoconnect.
+  # Prints the resulting backend state and node key, never the key itself.
+  joinCmd = "dnf-tailnet-join";
+  joinBin = "/run/current-system/sw/bin/${joinCmd}";
+  joinScript = pkgs.writeShellScriptBin joinCmd ''
+    set -euo pipefail
+    umask 077
+
+    key=$(${pkgs.coreutils}/bin/head -c 1024 | ${pkgs.coreutils}/bin/tr -d '[:space:]')
+    if [ -z "$key" ]; then
+      echo "${joinCmd}: no key on stdin" >&2
+      exit 1
+    fi
+    ${pkgs.coreutils}/bin/install -d -m 0700 ${enrollDir}
+    trap '${pkgs.coreutils}/bin/rm -f ${enrollKeyFile}' EXIT
+    printf '%s' "$key" > ${enrollKeyFile}
+
+    # Runs in systemd, not in this session: survives a tailnet SSH drop.
+    ${pkgs.systemd}/bin/systemctl restart tailscaled-autoconnect.service
+    ${tsBin} status --json --peers=false \
+      | ${pkgs.jq}/bin/jq -c '{state: .BackendState, nodeKey: (.Self.PublicKey // null)}'
+  '';
 in
 {
   options = {
@@ -209,17 +253,28 @@ in
   config = lib.mkIf cfg.enable {
 
     #--------------------------------------------------------------------------
-    # Security
+    # Enrollment
     #--------------------------------------------------------------------------
 
-    # Auth key hosted by sops
-    sops.secrets = lib.mkIf hasHeadscale {
-      "tailscale/authKey" = {
-        mode = "0400";
-        owner = "root";
-        group = "root";
-      };
-    };
+    # `dnf-tailnet-join` for the deploy user. NOLOG_*: the key crosses sudo,
+    # kept out of the R39 I/O logs.
+    security.sudo.extraRules = lib.mkIf hasHeadscale [
+      {
+        users = [ "nix" ];
+        runAs = "root";
+        commands = [
+          {
+            command = joinBin;
+            options = [
+              "NOPASSWD"
+              "NOLOG_INPUT"
+              "NOLOG_OUTPUT"
+            ];
+          }
+        ];
+      }
+    ];
+    darkone.security.sudo.allowedRootRules = lib.mkIf hasHeadscale [ joinBin ];
 
     #--------------------------------------------------------------------------
     # Control plane bootstrap
@@ -249,8 +304,9 @@ in
       # both -> client + server
       useRoutingFeatures = if (cfg.isExitNode || cfg.isGateway) then "both" else "client";
 
-      # Previously registered server key
-      authKeyFile = config.sops.secrets."tailscale/authKey".path;
+      # Keeps the upstream autoconnect unit, whose script is replaced below;
+      # filled by `dnf-tailnet-join` only.
+      authKeyFile = enrollKeyFile;
 
       # Register zone network addresses and connect to server
       # TODO: make these parameters set at tailscaled startup,
@@ -290,19 +346,14 @@ in
       serviceConfig = {
         Type = lib.mkForce "oneshot";
 
-        # Script self-bounds at ~75s (30s backend wait + 45s up); safety net.
+        # Active once run: a switch restarts it when its script changes, so a
+        # deploy reconciles prefs instead of waiting for the next boot.
+        RemainAfterExit = true;
+
+        # Script self-bounds at ~90s (30s backend wait + 60s up); safety net.
         TimeoutStartSec = 120;
       };
       script = lib.mkForce ''
-        ${lib.optionalString autoPauseEnable ''
-
-          # Autopaused on a home zone LAN: re-upping would fight the NM
-          # dispatcher and hijack local DNS (--accept-dns).
-          if [ "$(${pkgs.coreutils}/bin/cat ${autoPauseStateFile} 2>/dev/null || echo away)" = home ]; then
-            echo "autopause: on a home zone LAN, not connecting"
-            exit 0
-          fi
-        ''}
         getState() {
           ${tsBin} status --json --peers=false 2>/dev/null \
             | ${pkgs.jq}/bin/jq -r '.BackendState // "unknown"' 2>/dev/null || echo unknown
@@ -321,7 +372,45 @@ in
           tries=$((tries + 1))
           state=$(getState)
         done
+        ${lib.optionalString autoPauseEnable ''
 
+          # Autopaused on a home zone LAN: up with routes and DNS would hijack
+          # the zone LAN and local DNS, and fight the NM dispatcher.
+          home=0
+          if [ "$(${pkgs.coreutils}/bin/cat ${autoPauseStateFile} 2>/dev/null || echo away)" = home ]; then
+            home=1
+          fi
+        ''}
+
+        # Key dropped by `dnf-tailnet-join`: register whatever the state, over a
+        # stale registration too (--force-reauth), then drop the key.
+        if [ -s ${enrollKeyFile} ]; then
+          set -- ${lib.escapeShellArgs config.services.tailscale.extraUpFlags}
+          ${lib.optionalString autoPauseEnable ''
+            if [ "$home" = 1 ]; then
+              set -- ${lib.escapeShellArgs enrollHomeFlags}
+            fi
+          ''}
+          echo "enrollment key found (backend: $state), registering"
+          if ${tsBin} up --auth-key "file:${enrollKeyFile}" --force-reauth --timeout 60s "$@"; then
+            echo "tailscale registered"
+          else
+            echo "registration failed" >&2
+          fi
+          ${pkgs.coreutils}/bin/rm -f ${enrollKeyFile}
+          ${lib.optionalString autoPauseEnable ''
+            if [ "$home" = 1 ]; then
+              ${tsBin} down || true
+            fi
+          ''}
+          exit 0
+        fi
+        ${lib.optionalString autoPauseEnable ''
+          if [ "$home" = 1 ]; then
+            echo "autopause: on a home zone LAN, not connecting"
+            exit 0
+          fi
+        ''}
         case "$state" in
           Running)
             echo "tailscale already running"
@@ -331,18 +420,21 @@ in
               || echo "prefs reconcile failed, deferring to self-heal" >&2
             exit 0
             ;;
-          NeedsLogin|NeedsMachineAuth|Stopped)
-            echo "backend is $state, sending auth key"
+          Stopped)
+            echo "backend is Stopped, bringing it up"
 
-            # file: keeps the key off the cmdline; --timeout replaces the
-            # forever-blocking `up` that got SIGTERMed on fl-01.
-            if ${tsBin} up \
-              --auth-key "file:${config.services.tailscale.authKeyFile}" \
-              --timeout 45s \
+            # --timeout replaces the forever-blocking `up` that got SIGTERMed on fl-01.
+            if ${tsBin} up --timeout 45s \
               ${lib.escapeShellArgs config.services.tailscale.extraUpFlags}; then
               echo "tailscale is running"
               exit 0
             fi
+            ;;
+          NeedsLogin|NeedsMachineAuth)
+
+            # No shared key: only an explicit enrollment registers a node.
+            echo "not enrolled: run 'just tailnet-enroll ${host.hostname}' from the admin host" >&2
+            exit 0
             ;;
         esac
 
@@ -400,12 +492,13 @@ in
     #--------------------------------------------------------------------------
     # TODO: feedback on sync health status.
 
-    # We need rsync
-    environment.systemPackages = with pkgs; [
-      rsync
-      caddy
-      openssl
-    ];
+    # We need rsync; `dnf-tailnet-join` is the enrollment entry point (above).
+    environment.systemPackages = [
+      pkgs.rsync
+      pkgs.caddy
+      pkgs.openssl
+    ]
+    ++ lib.optional hasHeadscale joinScript;
 
     # Caddy storage dir (cert sync) + watchdog state dir, each behind its guard.
     systemd.tmpfiles.rules =
@@ -510,7 +603,7 @@ in
     # Real incident: a gateway's tailscaled silently dropped its headscale
     # control connection, cutting subnet access until a manual restart. Detect
     # that state locally and restart tailscaled (its autoconnect oneshot re-runs
-    # `tailscale up`, re-registering the node).
+    # and reconnects the node).
 
     systemd.services.tailscale-selfheal = lib.mkIf selfHealEnable {
       description = "Restart tailscaled when it loses the headscale control connection";
@@ -537,6 +630,7 @@ in
           # The count is still exported (warn-only) for dashboard visibility.
           healthy=0
           warnings=0
+          backend=unknown
           if status=$(${config.services.tailscale.package}/bin/tailscale status --json 2>/dev/null); then
             backend=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.BackendState // "unknown"')
             warnings=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.Health | length')
@@ -547,6 +641,11 @@ in
           fi
 
           if [ "$healthy" = "1" ]; then
+            echo 0 > "$fails"
+
+          # Not enrolled: a restart never brings a registration back, only
+          # `just tailnet-enroll` does. TailscaleUnhealthy still reports it.
+          elif [ "$backend" = "NeedsLogin" ]; then
             echo 0 > "$fails"
           else
             n=$(( $(${pkgs.coreutils}/bin/cat "$fails" 2>/dev/null || echo 0) + 1 ))
