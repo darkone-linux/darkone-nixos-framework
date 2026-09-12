@@ -26,6 +26,23 @@ let
   # Zone subnet a gateway advertises to the tailnet (same value as the
   # --advertise-routes up flag below).
   gatewaySubnet = "${zone.networkIp}/${toString zone.prefixLength}";
+
+  # Prefs `tailscale set` reconciles on an already Running node: set by hand or
+  # by a bare first `up`, they survive restarts and never converge otherwise.
+  reconcileFlags = [
+
+    # Tailscale SSH shadows sshd on the tailnet IP, then denies: no `ssh` policy.
+    "--ssh=false"
+    "--advertise-exit-node=${lib.boolToString cfg.isExitNode}"
+  ]
+
+  # Without them a gateway's zone is unreachable from the tailnet, and replies
+  # to other zones leak out the WAN (no return route).
+  ++ lib.optionals cfg.isGateway [
+    "--accept-routes"
+    "--advertise-routes=${gatewaySubnet}"
+    "--snat-subnet-routes=false"
+  ];
   hcsFqdn = "${coord.domain}.${network.domain}";
   hcsInternalFqdn = network.zones.${dnfLib.constants.globalZone}.gateway.vpn.ipv4;
 
@@ -308,20 +325,10 @@ in
         case "$state" in
           Running)
             echo "tailscale already running"
-            ${lib.optionalString cfg.isGateway ''
 
-              # Reconcile declared routing prefs even when already Running. A
-              # node first registered with a bare `up` keeps these at their
-              # defaults forever otherwise (the `up` branch below never re-runs):
-              # no AdvertiseRoutes (its zone unreachable from the tailnet) and no
-              # accept-routes (no return path to the other zones, so replies leak
-              # out the WAN). `set` is idempotent and only touches these flags.
-              ${tsBin} set \
-                --accept-routes \
-                --advertise-routes=${gatewaySubnet} \
-                --snat-subnet-routes=false \
-                || echo "route reconcile failed, deferring to self-heal" >&2
-            ''}
+            # Idempotent, touches only these flags; the `up` branch never re-runs.
+            ${tsBin} set ${lib.escapeShellArgs reconcileFlags} \
+              || echo "prefs reconcile failed, deferring to self-heal" >&2
             exit 0
             ;;
           NeedsLogin|NeedsMachineAuth|Stopped)
