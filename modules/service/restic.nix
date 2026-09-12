@@ -305,7 +305,10 @@ let
     pkgs.writeShellScript "restic-metric-${name}" ''
       set -eu
       tmp="$(${pkgs.coreutils}/bin/mktemp "${textfileDir}/.restic-${name}.XXXXXX")"
-      ${pkgs.coreutils}/bin/printf 'dnf_restic_last_success_timestamp{job="%s"} %s\n' \
+
+      # `backup`, not `job`: the scrape owns `job`, an exported one comes back
+      # as `exported_job` and the alert rules can no longer tell jobs apart.
+      ${pkgs.coreutils}/bin/printf 'dnf_restic_last_success_timestamp{backup="%s"} %s\n' \
         "${name}" "$(${pkgs.coreutils}/bin/date +%s)" > "$tmp"
 
       # mktemp creates 0600; node_exporter runs as a non-root user and must read
