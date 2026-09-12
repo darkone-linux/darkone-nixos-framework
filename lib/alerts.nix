@@ -626,9 +626,9 @@ rec {
   # node_exporter textfile collector. Absent metric -> no series -> no alert,
   # so a host without backups never trips this.
   #
-  # `host` is carried through the `by (...)` clause: an aggregation drops every
-  # label it does not group on, and losing it would send the alert to Matrix
-  # titled with the bare `<ip>:<port>` again.
+  # `by (instance, backup, host)`: one series per backup job, so a sibling that
+  # still succeeds cannot mask a failing one. `host` is listed too, else the
+  # aggregation drops it and Matrix titles the alert `<ip>:<port>`.
   mkResticRuleGroups = { zoneName }: {
     groups = [
       {
@@ -636,22 +636,22 @@ rec {
         rules = [
           {
             alert = "ResticBackupStale";
-            expr = "time() - max by (instance, job, host) (dnf_restic_last_success_timestamp) > ${toString (36 * 3600)}";
+            expr = "time() - max by (instance, backup, host) (dnf_restic_last_success_timestamp) > ${toString (36 * 3600)}";
             "for" = "0m";
             labels.severity = "warning";
             annotations = {
               summary = "Restic backup stale on {{ $labels.instance }}";
-              description = "No successful restic backup ({{ $labels.job }}) on ${instLabel} for over 36h.";
+              description = "No successful restic backup ({{ $labels.backup }}) on ${instLabel} for over 36h.";
             };
           }
           {
             alert = "ResticBackupCritical";
-            expr = "time() - max by (instance, job, host) (dnf_restic_last_success_timestamp) > ${toString (7 * 24 * 3600)}";
+            expr = "time() - max by (instance, backup, host) (dnf_restic_last_success_timestamp) > ${toString (7 * 24 * 3600)}";
             "for" = "0m";
             labels.severity = "critical";
             annotations = {
               summary = "Restic backup critically stale on {{ $labels.instance }}";
-              description = "No successful restic backup ({{ $labels.job }}) on ${instLabel} for over 7 days.";
+              description = "No successful restic backup ({{ $labels.backup }}) on ${instLabel} for over 7 days.";
             };
           }
         ];

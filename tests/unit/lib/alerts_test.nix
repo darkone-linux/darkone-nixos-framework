@@ -539,12 +539,18 @@ in
   };
 
   # ----- mkResticRuleGroups -----
-  # `host` is part of the `by (...)` clause: an aggregation drops every label it
-  # does not group on, which would cost the alert its hostname in Matrix.
+  # `backup` in the `by (...)` clause: one alert per job, a failing one is never
+  # masked by a sibling. `host` too: an aggregation drops every ungrouped label.
   testResticStaleExpr = {
     expr =
       (builtins.head (builtins.head (dnfLib.mkResticRuleGroups { zoneName = "ag"; }).groups).rules).expr;
-    expected = "time() - max by (instance, job, host) (dnf_restic_last_success_timestamp) > 129600";
+    expected = "time() - max by (instance, backup, host) (dnf_restic_last_success_timestamp) > 129600";
+  };
+  testResticCriticalExpr = {
+    expr =
+      (builtins.elemAt (builtins.head (dnfLib.mkResticRuleGroups { zoneName = "ag"; }).groups).rules 1)
+      .expr;
+    expected = "time() - max by (instance, backup, host) (dnf_restic_last_success_timestamp) > 604800";
   };
 
   # ----- mkSmartctlRuleGroups -----
