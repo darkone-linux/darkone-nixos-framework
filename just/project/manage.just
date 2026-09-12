@@ -112,14 +112,29 @@ nfs-cleanup on mode='check':
 			|| just _warn "$node: cleanup exited non-zero."
 	done
 
-# Multi garbage collector (using colmena)
+# `keep`: empty keeps the current generation only, `9d` drops generations
+# older than 9 days, `9` keeps the last 9 (current included). Bare `nix-env`
+# targets root's profile: the count form needs `-p` on the system profile.
+#
+# Multi garbage collector (using colmena), keep: 9d (days) or 9 (generations)
 [group('manage')]
-gc on:
+gc on keep='':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just gc "{{on}}"
-	just _log "Garbage collecting on {{on}}..."
-	colmena exec --on "{{on}}" "sudo nix-collect-garbage -d && sudo /run/current-system/bin/switch-to-configuration boot"
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just gc "{{on}}" "{{keep}}"
+	if [ -z "{{keep}}" ] ;then
+		just _log "Deleting all old generations on {{on}}..." "GC"
+		clean="sudo nix-collect-garbage -d"
+	elif [[ "{{keep}}" =~ ^[1-9][0-9]?d$ ]] ;then
+		just _log "Deleting generations older than {{keep}} on {{on}}..." "GC"
+		clean="sudo nix-collect-garbage --delete-older-than {{keep}}"
+	elif [[ "{{keep}}" =~ ^[1-9][0-9]?$ ]] ;then
+		just _log "Keeping the last {{keep}} system generations on {{on}}..." "GC"
+		clean="sudo nix-env -p /nix/var/nix/profiles/system --delete-generations +{{keep}} && sudo nix-collect-garbage"
+	else
+		just _fail "Bad keep value '{{keep}}': expected 1-99 (generations) or 1d-99d (days)."
+	fi
+	colmena exec --on "{{on}}" "$clean && sudo /run/current-system/bin/switch-to-configuration boot"
 
 # `ro` (default) watches the screen already open on the host, `rw` watches and
 # takes control; both are enforced by the remote server, never by the client,
