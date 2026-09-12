@@ -268,11 +268,11 @@ let
   };
   params = dnfLib.extractServiceParams host network "restic" defaultParams;
 
-  # Backup freshness metric for Prometheus. Each backup job, on success, stamps
-  # `dnf_restic_last_success_timestamp` into the node_exporter textfile
-  # collector dir (same dir as monitoring.nix's maintenance flag). Only emitted
-  # on monitored nodes — nowhere else would scrape it. The lib `mkResticRuleGroups`
-  # turns a stale stamp into ResticBackupStale/Critical.
+  # Backup freshness metrics for Prometheus, in the node_exporter textfile
+  # collector dir (same dir as monitoring.nix's maintenance flag): per-job
+  # success stamp (mkResticMetric) plus the declared-jobs list (resticDeclared).
+  # Monitored nodes only, nowhere else would scrape them. The lib
+  # `mkResticRuleGroups` turns a stale stamp into ResticBackupStale/Critical.
   textfileDir = "/var/lib/node-exporter-textfile";
   isNode = host.features ? "monitoring-node";
 
@@ -316,6 +316,41 @@ let
       ${pkgs.coreutils}/bin/chmod 0644 "$tmp"
       ${pkgs.coreutils}/bin/mv -f "$tmp" "${textfileDir}/restic-${name}.prom"
     '';
+
+  # Declared-jobs list: epoch each job was first seen on this host. The rules
+  # fall back to it while a job has no success stamp, so a job that never
+  # succeeds still ages into ResticBackupStale/Critical.
+  resticDeclared = pkgs.writeShellScript "restic-declared" ''
+    set -eu
+    names=${lib.escapeShellArg (lib.concatStringsSep " " (builtins.attrNames config.services.restic.backups))}
+    out="${textfileDir}/restic.prom"
+    now="$(${pkgs.coreutils}/bin/date +%s)"
+    tmp="$(${pkgs.coreutils}/bin/mktemp "${textfileDir}/.restic.XXXXXX")"
+    for name in $names; do
+
+      # First-seen epoch from the previous run, else now: a reboot or a switch
+      # must not restart the grace period.
+      key="dnf_restic_declared_timestamp{backup=\"$name\"}"
+      since="$(${pkgs.gawk}/bin/awk -v k="$key" '$1 == k { print $2; exit }' "$out" 2>/dev/null || true)"
+      ${pkgs.coreutils}/bin/printf '%s %s\n' "$key" "''${since:-$now}" >> "$tmp"
+    done
+
+    # Same world-readable atomic write as mkResticMetric.
+    ${pkgs.coreutils}/bin/chmod 0644 "$tmp"
+    ${pkgs.coreutils}/bin/mv -f "$tmp" "$out"
+
+    # A removed job's success stamp never refreshes: Stale/Critical would fire
+    # forever. The `restic-*` glob never matches `restic.prom`.
+    for f in "${textfileDir}"/restic-*.prom; do
+      [ -e "$f" ] || continue
+      name="''${f##*/restic-}"
+      name="''${name%.prom}"
+      case " $names " in
+        *" $name "*) ;;
+        *) ${pkgs.coreutils}/bin/rm -f "$f" ;;
+      esac
+    done
+  '';
 in
 {
   options = {
@@ -496,6 +531,21 @@ in
             }
           ) config.services.restic.backups
         ))
+
+        # Declared-jobs list and orphan cleanup (see resticDeclared). Names are
+        # baked into the script: a changed list changes the unit, RemainAfterExit
+        # keeps it active so the switch restarts it.
+        (lib.mkIf isNode {
+          restic-declared = {
+            description = "Export declared restic jobs, drop stamps of removed ones";
+            wantedBy = [ "multi-user.target" ];
+            serviceConfig = {
+              Type = "oneshot";
+              RemainAfterExit = true;
+              ExecStart = resticDeclared;
+            };
+          };
+        })
 
         # Remote targets: an off-site server that is down must skip the run,
         # not fail it (cf. the header note). Matched on the merged backup set

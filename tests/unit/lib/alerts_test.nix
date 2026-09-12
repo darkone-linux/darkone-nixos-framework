@@ -541,16 +541,17 @@ in
   # ----- mkResticRuleGroups -----
   # `backup` in the `by (...)` clause: one alert per job, a failing one is never
   # masked by a sibling. `host` too: an aggregation drops every ungrouped label.
+  # `or` the declared stamp: a job that never succeeds still ages.
   testResticStaleExpr = {
     expr =
       (builtins.head (builtins.head (dnfLib.mkResticRuleGroups { zoneName = "ag"; }).groups).rules).expr;
-    expected = "time() - max by (instance, backup, host) (dnf_restic_last_success_timestamp) > 129600";
+    expected = "time() - (max by (instance, backup, host) (dnf_restic_last_success_timestamp) or max by (instance, backup, host) (dnf_restic_declared_timestamp)) > 129600";
   };
   testResticCriticalExpr = {
     expr =
       (builtins.elemAt (builtins.head (dnfLib.mkResticRuleGroups { zoneName = "ag"; }).groups).rules 1)
       .expr;
-    expected = "time() - max by (instance, backup, host) (dnf_restic_last_success_timestamp) > 604800";
+    expected = "time() - (max by (instance, backup, host) (dnf_restic_last_success_timestamp) or max by (instance, backup, host) (dnf_restic_declared_timestamp)) > 604800";
   };
 
   # ----- mkSmartctlRuleGroups -----
