@@ -97,7 +97,7 @@ configure-admin-host:
 # redirection, so the `apply` that follows reaches it instead of its home
 # address; `just roaming-clear {{host}}` drops it once the host is back home.
 #
-# New host: ssh cp id, extr. hw, push infra key, clean, info
+# New host: ssh cp id, extr. hw, push infra key, tailnet enroll, clean, info
 [group('configure')]
 configure host ip='auto':
 	#!/usr/bin/env bash
@@ -111,6 +111,10 @@ configure host ip='auto':
 	# LUKS provisioning is a no-op on unencrypted hosts and idempotent on
 	# encrypted ones (secrets/manifest/initrd key created only when missing).
 	just luks "{{host}}" '' "$t"
+
+	# No-op without Tailscale or once enrolled. An unreachable HCS must not
+	# abort an install: warn, the recipe re-runs alone.
+	just tailnet-enroll "{{host}}" "$t" || just _warn "Tailnet enrollment failed, re-run: just tailnet-enroll {{host}}"
 
 	# Only a genuinely away address deserves a redirection. `full-install`
 	# always hands over an IP — whatever `_wait-any` found — so testing against
@@ -130,6 +134,69 @@ configure host ip='auto':
 	just _log "git add . && git commit -m 'Configuring new host {{host}}'"
 	just _log "just apply-verbose {{host}}"
 	just host-info "{{host}}" "$t"
+
+# The key travels from the HCS to the host through a pipe only: never in argv,
+# a variable, the sudo I/O logs or on disk. The HCS mints it for the declared
+# tags of the host, whatever the caller asks. Idempotent: a node holding its
+# declared name and tags is left alone, a wrong tag or name is fixed in place,
+# the offline registration a reinstall left behind is replaced.
+#
+# Enroll a host in the tailnet (single-use tagged key, idempotent)
+[group('configure')]
+tailnet-enroll host ip='auto':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just tailnet-enroll "{{host}}" "{{ip}}"
+	cfg={{workDir}}/etc/config.yaml
+	if [ "$(yq -r '.network.coordination.enable // false' "$cfg")" != "true" ] ;then
+		just _info "No coordination server, nothing to enroll." "TAILNET"
+		exit 0
+	fi
+	hcs=$(yq -r '.network.coordination.hostname' "$cfg")
+	enroll=/run/current-system/sw/bin/dnf-tailnet-enroll
+	join=/run/current-system/sw/bin/dnf-tailnet-join
+	t=$(just _resolve "{{host}}" "{{ip}}")
+	on() { ssh -o BatchMode=yes -o ConnectTimeout=15 "nix@$1" "${@:2}" ; }
+
+	# Status needs no root. Exit 3 means no client; anything else, ssh's own
+	# 255 included, leaves the state unknown.
+	rc=0
+	self=$(on "$t" 'command -v tailscale >/dev/null || exit 3; tailscale status --json --peers=false') || rc=$?
+	case $rc in
+		0) ;;
+		3) just _info "{{host}} runs no Tailscale client, nothing to enroll." "TAILNET" ; exit 0 ;;
+		*) just _fail "{{host}} at $t: Tailscale status unreadable, ssh or tailscaled down." ;;
+	esac
+	state=$(jq -r '.BackendState' <<<"$self")
+	nodeKey=$(jq -r '.Self.PublicKey // ""' <<<"$self")
+	status=$(on "$hcs" sudo "$enroll" status "{{host}}" "$nodeKey")
+	want=$(jq -c '.declared' <<<"$status")
+	[ "$want" != null ] || just _fail "{{host}}: no declared tailnet identity on $hcs (no tag, or $hcs not deployed since)."
+
+	# Enrolled: headscale knows the node key and the host still holds its login.
+	if [ "$(jq -r '.node != null' <<<"$status")" = true ] && [[ $state =~ ^(Running|Stopped|Starting)$ ]] ;then
+		just _info "{{host}} already enrolled, backend $state." "TAILNET"
+	else
+		just _log "{{host}} not enrolled, backend $state: sending a single-use key..." "TAILNET"
+		self=$(on "$hcs" sudo "$enroll" key "{{host}}" | on "$t" sudo "$join") \
+			|| just _fail "{{host}}: enrollment failed, see above."
+		state=$(jq -r '.state' <<<"$self")
+		nodeKey=$(jq -r '.nodeKey // ""' <<<"$self")
+		[[ $state =~ ^(Running|Stopped)$ ]] \
+			|| just _fail "{{host}}: registration failed, backend $state. See journalctl -u tailscaled-autoconnect on {{host}}."
+	fi
+	node=$(on "$hcs" sudo "$enroll" adopt "{{host}}" "$nodeKey")
+
+	# `adopt` converges; check its outcome rather than trust it.
+	summary=$(jq -r '"\(.name) \(.tags | join(",")) \(.ipv4)"' <<<"$node")
+	[ "$(jq -r '.name' <<<"$node")" = "{{host}}" ] && [ "$(jq -c '.tags' <<<"$node")" = "$(jq -c '.tags' <<<"$want")" ] \
+		|| just _fail "{{host}}: node $summary does not match its declared identity."
+	ip=$(jq -r '.ipv4 // ""' <<<"$node")
+	declaredIp=$(jq -r '.ipv4 // ""' <<<"$want")
+	if [ -n "$declaredIp" ] && [ "$ip" != "$declaredIp" ] ;then
+		just _warn "{{host}}: tailnet IP $ip, declared $declaredIp: update etc/config.yaml."
+	fi
+	just _info "{{host}}: $summary" "TAILNET"
 
 # Provision the Matrix alert bot + rooms (idempotent) from network.matrix.
 # Reads config.yaml (network.matrix.{admin,bot}), creates/refreshes the bot,

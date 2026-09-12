@@ -283,12 +283,6 @@ rec {
       gen = "external";
     }
 
-    # Pre-auth key minted by headscale.
-    {
-      pattern = "tailscale/.*";
-      gen = "external";
-    }
-
     #--------------------------------------------------------------------------
     # External: bound to state living outside sops
     #--------------------------------------------------------------------------
