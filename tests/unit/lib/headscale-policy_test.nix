@@ -357,4 +357,61 @@ in
     expr = (policy { enforce = false; }).autoApprovers == enforced.autoApprovers;
     expected = true;
   };
+
+  # ----- mkHeadscaleAuditSpec -----
+  # Declared IPv4: `vpnIp`, else the zone gateway VPN address, else none (admin
+  # station, gateway without one). Admin stations are optional members; hosts
+  # without a tailnet role are left out.
+  testAuditSpec = {
+    expr = dnfLib.mkHeadscaleAuditSpec {
+      network = network // {
+        zones = network.zones // {
+          lan = network.zones.lan // {
+            gateway = network.zones.lan.gateway // {
+              vpn.ipv4 = "100.64.0.1";
+            };
+          };
+        };
+      };
+      inherit hosts users;
+      adminDevices.phone = "100.64.0.9";
+    };
+    expected = {
+      nodes = [
+        {
+          name = "hcs";
+          tags = [ "tag:hcs" ];
+          required = true;
+          ipv4 = "100.64.0.2";
+        }
+        {
+          name = "gw-lan";
+          tags = [ "tag:gw-lan" ];
+          required = true;
+          ipv4 = "100.64.0.1";
+        }
+        {
+          name = "gw-far";
+          tags = [ "tag:gw-far" ];
+          required = true;
+          ipv4 = null;
+        }
+        {
+          name = "laptop";
+          tags = [ "tag:admin" ];
+          required = false;
+          ipv4 = null;
+        }
+      ];
+      adminDevices.phone = "100.64.0.9";
+      users = [
+        "alice"
+        "bob"
+      ];
+    };
+  };
+  testAuditSpecWithoutDevices = {
+    expr = (dnfLib.mkHeadscaleAuditSpec { inherit network hosts users; }).adminDevices;
+    expected = { };
+  };
 }

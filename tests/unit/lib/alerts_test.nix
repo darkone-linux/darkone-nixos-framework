@@ -156,9 +156,9 @@ in
   };
 
   # ----- mkAlertRuleGroups -----
-  # Five groups (nodes + resources + restic + smartctl + tailscale); the disabled
-  # laptop is dropped, leaving a single watched node with node-down +
-  # systemd-failed rules.
+  # Six groups (nodes + resources + restic + smartctl + tailscale + headscale);
+  # the disabled laptop is dropped, leaving a single watched node with
+  # node-down + systemd-failed rules.
   testRuleGroupsCount = {
     expr =
       builtins.length
@@ -171,7 +171,7 @@ in
           nodeExporterPort = 9100;
           zoneName = "ag";
         }).groups;
-    expected = 5;
+    expected = 6;
   };
   testNodeGroupName = {
     expr =
@@ -579,6 +579,54 @@ in
   testTailscaleGroupName = {
     expr = (builtins.head (dnfLib.mkTailscaleRuleGroups { zoneName = "ag"; }).groups).name;
     expected = "dnf-tailscale-ag";
+  };
+
+  # ----- mkHeadscaleRuleGroups -----
+  testHeadscaleGroupName = {
+    expr = (builtins.head (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; }).groups).name;
+    expected = "dnf-headscale-ag";
+  };
+  testHeadscaleAlertNames = {
+    expr =
+      map (r: r.alert)
+        (builtins.head (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; }).groups).rules;
+    expected = [
+      "HeadscaleNodeDrift"
+      "HeadscaleUnexpectedNode"
+      "HeadscalePolicyInvalid"
+      "HeadscaleOidcFallback"
+      "HeadscaleNodeExpiring"
+      "HeadscaleAuditStale"
+    ];
+  };
+
+  # One alert covers the three per-node checks: the regex must name them all.
+  testHeadscaleDriftExpr = {
+    expr =
+      (builtins.head (builtins.head (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; }).groups).rules)
+      .expr;
+    expected = ''max by (instance, host, node) ({__name__=~"dnf_headscale_node_(missing|tag_mismatch|ip_drift)"}) == 1'';
+  };
+  testHeadscaleExpiringExpr = {
+    expr =
+      (builtins.elemAt (builtins.head (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; }).groups).rules 4)
+      .expr;
+    expected = "dnf_headscale_node_expiry_timestamp_seconds - time() < 604800";
+  };
+
+  # Metric-driven like restic and tailscale: always part of the zone document.
+  testRuleGroupsIncludeHeadscale = {
+    expr =
+      (builtins.elemAt
+        (dnfLib.mkAlertRuleGroups {
+          nodes = [ critServer ];
+          services = [ ];
+          nodeExporterPort = 9100;
+          zoneName = "ag";
+        }).groups
+        5
+      ).name;
+    expected = "dnf-headscale-ag";
   };
 
   # ----- host label -----
