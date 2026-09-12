@@ -485,17 +485,16 @@ in
         ))
 
         # Stamp the success timestamp after each backup (see mkResticMetric).
-        # ReadWritePaths punches the textfile dir through ProtectSystem.
+        # Merged backup set, so a hand-declared job is watched like a generated
+        # one. ReadWritePaths punches the textfile dir through ProtectSystem.
         (lib.mkIf isNode (
-          lib.listToAttrs (
-            map (b: {
-              name = "restic-backups-${b.name}";
-              value = {
-                serviceConfig.ExecStartPost = lib.mkAfter [ (mkResticMetric b.name) ];
-                serviceConfig.ReadWritePaths = lib.mkAfter [ textfileDir ];
-              };
-            }) backupList
-          )
+          lib.mapAttrs' (
+            name: _:
+            lib.nameValuePair "restic-backups-${name}" {
+              serviceConfig.ExecStartPost = lib.mkAfter [ (mkResticMetric name) ];
+              serviceConfig.ReadWritePaths = lib.mkAfter [ textfileDir ];
+            }
+          ) config.services.restic.backups
         ))
 
         # Remote targets: an off-site server that is down must skip the run,
