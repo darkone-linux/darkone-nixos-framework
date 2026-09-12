@@ -839,6 +839,94 @@ rec {
     ];
   };
 
+  # Tailnet drift, from `headscale-audit` (service/headscale.nix) via the
+  # node_exporter textfile collector of the coordination server. Absent metric
+  # (no headscale) -> no series -> no alert. Details in the unit's journal.
+  mkHeadscaleRuleGroups = { zoneName }: {
+    groups = [
+      {
+        name = "dnf-headscale-${zoneName}";
+        rules = [
+          {
+
+            # A declared machine is gone, mistagged or on another IP, or no
+            # personal node holds an admin device IP. 30m: two audits, rides out
+            # a re-registration in progress.
+            alert = "HeadscaleNodeDrift";
+            expr = ''max by (instance, host, node) ({__name__=~"dnf_headscale_node_(missing|tag_mismatch|ip_drift)"}) == 1'';
+            "for" = "30m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Tailnet node {{ $labels.node }} drifted from the declared topology";
+              description = "Node {{ $labels.node }} is missing, mistagged or on another IP (headscale on ${instLabel}); see `journalctl -u headscale-audit`.";
+            };
+          }
+          {
+
+            # Tagged but undeclared, or owned by a login outside the tailnet
+            # users: an enrolment the configuration never asked for.
+            alert = "HeadscaleUnexpectedNode";
+            expr = "dnf_headscale_unexpected_node == 1";
+            "for" = "0m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Unexpected tailnet node {{ $labels.node }}";
+              description = "Node {{ $labels.node }} (owner {{ $labels.user }}) is not declared (headscale on ${instLabel}).";
+            };
+          }
+          {
+
+            # Served policy differs from the deployed file (failed reload), or
+            # fails `headscale policy check` against the live nodes.
+            alert = "HeadscalePolicyInvalid";
+            expr = "dnf_headscale_policy_valid == 0";
+            "for" = "30m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Headscale policy invalid on {{ $labels.instance }}";
+              description = "The ACL policy served by headscale on ${instLabel} differs from the deployed file or fails its check.";
+            };
+          }
+          {
+
+            # Started while Kanidm was unreachable: CLI registration only, and
+            # headscale never retries OIDC before its next restart.
+            alert = "HeadscaleOidcFallback";
+            expr = "dnf_headscale_oidc_available == 0";
+            "for" = "0m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Headscale without OIDC on {{ $labels.instance }}";
+              description = "headscale on ${instLabel} fell back to CLI registration; restart it once Kanidm is up.";
+            };
+          }
+          {
+            alert = "HeadscaleNodeExpiring";
+            expr = "dnf_headscale_node_expiry_timestamp_seconds - time() < ${toString (7 * 24 * 3600)}";
+            "for" = "1h";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Tailnet node {{ $labels.node }} key expiring";
+              description = "Node {{ $labels.node }} (owner {{ $labels.user }}) expires within 7 days or has expired: log in again (headscale on ${instLabel}).";
+            };
+          }
+          {
+
+            # A failing or stopped audit silences every rule above.
+            alert = "HeadscaleAuditStale";
+            expr = "time() - dnf_headscale_audit_last_success_timestamp_seconds > ${toString 3600}";
+            "for" = "0m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Headscale audit stale on {{ $labels.instance }}";
+              description = "headscale-audit has not succeeded on ${instLabel} for over 1h.";
+            };
+          }
+        ];
+      }
+    ];
+  };
+
   # Merge several `{ groups = [...]; }` fragments into one rule document.
   mergeRuleGroups = fragments: { groups = lib.concatMap (f: f.groups) fragments; };
 
@@ -903,5 +991,6 @@ rec {
       (mkResticRuleGroups { inherit zoneName; })
       (mkSmartctlRuleGroups { inherit zoneName; })
       (mkTailscaleRuleGroups { inherit zoneName; })
+      (mkHeadscaleRuleGroups { inherit zoneName; })
     ];
 }

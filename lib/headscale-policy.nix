@@ -1,8 +1,9 @@
 # DNF — headscale ACL policy derived from the network topology
 #
 # Builds the tailnet policy (groups, tagOwners, hosts, autoApprovers, acls)
+# and the expected node set `headscale-audit` checks the live tailnet against,
 # from the generated hosts, users and zones. Pure and side-effect free:
-# `service/headscale.nix` serializes the result and checks it at build time.
+# `service/headscale.nix` serializes both.
 
 { lib, topology }:
 let
@@ -59,8 +60,6 @@ let
     action = "accept";
     inherit src dst;
   };
-in
-{
 
   # Tags of a tailnet machine, as passed to `--tags`. Empty for a host with no
   # tailnet role: it is reached through its zone subnet.
@@ -75,6 +74,9 @@ in
 
   # Logins allowed to join the tailnet: an admin profile, or a zone to reach.
   tailnetUsers = users: attrNames (filterAttrs (_: u: isAdminUser u || userZones u != [ ]) users);
+in
+{
+  inherit tailnetNodeTags tailnetUsers;
 
   # Tailnet policy, default deny. `enforce = false` keeps every identity but
   # allows all traffic: nodes get tagged before the switch without cutting the
@@ -166,5 +168,48 @@ in
         exitNode = [ hcsTag ];
       };
       acls = if enforce then enforcedAcls else openAcls;
+    };
+
+  # Expected tailnet for `headscale-audit`: tagged machines by MagicDNS name,
+  # admin devices, logins allowed to own a node.
+  # - `required`: HCS and gateways, enrolled by the framework. An admin station
+  #   joins only if its host file enables tailscale: checked when present.
+  # - `ipv4`: null when nothing declares it; headscale picks one.
+  mkHeadscaleAuditSpec =
+    {
+      network,
+      hosts,
+      users,
+      adminDevices ? { },
+    }:
+    let
+      nodeTags = host: tailnetNodeTags { inherit host network; };
+      declaredIpv4 =
+        host:
+        let
+          zone = network.zones.${host.zone} or { name = host.zone; };
+        in
+        if (host.vpnIp or "") != "" then
+          host.vpnIp
+        else if topology.isGateway host zone && (zone.gateway.vpn.ipv4 or "") != "" then
+          zone.gateway.vpn.ipv4
+        else
+          null;
+    in
+    {
+      nodes = map (
+        host:
+        let
+          tags = builtins.sort builtins.lessThan (nodeTags host);
+        in
+        {
+          name = host.hostname;
+          inherit tags;
+          required = !(elem adminTag tags);
+          ipv4 = declaredIpv4 host;
+        }
+      ) (filter (host: nodeTags host != [ ]) hosts);
+      inherit adminDevices;
+      users = tailnetUsers users;
     };
 }

@@ -29,7 +29,12 @@ let
 in
 {
   inherit constants;
-  inherit (headscalePolicy) tailnetNodeTags tailnetUsers mkHeadscalePolicy;
+  inherit (headscalePolicy)
+    tailnetNodeTags
+    tailnetUsers
+    mkHeadscalePolicy
+    mkHeadscaleAuditSpec
+    ;
   inherit (strings)
     ucFirst
     cleanString
@@ -82,6 +87,7 @@ in
     mkSynapseRuleGroups
     mkMaintenanceRuleGroups
     mkTailscaleRuleGroups
+    mkHeadscaleRuleGroups
     mergeRuleGroups
     mkAlertRuleGroups
     mkSilenceRoutes
