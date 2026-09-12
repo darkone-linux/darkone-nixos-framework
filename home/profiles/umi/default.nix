@@ -1,4 +1,4 @@
-# Home profile: 100% gaze-driven user (Tobii + Talon + Onboard), no keyboard.
+# Home profile: UMI (Unified Multimodal Input) user, touch + voice + gaze instead of keyboard/mouse.
 #
 # :::note[Usage]
 # Assign with `profile: "umi"` in etc/config.yaml. Designed for hosts using
@@ -9,6 +9,6 @@
 
   imports = [ ./../normal ];
 
-  # Gaze input: Talon autostart + Onboard eye-tracking profile
+  # Multimodal input: Talon autostart (voice, gaze) + Onboard (touch)
   darkone.home.umi.enable = true;
 }

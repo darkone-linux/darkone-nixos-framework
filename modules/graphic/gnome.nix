@@ -43,7 +43,7 @@ in
     darkone.graphic.gnome.cursorSize = mkOption {
       type = types.ints.positive;
       default = 24;
-      description = "Pointer size in pixels, locked host-wide. Gaze hosts (`darkone.host.umi`) raise it to 48.";
+      description = "Pointer size in pixels, locked host-wide. UMI hosts (`darkone.host.umi`) raise it to 48.";
     };
   };
 

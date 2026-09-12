@@ -1,14 +1,20 @@
-# Host profile: gaze-driven workstation (Tobii Eye Tracker 5 + Talon), usable without keyboard/mouse.
+# Host profile: UMI (Unified Multimodal Input) workstation, usable without keyboard/mouse.
+#
+# :::note[UMI: Unified Multimodal Input]
+# Accessibility goal: coordinated inputs (touch, voice, gaze…) replace keyboard
+# and mouse, combined to fit the user's abilities. Current stack: Onboard on a
+# touchscreen, Talon voice commands, Tobii Eye Tracker 5 driven through Talon.
+# :::
 #
 # :::note[Extends desktop]
 # Inherits the full desktop profile (GNOME, multimedia, office) and adds the
-# gaze prerequisites: a Cinnamon X11 session for gaze users, auto-login,
+# UMI prerequisites: a Cinnamon X11 session for UMI users, auto-login,
 # uinput event injection and Tobii udev rules.
 # :::
 #
 # :::tip[X11 / Wayland coexistence]
 # Talon requires X11 (Wayland unsupported upstream, not planned) and
-# GNOME 50 dropped its Xorg session, so gaze sessions run Cinnamon (X11,
+# GNOME 50 dropped its Xorg session, so UMI sessions run Cinnamon (X11,
 # GNOME-like UX, native tray) while other users keep GNOME Wayland. The
 # users listed in `gazeUsers` (plus `autoLoginUser`) get their saved GDM
 # session seeded to "cinnamon" through AccountsService; GDM keeps managing
@@ -45,7 +51,7 @@
 let
   cfg = config.darkone.host.umi;
 
-  # Users whose GDM session must be the Cinnamon X11 one (gaze sessions)
+  # Users whose GDM session must be the Cinnamon X11 one (UMI sessions)
   gazeSessionUsers = lib.unique (
     cfg.gazeUsers ++ lib.optional (cfg.autoLoginUser != null) cfg.autoLoginUser
   );
@@ -53,7 +59,7 @@ in
 {
   options = {
     darkone.host.umi = {
-      enable = lib.mkEnableOption "Eye-tracking optimized host configuration (Tobii + Talon)";
+      enable = lib.mkEnableOption "UMI host configuration: multimodal input, touch + voice + gaze (Onboard, Talon, Tobii)";
       autoLoginUser = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
@@ -62,7 +68,7 @@ in
       gazeUsers = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [ ];
-        description = "Gaze users whose GDM session is seeded to Cinnamon/X11 (autoLoginUser is always included).";
+        description = "UMI users whose GDM session is seeded to Cinnamon/X11 (autoLoginUser is always included).";
       };
       package = lib.mkOption {
         type = lib.types.nullOr lib.types.package;
@@ -74,7 +80,7 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # Full workstation base (GNOME Wayland for non-gaze users)
+    # Full workstation base (GNOME Wayland for non-UMI users)
     darkone.host.desktop.enable = lib.mkDefault true;
 
     # Gaze precision: big pointer. Host-wide because the GNOME key is locked
@@ -85,7 +91,7 @@ in
     # Microphone for Talon voice commands, speakers for typing feedback
     darkone.service.audio.enable = lib.mkDefault true;
 
-    # X11 desktop for the gaze sessions, launched by GDM alongside GNOME
+    # X11 desktop for the UMI sessions, launched by GDM alongside GNOME
     services.xserver.desktopManager.cinnamon.enable = true;
 
     # GNOME and Cinnamon both define this variable (nixpkgs limitation when
@@ -102,7 +108,7 @@ in
       }
     }/share/gsettings-schemas/nixos-gsettings-overrides/glib-2.0/schemas";
 
-    # Seed the gaze users' saved GDM session ("f" writes only when the file
+    # Seed the UMI users' saved GDM session ("f" writes only when the file
     # is missing, GDM keeps managing it afterwards). Other users keep their
     # GNOME Wayland session.
     systemd.tmpfiles.rules = map (
@@ -149,7 +155,7 @@ in
 
     # Talon injects mouse/keyboard events through /dev/uinput; the NixOS
     # module creates the "uinput" group, the static node and its udev rule.
-    # Gaze users join input/uinput via `home/nixos/umi.nix`.
+    # UMI users join input/uinput via `home/nixos/umi.nix`.
     hardware.uinput.enable = true;
 
     # Tobii consumer trackers (USB vendor 2104): grant device access to the

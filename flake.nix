@@ -105,9 +105,9 @@
     dnf-generator.url = "github:darkone-linux/dnf-generator/v0.1.0";
     dnf-generator.inputs.nixpkgs.follows = "nixpkgs";
 
-    # Talon (gaze + voice input, talonvoice.com): unfree upstream tarball
+    # Talon (voice + gaze input, talonvoice.com): unfree upstream tarball
     # packaged by the community; exposed as `pkgs.talon` (x86_64-linux only)
-    # via `lib/overlays/talon.nix`. Consumed by gaze-driven host profiles
+    # via `lib/overlays/talon.nix`. Consumed by UMI (multimodal input) host profiles
     # (e.g. `darkone.host.umi` in arthur-network).
     talon-nix.url = "github:nix-community/talon-nix";
     talon-nix.inputs.nixpkgs.follows = "nixpkgs";

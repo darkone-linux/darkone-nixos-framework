@@ -21,7 +21,7 @@
 # :::tip[Three backends, one protocol]
 # A GNOME Wayland session is served by `gnome-remote-desktop`, driven through
 # `grdctl` inside the session owner's own bus. A Cinnamon X11 session — the
-# gaze-driven UMI workstation, since GNOME 50 dropped its Xorg session — is
+# UMI (multimodal input) workstation, since GNOME 50 dropped its Xorg session — is
 # served by `freerdp-shadow-cli` on the existing display. A `login` session is
 # served by the same `gnome-remote-desktop`, in its system runtime mode, which
 # hands the client over to GDM. Same protocol, same client, `ro`/`rw`

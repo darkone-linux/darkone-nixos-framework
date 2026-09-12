@@ -1,19 +1,21 @@
-# Home module: gaze-driven input (Talon autostart + Onboard tuned for eye tracking).
+# Unified Multimodal Input (UMI)
+#
+# Touchscreen + voice + gaze (Talon autostart + Onboard).
 #
 # :::note[Pairs with the umi host profile]
 # The host must provide udev/uinput and the Cinnamon X11 session (see
-# `darkone.host.umi`). This module configures the user side: opt-in dwell
+# `darkone.host.umi`, which defines UMI). This module configures the user side: opt-in dwell
 # click (`enableDwell`), always-visible docked Onboard keyboard with word
 # prediction and sticky modifiers, and Talon session autostart.
 # :::
 #
 # :::tip[Community scripts]
 # Set `communityScripts` to a fetched github:talonhub/community tree to get
-# full gaze mouse control (zoom mouse, pop click) declaratively.
+# full voice and gaze mouse control (zoom mouse, pop click) declaratively.
 # :::
 #
 # :::note[Dual schemas]
-# The gaze session is Cinnamon (org/cinnamon/*) but the GNOME keys
+# The UMI session is Cinnamon (org/cinnamon/*) but the GNOME keys
 # (org/gnome/*) are kept in sync: mousetweaks reads the GNOME a11y schema,
 # and they serve as fallback if the user ever lands in a GNOME session.
 # Exception: keys locked by the DNF gnome module are never mirrored here,
@@ -25,7 +27,7 @@
 #
 # :::caution[Login keyring: two modes, decided by the host]
 # An autologin session types no password, so PAM has nothing to hand to
-# gnome-keyring and every secret-using app pops a gcr prompt the gaze user
+# gnome-keyring and every secret-using app pops a gcr prompt the UMI user
 # cannot answer. How that is avoided depends on the host:
 #
 # - **Unencrypted host**: the login keyring is seeded with an empty password,
@@ -92,7 +94,7 @@ in
 {
   options = {
     darkone.home.umi = {
-      enable = lib.mkEnableOption "Gaze-driven input configuration (Talon + Onboard)";
+      enable = lib.mkEnableOption "UMI multimodal input configuration (Talon + Onboard)";
       enableTalonAutostart = lib.mkOption {
         type = lib.types.bool;
         default = true;
@@ -170,9 +172,9 @@ in
       "org/cinnamon/desktop/session".idle-delay = lib.hm.gvariant.mkUint32 0;
       "org/gnome/desktop/session".idle-delay = lib.hm.gvariant.mkUint32 0;
 
-      # Onboard tuned for gaze input: fixed docked position, big
-      # high-contrast targets, sticky modifiers (no key holding with eyes),
-      # word prediction to reduce dwell count, jitter tolerance.
+      # Onboard tuned for touch and gaze input: fixed docked position, big
+      # high-contrast targets, sticky modifiers (no key holding), word
+      # prediction to cut keystrokes, jitter tolerance.
       "org/onboard" = {
         layout = "Full Keyboard";
         theme = "HighContrast";
@@ -204,7 +206,7 @@ in
       };
     };
 
-    # Configuration panels a gaze user cannot act on. A `NoDisplay` entry in
+    # Configuration panels a UMI user cannot act on. A `NoDisplay` entry in
     # ~/.local/share/applications shadows the system one (XDG precedence);
     # the packages themselves are Cinnamon/GNOME internals, not removable.
     xdg.desktopEntries = {

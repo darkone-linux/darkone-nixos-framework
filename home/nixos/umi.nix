@@ -1,4 +1,4 @@
-# Gaze user profile: input-injection group memberships (Talon).
+# UMI (Unified Multimodal Input) user profile: input-injection group memberships (Talon).
 #
 # :::note[Companion of home/profiles/umi]
 # Imported by `modules/user/build.nix` for every user assigned the `umi`

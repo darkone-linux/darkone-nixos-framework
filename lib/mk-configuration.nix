@@ -84,7 +84,7 @@ let
   logseqOverlay = import ./overlays/logseq.nix;
 
   # Talon overlay: `pkgs.talon` from nix-community/talon-nix (x86_64 only,
-  # attribute absent elsewhere). Consumed by gaze-driven host profiles.
+  # attribute absent elsewhere). Consumed by UMI (multimodal input) host profiles.
   talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
 
   # DNF-only packages (`pkgs/`), absent from nixpkgs. Permanent until each one

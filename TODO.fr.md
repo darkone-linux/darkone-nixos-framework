@@ -90,7 +90,7 @@
 - [x] Chiffrement LUKS de la flotte : passphrase partagée + par hôte (sops), keyslots FIDO2 YubiKey, déverrouillage distant par SSH initrd (`just unlock`).
 - [x] Installation d'un hôte chiffré robuste au premier redémarrage (port 2222, sonde d'adresse, roaming, résolution des hôtes groupés).
 - [x] Bureau à distance admin en RDP (`just remote-desktop`) : modes ro / rw / login, tunnel SSH, aucun port ouvert.
-- [x] Profil d'hôte accessibilité `umi` : pilotage au regard (Tobii + Talon), session Cinnamon X11, clavier visuel Onboard.
+- [x] Profil d'hôte accessibilité `umi` (Unified Multimodal Input) : pilotage combiné toucher, voix et regard (Onboard, Talon, Tobii), session Cinnamon X11.
 - [x] Alerte `PeerGatewayDown` : chaque zone sonde les passerelles voisines, une zone ne pouvant pas signaler sa propre mort.
 - [x] Restic : bind `listenAll` pour les clients hors-zone, run sauté (et non en échec) si le serveur distant est injoignable.
 - [x] Nextcloud : client de bureau pré-lié au SSO, compte en ligne GNOME, secrets internes générés par `just passwd-nextcloud`.
