@@ -18,31 +18,41 @@ jobs:
   # vocabulary is a gate, not a convention.
   commits:
     name: Commit messages
-    if: github.event_name == 'pull_request'
+
+    # `main` pushes too: commits land there directly, rarely through a PR.
+    # Skipped when release.yml replays CI on a tag: nothing new to check.
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Validate subjects
+      # Same gate as the local `commit-msg` hook: scripts/check-commit-msg.sh.
+      - name: Validate messages
         env:
-          BASE: ${{ github.event.pull_request.base.sha }}
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
         run: |
           set -euo pipefail
-          types='feat|fix|perf|refactor|docs|test|build|ci|chore|security|revert'
-          status=0
-          while IFS= read -r subject; do
-            [ -z "$subject" ] && continue
-            if ! printf '%s' "$subject" | grep -qE "^($types)(\([a-z0-9._/-]+\))?!?: .+"; then
-              echo "::error::Type not in [$types]: $subject"
-              status=1
-            elif [ "${#subject}" -gt 80 ]; then
-              echo "::error::Subject over 80 chars (${#subject}): $subject"
-              status=1
-            fi
-          done < <(git log --format=%s "$BASE..HEAD")
-          exit $status
+          if [ "$EVENT" = pull_request ]; then
+
+            # PR head, not the synthetic `refs/pull/N/merge` checkout.
+            range="$PR_BASE..$PR_HEAD"
+          elif git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            range="$BEFORE..$AFTER"
+          else
+
+            # Force push or first push: `before` is absent from the clone.
+            # Fall back to the last release tag, else the pushed commit alone.
+            tag=$(git describe --tags --abbrev=0 --match 'v*' "$AFTER" 2>/dev/null || true)
+            if [ -n "$tag" ]; then range="$tag..$AFTER"; else range="$AFTER^!"; fi
+          fi
+          scripts/check-commit-msg.sh --commits "$range"
+
   unit-tests:
     name: Unit tests (nix-unit)
     runs-on: ubuntu-latest
