@@ -37,7 +37,7 @@
   - [ ] Politique de versionning, packaging, changelog, diffusion.
     - [x] Outillage : `VERSION`, `just bump` / `just release` / `just versions` / `just changelog`, `cliff.toml` partagé, `just-bump.sh`, garde-fous CI (`release.yml`, lint des messages de commit).
     - [x] Contrat SemVer 0.x documenté (MINEUR = rupture) + vocabulaire de commit figé dans AGENTS.md.
-    - [x] `CHANGELOG.md` généré depuis les commits, section « ⚠ Breaking » nourrie par `!` / `BREAKING CHANGE:`.
+    - [x] `CHANGELOG.md` généré depuis les commits, section « ⚠ Breaking » nourrie par le `!` après la portée (message sur une ligne, sans pied `BREAKING CHANGE:`, imposé par le hook `commit-msg`).
     - [x] Version interrogeable sur un hôte : `/etc/dnf-release` + étiquette de boot `dnf-X.Y.Z`.
     - [x] Montée de version côté consommateur, documentée (`admin-guide/maintain/versions`) et procédure de release (`dev-guide/releasing`).
     - [ ] Premier `just release` : tagger `v0.1.0` sur les 5 dépôts, épingler `dnf-generator` sur son tag, commiter les `flake.lock` du boilerplate et de l'exemple (aujourd'hui absents, un clone suit `main`).

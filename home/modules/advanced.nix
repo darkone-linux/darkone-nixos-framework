@@ -147,6 +147,7 @@ in
       (lib.mkIf cfg.enableEssentials cpufetch)
       (lib.mkIf cfg.enableEssentials duf)
       (lib.mkIf cfg.enableEssentials gawk)
+      (lib.mkIf cfg.enableEssentials git-cliff)
       (lib.mkIf cfg.enableEssentials htop)
       (lib.mkIf cfg.enableEssentials jq)
       (lib.mkIf cfg.enableEssentials less)
