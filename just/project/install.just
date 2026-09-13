@@ -154,7 +154,10 @@ install host user='nix' ip='auto' do='install':
 	just _log "Sops updates..."
 	just _gen-secrets
 	just _fix_fs_permissions
-	git add . && (git diff --cached --quiet || git commit -m "New host {{host}} dnf installation") && git reset
+
+	# `maintenance.autoDetach=false`: a detached auto-maintenance is still
+	# repacking when `chown -R nix .git` walks the tree, dying on its temp files.
+	git add . && (git diff --cached --quiet || git -c maintenance.autoDetach=false commit -m "New host {{host}} dnf installation") && git reset
 	just _log "Launching installation ({{do}})..."
 	if [ "{{do}}" == "test" ]; then
 
