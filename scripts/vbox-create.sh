@@ -3,7 +3,7 @@ set -euo pipefail
 
 ISO_HTTP="https://channels.nixos.org/nixos-unstable/latest-nixos-minimal-x86_64-linux.iso"
 WORK_DIR="${WORKDIR:-$PWD}"
-BRIDGE_IF="enp2s0"
+BRIDGE_IF="${BRIDGE_IF:-enp2s0}"
 
 VM_PREFIX="vbox-"
 VM_COUNT=10
@@ -20,6 +20,13 @@ if [ -z "${ISO_FILE}" ]; then
     [ -f "${ISO_FILE}" ] || wget -O "${ISO_FILE}" "${ISO_HTTP}"
 fi
 echo "→ Using ISO: ${ISO_FILE}"
+
+# An unknown adapter is stored as-is and only fails at VM start.
+if ! VBoxManage list bridgedifs | grep -qx "Name: *${BRIDGE_IF}"; then
+    echo "✗ Bridge interface '${BRIDGE_IF}' not found (override with BRIDGE_IF=<if>)." >&2
+    exit 1
+fi
+echo "→ Using bridge interface: ${BRIDGE_IF}"
 
 exists_vm() {
     VBoxManage list vms | grep -q "\"$1\""
@@ -43,7 +50,7 @@ create_vm() {
         --firmware efi \
         --usb on --usbehci on \
         --graphicscontroller VBoxSVGA --vram 16 \
-        --nic1 bridged
+        --nic1 bridged --bridge-adapter1 "${BRIDGE_IF}"
 
     if [ ! -f "${DISK_PATH}" ]; then
         echo "→ Creating VDI disk (${DISK_SIZE} MiB)..."
