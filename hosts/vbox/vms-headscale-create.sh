@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# TODO: auto find this:
-ISO_FILE="latest-nixos-minimal-x86_64-linux.iso"
 ISO_HTTP="https://channels.nixos.org/nixos-unstable/latest-nixos-minimal-x86_64-linux.iso"
+WORK_DIR="${WORKDIR:-$PWD}"
 BRIDGE_IF="enp2s0"
 
 GW_NAME="dnf-test-gateway"
@@ -12,9 +11,16 @@ ND_NAME="dnf-test-node"
 
 DISK_SIZE=102400
 
-if [ ! -f $ISO_FILE ] ;then
-  wget $ISO_HTTP
+ISO_FILE=""
+for f in "${WORK_DIR}"/result/iso/*.iso; do
+    [ -f "$f" ] && ISO_FILE="$(readlink -f "$f")"
+done
+
+if [ -z "${ISO_FILE}" ]; then
+    ISO_FILE="$PWD/latest-nixos-minimal-x86_64-linux.iso"
+    [ -f "${ISO_FILE}" ] || wget -O "${ISO_FILE}" "${ISO_HTTP}"
 fi
+echo "→ Using ISO: ${ISO_FILE}"
 
 exists_natnetwork() {
     VBoxManage list natnetworks | grep -e "Name: *$1"
@@ -84,7 +90,8 @@ create_vm() {
         echo "→ IDE controller already configured."
     fi
 
-    if ! VBoxManage showvminfo "${VM_NAME}" | grep -q "${ISO_FILE}"; then
+    if ! VBoxManage showvminfo "${VM_NAME}" --machinereadable \
+        | grep -qF "\"IDE Controller-0-0\"=\"${ISO_FILE}\""; then
         VBoxManage storageattach "${VM_NAME}" \
         --storagectl "IDE Controller" --port 0 --device 0 \
         --type dvddrive --medium "${ISO_FILE}"
