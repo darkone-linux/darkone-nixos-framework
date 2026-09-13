@@ -4,10 +4,11 @@
 # nix build .#nixosConfigurations.iso-x86_64-linux.config.system.build.isoImage
 #
 # -> Install with the image:
-# ping dnf-install # locate the IP address
+# dnf-netinfo # IP + MAC to use, also printed on the console at boot
 # just full-install my-host nixos 10.1.3.211 # Install "my-host"
 
 {
+  config,
   modulesPath,
   stdenv,
   lib,
@@ -15,6 +16,62 @@
   workDir ? null,
   ...
 }:
+let
+
+  # IP + MAC of the interface holding the route to the Internet, i.e. the one
+  # `just full-install` reaches. `ip route get` resolves only, sends no packet.
+  netinfo = pkgs.writeShellApplication {
+    name = "dnf-netinfo";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.gawk
+      pkgs.iproute2
+    ];
+    text = ''
+      cyan=$'\e[1;36m'
+      magenta=$'\e[1;35m'
+      reset=$'\e[0m'
+
+      # `--welcome`: console login banner, replaces the stock /etc/issue greeting.
+      if [ "''${1:-}" = "--welcome" ]; then
+        printf '\e[H\e[2J%sWelcome to the DNF installer (NixOS %s)%s\n' \
+          "$cyan" "${config.system.nixos.label}" "$reset"
+      fi
+
+      # Ctrl-C skips the wait: a clean exit lets the login shell finish /etc/profile.
+      trap 'echo; exit 0' INT
+
+      # Autologin reaches the shell before the DHCP lease: poll for a route.
+      route=""
+      for i in $(seq 60); do
+        route="$(ip -4 -o route get 1.1.1.1 2>/dev/null || true)"
+        if [ -n "$route" ]; then
+          break
+        fi
+        if [ "$i" -eq 1 ]; then
+          printf 'Waiting for network (Ctrl-C to skip)...'
+        fi
+        sleep 1
+      done
+
+      # Erase the waiting message, if any: IP + MAC follow the welcome directly.
+      printf '\r\e[K'
+
+      if [ -z "$route" ]; then
+        printf '\nNo route to the Internet, run dnf-netinfo once connected.\n'
+        exit 0
+      fi
+
+      dev="$(awk '{ for (i = 1; i < NF; i++) if ($i == "dev") print $(i + 1) }' <<< "$route")"
+      addr="$(awk '{ for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1) }' <<< "$route")"
+      mac="$(cat "/sys/class/net/$dev/address")"
+
+      # No trailing blank line: the stock NixOS PS1 opens with its own newline.
+      printf '\n- IP: %s%s%s\n- MAC: %s%s%s\n' \
+        "$magenta" "$addr" "$reset" "$magenta" "$mac" "$reset"
+    '';
+  };
+in
 {
   imports = [ "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix" ];
 
@@ -65,7 +122,10 @@
       '';
     };
     security.sudo.wheelNeedsPassword = false;
-    environment.systemPackages = with pkgs; [ vim ];
+    environment.systemPackages = [
+      pkgs.vim
+      netinfo
+    ];
     nix.settings = {
       experimental-features = [
         "nix-command"
@@ -76,32 +136,19 @@
     networking.hostName = "dnf-install";
     services.openssh.enable = true;
 
-    # Show the reachable IPs at the login prompt (handy for `just full-install
-    # <host> nixos <ip>`). agetty auto-appends /etc/issue.d/*.issue to the
-    # greeting; /etc itself is writable on the ISO overlay, so a oneshot drops
-    # the file there once the network is up. The prompt renders it on its next
-    # refresh (press Enter) if getty came up before DHCP.
-    systemd.services.dnf-netinfo = {
-      description = "Publish network interfaces + IPs to the login prompt";
-      wantedBy = [ "multi-user.target" ];
-      after = [ "network-online.target" ];
-      wants = [ "network-online.target" ];
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
-      };
-      script = ''
-        ${pkgs.coreutils}/bin/mkdir -p /etc/issue.d
-        {
-          echo ""
-          echo "Network interfaces:"
-          ${pkgs.iproute2}/bin/ip -o -4 addr show scope global \
-            | ${pkgs.gawk}/bin/awk '{ print "  - " $2 ": " $4 }'
-          echo ""
-        } > /etc/issue.d/10-dnf-network.issue
-      '';
-    };
+    # Stock NixOS greeting + installer help, a getty `mkDefault`: superseded by
+    # the DNF welcome below.
+    environment.etc.issue.text = "";
 
-    system.stateVersion = "26.05";
+    # Installer autologins on the consoles: agetty prints /etc/issue before
+    # DHCP, then the shell scrolls it away. Print from the login shell instead;
+    # local ttys only, an SSH caller already knows the address.
+    environment.loginShellInit = ''
+      case "$(${pkgs.coreutils}/bin/tty)" in
+        /dev/tty[0-9]*) ${lib.getExe netinfo} --welcome ;;
+      esac
+    '';
+
+    system.stateVersion = "26.11";
   };
 }
