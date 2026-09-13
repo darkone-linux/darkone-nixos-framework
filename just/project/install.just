@@ -125,6 +125,8 @@ install host user='nix' ip='auto' do='install':
 	# address must already be one the machine will KEEP: installing over an OS
 	# still holding an older dynamic lease strands the run the moment the
 	# installer re-runs DHCP and lands on the reserved address.
+	# 
+	# LUKS based hosts in a zone -> will be unlocked with the declared IP.
 	#
 	# `_candidates` without an explicit ip lists exactly the addresses the host
 	# legitimately answers on — its own, its roaming reservation, its name — so
@@ -138,7 +140,6 @@ install host user='nix' ip='auto' do='install':
 			just _fail "Put the machine on its reserved address first (reboot it), then install there."
 		fi
 	fi
-	just _log "We need to add, commit and build..."
 
 	# Offline half of the LUKS provisioning, BEFORE the build: the module only
 	# wakes up for a host listed in usr/secrets/luks.json, and the initrd host
@@ -146,11 +147,13 @@ install host user='nix' ip='auto' do='install':
 	# No-op on an unencrypted host.
 	just luks "{{host}}" pre
 
+	just _log "We need to add, commit and build..."
+	git add .
+
 	# Staged before the sops step on purpose: `_gen-secrets` evaluates the flake
 	# to know which secrets the fleet needs, and nix only sees files git already
 	# knows about — a brand new host would stay invisible to the very step that
 	# must create its credentials.
-	git add .
 	just _log "Sops updates..."
 	just _gen-secrets
 	just _fix_fs_permissions
