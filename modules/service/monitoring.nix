@@ -235,11 +235,17 @@ in
         pkgs.unixtools.netstat
       ];
 
-      # Need network to bind the address
-      systemd.services.prometheus-node-exporter = {
-        after = [ "network-online.target" ];
-        wants = [ "network-online.target" ];
-      };
+      # Exporters bind `preferredIp`, briefly gone while the network stack
+      # restarts during activation: pace retries instead of latching
+      # start-limit-hit (the default 100ms RestartSec burns 5 starts in <1s).
+      systemd.services = lib.mkIf cfg.isNode (
+        lib.genAttrs [ "prometheus-node-exporter" "prometheus-smartctl-exporter" ] (_: {
+          after = [ "network-online.target" ];
+          wants = [ "network-online.target" ];
+          startLimitIntervalSec = 0;
+          serviceConfig.RestartSec = "5s";
+        })
+      );
 
       #--------------------------------------------------------------------------
       # Grafana

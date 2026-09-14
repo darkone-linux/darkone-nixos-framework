@@ -302,7 +302,7 @@ in
 
       # Claude Code — self-contained native binary (no runtime deps).
       # Package from sadjow/claude-code-nix flake, updated hourly.
-      (lib.mkIf cfg.enableClaude inputs.claude-code.packages.${pkgs.system}.default)
+      (lib.mkIf cfg.enableClaude inputs.claude-code.packages.${pkgs.stdenv.hostPlatform.system}.default)
 
       # OpenCode desktop UI (requires a graphical environment).
       (lib.mkIf (cfg.enableOpenCode && graphic) opencode-desktop)

@@ -89,6 +89,14 @@ in
           displayName = "idm";
         };
       };
+
+      # A pg/redis restart in the same activation makes outline exit: pace the
+      # retries, yet still latch failed on a real crash-loop (10 starts/300s).
+      systemd.services.outline = {
+        startLimitIntervalSec = 300;
+        startLimitBurst = 10;
+        serviceConfig.RestartSec = "5s";
+      };
     })
   ];
 }

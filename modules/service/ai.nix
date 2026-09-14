@@ -84,7 +84,7 @@ in
 
       environment.systemPackages = with pkgs; [
         gollama # Ollama models manager
-        ffmpeg # Open WebUI
+        ffmpeg-full # Open WebUI; same variant as immich, avoids buildEnv collisions
       ];
 
       #------------------------------------------------------------------------

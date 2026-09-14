@@ -95,6 +95,13 @@ in
       listenAddress = dnfLib.preferredIp host;
     };
 
+    # Same `preferredIp` bind as the monitoring exporters: pace retries so a
+    # network restart during activation never latches start-limit-hit.
+    systemd.services.prometheus-postfix-exporter = lib.mkIf isNode {
+      startLimitIntervalSec = 0;
+      serviceConfig.RestartSec = "5s";
+    };
+
     # Expose the exporter to the zone Prometheus over the internal interface
     # (no-op on a gateway, where Prometheus scrapes it locally).
     networking.firewall = lib.mkIf isNode (dnfLib.mkInternalFirewall host zone [ postfixExporterPort ]);
