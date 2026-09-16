@@ -218,7 +218,18 @@ let
       ]
 
       # The test driver provides its own nixpkgs/system layer.
-      ++ nixpkgs.lib.optional (!forTest) "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+      ++ nixpkgs.lib.optionals (!forTest) [
+        "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+
+        # colmena imports nixpkgs without the flake version overlay ("pre-git",
+        # no registry entry). Pin what `lib.nixosSystem` sets: `just apply` and
+        # `fleet-update` then deploy the same toplevel.
+        {
+          system.nixos.versionSuffix = nixpkgs.lib.trivial.versionSuffix;
+          system.nixos.revision = nixpkgs.lib.trivial.revisionWithDefault null;
+          nixpkgs.flake.source = nixpkgs.outPath;
+        }
+      ]
       ++ [
         sops-nix.nixosModules.sops
         disko.nixosModules.disko
