@@ -452,6 +452,10 @@ in
     default = mkDevShell system;
   });
 
+  # DNF-only packages (`pkgs/`) against the consumer's own lock: `nix run
+  # .#fleet-update` works without the module or a framework checkout.
+  packages = forAllSystems (system: import ../pkgs { pkgs = nixpkgsFor.${system}; });
+
   # `nix run .#init` — (re)link `dnf/` onto the framework revision this project
   # pins in its own flake.lock. Run it after every `nix flake update dnf`, so
   # the just recipes and the generator profiles stay in sync with what is built.
