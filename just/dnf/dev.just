@@ -1,8 +1,8 @@
 # DNF just — framework development: dnf-only packages.
 
-# Bump a dnf/pkgs derivation to its latest upstream release
+# Bump a dnf/pkgs derivation to its latest upstream release, or to `version`
 [group('dev')]
-pkg-update name:
+pkg-update name version="":
 	#!/usr/bin/env bash
 	set -euo pipefail
 
@@ -20,4 +20,8 @@ pkg-update name:
 		p: let s = p.passthru.updateScript or [ "" ];
 		in builtins.concatStringsSep "\n" (builtins.tail (if builtins.isList s then s else s.command or [ "" ]))
 	')
+
+	# Explicit version (release train): a tag pushed seconds ago may not be
+	# listed upstream yet.
+	[ -z "{{version}}" ] || extra+=("--version={{version}}")
 	nix-update --flake "{{name}}" "${extra[@]}"
