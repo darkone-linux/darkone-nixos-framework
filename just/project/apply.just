@@ -1,8 +1,11 @@
-# DNF just — deployment (colmena).
+# DNF just — deployment (colmena, fleet-update).
 
 # Central build by default (see `buildOnTarget`): the deployer builds every
 # closure once and harmonia shares it across the fleet. Set `buildOnTarget=1`
 # to restore per-target builds. Ref: https://nixos.wiki/wiki/Binary_Cache
+
+# Entry point of the `src/dnf-fleet-update` sources, run by bun in co-development.
+fleetUpdateEntry := 'src/main.tsx'
 
 alias a := apply
 alias al := apply-local
@@ -70,3 +73,27 @@ apply-silenced on what='switch':
 	_exec dnf-maintenance on || just _warn "Could not set maintenance flag (first deploy or alerting disabled)."
 	trap '_exec dnf-maintenance off || true' EXIT
 	just apply "{{on}}" "{{what}}"
+
+# Update, build and deploy the fleet in waves (fleet-update)
+[group('apply')]
+[positional-arguments]
+fleet-update *args:
+	#!/usr/bin/env bash
+	set -euo pipefail
+
+	# The tool reads the consumer workspace from its working directory.
+	cd "{{workDir}}"
+
+	# Co-development: the sources, so a local change needs no release.
+	src="{{workDir}}/src/dnf-fleet-update"
+	if [ "{{isCodev}}" = "true" ] && [ -f "$src/package.json" ]; then
+		command -v bun >/dev/null || just _fail "bun not found: enable the admin tools (darkone.home.advanced) or run 'nix shell nixpkgs#bun'."
+		[ -d "$src/node_modules" ] || just _fail "Missing dependencies, run: just --justfile $src/Justfile install"
+		exec bun run "$src/{{fleetUpdateEntry}}" "$@"
+	fi
+
+	# Installed by `darkone.admin.fleet-update`, else built from the consumer lock.
+	if command -v fleet-update >/dev/null; then
+		exec fleet-update "$@"
+	fi
+	exec {{nix}} run "{{workDir}}#fleet-update" -- "$@"
