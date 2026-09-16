@@ -38,7 +38,10 @@ already applied to every host.
 just pkg-update <name>
 ```
 
-`nix-update` rewrites `version` and the hashes in place.
+`nix-update` rewrites `version` and the hashes in place. Extra arguments come
+from the package's `passthru.updateScript` (`nix-update-script { extraArgs }`),
+as in nixpkgs — e.g. `--subpackage node_modules` for a Bun package whose
+dependencies are a fixed-output derivation (`fleet-update`).
 
 ## Upstreaming a package
 

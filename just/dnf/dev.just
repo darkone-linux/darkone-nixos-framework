@@ -12,4 +12,12 @@ pkg-update name:
 		just _fail "dnf/pkgs/{{name}}: absent or read-only"
 	fi
 	just _log "Updating {{name}}..." "NIX-UPDATE"
-	cd "{{dnfDir}}" && nix-update --flake "{{name}}"
+	cd "{{dnfDir}}"
+
+	# Extra args of `passthru.updateScript` (`nix-update-script` list), e.g.
+	# `--subpackage node_modules`: packages keep the nixpkgs convention.
+	mapfile -t extra < <({{nix}} eval --raw ".#{{name}}" --apply '
+		p: let s = p.passthru.updateScript or [ "" ];
+		in builtins.concatStringsSep "\n" (builtins.tail (if builtins.isList s then s else s.command or [ "" ]))
+	')
+	nix-update --flake "{{name}}" "${extra[@]}"
