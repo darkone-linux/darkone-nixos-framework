@@ -6,10 +6,10 @@
 # Run via `just bump [level]`, which supplies `--repo` and `--config`.
 #
 # The version file is discovered, not declared — `VERSION` (framework),
-# `Cargo.toml` (dnf-generator) or `package.json` (dnf-doc). git-cliff renders
-# the version block; the file's header, `## [Unreleased]` section and
-# reference-link footer are assembled here, so dnf-doc keeps the hand-written
-# history it accumulated before conventional commits.
+# `Cargo.toml` (dnf-generator) or `package.json` (dnf-doc, dnf-fleet-update).
+# git-cliff renders the version block; the file's header, `## [Unreleased]`
+# section and reference-link footer are assembled here, so dnf-doc keeps the
+# hand-written history it accumulated before conventional commits.
 #
 # Usage:
 #   bump.sh --config <cliff.toml> [--repo <dir>] [--level <l>]

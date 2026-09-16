@@ -1,8 +1,9 @@
-# DNF just — ecosystem release train: generator, framework, doc, templates.
+# DNF just — ecosystem release train: generator, fleet-update, framework, doc,
+# templates.
 
 bumpScript := scriptsDir / 'bump.sh'
 
-# Current version, last tag and pinned generator, for every repo of the workspace
+# Current version, last tag and framework pins, for every repo of the workspace
 [group('release')]
 versions:
 	#!/usr/bin/env bash
@@ -29,8 +30,10 @@ versions:
 	# out of order with the table above.
 	gen=$(jq -r '.nodes["dnf-generator"].original.ref // "(floating branch)"' dnf/flake.lock)
 	printf '\ndnf pins dnf-generator: %s\n' "$gen"
+	fu=$(sed -n 's/^  version = "\(.*\)";$/\1/p' dnf/pkgs/fleet-update/package.nix)
+	printf 'dnf pins fleet-update:  %s\n' "$fu"
 
-# Release the whole ecosystem: generator, framework, doc, boilerplate, example
+# Release the whole ecosystem: generator, fleet-update, framework, doc, templates
 [group('release')]
 release level="auto":
 	#!/usr/bin/env bash
@@ -38,7 +41,7 @@ release level="auto":
 
 	# Co-dev only: the train needs every repo as a working tree, not as a
 	# pinned flake input.
-	for repo in dnf doc src/generator src/dnf-boilerplate src/dnf-example; do
+	for repo in dnf doc src/generator src/dnf-fleet-update src/dnf-boilerplate src/dnf-example; do
 		[ -d "$repo/.git" ] || just _fail "Missing checkout: $repo/ — the train needs the full workspace."
 	done
 
@@ -48,6 +51,15 @@ release level="auto":
 	just check
 	just gen-test
 	(cd dnf && just simulate all)
+
+	# fleet-update: its CI gates with its toolchain (`nix develop`), audit
+	# included. A red `release.yml` after the tag push means a tag without release.
+	fuGate() {
+		nix develop ./src/dnf-fleet-update --command \
+			just --justfile src/dnf-fleet-update/Justfile --working-directory src/dnf-fleet-update "$1"
+	}
+	fuGate ci
+	fuGate audit
 
 	# 2. Generator, only if it moved since its last release. It owns the
 	#    etc/config.yaml schema, so it is released before what depends on it.
@@ -73,13 +85,39 @@ release level="auto":
 		just git-commit "chore(deps): dnf-generator $genTag" dnf
 	fi
 
-	# 4. Framework.
+	# 4. fleet-update, only if it moved since its last release: the framework
+	#    packages it, so it is released first.
+	fuTag=$(git -C src/dnf-fleet-update describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo "")
+	if [ -z "$fuTag" ] || [ -n "$(git -C src/dnf-fleet-update log --oneline "$fuTag"..HEAD 2>/dev/null)" ]; then
+		just _log "Releasing dnf-fleet-update..." "REL"
+		bash {{bumpScript}} --repo src/dnf-fleet-update --config {{cliffConfig}} --level {{level}}
+		git -C src/dnf-fleet-update push && git -C src/dnf-fleet-update push --tags
+	else
+		just _info "dnf-fleet-update unchanged since $fuTag." "REL"
+	fi
+	fuTag=$(git -C src/dnf-fleet-update describe --tags --abbrev=0 --match 'v[0-9]*')
+
+	# 5. Pin the fleet-update release into `dnf/pkgs/fleet-update`. First release
+	#    only: the `main` commit pin (`rev`, `--version=branch`) becomes the tag form.
+	fuPkg=dnf/pkgs/fleet-update/package.nix
+	if grep -q '"--version=branch"' "$fuPkg"; then
+		sed -i -e 's|^    rev = "[0-9a-f]\{40\}";$|    tag = "v${finalAttrs.version}";|' \
+			-e '/^ *"--version=branch"$/d' "$fuPkg"
+	fi
+	just _log "Pinning dnf-fleet-update $fuTag..." "REL"
+	just pkg-update fleet-update "${fuTag#v}"
+	(cd dnf && {{nix}} build --no-link .#fleet-update)
+	if [ -n "$(git -C dnf status --porcelain)" ]; then
+		just git-commit "chore(deps): fleet-update $fuTag" dnf
+	fi
+
+	# 6. Framework.
 	just _log "Releasing the framework..." "REL"
 	bash {{bumpScript}} --repo dnf --config {{cliffConfig}} --level {{level}}
 	dnfVersion=$(tr -d '[:space:]' < dnf/VERSION)
 	git -C dnf push && git -C dnf push --tags
 
-	# 5. Documentation. The reference section is regenerated from the framework
+	# 7. Documentation. The reference section is regenerated from the framework
 	#    it documents, committed, and only then tagged: `bump` demands a clean
 	#    tree, and the tag must contain the regenerated pages.
 	just _log "Releasing the documentation..." "REL"
@@ -98,7 +136,7 @@ release level="auto":
 	$docJust build
 	$docJust deploy "Release v$(jq -r .version doc/package.json)"
 
-	# 6. Consumer templates: they carry no code, only the pin. A committed
+	# 8. Consumer templates: they carry no code, only the pin. A committed
 	#    flake.lock is the whole point — without it a clone tracks main.
 	for repo in src/dnf-boilerplate src/dnf-example; do
 		just _log "Aligning $repo on v$dnfVersion..." "REL"

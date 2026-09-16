@@ -10,11 +10,10 @@
 # both modes behave alike.
 # :::
 #
-# :::caution[Unstable pin]
-# No release published yet: pinned on a `main` commit, interface mockup only
-# (no engine). At the first release, switch to `tag = "v${finalAttrs.version}"`,
-# drop `--version=branch` and add `versionCheckHook`. Bump with
-# `just pkg-update fleet-update`.
+# :::note[Pinning]
+# A release tag, pinned by the release train (`just release`, codev) or by
+# `just pkg-update fleet-update [version]`. Before the first release: a `main`
+# commit (`rev`, `--version=branch`), which the train turns into the tag form.
 # :::
 
 {
@@ -122,7 +121,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     runHook postInstall
   '';
 
-  # No `versionCheckHook`: the mockup entry point has no `--version` yet.
+  # No `versionCheckHook` until the entry point implements `--version`.
 
   passthru.updateScript = nix-update-script {
     extraArgs = [
