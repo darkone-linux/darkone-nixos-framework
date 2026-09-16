@@ -2,6 +2,7 @@
 
 {
   imports = [
+    ./admin/fleet-update.nix
     ./admin/nix.nix
     ./console/git.nix
     ./console/pandoc.nix

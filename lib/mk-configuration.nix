@@ -91,6 +91,13 @@ let
   # is upstreamed — unrelated to the temporary patch overlays above.
   dnfPackagesOverlay = import ../pkgs/overlay.nix;
 
+  # `pkgs.dnf-generator` for modules running `just generate` unattended
+  # (`admin/fleet-update.nix`). Static attribute name: the value is only
+  # forced where used, and the input only builds on x86_64-linux.
+  dnfGeneratorOverlay = final: _prev: {
+    dnf-generator = inputs.dnf-generator.packages.${final.stdenv.hostPlatform.system}.default;
+  };
+
   # Per-system nixpkgs instances
   nixpkgsFor = forAllSystems (
     system:
@@ -192,13 +199,14 @@ let
         # inert while `services.geneweb.enable = false`.
         "${nixpkgs-geneweb}/nixos/modules/services/web-apps/geneweb.nix"
 
-        # `dnfPackagesOverlay` exposes `pkgs/` and is permanent; the others are
-        # temporary, dropped with their upstream imports/inputs — geneweb
-        # (nixpkgs PR #522751), oxicloud (`target-cpu=native`), gimp
+        # `dnfPackagesOverlay` (`pkgs/`) and `dnfGeneratorOverlay` are permanent;
+        # the others are temporary, dropped with their upstream imports/inputs —
+        # geneweb (nixpkgs PR #522751), oxicloud (`target-cpu=native`), gimp
         # (`__structuredAttrs`), logseq (AppImage), talon (x86_64 only).
         {
           nixpkgs.overlays = [
             dnfPackagesOverlay
+            dnfGeneratorOverlay
             (genewebOverlay system)
             oxicloudOverlay
             gimpOverlay
