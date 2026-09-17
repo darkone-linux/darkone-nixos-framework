@@ -99,7 +99,7 @@ in
       (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) bun) # `just fleet-update` from src/dnf-fleet-update (codev)
       (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) cargo)
       (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) colmena)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) d2) # doc diagrams
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) pkgs-stable.d2) # doc diagrams
       (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) deadnix)
       (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) gcc) # Useful for rust generator
       (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) just)

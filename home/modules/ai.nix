@@ -325,10 +325,6 @@ in
     programs.opencode = lib.mkIf cfg.enableOpenCode {
       enable = true;
 
-      # 09/2026 : package stable. Current 1.18.30 crashes on every prompt
-      # (SystemPrompt.environment TypeError, upstream regression).
-      package = pkgs-stable.opencode;
-
       settings = {
 
         # Prefer local ollama when available to avoid cloud API costs.
