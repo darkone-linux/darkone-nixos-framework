@@ -39,6 +39,7 @@ in
     darkone.home.advanced.enablePhoneTools = lib.mkEnableOption "Smartphone tools (scrcpy)";
     darkone.home.advanced.enableAdmin = lib.mkEnableOption "Enable administrator features (network, os tools)";
     darkone.home.advanced.enableNixAdmin = lib.mkEnableOption "Enable nix administration features";
+    darkone.home.advanced.enableDnfDeveloper = lib.mkEnableOption "Enable all tools for DNF Codev Developer";
     darkone.home.advanced.enableDeveloper = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -80,6 +81,32 @@ in
     #============================================================================
 
     home.packages = with pkgs; [
+      #(lib.mkIf graphic cliphist) # Clipboard history manager
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) age)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) astro-language-server) # astro-ls: doc/ (Astro/Starlight) LSP
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) bun) # `just fleet-update` from src/dnf-fleet-update (codev)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) cargo)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) colmena)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) d2) # doc diagrams
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) deadnix)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) gcc) # Useful for rust generator
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) just)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) nix-eval-jobs)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) nix-output-monitor) # nom (nom develop, nom build, xxx |& nom)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) nix-unit)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) nixfmt)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) rustc)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) sops)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) ssh-to-age)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) statix)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) treefmt)
+      (lib.mkIf (cfg.enableEssentials || cfg.enableDnfDeveloper) git-cliff) # `just bump` / `just release` changelog
+      (lib.mkIf (cfg.enableEssentials || cfg.enableDnfDeveloper) jq) # dnf-fleet-update release recipes
+      (lib.mkIf (cfg.enableEssentials || cfg.enableDnfDeveloper) nodejs_24) # CoC, required for vim / doc/ toolchain: astro/starlight build
+      (lib.mkIf (cfg.enableEssentials || cfg.enableDnfDeveloper) rsync)
+      (lib.mkIf (cfg.enableEssentials || cfg.enableDnfDeveloper) wipe)
+      (lib.mkIf (cfg.enableNixAdmin || cfg.enableDnfDeveloper) mkpasswd)
+      (lib.mkIf (cfg.enableNixAdmin || cfg.enableDnfDeveloper) yq-go)
       (lib.mkIf (graphic && (cfg.enableDeveloper || cfg.enableAdmin)) vscode) # TODO: module
       (lib.mkIf (graphic && (cfg.enableDeveloper || cfg.enableAdmin)) vscode-extensions.antfu.slidev)
       (lib.mkIf (graphic && cfg.enableAdmin) filezilla)
@@ -102,24 +129,7 @@ in
       (lib.mkIf (graphic && cfg.enableTools) textpieces) # Swiss knife of text processing
       (lib.mkIf (hasRestic && cfg.enableAdmin) restic) # Already in nixos configuration...
       (lib.mkIf (hasRestic && cfg.enableAdmin) restic-browser)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) age)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) astro-language-server) # astro-ls: doc/ (Astro/Starlight) LSP
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) bun) # `just fleet-update` from src/dnf-fleet-update (codev)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) cargo)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) colmena)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) d2) # doc diagrams
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) deadnix)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) gcc) # Useful for rust generator
       (lib.mkIf (onAdminHost && cfg.enableNixAdmin) hugo) # TODO: deprecated
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) just)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nix-output-monitor) # nom (nom develop, nom build, xxx |& nom)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nix-unit)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) nixfmt)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) treefmt)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) rustc)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) sops)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) ssh-to-age)
-      (lib.mkIf (onAdminHost && cfg.enableNixAdmin) statix)
       (lib.mkIf cfg.enableAdmin bridge-utils)
       (lib.mkIf cfg.enableAdmin ccrypt)
       (lib.mkIf cfg.enableAdmin dig)
@@ -128,11 +138,13 @@ in
       (lib.mkIf cfg.enableAdmin inetutils)
       (lib.mkIf cfg.enableAdmin iptraf-ng)
       (lib.mkIf cfg.enableAdmin iw)
+      (lib.mkIf cfg.enableAdmin libargon2) # argon2
       (lib.mkIf cfg.enableAdmin lsof)
       (lib.mkIf cfg.enableAdmin nettools)
       (lib.mkIf cfg.enableAdmin nmap)
       (lib.mkIf cfg.enableAdmin ntp)
       (lib.mkIf cfg.enableAdmin ntpstat)
+      (lib.mkIf cfg.enableAdmin openssl_legacy) # openssl
       (lib.mkIf cfg.enableAdmin pciutils) # lspci pcilmr setpci
       (lib.mkIf cfg.enableAdmin pinentry-curses)
       (lib.mkIf cfg.enableAdmin psmisc) # killall, pstree, pslog, fuser...
@@ -141,30 +153,31 @@ in
       (lib.mkIf cfg.enableAdmin strace)
       (lib.mkIf cfg.enableAdmin tcpdump)
       (lib.mkIf cfg.enableAdmin usbutils) # lsusb usb-devices usbhid-dump
-      (lib.mkIf cfg.enableAdmin openssl_legacy) # openssl
-      (lib.mkIf cfg.enableAdmin libargon2) # argon2
       (lib.mkIf cfg.enableAdmin wirelesstools) # ifrename iwconfig iwevent iwgetid iwlist iwpriv iwspy
       (lib.mkIf cfg.enableDeveloper slidev-cli)
+      (lib.mkIf cfg.enableDnfDeveloper cargo-audit) # generator (rust)
+      (lib.mkIf cfg.enableDnfDeveloper clippy) # generator (rust)
+      (lib.mkIf cfg.enableDnfDeveloper git)
+      (lib.mkIf cfg.enableDnfDeveloper nix-update) # `just pkg-update <name>`
+      (lib.mkIf cfg.enableDnfDeveloper openssl)
+      (lib.mkIf cfg.enableDnfDeveloper pkg-config) # generator (rust)
+      (lib.mkIf cfg.enableDnfDeveloper python3) # HMAC helper of configure-alert-bot.sh
+      (lib.mkIf cfg.enableDnfDeveloper rust-analyzer) # generator
+      (lib.mkIf cfg.enableDnfDeveloper rustfmt) # generator
+      (lib.mkIf cfg.enableDnfDeveloper zsh)
       (lib.mkIf cfg.enableEssentials cpufetch)
       (lib.mkIf cfg.enableEssentials duf)
       (lib.mkIf cfg.enableEssentials gawk)
-      (lib.mkIf cfg.enableEssentials git-cliff)
       (lib.mkIf cfg.enableEssentials htop)
-      (lib.mkIf cfg.enableEssentials jq)
       (lib.mkIf cfg.enableEssentials less)
       (lib.mkIf cfg.enableEssentials microfetch)
-      (lib.mkIf cfg.enableEssentials nodejs_24) # CoC, required for vim
       (lib.mkIf cfg.enableEssentials rename)
       (lib.mkIf cfg.enableEssentials rename-simple) # dnf/pkgs, not in nixpkgs
-      (lib.mkIf cfg.enableEssentials rsync)
       (lib.mkIf cfg.enableEssentials tree)
       (lib.mkIf cfg.enableEssentials unzip)
       (lib.mkIf cfg.enableEssentials wget)
-      (lib.mkIf cfg.enableEssentials wipe)
       (lib.mkIf cfg.enableEssentials zip)
-      (lib.mkIf cfg.enableNixAdmin mkpasswd)
       (lib.mkIf cfg.enableNixAdmin wakeonlan)
-      (lib.mkIf cfg.enableNixAdmin yq-go)
       (lib.mkIf cfg.enablePhoneTools qtscrcpy) # Smartphone VNC
       (lib.mkIf cfg.enablePhoneTools scrcpy)
       (lib.mkIf cfg.enableTools fastfetch)
@@ -172,7 +185,6 @@ in
       (lib.mkIf cfg.enableTools pv)
       (lib.mkIf cfg.enableTools yt-dlp)
       (lib.mkIf graphic wl-clipboard) # Wayland clipboard tools
-      #(lib.mkIf graphic cliphist) # Clipboard history manager
     ];
 
     #============================================================================
