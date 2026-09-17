@@ -47,7 +47,9 @@ let
       pkgs.cargo
       pkgs.coreutils
       pkgs.deadnix
-      pkgs.dnf-generator
+    ]
+    ++ lib.optional (pkgs ? dnf-generator) pkgs.dnf-generator
+    ++ [
       pkgs.findutils
       pkgs.gcc
       pkgs.git
@@ -139,6 +141,10 @@ in
           {
             assertion = config.darkone.admin.nix.enable;
             message = "darkone.admin.fleet-update.timer runs on a deployment host: enable darkone.admin.nix.";
+          }
+          {
+            assertion = pkgs ? dnf-generator;
+            message = "darkone.admin.fleet-update.timer needs pkgs.dnf-generator, x86_64-linux only.";
           }
         ];
 

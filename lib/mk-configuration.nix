@@ -92,11 +92,18 @@ let
   dnfPackagesOverlay = import ../pkgs/overlay.nix;
 
   # `pkgs.dnf-generator` for modules running `just generate` unattended
-  # (`admin/fleet-update.nix`). Static attribute name: the value is only
-  # forced where used, and the input only builds on x86_64-linux.
-  dnfGeneratorOverlay = final: _prev: {
-    dnf-generator = inputs.dnf-generator.packages.${final.stdenv.hostPlatform.system}.default;
-  };
+  # (`admin/fleet-update.nix`). The input only builds on x86_64-linux (cf.
+  # `flake.nix` packages output); the attribute is simply absent elsewhere,
+  # same pattern as `overlays/talon.nix`. Consumers must guard their usage
+  # (`pkgs.dnf-generator or null`). Curried on `system` (not read from
+  # `final`): forcing `final.stdenv` from inside an overlay of the node's own
+  # nixpkgs instance (test-driver nodes set `pkgs.pkgsReadOnly = false`) is
+  # self-referential and triggers infinite recursion.
+  dnfGeneratorOverlay =
+    system: _final: _prev:
+    nixpkgs.lib.optionalAttrs (inputs.dnf-generator.packages ? ${system}) {
+      dnf-generator = inputs.dnf-generator.packages.${system}.default;
+    };
 
   # Per-system nixpkgs instances
   nixpkgsFor = forAllSystems (
@@ -206,7 +213,7 @@ let
         {
           nixpkgs.overlays = [
             dnfPackagesOverlay
-            dnfGeneratorOverlay
+            (dnfGeneratorOverlay system)
             (genewebOverlay system)
             oxicloudOverlay
             gimpOverlay
