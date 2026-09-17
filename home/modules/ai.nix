@@ -325,10 +325,9 @@ in
     programs.opencode = lib.mkIf cfg.enableOpenCode {
       enable = true;
 
-      # Pinned to 1.18.20: nixpkgs' current 1.18.30 crashes on every prompt
-      # (SystemPrompt.environment TypeError, upstream regression). See
-      # ./opencode-1.18.20.nix for details and removal instructions.
-      package = pkgs.callPackage ./opencode-1.18.20.nix { };
+      # 09/2026 : package stable. Current 1.18.30 crashes on every prompt
+      # (SystemPrompt.environment TypeError, upstream regression).
+      package = pkgs-stable.opencode;
 
       settings = {
 

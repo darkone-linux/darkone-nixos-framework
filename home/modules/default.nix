@@ -12,7 +12,6 @@
     ./mime.nix
     ./music.nix
     ./office.nix
-    ./opencode-1.18.20.nix
     ./umi.nix
     ./video.nix
   ];
