@@ -144,7 +144,7 @@ in
       (lib.mkIf cfg.enableAdmin nmap)
       (lib.mkIf cfg.enableAdmin ntp)
       (lib.mkIf cfg.enableAdmin ntpstat)
-      (lib.mkIf cfg.enableAdmin openssl_legacy) # openssl
+      (lib.mkIf cfg.enableAdmin openssl_legacy) # openssl (+ legacy provider)
       (lib.mkIf cfg.enableAdmin pciutils) # lspci pcilmr setpci
       (lib.mkIf cfg.enableAdmin pinentry-curses)
       (lib.mkIf cfg.enableAdmin psmisc) # killall, pstree, pslog, fuser...
@@ -159,7 +159,7 @@ in
       (lib.mkIf cfg.enableDnfDeveloper clippy) # generator (rust)
       (lib.mkIf cfg.enableDnfDeveloper git)
       (lib.mkIf cfg.enableDnfDeveloper nix-update) # `just pkg-update <name>`
-      (lib.mkIf cfg.enableDnfDeveloper openssl)
+      (lib.mkIf (cfg.enableDnfDeveloper && !cfg.enableAdmin) openssl) # NOTE: enableAdmin = openssl_legacy
       (lib.mkIf cfg.enableDnfDeveloper pkg-config) # generator (rust)
       (lib.mkIf cfg.enableDnfDeveloper python3) # HMAC helper of configure-alert-bot.sh
       (lib.mkIf cfg.enableDnfDeveloper rust-analyzer) # generator
