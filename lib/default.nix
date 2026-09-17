@@ -21,6 +21,7 @@ let
   security = import ./security.nix { inherit lib; };
   hive = import ./hive.nix { inherit lib; };
   paths = import ./paths.nix { inherit lib; };
+  nixTools = import ./nix-tools.nix { inherit lib; };
   serviceActivation = import ./service-activation.nix { inherit lib; };
   configSchema = import ./config-schema.nix { inherit lib; };
   matrix = import ./matrix.nix { inherit lib; };
@@ -52,6 +53,7 @@ in
     rpiBoardModules
     ;
   inherit (paths) resolveProfile resolveNixosProfile;
+  inherit (nixTools) pickForNix matchesNix;
   inherit (serviceActivation) triggerProfileServices mkHostProfileServicesAssertions;
   inherit (configSchema) checkSchema;
   inherit (topology)

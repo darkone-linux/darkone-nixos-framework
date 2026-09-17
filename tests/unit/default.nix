@@ -20,6 +20,7 @@ in
   lib_security = import ./lib/security_test.nix { inherit dnfLib; };
   lib_hive = import ./lib/hive_test.nix { inherit dnfLib; };
   lib_paths = import ./lib/paths_test.nix { inherit dnfLib; };
+  lib_nix_tools = import ./lib/nix-tools_test.nix { inherit dnfLib; };
   lib_service_activation = import ./lib/service-activation_test.nix { inherit dnfLib; };
   lib_config_schema = import ./lib/config-schema_test.nix { inherit dnfLib; };
   lib_matrix = import ./lib/matrix_test.nix { inherit dnfLib lib; };

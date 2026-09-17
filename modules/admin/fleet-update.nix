@@ -30,10 +30,23 @@
   lib,
   config,
   pkgs,
+  pkgs-stable,
+  dnfLib,
   ...
 }:
 let
   cfg = config.darkone.admin.fleet-update;
+
+  # `nix-eval-jobs` built against the system Nix: another minor fails to
+  # evaluate a consumer repository holding a git submodule
+  # (`mismatch in field 'narHash'`, `dnf/lib/nix-tools.nix`).
+  nixEvalJobs = dnfLib.pickForNix {
+    candidates = [
+      pkgs.nix-eval-jobs
+      pkgs-stable.nix-eval-jobs
+    ];
+    nix = config.nix.package;
+  };
 
   # `PATH` of `just clean` (statix, deadnix, generate, treefmt) and of the
   # tool, explicit: a system unit sees neither the dev shell nor the user's
@@ -74,7 +87,15 @@ in
     darkone.admin.fleet-update = {
       enable = lib.mkEnableOption "fleet-update, the fleet update and deployment tool";
 
-      package = lib.mkPackageOption pkgs "fleet-update" { };
+      package = lib.mkOption {
+        type = lib.types.package;
+        default = pkgs.fleet-update.override { nix-eval-jobs = nixEvalJobs; };
+        defaultText = lib.literalExpression "pkgs.fleet-update";
+        description = ''
+          The fleet-update package. Its `nix-eval-jobs` is matched to the
+          system Nix: the tool evaluates the consumer flake with it.
+        '';
+      };
 
       user = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
@@ -130,7 +151,19 @@ in
 
   config = lib.mkIf cfg.enable (
     lib.mkMerge [
-      { environment.systemPackages = [ cfg.package ]; }
+      {
+        environment.systemPackages = [ cfg.package ];
+
+        assertions = [
+          {
+            assertion = dnfLib.matchesNix {
+              package = nixEvalJobs;
+              nix = config.nix.package;
+            };
+            message = "darkone.admin.fleet-update: no nix-eval-jobs built against Nix ${config.nix.package.version} (nixpkgs: ${pkgs.nix-eval-jobs.version}, stable: ${pkgs-stable.nix-eval-jobs.version}); set nix.package to a matching Nix.";
+          }
+        ];
+      }
 
       (lib.mkIf cfg.timer.enable {
         assertions = [

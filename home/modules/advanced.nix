@@ -3,6 +3,8 @@
 {
   lib,
   pkgs,
+  pkgs-stable,
+  dnfLib,
   config,
   osConfig,
   network,
@@ -28,6 +30,16 @@ let
 
   # Last colmena release
   inherit (inputs.colmena.packages.${pkgs.stdenv.hostPlatform.system}) colmena;
+
+  # Built against the system Nix: another minor breaks `fleet-update` on a
+  # consumer repository holding a git submodule (`dnf/lib/nix-tools.nix`).
+  nixEvalJobs = dnfLib.pickForNix {
+    candidates = [
+      pkgs.nix-eval-jobs
+      pkgs-stable.nix-eval-jobs
+    ];
+    nix = osConfig.nix.package;
+  };
 
   # Extraction of current user from host configuration
   user = users.${config.home.username};
@@ -91,7 +103,7 @@ in
       (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) deadnix)
       (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) gcc) # Useful for rust generator
       (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) just)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) nix-eval-jobs)
+      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) nixEvalJobs)
       (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) nix-output-monitor) # nom (nom develop, nom build, xxx |& nom)
       (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) nix-unit)
       (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) nixfmt)

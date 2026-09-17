@@ -10,6 +10,13 @@
 # both modes behave alike.
 # :::
 #
+# :::caution[`nix-eval-jobs` follows the system Nix]
+# It links `libnixexpr`: another Nix minor hashes a consumer repository
+# holding a git submodule differently, and every host fails to evaluate
+# (`mismatch in field 'narHash'`). `darkone.admin.fleet-update` overrides this
+# input with the build matching `nix.package` (`dnf/lib/nix-tools.nix`).
+# :::
+#
 # :::note[Pinning]
 # A release tag, pinned by the release train (`just release`, codev) or by
 # `just pkg-update fleet-update [version]`. Before the first release: a `main`
