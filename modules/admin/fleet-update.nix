@@ -51,7 +51,7 @@ let
   # `PATH` of `just clean` (statix, deadnix, generate, treefmt) and of the
   # tool, explicit: a system unit sees neither the dev shell nor the user's
   # profile. `cargo`, `rustc`, `gcc`: `just generate` from `src/generator`
-  # (codev). `sops`: Matrix token of `--send-report`.
+  # (codev). `curl`, `jq`: `just send-msg` of `--send-report`.
   runner = pkgs.writeShellApplication {
     name = "fleet-update-unattended";
     runtimeInputs = [
@@ -60,6 +60,7 @@ let
       pkgs.bash
       pkgs.cargo
       pkgs.coreutils
+      pkgs.curl
       pkgs.deadnix
     ]
     ++ lib.optional (pkgs ? dnf-generator) pkgs.dnf-generator
@@ -69,10 +70,10 @@ let
       pkgs.git
       pkgs.gnugrep
       pkgs.gnused
+      pkgs.jq
       pkgs.just
       pkgs.nixfmt
       pkgs.rustc
-      pkgs.sops
       pkgs.statix
       pkgs.treefmt
     ];

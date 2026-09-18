@@ -198,6 +198,17 @@ tailnet-enroll host ip='auto':
 	fi
 	just _info "{{host}}: $summary" "TAILNET"
 
+# Send one message to an alert room, body on stdin (markdown). Transport only:
+# rooms and token stay here, the caller owns the text. Exit `10` not configured,
+# `11` refused by the homeserver (contract with `fleet-update --send-report`).
+#
+# Send a message to a Matrix alert room (body on stdin)
+[group('configure')]
+send-msg room:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	WORKDIR="{{workDir}}" bash {{scriptsDir}}/send-msg.sh {{room}}
+
 # Provision the Matrix alert bot + rooms (idempotent) from network.matrix.
 # Reads config.yaml (network.matrix.{admin,bot}), creates/refreshes the bot,
 # webhook secret and the warnings/incidents rooms, and writes the resulting
