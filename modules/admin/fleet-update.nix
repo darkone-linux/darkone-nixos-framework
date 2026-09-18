@@ -2,7 +2,7 @@
 #
 # `enable` installs the tool on a deployment host; `just fleet-update` then
 # runs it. `timer.enable` adds a daily `fleet-update --no-ui` run: flake
-# update, build, test by waves, switch, Matrix report.
+# update, build, test by waves, switch.
 #
 # :::caution[Service identity]
 # The run belongs to `user`, owner of `workDir`: git identity, sops age key,
@@ -127,9 +127,11 @@ in
 
         extraArgs = lib.mkOption {
           type = lib.types.listOf lib.types.str;
-          default = [ "--send-report" ];
+
+          # Empty until the tool sends its Matrix report: `--send-report` is
+          # refused (exit `2`), and the daily run would fail every night.
+          default = [ ];
           example = [
-            "--send-report"
             "--on"
             "+server"
           ];
