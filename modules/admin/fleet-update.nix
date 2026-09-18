@@ -50,7 +50,8 @@ let
 
   # `PATH` of `just clean` (statix, deadnix, generate, treefmt) and of the
   # tool, explicit: a system unit sees neither the dev shell nor the user's
-  # profile. `cargo`, `rustc`, `gcc`: `just generate` from `src/generator` (codev).
+  # profile. `cargo`, `rustc`, `gcc`: `just generate` from `src/generator`
+  # (codev). `sops`: Matrix token of `--send-report`.
   runner = pkgs.writeShellApplication {
     name = "fleet-update-unattended";
     runtimeInputs = [
@@ -71,6 +72,7 @@ let
       pkgs.just
       pkgs.nixfmt
       pkgs.rustc
+      pkgs.sops
       pkgs.statix
       pkgs.treefmt
     ];
@@ -128,8 +130,8 @@ in
         extraArgs = lib.mkOption {
           type = lib.types.listOf lib.types.str;
 
-          # Empty until the tool sends its Matrix report: `--send-report` is
-          # refused (exit `2`), and the daily run would fail every night.
+          # `--send-report` once the pinned package sends it: the release train
+          # flips this default with the version, never before.
           default = [ ];
           example = [
             "--on"
