@@ -6,8 +6,8 @@
 #
 # :::note[Sources run by `bun run`]
 # No `bun build --compile`: the bundle breaks files read through
-# `import.meta.url` (`mock/scenarios/`). Same launch as co-development, so
-# both modes behave alike.
+# `import.meta.url` (`package.json`, the version). Same launch as
+# co-development, so both modes behave alike.
 # :::
 #
 # :::caution[`nix-eval-jobs` follows the system Nix]
@@ -19,8 +19,7 @@
 #
 # :::note[Pinning]
 # A release tag, pinned by the release train (`just release`, codev) or by
-# `just pkg-update fleet-update [version]`. Before the first release: a `main`
-# commit (`rev`, `--version=branch`), which the train turns into the tag form.
+# `just pkg-update fleet-update [version]`.
 # :::
 
 {
@@ -29,6 +28,7 @@
   fetchFromGitHub,
   bun,
   makeBinaryWrapper,
+  versionCheckHook,
   writableTmpDirAsHomeHook,
   nix-update-script,
   git,
@@ -38,13 +38,13 @@
 
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "fleet-update";
-  version = "0-unstable-2026-09-16";
+  version = "0.3.0";
 
   src = fetchFromGitHub {
     owner = "darkone-linux";
     repo = "dnf-fleet-update";
-    rev = "de1bd5007c96d0cc0c18fbeedc4c40859173d59e";
-    hash = "sha256-3JENJlDS+V6ytfIkZMCzr31JBgItuyAAoEEwAvKNcsI=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-EFAFe5nzTmrRh8A9+JByZ547lnlxfNr4ViemYYz4WyA=";
   };
 
   # Fixed-output: `bun install` needs the network. `--os`/`--cpu` wildcards
@@ -93,7 +93,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     # A fixed-output derivation must not reference store paths (patched shebangs).
     dontFixup = true;
 
-    outputHash = "sha256-HXuXGr1duuH1dYueBdaqxE+aDHr9XYSHngVQyimmQgU=";
+    outputHash = "sha256-/F6Ri0e4J2+IIXwqbkNz9Iz3zVbeuXmei32pUHzo+iw=";
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };
@@ -112,7 +112,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     runHook preInstall
 
     mkdir -p $out/lib/fleet-update
-    cp -R package.json tsconfig.json src mock $out/lib/fleet-update/
+    cp -R package.json tsconfig.json src $out/lib/fleet-update/
     cp -R ${finalAttrs.node_modules}/node_modules $out/lib/fleet-update/
 
     makeWrapper ${lib.getExe bun} $out/bin/fleet-update \
@@ -128,11 +128,12 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     runHook postInstall
   '';
 
-  # No `versionCheckHook` until the entry point implements `--version`.
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  versionCheckProgramArg = "--version";
+  doInstallCheck = true;
 
   passthru.updateScript = nix-update-script {
     extraArgs = [
-      "--version=branch"
       "--subpackage"
       "node_modules"
     ];
