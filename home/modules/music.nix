@@ -143,7 +143,7 @@ in
     services.mpd-mpris.enable = cfg.enableMpd;
     services.mpdris2 = lib.mkIf cfg.enableMpd {
       enable = true;
-      mpd.host = mpdAddress;
+      settings.Connection.host = mpdAddress;
     };
     programs.ncmpcpp.enable = cfg.enableMpd;
     home.sessionVariables = lib.mkIf cfg.enableMpd {
