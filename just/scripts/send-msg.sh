@@ -59,7 +59,42 @@ txn="$(date +%s%N)-$$"
 encoded="$(jq -rn --arg id "$roomId" '$id|@uri')"
 url="https://matrix.$domain/_matrix/client/v3/rooms/$encoded/send/m.room.message/$txn"
 
-code="$(jq -n --arg body "$body" '{ msgtype: "m.text", body: $body }' \
+# A client renders `formatted_body`, never `body`: without it the markdown is
+# shown verbatim. Subset built here: headings, bullets, bold, code, links.
+# No italics on purpose: a lone `*` is a host glob (`gw-*, srv-*`).
+#
+# shellcheck disable=SC2016 # $body is a jq variable, bound by --arg
+toHtml='
+def esc: gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;");
+def inline:
+  esc
+  | gsub("`(?<t>[^`]+)`"; "<code>\(.t)</code>")
+  | gsub("\\[(?<t>[^\\]]*)\\]\\((?<u>[^)\\s]+)\\)"; "<a href=\"\(.u)\">\(.t)</a>")
+  | gsub("\\*\\*(?<t>[^*]+)\\*\\*"; "<strong>\(.t)</strong>");
+def html:
+  split("\n")
+  | map(sub("\\s+$"; ""))
+  | reduce .[] as $l ({ out: [], li: false };
+      ([$l | capture("^(?<h>#{1,6}) +(?<t>.+)$")] | first) as $head
+      | ([$l | capture("^[-*] +(?<t>.+)$")] | first) as $item
+      | if $item then
+          { out: (.out + (if .li then [] else ["<ul>"] end) + ["<li>\($item.t | inline)</li>"]),
+            li: true }
+        else
+          (if .li then { out: (.out + ["</ul>"]), li: false } else . end)
+          | if $head then (($head.h | length) | tostring) as $n
+              | .out += ["<h\($n)>\($head.t | inline)</h\($n)>"]
+            elif $l == "" then .
+            else .out += ["<p>\($l | inline)</p>"]
+            end
+        end)
+  | (if .li then .out + ["</ul>"] else .out end)
+  | join("");
+{ msgtype: "m.text", body: $body,
+  format: "org.matrix.custom.html", formatted_body: ($body | html) }
+'
+
+code="$(jq -n --arg body "$body" "$toHtml" \
   | curl -sS -A "$UA" -o /dev/null -w '%{http_code}' -X PUT "$url" \
       -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
       --data-binary @- || true)"
