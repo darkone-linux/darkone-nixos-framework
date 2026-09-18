@@ -466,6 +466,22 @@
         "type": "github"
       }
     },
+    "nixpkgs-opencode": {
+      "locked": {
+        "lastModified": 1789019473,
+        "narHash": "sha256-oDJg4FdHB23JUNXq7cKGplgKZ6esdp5iH4obSxtqFj8=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "b1822af09f8d709b9259f63d420d184037ce1d3a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "b1822af09f8d709b9259f63d420d184037ce1d3a",
+        "type": "github"
+      }
+    },
     "nixpkgs-oxicloud": {
       "locked": {
         "lastModified": 1777820821,
@@ -528,6 +544,7 @@
         "nixos-raspberrypi": "nixos-raspberrypi",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-geneweb": "nixpkgs-geneweb",
+        "nixpkgs-opencode": "nixpkgs-opencode",
         "nixpkgs-oxicloud": "nixpkgs-oxicloud",
         "nixpkgs-stable": "nixpkgs-stable",
         "sops-nix": "sops-nix",

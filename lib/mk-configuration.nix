@@ -18,6 +18,7 @@ let
     nixpkgs-stable
     nixpkgs-geneweb
     nixpkgs-oxicloud
+    nixpkgs-opencode
     home-manager
     colmena
     sops-nix
@@ -86,6 +87,11 @@ let
   # Talon overlay: `pkgs.talon` from nix-community/talon-nix (x86_64 only,
   # attribute absent elsewhere). Consumed by UMI (multimodal input) host profiles.
   talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
+
+  # OpenCode overlay: pins `pkgs.opencode`/`pkgs.opencode-desktop` to 1.18.29
+  # (1.18.30 crashes on every prompt, upstream regression). Drop it once a
+  # fixed release lands in `nixos-unstable`.
+  opencodeOverlay = import ./overlays/opencode.nix { inherit nixpkgs-opencode; };
 
   # DNF-only packages (`pkgs/`), absent from nixpkgs. Permanent until each one
   # is upstreamed — unrelated to the temporary patch overlays above.
@@ -209,7 +215,8 @@ let
         # `dnfPackagesOverlay` (`pkgs/`) and `dnfGeneratorOverlay` are permanent;
         # the others are temporary, dropped with their upstream imports/inputs —
         # geneweb (nixpkgs PR #522751), oxicloud (`target-cpu=native`), gimp
-        # (`__structuredAttrs`), logseq (AppImage), talon (x86_64 only).
+        # (`__structuredAttrs`), logseq (AppImage), talon (x86_64 only),
+        # opencode (pinned to 1.18.29, 1.18.30 crashes).
         {
           nixpkgs.overlays = [
             dnfPackagesOverlay
@@ -219,6 +226,7 @@ let
             gimpOverlay
             logseqOverlay
             (talonOverlay system)
+            (opencodeOverlay system)
           ];
         }
 

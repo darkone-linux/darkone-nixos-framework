@@ -93,6 +93,17 @@
     # (cf. nixpkgs-geneweb).
     nixpkgs-oxicloud.url = "github:flashonfire/nixpkgs/oxicloud-service";
 
+    # OpenCode: pinned to the last commit before 1.18.29 -> 1.18.30
+    # (NixOS/nixpkgs#561612). 1.18.30 crashes on every prompt
+    # (SystemPrompt.environment TypeError, upstream regression).
+    #
+    # Drop once a fixed release lands in `nixos-unstable`: bump `pkgs.opencode`
+    # back to the main `nixpkgs` tree and remove this input + its overlay
+    # (`lib/overlays/opencode.nix`).
+    #
+    # No `inputs.nixpkgs.follows`: pinned on purpose to an older revision.
+    nixpkgs-opencode.url = "github:NixOS/nixpkgs/b1822af09f8d709b9259f63d420d184037ce1d3a";
+
     # Rust generator (`dnf-generator`). Default points at the public release
     # repo; consumers in co-dev (arthur-network) can override with a path or
     # `git+file://` URL to pick up local changes:
