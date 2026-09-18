@@ -62,16 +62,21 @@ apply-local what='switch':
 apply-silenced on what='switch':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	_exec() {
+
+	# `sudo -n`: the flag lands in a root-owned textfile collector dir, and
+	# colmena connects as `nix`. `--` separates the command from colmena's own
+	# options, as `colmena exec --help` advises.
+	_flag() {
+		local state="$1"
 		if [ "${USER:-}" = "nix" ] ;then
-			colmena exec --on "{{on}}" "$@"
+			colmena exec --on "{{on}}" -- sudo -n dnf-maintenance "$state"
 		else
-			sudo -i -u nix colmena exec --config "{{workDir}}/flake.nix" --on "{{on}}" "$@"
+			sudo -i -u nix colmena exec --config "{{workDir}}/flake.nix" --on "{{on}}" -- sudo -n dnf-maintenance "$state"
 		fi
 	}
 	just _log "Silencing alerts on {{on}}..."
-	_exec dnf-maintenance on || just _warn "Could not set maintenance flag (first deploy or alerting disabled)."
-	trap '_exec dnf-maintenance off || true' EXIT
+	_flag on || just _warn "Could not set maintenance flag (first deploy or alerting disabled)."
+	trap '_flag off || true' EXIT
 	just apply "{{on}}" "{{what}}"
 
 # Update, build and deploy the fleet in waves (fleet-update)
