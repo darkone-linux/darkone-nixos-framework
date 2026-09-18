@@ -292,6 +292,12 @@ in
           };
           systemd.services.anssi-orphan-scan = {
             description = "ANSSI R53: scan for files without owner";
+
+            # Timer-driven only: a scan running at switch time would otherwise
+            # be stopped and restarted, and `switch-to-configuration` blocks on
+            # that `systemctl start` for the whole `find /`.
+            restartIfChanged = false;
+
             serviceConfig = {
               Type = "oneshot";
               ExecStart = pkgs.writeShellScript "anssi-orphan-scan" ''
@@ -301,6 +307,9 @@ in
                   -ls 2>/dev/null \
                   | ${pkgs.util-linux}/bin/logger -t anssi-r53 -p security.warning
               '';
+
+              # Report only: an unbounded `find /` is worth dropping, not waiting for.
+              TimeoutStartSec = "1h";
             };
           };
         })
