@@ -23,6 +23,9 @@
 # A host running harmonia does **not** get its own instance as a substituter: it
 # would only ever serve paths its local store already has.
 #
+# A global-zone host (`www`) has no LAN and no proxy: its only fleet substituter
+# is the `global` harmonia, over the tailnet.
+#
 # Other zones' non-global harmonia are never used. Harmonia's signature is
 # passed through unchanged, so every host trusts the deployment-wide harmonia
 # public key (`usr/secrets/harmonia.pub`). Transport is plain HTTP on the

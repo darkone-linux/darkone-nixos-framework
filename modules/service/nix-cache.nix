@@ -25,6 +25,9 @@
 #   Their substituters are the zone-neutral names (`harmonia.dnf.internal`,
 #   `nix-cache.dnf.internal`) that each zone's DNS resolves to its own cache
 #   services (see `service/dnsmasq.nix`), so the cache follows the laptop.
+# - global-zone hosts (`www`, a datacenter VPS): no LAN, no gateway, so no
+#   proxy. They take the `global` harmonia over the tailnet and the fleet key,
+#   without which they can pull nothing the fleet built.
 # :::
 
 {
@@ -42,7 +45,7 @@
 let
   inherit (dnfLib) findHost preferredIp;
   cfg = config.darkone.service.nix-cache;
-  hostIsLocal = host.zone != "www";
+  hostIsLocal = host.zone != dnfLib.constants.globalZone;
   cacheService = lib.findFirst (
     s: s.zone == zone.name && s.name == "nix-cache"
   ) null network.services;
@@ -58,6 +61,11 @@ let
   # zone-neutral names instead, whatever zone (if any) it is plugged into.
   isRoaming = hostIsLocal && cfg.roaming;
   isClient = hostIsLocal && hasServer && !isRoaming;
+
+  # Global zone: none of the zone-pinned plumbing above applies, but the host
+  # still belongs to the cache fabric through a `global` harmonia (tailnet) and
+  # the fleet signing key.
+  isGlobalZone = !hostIsLocal;
   cachePort = dnfConfig.network.ports.nixCache;
   harmoniaPort = dnfConfig.network.ports.harmonia;
 
@@ -295,11 +303,15 @@ in
             ]
           ))
           (lib.mkIf isRoaming roamingUrls)
+
+          # Global zone: no proxy out there, so `harmoniaUrls` holds the global
+          # harmonia alone, at its usual priority 45.
+          (lib.mkIf isGlobalZone harmoniaUrls)
         ];
 
         # Keys are zone-independent (deployment-wide harmonia key, upstream
         # signatures relayed verbatim by the proxy), so roaming needs no more.
-        trusted-public-keys = lib.mkIf (isClient || isRoaming) (
+        trusted-public-keys = lib.mkIf (isClient || isRoaming || isGlobalZone) (
           harmoniaKeys
           ++ [
             upstreamKey
