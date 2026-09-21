@@ -151,6 +151,7 @@ in
       default = [
         "calendar"
         "contacts"
+        "tasks"
       ];
       example = appstoreApps ++ shippedToggleableApps;
       description = ''
