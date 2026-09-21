@@ -445,7 +445,7 @@ in
     darkone.home.office.enableBrave = mkEnableOption "Enable Brave Browser";
     darkone.home.office.enableEmail = mkEnableOption "Email management packages (thunderbird)";
     darkone.home.office.enableSecurity = mkEnableOption "Security tools (keepass)";
-    darkone.home.office.enableCalendarContacts = mkEnableOption "Gnome calendar, contacts and related apps";
+    darkone.home.office.enableCalendarContacts = mkEnableOption "Calendar, contacts, tasks and related apps";
 
     # Enabled by default
     darkone.home.office.enableEssentials = mkOption {
@@ -554,6 +554,7 @@ in
       (mkIf (cfg.enableTools && !hasVaultwarden) gnome-secrets)
       (mkIf cfg.enableCalendarContacts gnome-calendar)
       (mkIf cfg.enableCalendarContacts gnome-contacts)
+      (mkIf cfg.enableCalendarContacts planify) # Tasks (note: errands -> sync activation failed)
       (mkIf cfg.enableEmail thunderbird)
       (mkIf cfg.enableEssentials celluloid) # Video player
       (mkIf cfg.enableEssentials evince) # Reader
