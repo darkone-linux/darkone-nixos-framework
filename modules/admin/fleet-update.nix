@@ -10,6 +10,12 @@
 # permissions, `nix` deploy identity whose key lives in `~nix/.ssh`).
 # :::
 #
+# :::tip[AI tools]
+# `--ai-model` launches `claude` or `opencode` from `PATH`. Declare what the
+# unattended run may reach in `aiPackages`; without it the run warns once and
+# carries on without AI.
+# :::
+#
 # :::note[Exit codes]
 # `4` (a run already holds the lock) counts as success: no alert. Any other
 # failure fails the unit and raises the existing `SystemdUnitFailed` alert,
@@ -64,6 +70,7 @@ let
       pkgs.deadnix
     ]
     ++ lib.optional (pkgs ? dnf-generator) pkgs.dnf-generator
+    ++ cfg.aiPackages
     ++ [
       pkgs.findutils
       pkgs.gcc
@@ -97,6 +104,20 @@ in
         description = ''
           The fleet-update package. Its `nix-eval-jobs` is matched to the
           system Nix: the tool evaluates the consumer flake with it.
+        '';
+      };
+
+      aiPackages = lib.mkOption {
+        type = lib.types.listOf lib.types.package;
+        default = [ ];
+        example = lib.literalExpression "[ pkgs.opencode ]";
+        description = ''
+          AI tools reachable from the unattended run (`--ai-model`). Optional:
+          the tool warns and goes on without AI when none is found.
+
+          Not a dependency of the package, because `pkgs.claude-code` is
+          unfree and would force `allowUnfree` on every consumer.
+          `pkgs.opencode` is MIT.
         '';
       };
 
