@@ -10,6 +10,105 @@ observable defaults, `lib.mkConfigurations`, public `just` recipes, the expected
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-22
+
+### ⚠ Breaking
+
+- **just**: Split recipes into common, dnf, project and codev bootstraps
+- **tailscale**: Enroll nodes with single-use tagged keys
+
+### Added
+
+- **pkgs**: Dnf package tree for programs absent from nixpkgs
+- **home**: Rename-simple in the advanced essentials
+- **headscale**: Generate tailnet ACL policy from topology
+- **headscale**: Load generated policy, checked at build time
+- **headscale**: OIDC login through Kanidm for personal devices
+- **tailscale**: Open WireGuard port on the coordination server
+- **headscale**: Audit tailnet nodes, alert on drift
+- **gc**: Just gc with period/count argument
+- **vbox**: Attach local build-iso output to test VMs
+- **git**: Git-cliff / git improvements
+- **qemu**: Bridged LAN test VMs via vm-start.sh and darkone.graphic.qemu
+- **pkgs**: Add fleet-update (unstable, interface mockup)
+- **just**: Pkg-update honours updateScript extra args
+- **flake**: Expose pkgs/ packages to consumer flakes
+- **just**: Add fleet-update recipe
+- **fleet-update**: Add darkone.admin.fleet-update module and timer
+- **just**: Pkg-update accepts an explicit version
+- **advanced**: New DnfDeveloper profile
+- **fleet-update**: Sops in the unattended PATH for --send-report
+- **alerts**: Send-msg, one message to a Matrix alert room
+- **nix-cache**: Serve the global zone from the global harmonia
+- **nextcloud**: Plugins list update
+- **pim**: Added planify to gnome calendar/contacts option
+- **fleet-update**: Optional AI tools on the unattended run PATH
+- **ai**: New ai tools - codex, antigravity...
+
+### Fixed
+
+- **anssi**: R50 stripped x from /var/log/nginx, failing logrotate at boot
+- **luks**: Restore the initrd key as root, not through the nix shell
+- **just**: Name recipes that exist, pass _fail one argument, no fixed paths
+- **configure**: Converge LUKS again now that the key restore works
+- **just**: Readable --list summaries and English messages
+- **just**: Restore workspace ownership when an install fails
+- **luks**: Audit the running system against the colmena node
+- **luks**: Guard timesyncd ordering on the unit being enabled
+- **prometheus**: Distinct host label on PeerGatewayDown rules
+- **matrix**: Start synapse after a ready MAS, drop reverse ordering
+- **headscale**: Grant personal devices HTTPS on zone gateway LAN IPs
+- **tailscale**: Reconcile SSH and exit-node prefs on running nodes
+- **restic**: One alert per backup job, a failing one no longer masked
+- **restic**: Watch freshness of hand-declared backup jobs too
+- **restic**: Alert on never-successful jobs, drop stamps of removed jobs
+- **vbox**: Set bridge adapter on test VM NICs
+- **iso**: Print install IP and MAC on the console before the prompt
+- **install**: Commit without autoDetach to avoid chown fail
+- **services**: Pace exporter/outline restarts, drop pkgs.system alias
+- **hive**: Align colmena and nixosConfigurations toplevels
+- **opencode**: Pin to 1.18.20, 1.18.30 crashes every prompt
+- **opencode**: Revert pinned package -> opencode stable
+- **fleet-update**: Guard dnf-generator overlay for aarch64 eval
+- **flake**: Bump sops-nix, drops removed buildGo125Module
+- **admin**: Nix-eval-jobs built against the system nix
+- **d2,opencode**: D2 pkgs stable, opencode unstable
+- **headscale**: Wait for oidc issuer before start, not just kanidm unit order
+- **opencode**: Pin package to 1.18.29, 1.18.30 crashes on every prompt
+- **apply**: Apply-silenced needs sudo for dnf-maintenance
+- **fleet-update**: Empty timer.extraArgs, --send-report exits 2
+- **mpdris2**: Settings renamed
+- **security**: Anssi-orphan-scan no longer blocks activation
+- **alerts**: Render the report markdown as Matrix HTML
+- **luks**: Ship virtio transports in initrd, audit NIC drivers
+
+### Security
+
+- **anssi**: Raise the gateways and ms-a2 to the intermediary tier
+- **anssi**: R79 was posting its nginx headers where nginx drops them
+- **anssi**: R28 cannot cross to its hardened /tmp through a switch
+- **anssi**: R79 wrote TLS directives nginx already emits
+- **anssi**: R8 allocator extras cost more than the wipe they replace
+- **anssi**: The allocator extras carried 7 of the 34 seconds, not all of them
+
+### Removed
+
+- **just**: Drop duplicate variables, dead code and deprecated fix-zsh
+- **tailscale**: Drop health metric while autopaused on a home LAN
+- **advanced**: Drop duplicate openssl when admin+dnf-developer overlap
+
+### Changed
+
+- **just**: Compute the workspace context once
+- **just**: One zone lookup shared by _target and _candidates
+- **banner**: C11 ssh banner update
+- **just-install**: Minor reviews
+
+### Documentation
+
+- **tailscale**: Correct MagicDNS note on gateway DNS flags
+- **umi**: UMI -> Unified Multimodal Input + minor fixes
+
 ## [0.1.0] - 2026-09-09
 
 First versioned release. The framework and its ecosystem existed before this
@@ -67,5 +166,6 @@ framework as it stands, not the commits that built it.
 | [dnf-boilerplate](https://github.com/darkone-linux/dnf-boilerplate) | `v0.1.0` |
 | [dnf-example](https://github.com/darkone-linux/dnf-example) | `v0.1.0` |
 
-[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/darkone-linux/darkone-nixos-framework/releases/tag/v0.1.0
