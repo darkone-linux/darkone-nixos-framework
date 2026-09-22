@@ -292,7 +292,14 @@ in
         # the bridge module for the gateway lan0.
         boot.initrd.availableKernelModules = [
           "bridge"
+
+          # A virtio NIC hangs off the `virtio0` device its transport driver
+          # creates, never off the PCI slot: without `virtio_pci` the
+          # `virtio_net` modalias never fires and the initrd has no link at
+          # all — sshd listens on 2222 with no address to answer on.
           "virtio_net"
+          "virtio_pci"
+          "virtio_mmio"
 
           # `e1000` is the 82540EM emulated by VirtualBox and QEMU, a different
           # driver from the `e1000e` of physical Intel NICs: without it a test

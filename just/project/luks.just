@@ -392,6 +392,46 @@ _luks-show host target:
 		&& pass "the built configuration enables initrd sshd on port $port" \
 		|| fail "the built configuration has no initrd sshd (missing nix.pub, or host not in luks.json)"
 
+	# sshd on 2222 is useless without a link, and `availableKernelModules` only
+	# ships NIC drivers: a NIC hanging off a bus driver (virtio_net behind
+	# virtio_pci) also needs its transport, absent from the module closure until
+	# something asks for it. Compare what the live NICs bind to with what the
+	# initrd carries — the host otherwise waits forever, silently.
+	closure=$({{nix}} build --no-link --print-out-paths \
+		{{workDir}}#nixosConfigurations."{{host}}".config.system.build.modulesClosure 2>/dev/null || true)
+	if [ -z "$closure" ] ;then
+		warn "could not build the module closure: initrd NIC drivers unverified"
+	else
+
+		# Wired links only: a Wi-Fi station has no initrd network by design.
+		# Every driver up the parent chain, since the NIC one is not enough.
+		drivers=$(ssh nix@"{{target}}" 'for n in /sys/class/net/* ;do
+			i=${n##*/}
+			case $i in en*|eth*) ;; *) continue ;; esac
+			[ -e "$n/device" ] || continue
+			[ -e "$n/wireless" ] && continue
+			d=$(readlink -f "$n/device")
+			while [ "$d" != "/sys/devices" ] && [ "$d" != "/" ] ;do
+				[ -L "$d/driver/module" ] && basename "$(readlink -f "$d/driver/module")"
+				d=$(dirname "$d")
+			done
+		done | sort -u' || true)
+		missing=""
+		for m in $drivers ;do
+
+			# modules.dep spells the same module with `_` or `-`: `?` matches both.
+			find "$closure/lib/modules" -name "${m//_/?}.ko*" | grep -q . \
+				|| missing="$missing $m"
+		done
+		if [ -z "$drivers" ] ;then
+			warn "no wired NIC found on the target: remote unlock needs one"
+		elif [ -z "$missing" ] ;then
+			pass "the initrd carries every driver the live NICs use ($(echo $drivers))"
+		else
+			fail "the initrd has no$missing: no network in stage 1, nothing answers on $port"
+		fi
+	fi
+
 	# The failure mode this whole design exists for: initrd secrets are appended
 	# when the bootloader is installed, so a key created after the last
 	# generation is simply not in the initrd that boots.
