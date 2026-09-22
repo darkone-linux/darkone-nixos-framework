@@ -43,14 +43,17 @@ let
   ollamaModel = builtins.head osConfig.services.ollama.loadModels;
   ollamaBase = "ollama/${ollamaModel}";
 
+  # Common global context
+  globalContext = "Concise and precise answers, straight to the point.";
+
   # Aider model: prefer Claude if enabled, fall back to local ollama.
   aiderModel =
     if cfg.enableClaude then
-      "anthropic/claude-sonnet-4-6"
+      "anthropic/claude-sonnet-5"
     else if hasLocalAI then
       ollamaBase
     else
-      "anthropic/claude-sonnet-4-6";
+      "anthropic/claude-sonnet-5";
 
   # Claude Code governance socle (permission matrix + RTK PreToolUse hook).
   # Kept as Nix data, rendered to an immutable store JSON, then merged into a
@@ -233,6 +236,7 @@ in
     darkone.home.ai.enableClaude = lib.mkEnableOption "Claude Code CLI";
     darkone.home.ai.enableOpenCode = lib.mkEnableOption "OpenCode terminal AI agent";
     darkone.home.ai.enableCodex = lib.mkEnableOption "OpenAI Codex CLI";
+    darkone.home.ai.enableAntigravity = lib.mkEnableOption "Google Antigravity CLI";
     darkone.home.ai.enableAider = lib.mkEnableOption "Aider AI pair programming";
     darkone.home.ai.enableGoose = lib.mkEnableOption "Goose AI coding agent (Block Inc.)";
     darkone.home.ai.preferLocal = lib.mkEnableOption "Prefer local models than cloud ones";
@@ -296,7 +300,6 @@ in
       (lib.mkIf hasLocalAI pkgs-stable.ollama) # stable = plus récent
 
       # Per-agent packages.
-      (lib.mkIf cfg.enableCodex codex)
       (lib.mkIf cfg.enableAider aider-chat)
       (lib.mkIf cfg.enableGoose goose-cli)
 
@@ -317,6 +320,37 @@ in
     home.activation.claudeWritableSettings = lib.mkIf cfg.enableClaude (
       lib.hm.dag.entryAfter [ "writeBoundary" ] "run ${claudeSettingsMerge}"
     );
+
+    #==========================================================================
+    # CODEX
+    #==========================================================================
+
+    # Codex with default settings
+    programs.codex = lib.mkIf cfg.enableCodex {
+      enable = true;
+      context = globalContext;
+    };
+
+    #==========================================================================
+    # GOOGLE ANTIGRAVITY
+    #==========================================================================
+
+    # Home manager module only
+    programs.antigravity-cli = lib.mkIf cfg.enableAntigravity {
+      enable = true;
+      settings = {
+        context.fileName = [
+          "AGENTS.md"
+          "CONTEXT.md"
+          "GEMINI.md"
+        ];
+        telemetry.enable = false;
+      };
+      context = {
+        CONTEXT = globalContext;
+      };
+      commands = { };
+    };
 
     #==========================================================================
     # OPENCODE
@@ -386,6 +420,13 @@ in
         # Stream output for interactive sessions.
         stream: true
       '';
+    };
+
+    #==========================================================================
+    # Herdr
+    #==========================================================================
+    programs.herdr = {
+      enable = true;
     };
   };
 }
