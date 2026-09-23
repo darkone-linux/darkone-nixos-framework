@@ -38,13 +38,13 @@
 
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "fleet-update";
-  version = "0.6.1";
+  version = "0.7.1";
 
   src = fetchFromGitHub {
     owner = "darkone-linux";
     repo = "dnf-fleet-update";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-FnG8aaBT0s9TF17TjfHosc0tTlq9wXXLvAx10gHfzDQ=";
+    hash = "sha256-sMfGtZUf9YeHOfVy0rD/RbirUdaaXowB3LSscE2pt7g=";
   };
 
   # Fixed-output: `bun install` needs the network. `--os`/`--cpu` wildcards
