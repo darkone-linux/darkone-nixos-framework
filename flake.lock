@@ -111,16 +111,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1788912366,
-        "narHash": "sha256-a9ADB23bszKN6Yh5QavGc8cJqabH4i/LOSjn63AL8QE=",
+        "lastModified": 1790177031,
+        "narHash": "sha256-bxFKpS9MF0H8EPhmY92jjx5oTiOHzSsifLoOd0KVC0A=",
         "owner": "darkone-linux",
         "repo": "dnf-generator",
-        "rev": "1e5ec4002723ed7d5fe43b1e54bf5c78b5d5caeb",
+        "rev": "38300c546f969f9f9bb28afec9fded207537af91",
         "type": "github"
       },
       "original": {
         "owner": "darkone-linux",
-        "ref": "v0.1.0",
+        "ref": "v0.1.1",
         "repo": "dnf-generator",
         "type": "github"
       }
