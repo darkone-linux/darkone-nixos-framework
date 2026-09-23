@@ -42,6 +42,11 @@
 }:
 let
   cfg = config.darkone.admin.fleet-update;
+  timerAiContext =
+    cfg.aiContext != null
+    && !(builtins.any (
+      argument: argument == "--ai-context" || lib.hasPrefix "--ai-context=" argument
+    ) cfg.timer.extraArgs);
 
   # `nix-eval-jobs` built against the system Nix: another minor fails to
   # evaluate a consumer repository holding a git submodule
@@ -118,6 +123,16 @@ in
           Not a dependency of the package, because `pkgs.claude-code` is
           unfree and would force `allowUnfree` on every consumer.
           `pkgs.opencode` is MIT.
+        '';
+      };
+
+      aiContext = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "Answer in French and keep the response concise.";
+        description = ''
+          Additional operator guidance included in every AI prompt of the
+          unattended run. `timer.extraArgs` can override it with `--ai-context`.
         '';
       };
 
@@ -220,7 +235,15 @@ in
             Type = "oneshot";
             User = cfg.user;
             WorkingDirectory = cfg.workDir;
-            ExecStart = "${lib.getExe runner} ${lib.escapeShellArgs cfg.timer.extraArgs}";
+            ExecStart = "${lib.getExe runner} ${
+              lib.escapeShellArgs (
+                lib.optionals timerAiContext [
+                  "--ai-context"
+                  cfg.aiContext
+                ]
+                ++ cfg.timer.extraArgs
+              )
+            }";
             SuccessExitStatus = [ 4 ];
             TimeoutStartSec = cfg.timer.timeout;
 
