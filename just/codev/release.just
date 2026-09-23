@@ -81,8 +81,19 @@ release level="auto":
 		[ -z "$(git -C "$repo" status --porcelain)" ] || just _fail "$repo/: dirty tree — commit or stash first."
 		[ "$(git -C "$repo" rev-parse --abbrev-ref HEAD)" = main ] || just _fail "$repo/: not on main."
 		git -C "$repo" rev-parse -q --verify '@{u}' > /dev/null || just _fail "$repo/: main has no upstream."
-		git -C "$repo" fetch --quiet --tags origin || just _fail "$repo/: fetch failed."
+
+		# No `--tags`: one diverging old tag would fail the whole fetch. Only the
+		# last release tag matters to the train, checked right below.
+		git -C "$repo" fetch --quiet origin || just _fail "$repo/: fetch failed."
 		[ "$(git -C "$repo" rev-list --count 'HEAD..@{u}')" -eq 0 ] || just _fail "$repo/: behind origin — pull first."
+
+		# `isDue` trusts the local tag: it must be the published one. A local-only
+		# tag is a train stopped between tag and push.
+		tag=$(lastTag "$repo")
+		[ -n "$tag" ] || continue
+		remote=$(git -C "$repo" ls-remote origin "refs/tags/$tag" | cut -f1)
+		[ -n "$remote" ] || just _fail "$repo/: $tag is local only — push it: git -C $repo push --atomic origin main refs/tags/$tag"
+		[ "$remote" = "$(git -C "$repo" rev-parse "refs/tags/$tag")" ] || just _fail "$repo/: $tag differs from origin — realign the local tag first."
 	done
 
 	#---------------------------------------------------------------------------
