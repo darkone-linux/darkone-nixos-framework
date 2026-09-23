@@ -110,7 +110,7 @@
     #   --override-input dnf/dnf-generator path:./src/generator
     #
     # The generator owns the `etc/config.yaml` schema and the `var/generated/*`
-    # format: a release pins an exact tag here (`just release`, step 3) and
+    # format: a release pins an exact tag here (`just release`) and
     # `.github/workflows/release.yml` refuses a tag whose lock points anywhere
     # but a published `dnf-generator` release.
     dnf-generator.url = "github:darkone-linux/dnf-generator/v0.1.0";

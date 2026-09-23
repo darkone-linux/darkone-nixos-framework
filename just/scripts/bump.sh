@@ -7,18 +7,21 @@
 #
 # The version file is discovered, not declared — `VERSION` (framework),
 # `Cargo.toml` (dnf-generator) or `package.json` (dnf-doc, dnf-fleet-update).
+# None (dnf-boilerplate, dnf-example): the last tag is the version, and an
+# explicit `--level X.Y.Z` is required.
 # git-cliff renders the version block; the file's header, `## [Unreleased]`
 # section and reference-link footer are assembled here, so dnf-doc keeps the
 # hand-written history it accumulated before conventional commits.
 #
 # Usage:
 #   bump.sh --config <cliff.toml> [--repo <dir>] [--level <l>]
-#           [--line <X.Y>] [--yes] [--dry-run]
+#           [--line <X.Y>] [--yes] [--dry-run] [--next]
 #
 #   --level   auto (default) | patch | minor | major | X.Y.Z
 #             `auto` asks git-cliff for the SemVer implied by the commits.
 #   --line    Pin MAJOR.MINOR to a framework line (dnf-doc): a differing line
 #             jumps to <line>.0, an identical one bumps the patch.
+#   --next    Print the version the release would take, then exit.
 
 set -euo pipefail
 
@@ -36,6 +39,7 @@ level="auto"
 line=""
 assumeYes=0
 dryRun=0
+nextOnly=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -45,6 +49,7 @@ while [ $# -gt 0 ]; do
     --line) line="$2"; shift 2 ;;
     --yes | -y) assumeYes=1; shift ;;
     --dry-run) dryRun=1; shift ;;
+    --next) nextOnly=1; shift ;;
     *) die "Unknown argument: $1" ;;
   esac
 done
@@ -71,8 +76,10 @@ elif [ -f Cargo.toml ]; then
 elif [ -f package.json ]; then
   versionFile="package.json"
 else
-  die "No version file (VERSION, Cargo.toml or package.json) in $(pwd)"
+  versionFile=""
 fi
+
+lastTag="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2> /dev/null || true)"
 
 readVersion() {
   case "$versionFile" in
@@ -82,6 +89,10 @@ readVersion() {
     # sits at column 0 too.
     Cargo.toml) awk '/^\[package\]/{p=1;next} /^\[/{p=0} p&&/^version *=/{split($0,a,"\"");print a[2];exit}' Cargo.toml ;;
     package.json) jq -r '.version' package.json ;;
+    "")
+      v="${lastTag#v}"
+      printf '%s\n' "${v:-0.0.0}"
+      ;;
   esac
 }
 
@@ -106,6 +117,7 @@ writeVersion() {
         mv package.json.tmp package.json
       fi
       ;;
+    "") ;;
   esac
 }
 
@@ -115,8 +127,12 @@ writeVersion() {
 
 # `--dry-run` inspects and writes nothing: the release guards would only stop it
 # from answering the question it was asked.
-if [ "$dryRun" -eq 0 ]; then
+if [ "$dryRun" -eq 0 ] && [ "$nextOnly" -eq 0 ]; then
   [ -z "$(git status --porcelain)" ] || die "Working tree is dirty — commit or stash first."
+
+  # Idempotence: a second run must not cut an empty release on top of the last one.
+  [ -z "$lastTag" ] || [ -n "$(git rev-list "$lastTag"..HEAD)" ] ||
+    die "Nothing to release: HEAD is already $lastTag."
 
   branch="$(git rev-parse --abbrev-ref HEAD)"
   [ "$branch" = "main" ] || die "Releases are cut from main, not '$branch'."
@@ -151,12 +167,16 @@ case "$level" in
   auto)
     # git-cliff derives the SemVer from the commits since the last tag; it has
     # nothing to go on before the first tag, where the declared version stands.
-    if git tag --list 'v[0-9]*' | grep -q .; then
+    if [ -n "$lastTag" ]; then
       new="$(git-cliff --config "$config" --bumped-version 2> /dev/null | sed 's/^v//')"
-      [ -n "$new" ] || new="$(bumpPart "$old" patch)"
+
+      # Unpublished types only (a `chore(deps)` pin): git-cliff has "nothing
+      # to bump" and echoes the current version.
+      [ -n "$new" ] && [ "$new" != "$old" ] || new="$(bumpPart "$old" patch)"
     else
+      [ -n "$versionFile" ] || die "No version file and no tag: pass --level X.Y.Z."
       new="$old"
-      log "No release tag yet — taking the declared version $new."
+      [ "$nextOnly" -eq 1 ] || log "No release tag yet — taking the declared version $new."
     fi
     ;;
   major | minor | patch) new="$(bumpPart "$old" "$level")" ;;
@@ -177,10 +197,15 @@ if [ -n "$line" ]; then
   fi
 fi
 
-[ "$new" != "$old" ] || [ "$level" = "auto" ] ||
+[ "$new" != "$old" ] || [ -z "$lastTag" ] ||
   die "Computed version equals the current one ($old)."
 git rev-parse -q --verify "refs/tags/v$new" > /dev/null &&
   die "Tag v$new already exists."
+
+if [ "$nextOnly" -eq 1 ]; then
+  printf '%s\n' "$new"
+  exit 0
+fi
 
 log "Bumping $(basename "$(pwd)"): $old → $new"
 
@@ -305,9 +330,12 @@ git add -A
 git commit -q -m "chore(release): v$new"
 
 # Annotated tag carrying the entry, verbatim: git's default `-m` cleanup treats
-# the Markdown headings as comments and strips every one of them.
-newEscaped="${new//./\\.}"
-git tag -a "v$new" --cleanup=verbatim \
-  -m "$(sed -n "/^## \[$newEscaped\]/,/^## \[/p" CHANGELOG.md | sed '$d')"
+# the Markdown headings as comments and strips every one of them. The oldest
+# entry runs into the reference-link footer, hence the second stop.
+git tag -a "v$new" --cleanup=verbatim -m "$(awk -v v="$new" '
+  index($0, "## [" v "] - ") == 1 { inside = 1; print; next }
+  inside && (/^## \[/ || /^\[[^]]+\]: /) { exit }
+  inside { print }
+' CHANGELOG.md)"
 
 log "Tagged v$new — push with: git -C $(pwd) push && git -C $(pwd) push origin v$new"

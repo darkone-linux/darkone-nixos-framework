@@ -44,7 +44,7 @@ jobs:
           ref=$(jq -r '.nodes["dnf-generator"].original.ref // ""' flake.lock)
           rev=$(jq -r '.nodes["dnf-generator"].locked.rev' flake.lock)
           if [ -z "$ref" ]; then
-            echo "::error::dnf-generator input has no ref — pin a tag (just release, step 3)."
+            echo "::error::dnf-generator input has no ref — pin a tag (just release)."
             exit 1
           fi
           gh api repos/darkone-linux/dnf-generator/tags --paginate \

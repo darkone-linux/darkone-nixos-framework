@@ -1,7 +1,7 @@
 # DNF just — framework release: version, changelog, tag.
 #
-# The ecosystem-wide train lives in `codev/release.just`. dnf-doc and
-# dnf-generator call the same `just/scripts/bump.sh` through their own `bump`.
+# The ecosystem-wide train lives in `codev/release.just`. Every other repo
+# calls the same `just/scripts/bump.sh`, through its `bump` or the train.
 
 # Bump VERSION, prepend the CHANGELOG entry, commit and tag (no push)
 [group('release')]

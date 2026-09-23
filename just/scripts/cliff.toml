@@ -1,28 +1,31 @@
 # DNF — shared git-cliff configuration
 #
 # One config for the whole ecosystem: framework (Nix), dnf-generator (Rust),
-# dnf-doc (Astro). Renders ONE Keep a Changelog version block; the surrounding
-# file (header, `## [Unreleased]`, reference-link footer) is owned by
-# `just/scripts/bump.sh`, which preserves the hand-written history of
-# dnf-doc.
+# dnf-fleet-update (Bun), dnf-doc (Astro), consumer templates. Renders ONE Keep
+# a Changelog version block; the surrounding file (header, `## [Unreleased]`,
+# reference-link footer) is owned by `just/scripts/bump.sh`, which preserves
+# the hand-written history of dnf-doc.
 #
-# Consumed with an explicit relative path, never auto-discovered:
-#   dnf/           just bump  ->  just/scripts/cliff.toml
-#   doc/           just bump  ->  ../dnf/just/scripts/cliff.toml
-#   src/generator/ just bump  ->  ../../dnf/just/scripts/cliff.toml
+# Consumed with an explicit path, never auto-discovered: `just bump` of each
+# repo, or `just release` from the co-development workspace.
 
 [changelog]
 
 # Empty: `bump.sh` writes the file header once, at creation.
 header = ""
 
-# `striptags` drops the `<!-- n -->` sort keys carried by group names.
+# `striptags` drops the `<!-- n -->` sort keys carried by group names. A
+# `deps` scope is the section itself: package names keep their own case.
 body = """
 ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
 {% for group, commits in commits | group_by(attribute="group") %}
 ### {{ group | striptags | trim }}
 {% for commit in commits %}
+{% if commit.scope == "deps" -%}
+- {{ commit.message }}\
+{% else -%}
 - {% if commit.scope %}**{{ commit.scope }}**: {% endif %}{{ commit.message | upper_first }}\
+{% endif -%}
 {% endfor %}
 {% endfor %}
 {% if not commits %}
@@ -80,6 +83,10 @@ commit_parsers = [
   { message = "^refactor", group = "<!-- 5 -->Changed" },
   { message = "^revert", group = "<!-- 5 -->Changed" },
   { message = "^docs", group = "<!-- 6 -->Documentation" },
+
+  # Published: the release train pins each dependency release this way, so the
+  # framework entry names the generator and fleet-update it ships with.
+  { message = '^chore\(deps\)', group = "<!-- 7 -->Dependencies" },
 
   { message = "^chore", skip = true },
   { message = "^ci", skip = true },

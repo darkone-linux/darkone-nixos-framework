@@ -11,16 +11,20 @@ versions:
 	printf '%-20s %-10s %-10s %s\n' "REPO" "VERSION" "LAST TAG" "BRANCH"
 	while IFS= read -r repo; do
 		[ -z "$repo" ] && continue
+		tag=$(git -C "$repo" describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo "-")
 		if [ -f "$repo/VERSION" ]; then
 			version=$(tr -d '[:space:]' < "$repo/VERSION")
 		elif [ -f "$repo/Cargo.toml" ]; then
 			version=$(sed -n 's/^version *= *"\([^"]*\)".*/\1/p' "$repo/Cargo.toml" | head -n1)
 		elif [ -f "$repo/package.json" ]; then
 			version=$(jq -r '.version' "$repo/package.json")
+		elif [ "$tag" != "-" ] && [ "$repo" != "." ]; then
+
+			# Templates: the tag is the version.
+			version="${tag#v}"
 		else
 			version="-"
 		fi
-		tag=$(git -C "$repo" describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo "-")
 		branch=$(git -C "$repo" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "-")
 		printf '%-20s %-10s %-10s %s\n' "$repo" "$version" "$tag" "$branch"
 	done <<< "{{repos}}"
@@ -39,114 +43,241 @@ release level="auto":
 	#!/usr/bin/env bash
 	set -euo pipefail
 
+	gen=src/generator
+	fu=src/dnf-fleet-update
+	templates=(src/dnf-boilerplate src/dnf-example)
+	fuPkg=dnf/pkgs/fleet-update/package.nix
+	docJust="just --justfile doc/Justfile --working-directory doc"
+
+	lastTag() { git -C "$1" describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true; }
+
+	# A repo is due when it was never tagged or moved since its last tag.
+	isDue() {
+		local tag
+		tag=$(lastTag "$1")
+		[ -z "$tag" ] || [ -n "$(git -C "$1" rev-list "$tag"..HEAD)" ]
+	}
+	next() { bash {{bumpScript}} --repo "$1" --config {{cliffConfig}} --next "${@:2}"; }
+	bump() { bash {{bumpScript}} --repo "$1" --config {{cliffConfig}} --yes "${@:2}"; }
+
+	# The branch and this release's tag only: `--tags` would publish every
+	# local tag (backups, experiments) too.
+	publish() { git -C "$1" push --atomic origin main "refs/tags/$2"; }
+
+	#---------------------------------------------------------------------------
+	# Preflight — cheap failures before the long gates
+	#---------------------------------------------------------------------------
+
 	# Co-dev only: the train needs every repo as a working tree, not as a
 	# pinned flake input.
-	for repo in dnf doc src/generator src/dnf-fleet-update src/dnf-boilerplate src/dnf-example; do
+	for repo in dnf doc "$gen" "$fu" "${templates[@]}"; do
 		[ -d "$repo/.git" ] || just _fail "Missing checkout: $repo/ — the train needs the full workspace."
 	done
-
-	# 1. Quality gate. Simulations are NOT in CI: a red scenario has to stop the
-	#    release here or nowhere.
-	just _log "Quality gate..." "REL"
-	just check
-	just gen-test
-	(cd dnf && just simulate all)
-
-	# fleet-update: its CI gates with its toolchain (`nix develop`), audit
-	# included. A red `release.yml` after the tag push means a tag without release.
-	fuGate() {
-		nix develop ./src/dnf-fleet-update --command \
-			just --justfile src/dnf-fleet-update/Justfile --working-directory src/dnf-fleet-update "$1"
-	}
-	fuGate ci
-	fuGate audit
-
-	# 2. Generator, only if it moved since its last release. It owns the
-	#    etc/config.yaml schema, so it is released before what depends on it.
-	genTag=$(git -C src/generator describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo "")
-	if [ -z "$genTag" ] || [ -n "$(git -C src/generator log --oneline "$genTag"..HEAD 2>/dev/null)" ]; then
-		just _log "Releasing dnf-generator..." "REL"
-		bash {{bumpScript}} --repo src/generator --config {{cliffConfig}} --level {{level}}
-		git -C src/generator push && git -C src/generator push --tags
-	else
-		just _info "dnf-generator unchanged since $genTag." "REL"
-	fi
-	genTag=$(git -C src/generator describe --tags --abbrev=0 --match 'v[0-9]*')
-
-	# 3. Pin the generator release into the framework: the framework ↔ generator
-	#    contract has to be visible in a diff, not only in the lock.
-	just _log "Pinning dnf-generator $genTag..." "REL"
-
-	# Anchored on the declaration's indentation: the comment block above it
-	# documents the pinned form and must not be rewritten too.
-	sed -i "s|^\(    dnf-generator.url = \)\"github:darkone-linux/dnf-generator[^\"]*\";|\1\"github:darkone-linux/dnf-generator/$genTag\";|" dnf/flake.nix
-	(cd dnf && {{nix}} flake update dnf-generator)
-	if [ -n "$(git -C dnf status --porcelain)" ]; then
-		just git-commit "chore(deps): dnf-generator $genTag" dnf
-	fi
-
-	# 4. fleet-update, only if it moved since its last release: the framework
-	#    packages it, so it is released first.
-	fuTag=$(git -C src/dnf-fleet-update describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo "")
-	if [ -z "$fuTag" ] || [ -n "$(git -C src/dnf-fleet-update log --oneline "$fuTag"..HEAD 2>/dev/null)" ]; then
-		just _log "Releasing dnf-fleet-update..." "REL"
-		bash {{bumpScript}} --repo src/dnf-fleet-update --config {{cliffConfig}} --level {{level}}
-		git -C src/dnf-fleet-update push && git -C src/dnf-fleet-update push --tags
-	else
-		just _info "dnf-fleet-update unchanged since $fuTag." "REL"
-	fi
-	fuTag=$(git -C src/dnf-fleet-update describe --tags --abbrev=0 --match 'v[0-9]*')
-
-	# 5. Pin the fleet-update release into `dnf/pkgs/fleet-update`. First release
-	#    only: the `main` commit pin (`rev`, `--version=branch`) becomes the tag form.
-	fuPkg=dnf/pkgs/fleet-update/package.nix
-	if grep -q '"--version=branch"' "$fuPkg"; then
-		sed -i -e 's|^    rev = "[0-9a-f]\{40\}";$|    tag = "v${finalAttrs.version}";|' \
-			-e '/^ *"--version=branch"$/d' "$fuPkg"
-	fi
-	just _log "Pinning dnf-fleet-update $fuTag..." "REL"
-	just pkg-update fleet-update "${fuTag#v}"
-	(cd dnf && {{nix}} build --no-link .#fleet-update)
-	if [ -n "$(git -C dnf status --porcelain)" ]; then
-		just git-commit "chore(deps): fleet-update $fuTag" dnf
-	fi
-
-	# 6. Framework.
-	just _log "Releasing the framework..." "REL"
-	bash {{bumpScript}} --repo dnf --config {{cliffConfig}} --level {{level}}
-	dnfVersion=$(tr -d '[:space:]' < dnf/VERSION)
-	git -C dnf push && git -C dnf push --tags
-
-	# 7. Documentation. The reference section is regenerated from the framework
-	#    it documents, committed, and only then tagged: `bump` demands a clean
-	#    tree, and the tag must contain the regenerated pages.
-	just _log "Releasing the documentation..." "REL"
-	docJust="just --justfile doc/Justfile --working-directory doc"
-	$docJust codegen
-	$docJust translate
-	$docJust clean
-	if [ -n "$(git -C doc status --porcelain)" ]; then
-		just git-commit "docs(ref): regenerate for dnf v$dnfVersion" doc
-	fi
-	bash {{bumpScript}} --repo doc --config {{cliffConfig}} --level {{level}} --line "${dnfVersion%.*}"
-	git -C doc push && git -C doc push --tags
-
-	# Publishes the built site to the GitHub Pages repo, which is a separate
-	# checkout under doc/ and carries no version of its own.
-	$docJust build
-	$docJust deploy "Release v$(jq -r .version doc/package.json)"
-
-	# 8. Consumer templates: they carry no code, only the pin. A committed
-	#    flake.lock is the whole point — without it a clone tracks main.
-	for repo in src/dnf-boilerplate src/dnf-example; do
-		just _log "Aligning $repo on v$dnfVersion..." "REL"
-		sed -i "s|^\(    dnf.url = \)\"github:darkone-linux/darkone-nixos-framework[^\"]*\";|\1\"github:darkone-linux/darkone-nixos-framework/v$dnfVersion\";|" "$repo/flake.nix"
-		(cd "$repo" && {{nix}} flake update dnf && {{nix}} flake check --no-build)
-		git -C "$repo" add -A
-		git -C "$repo" commit -m "chore(release): track dnf v$dnfVersion"
-		git -C "$repo" tag -a "v$dnfVersion" -m "Tracks darkone-nixos-framework v$dnfVersion"
-		git -C "$repo" push && git -C "$repo" push --tags
+	for bin in git-cliff jq python3 nix-update; do
+		command -v "$bin" > /dev/null || just _fail "Missing tool: $bin — run 'just develop' first."
+	done
+	just _log "Fetching remotes..." "REL"
+	for repo in dnf doc "$gen" "$fu" "${templates[@]}"; do
+		[ -z "$(git -C "$repo" status --porcelain)" ] || just _fail "$repo/: dirty tree — commit or stash first."
+		[ "$(git -C "$repo" rev-parse --abbrev-ref HEAD)" = main ] || just _fail "$repo/: not on main."
+		git -C "$repo" rev-parse -q --verify '@{u}' > /dev/null || just _fail "$repo/: main has no upstream."
+		git -C "$repo" fetch --quiet --tags origin || just _fail "$repo/: fetch failed."
+		[ "$(git -C "$repo" rev-list --count 'HEAD..@{u}')" -eq 0 ] || just _fail "$repo/: behind origin — pull first."
 	done
 
-	just _log "Released v$dnfVersion — GitHub releases are cut by release.yml." "REL"
+	#---------------------------------------------------------------------------
+	# Plan — what moved, what it drags along, at which version
+	#---------------------------------------------------------------------------
+
+	# A dependency release forces a framework release: the pin is a commit.
+	genDue=false; isDue "$gen" && genDue=true
+	fuDue=false; isDue "$fu" && fuDue=true
+	genPinned=$(sed -n 's|^    dnf-generator.url = "github:darkone-linux/dnf-generator/\(v[^"]*\)";$|\1|p' dnf/flake.nix)
+	fuPinned=v$(sed -n 's/^  version = "\(.*\)";$/\1/p' "$fuPkg")
+	dnfDue=false
+	if isDue dnf || $genDue || $fuDue || [ "$genPinned" != "$(lastTag "$gen")" ] || [ "$fuPinned" != "$(lastTag "$fu")" ]; then
+		dnfDue=true
+	fi
+
+	$genDue && genNext=$(next "$gen")
+	$fuDue && fuNext=$(next "$fu")
+	dnfCurrent=$(tr -d '[:space:]' < dnf/VERSION)
+	dnfTarget=$dnfCurrent
+	$dnfDue && dnfTarget=$(next dnf --level "{{level}}")
+
+	# The doc also moves when the framework does: its reference is regenerated.
+	docDue=false
+	if isDue doc || $dnfDue; then
+		docDue=true
+		docNext=$(next doc --line "${dnfTarget%.*}")
+	fi
+
+	# Templates mirror the framework tag: they catch up on it, never lead it.
+	dueTemplates=()
+	for repo in "${templates[@]}"; do
+		if [ "$(lastTag "$repo")" != "v$dnfTarget" ]; then
+			dueTemplates+=("$repo")
+		elif isDue "$repo"; then
+			just _warn "$repo/ moved since v$dnfTarget — shipped with the next framework release."
+		fi
+	done
+
+	if ! $genDue && ! $fuDue && ! $dnfDue && ! $docDue && [ ${#dueTemplates[@]} -eq 0 ]; then
+		just _info "Nothing to release: every repo is at its last tag." "REL"
+		exit 0
+	fi
+
+	printf '\n%-22s %-10s %s\n' "REPO" "CURRENT" "NEXT"
+	row() { local t; t=$(lastTag "$1"); printf '%-22s %-10s %s\n' "$1" "${t:--}" "$2"; }
+	row "$gen" "$($genDue && echo "v$genNext" || echo '(unchanged)')"
+	row "$fu" "$($fuDue && echo "v$fuNext" || echo '(unchanged)')"
+	row dnf "$($dnfDue && echo "v$dnfTarget" || echo '(unchanged)')"
+	row doc "$($docDue && echo "v$docNext (if anything to regenerate or ship)" || echo '(unchanged)')"
+	for repo in "${templates[@]}"; do
+		if [[ " ${dueTemplates[*]} " == *" $repo "* ]]; then row "$repo" "v$dnfTarget"; else row "$repo" '(unchanged)'; fi
+	done
+
+	# Previews of the entries git-cliff will write. Dependency pins are not
+	# committed yet: they join the framework entry at release time.
+	preview() {
+		printf '\n\033[1m%s\033[0m' "$1"
+		git-cliff --config {{cliffConfig}} --repository "$1" --unreleased --tag "v$2" 2>/dev/null
+	}
+	$genDue && preview "$gen" "$genNext"
+	$fuDue && preview "$fu" "$fuNext"
+	$dnfDue && preview dnf "$dnfTarget"
+	$docDue && preview doc "$docNext"
+	echo
+	read -r -p "Run the release train? [y/N] " answer
+	[ "${answer,,}" = y ] || just _fail "Aborted — nothing written."
+
+	#---------------------------------------------------------------------------
+	# 1. Global gate
+	#---------------------------------------------------------------------------
+
+	just _log "Quality gate (code, unit tests)..." "REL"
+	just check
+
+	#---------------------------------------------------------------------------
+	# 2. Generator — owns the etc/config.yaml schema, so it goes first
+	#---------------------------------------------------------------------------
+
+	if $genDue; then
+		just _log "Releasing dnf-generator v$genNext..." "REL"
+		just gen-test
+		bump "$gen" --level "$genNext"
+		publish "$gen" "v$genNext"
+	fi
+
+	# Pinned in `flake.nix` too, not only in the lock: the framework ↔ generator
+	# contract has to be visible in a diff. Anchored on the declaration's
+	# indentation: the comment block above it documents the form.
+	genTag=$(lastTag "$gen")
+	if [ "$genPinned" != "$genTag" ]; then
+		just _log "Pinning dnf-generator $genTag..." "REL"
+		sed -i "s|^\(    dnf-generator.url = \)\"github:darkone-linux/dnf-generator[^\"]*\";|\1\"github:darkone-linux/dnf-generator/$genTag\";|" dnf/flake.nix
+		(cd dnf && {{nix}} flake update dnf-generator)
+		git -C dnf add flake.nix flake.lock
+		git -C dnf commit -q -m "chore(deps): dnf-generator $genTag"
+	fi
+
+	#---------------------------------------------------------------------------
+	# 3. fleet-update — packaged by the framework, so released before it
+	#---------------------------------------------------------------------------
+
+	if $fuDue; then
+		just _log "Releasing dnf-fleet-update v$fuNext..." "REL"
+
+		# Its CI gates with its own toolchain, audit included: a red
+		# `release.yml` after the tag push means a tag without a release.
+		fuGate() {
+			nix develop "./$fu" --command \
+				just --justfile "$fu/Justfile" --working-directory "$fu" "$1"
+		}
+		fuGate ci
+		fuGate audit
+		bump "$fu" --level "$fuNext"
+		publish "$fu" "v$fuNext"
+	fi
+
+	fuTag=$(lastTag "$fu")
+	if [ "$fuPinned" != "$fuTag" ]; then
+		just _log "Pinning dnf-fleet-update $fuTag..." "REL"
+		just pkg-update fleet-update "${fuTag#v}"
+		(cd dnf && {{nix}} build --no-link .#fleet-update)
+		git -C dnf add pkgs/fleet-update
+		git -C dnf commit -q -m "chore(deps): fleet-update $fuTag"
+	fi
+
+	#---------------------------------------------------------------------------
+	# 4. Framework — gated on the pins it ships with
+	#---------------------------------------------------------------------------
+
+	if $dnfDue; then
+
+		# Simulations run on the locked dependencies, hence after the pins. They
+		# are NOT in CI: a red scenario has to stop the release here or nowhere.
+		just _log "Simulations against the pinned dependencies..." "REL"
+		just simulate all
+		just _log "Releasing the framework v$dnfTarget..." "REL"
+		bump dnf --level "$dnfTarget"
+		publish dnf "v$dnfTarget"
+	fi
+
+	#---------------------------------------------------------------------------
+	# 5. Documentation — reference regenerated from the framework it documents
+	#---------------------------------------------------------------------------
+
+	if $docDue; then
+		just _log "Regenerating the documentation..." "REL"
+		$docJust codegen
+		$docJust translate
+		$docJust clean
+		if [ -n "$(git -C doc status --porcelain)" ]; then
+			git -C doc add -A
+			git -C doc commit -q -m "docs(ref): regenerate for dnf v$dnfTarget"
+		fi
+
+		# Same framework, nothing regenerated, nothing written: no release. Built
+		# before the tag: a broken link must not ship.
+		if isDue doc; then
+			$docJust build
+			bump doc --line "${dnfTarget%.*}"
+			docVersion=$(jq -r .version doc/package.json)
+			publish doc "v$docVersion"
+
+			# GitHub Pages repo: a separate checkout under doc/, unversioned.
+			$docJust deploy "Release v$docVersion"
+		else
+			just _info "Documentation unchanged — no release." "REL"
+		fi
+	fi
+
+	#---------------------------------------------------------------------------
+	# 6. Consumer templates — only the pin; the committed lock is the point
+	#---------------------------------------------------------------------------
+
+	for repo in "${dueTemplates[@]}"; do
+		just _log "Aligning $repo on v$dnfTarget..." "REL"
+		sed -i "s|^\(    dnf.url = \)\"github:darkone-linux/darkone-nixos-framework[^\"]*\";|\1\"github:darkone-linux/darkone-nixos-framework/v$dnfTarget\";|" "$repo/flake.nix"
+		(cd "$repo" && {{nix}} flake update dnf && {{nix}} flake check --no-build)
+		git -C "$repo" add flake.nix flake.lock
+		git -C "$repo" diff --cached --quiet ||
+			git -C "$repo" commit -q -m "chore(deps): dnf v$dnfTarget"
+		bump "$repo" --level "$dnfTarget"
+		publish "$repo" "v$dnfTarget"
+	done
+
+	#---------------------------------------------------------------------------
+	# 7. Workspace root — never tagged, relocked on the released framework
+	#---------------------------------------------------------------------------
+
+	# Unconditional: a train resumed after a failure still owes this step.
+	just update-dnf
+	if ! git diff --quiet -- flake.lock; then
+		git add flake.lock
+		git commit -q -m "chore(release): track dnf v$dnfTarget" -- flake.lock
+	fi
+
+	just _log "Train done — GitHub releases are cut by each release.yml." "REL"
 	just versions
