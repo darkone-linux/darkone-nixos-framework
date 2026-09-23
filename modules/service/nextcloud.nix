@@ -49,6 +49,9 @@ let
   # No Kanidm on this network ⇒ skip the user_oidc provisioning.
   hasIdm = idmUrl != null;
 
+  # `network.smtp` is optional: without a relay, Nextcloud sends no mail.
+  hasSmtp = network ? smtp;
+
   # The whiteboard backend is useless without the app that talks to it, and
   # it used to run unconditionally even though `whiteboard` is not a default
   # plugin.
@@ -387,9 +390,11 @@ in
             "::1"
           ];
           default_phone_region = lib.toUpper (builtins.substring 3 2 zone.locale);
+        }
 
-          # SMTP params
-          # Only works if the admin email address is set in their account!
+        # SMTP params
+        # Only works if the admin email address is set in their account!
+        // lib.optionalAttrs hasSmtp {
           mail_domain = network.domain;
           mail_smtpmode = "smtp";
           mail_sendmailmode = "smtp";

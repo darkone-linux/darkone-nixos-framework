@@ -373,8 +373,8 @@ in
       # Darkone service: enable
       darkone.system.services = dnfLib.enableBlock "idm";
 
-      # SMTP Relay
-      darkone.service.postfix.enable = true;
+      # SMTP Relay, only where `network.smtp` gives it somewhere to relay to.
+      darkone.service.postfix.enable = mkIf (network ? smtp) true;
 
       #========================================================================
       # Kanidm user & secrets

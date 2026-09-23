@@ -17,6 +17,9 @@ let
     icon = "vaultwarden-light";
   };
   params = dnfLib.extractServiceParams host network "vaultwarden" defaultParams;
+
+  # `network.smtp` is optional: without a relay, no mail and no smtp secret.
+  hasSmtp = cfg.enableSmtp && network ? smtp;
 in
 {
   options = {
@@ -24,7 +27,7 @@ in
     darkone.service.vaultwarden.enableSmtp = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Enable SMTP to send emails (recommended)";
+      description = "Enable SMTP to send emails (recommended, needs `network.smtp`)";
     };
   };
 
@@ -61,12 +64,12 @@ in
 
       # Critical environment data hosted by sops
       # https://github.com/NixOS/nixpkgs/blob/a6531044f6d0bef691ea18d4d4ce44d0daa6e816/nixos/modules/services/security/vaultwarden/default.nix#L11
-      sops.secrets."smtp/password" = { };
+      sops.secrets."smtp/password" = lib.mkIf hasSmtp { };
       sops.secrets.oidc-secret-vaultwarden = { };
       sops.secrets.vaultwarden-admin-token = { };
       sops.templates.vaultwarden-env = {
         content = ''
-          SMTP_PASSWORD=${config.sops.placeholder."smtp/password"}
+          ${lib.optionalString hasSmtp "SMTP_PASSWORD=${config.sops.placeholder."smtp/password"}"}
           #SSO_CLIENT_SECRET=${config.sops.placeholder.oidc-secret-vaultwarden}
           ADMIN_TOKEN=${config.sops.placeholder.vaultwarden-admin-token}
         '';
@@ -103,15 +106,6 @@ in
 
           # Impossible de valider des comptes avec des emails
           #SIGNUPS_DOMAINS_WHITELIST = network.domain;
-
-          # Put SMTP_PASSWORD in sops environmentFile
-          SMTP_HOST = network.smtp.server;
-          SMTP_PORT = network.smtp.port;
-          SMTP_SSL = network.smtp.tls;
-          SMTP_USERNAME = network.smtp.username;
-          SMTP_SECURITY = lib.mkIf network.smtp.tls "force_tls";
-          SMTP_FROM = "no-reply@${network.domain}";
-          SMTP_FROM_NAME = "Vaultwarden ${params.fqdn}";
 
           #----------------------------------------------------------------------------------------
           # SSO
@@ -153,6 +147,17 @@ in
 
           # # Cache calls to the discovery endpoint
           # SSO_CLIENT_CACHE_EXPIRATION = 60; # Seconds
+        }
+
+        # SMTP_PASSWORD comes from the sops environmentFile.
+        // lib.optionalAttrs hasSmtp {
+          SMTP_HOST = network.smtp.server;
+          SMTP_PORT = network.smtp.port;
+          SMTP_SSL = network.smtp.tls;
+          SMTP_USERNAME = network.smtp.username;
+          SMTP_SECURITY = lib.mkIf network.smtp.tls "force_tls";
+          SMTP_FROM = "no-reply@${network.domain}";
+          SMTP_FROM_NAME = "Vaultwarden ${params.fqdn}";
         };
 
         # TODO: local backup strategy

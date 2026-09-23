@@ -15,6 +15,9 @@ let
   cfg = config.darkone.service.mealie;
   srv = config.services.mealie;
   inherit (network) smtp;
+
+  # `network.smtp` is optional: without a relay, no mail and no smtp secret.
+  hasSmtp = network ? smtp;
   params = dnfLib.extractServiceParams host network "mealie" { };
   inherit
     (dnfLib.mkOidcContext {
@@ -61,11 +64,11 @@ in
       # Darkone service: enable
       darkone.system.services = dnfLib.enableBlock "mealie";
 
-      sops.secrets."smtp/password" = { };
+      sops.secrets."smtp/password" = lib.mkIf hasSmtp { };
       sops.secrets.${secret} = { };
       sops.templates.mealie-credentials = {
         content = ''
-          SMTP_PASSWORD=${config.sops.placeholder."smtp/password"}
+          ${lib.optionalString hasSmtp "SMTP_PASSWORD=${config.sops.placeholder."smtp/password"}"}
           OIDC_CLIENT_SECRET=${config.sops.placeholder.${secret}}
         '';
         mode = "0400";
@@ -96,13 +99,6 @@ in
 
           BASE_URL = params.href; # Required by redirect_url construction (oidc)
 
-          SMTP_HOST = smtp.server;
-          SMTP_PORT = smtp.port;
-          SMTP_USER = smtp.username;
-          SMTP_FROM_NAME = "Maelie ${network.domain}";
-          SMTP_FROM_EMAIL = "noreply@${network.domain}";
-          SMTP_AUTH_STRATEGY = if smtp.tls then "SSL" else "NONE";
-
           OIDC_AUTH_ENABLED = "true";
           OIDC_CLIENT_ID = clientId;
           OIDC_USER_GROUP = "users@${network.domain}";
@@ -111,6 +107,14 @@ in
           OIDC_SIGNING_ALGORITHM = "ES256";
           OIDC_CONFIGURATION_URL = oidc.openidConfigUrl;
           OIDC_PROVIDER_NAME = "IDM";
+        }
+        // lib.optionalAttrs hasSmtp {
+          SMTP_HOST = smtp.server;
+          SMTP_PORT = smtp.port;
+          SMTP_USER = smtp.username;
+          SMTP_FROM_NAME = "Maelie ${network.domain}";
+          SMTP_FROM_EMAIL = "noreply@${network.domain}";
+          SMTP_AUTH_STRATEGY = if smtp.tls then "SSL" else "NONE";
         };
       };
     })

@@ -31,6 +31,15 @@ in
 
   config = lib.mkIf cfg.enable {
 
+    # A relay without `network.smtp` has nowhere to relay to: say so, instead
+    # of a missing-attribute error deep in the sops template.
+    assertions = [
+      {
+        assertion = network ? smtp;
+        message = "darkone.service.postfix needs `network.smtp` in etc/config.yaml.";
+      }
+    ];
+
     #--------------------------------------------------------------------------
     # Sops
     #--------------------------------------------------------------------------

@@ -117,8 +117,8 @@ in
       # Darkone service: enable
       darkone.system.services = dnfLib.enableBlock "forgejo";
 
-      # SMTP Relay
-      darkone.service.postfix.enable = true;
+      # SMTP Relay, only where `network.smtp` gives it somewhere to relay to.
+      darkone.service.postfix.enable = lib.mkIf (network ? smtp) true;
 
       # Sendmail permissions & service updates to send emails
       systemd.services.forgejo.path = [
@@ -286,7 +286,7 @@ in
             ENABLE_AUTO_REGISTRATION = true;
           };
           mailer = {
-            ENABLED = true;
+            ENABLED = network ? smtp;
             PROTOCOL = "sendmail";
             FROM = "noreply@${network.domain}";
             SENDMAIL_PATH = "${pkgs.system-sendmail}/bin/sendmail";
