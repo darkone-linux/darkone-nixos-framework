@@ -300,5 +300,8 @@ release level="auto":
 		git commit -q -m "chore(release): track dnf v$dnfTarget" -- flake.lock
 	fi
 
+	# Last, once everything else is published: the root lock points at them.
+	just git-push .
+
 	just _log "Train done — GitHub releases are cut by each release.yml." "REL"
 	just versions
