@@ -277,12 +277,15 @@ release level="auto":
 		sed -i "s|^\(    dnf.url = \)\"github:darkone-linux/darkone-nixos-framework[^\"]*\";|\1\"github:darkone-linux/darkone-nixos-framework/v$dnfTarget\";|" "$repo/flake.nix"
 		(cd "$repo" && {{nix}} flake update dnf)
 
-		# dnf-boilerplate ships no `var/generated/`: nothing to evaluate until
-		# `just generate`. Resolving the tag into the lock is the check there.
-		if git -C "$repo" ls-files --error-unmatch var/generated/hosts.nix > /dev/null 2>&1; then
-			(cd "$repo" && {{nix}} flake check --no-build)
-		fi
 		git -C "$repo" add flake.nix flake.lock
+
+		# Every host against the new framework, hardware and secrets stubbed
+		# (`flake check` needs both). dnf-boilerplate ships no `var/generated/`:
+		# resolving the tag into the lock is the whole check there.
+		if git -C "$repo" ls-files --error-unmatch var/generated/hosts.nix > /dev/null 2>&1; then
+			(cd "$repo" && {{nix}} eval --json .#nixosConfigurations \
+				--apply "$(cat {{scriptsDir}}/eval-template-hosts.nix)" > /dev/null)
+		fi
 		git -C "$repo" diff --cached --quiet ||
 			git -C "$repo" commit -q -m "chore(deps): dnf v$dnfTarget"
 		bump "$repo" --level "$dnfTarget"
