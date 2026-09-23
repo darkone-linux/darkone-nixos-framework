@@ -10,6 +10,23 @@ observable defaults, `lib.mkConfigurations`, public `just` recipes, the expected
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-23
+
+### Added
+
+- **fleet-update**: Add AI context option
+- **release**: Idempotent ordered release train
+
+### Fixed
+
+- **release**: Fetch without tags, verify last release tag
+- **release**: One ls-remote per repo in the preflight
+
+### Dependencies
+
+- dnf-generator v0.1.1
+- fleet-update v0.7.1
+
 ## [0.2.0] - 2026-09-22
 
 ### ⚠ Breaking
@@ -166,6 +183,7 @@ framework as it stands, not the commits that built it.
 | [dnf-boilerplate](https://github.com/darkone-linux/dnf-boilerplate) | `v0.1.0` |
 | [dnf-example](https://github.com/darkone-linux/dnf-example) | `v0.1.0` |
 
-[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/darkone-linux/darkone-nixos-framework/releases/tag/v0.1.0
