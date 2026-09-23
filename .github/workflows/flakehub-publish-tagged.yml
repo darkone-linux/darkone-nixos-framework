@@ -26,4 +26,8 @@ jobs:
           visibility: "public"
           name: "darkone-linux/darkone-nixos-framework"
           tag: "${{ inputs.tag }}"
-          include-output-paths: true
+
+          # Output paths mean evaluating every output: the VM checks alone take
+          # ~8.5 GB, and the runner kills the push silently after ~4 min.
+          # Consumers pin `github:` refs; nothing reads these paths.
+          include-output-paths: false
