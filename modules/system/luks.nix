@@ -287,9 +287,9 @@ in
           })
         ];
 
-        # Hardware configs reliably carry storage modules but rarely NICs:
-        # ship the common wired drivers so DHCP works out of the box, plus
-        # the bridge module for the gateway lan0.
+        # Fallback only: the host's own NIC drivers come from
+        # `usr/machines/<host>/detected-hardware.nix` (`just detect-hw`). This
+        # list covers test VMs and common NICs, plus the bridge for lan0.
         boot.initrd.availableKernelModules = [
           "bridge"
 

@@ -297,7 +297,13 @@ let
       )
       ++ nixpkgs.lib.optional (builtins.pathExists (workDir + "/usr/machines/${host.hostname}")) (
         workDir + "/usr/machines/${host.hostname}"
-      );
+      )
+
+      # Written by `just detect-hw`; imported here, not from the host's
+      # `default.nix` (seeded once), so existing hosts pick it up too.
+      ++ nixpkgs.lib.optional (builtins.pathExists (
+        workDir + "/usr/machines/${host.hostname}/detected-hardware.nix"
+      )) (workDir + "/usr/machines/${host.hostname}/detected-hardware.nix");
     };
 
   # Public API returned by mkConfigurations (see spec §9.1).

@@ -47,6 +47,65 @@ copy-hw host target='auto':
 	sudo -i -u nix ssh nix@"$t" "sudo nixos-generate-config --no-filesystems --show-hardware-config" > {{workDir}}/usr/machines/{{host}}/hardware-configuration.nix
 	nixfmt -s usr/machines/{{host}}/hardware-configuration.nix
 
+	# nixos-generate-config never lists NIC drivers: same step, so they cannot drift.
+	just detect-hw "{{host}}" "$t"
+
+# Print the loadable modules each wired NIC of `target` binds to, one per line.
+#
+# The whole sysfs parent chain, not the NIC alone: `virtio_net` is useless
+# without `virtio_pci`. `initstate` only exists for loadable modules, so
+# built-ins (pcieportdrv) are skipped. Wi-Fi is left out: no stage 1 network.
+_nic-drivers target user='nix':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	probe='for n in /sys/class/net/*; do
+		case ${n##*/} in en*|eth*) ;; *) continue ;; esac
+		[ -e "$n/device" ] && [ ! -e "$n/wireless" ] || continue
+		d=$(readlink -f "$n/device")
+		while [ "$d" != /sys/devices ] && [ "$d" != / ]; do
+			m=$(readlink -f "$d/driver/module" 2>/dev/null || true)
+			[ -n "$m" ] && [ -e "$m/initstate" ] && basename "$m"
+			d=$(dirname "$d")
+		done
+	done | sort -u'
+
+	# Read-only probe, no secret sent: host key not checked, since the installer
+	# image and the installed system answer with different keys.
+	ssh=(ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
+	[ "${USER:-}" = "nix" ] || ssh=(sudo -i -u nix "${ssh[@]}")
+	printf '%s\n' "$probe" | "${ssh[@]}" "{{user}}@{{target}}" bash -s
+
+# `user`: `nixos` on the installer image, `nix` on an installed host.
+# Imported by `lib/mk-configuration.nix`; modules shipped only when stage 1
+# has a network (remote LUKS unlock), so a clear host keeps its initrd as is.
+#
+# Detect the wired NIC drivers the initrd needs (detected-hardware.nix)
+[group('install')]
+detect-hw host target='auto' user='nix':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	t=$(just _resolve "{{host}}" "{{target}}")
+	out={{workDir}}/usr/machines/{{host}}/detected-hardware.nix
+	[ -d "$(dirname "$out")" ] || just _fail "usr/machines/{{host}} not found: declare the host first."
+	mods=$(just _nic-drivers "$t" "{{user}}") || just _fail "Cannot probe {{user}}@$t."
+	if [ -z "$mods" ] ;then
+		just _warn "No wired NIC on {{host}}: no stage 1 network, remote LUKS unlock impossible."
+	else
+		just _log "Wired NIC drivers for stage 1: $(echo $mods)" "HW"
+	fi
+	{
+		echo "# Hardware detected on the live machine by 'just detect-hw'"
+		echo "# --> DO NOT EDIT: rewritten by 'just install' and 'just copy-hw' <--"
+		echo
+		echo "{ config, lib, ... }:"
+		echo "{"
+		echo "  boot.initrd.availableKernelModules = lib.mkIf ("
+		echo "    config.boot.initrd.network.enable || config.boot.initrd.systemd.network.enable"
+		echo "  ) [ $(printf '"%s" ' $mods)];"
+		echo "}"
+	} > "$out"
+	nixfmt "$out"
+
 # `target`: network address to reach the node ('auto' = resolved by `_target`).
 #
 # Push the infrastructure key to the host
@@ -140,6 +199,10 @@ install host user='nix' ip='auto' do='install':
 			just _fail "Put the machine on its reserved address first (reboot it), then install there."
 		fi
 	fi
+
+	# Probed on the installer, before the build and the commit: the very first
+	# initrd must already carry the NIC driver `just unlock` depends on.
+	just detect-hw "{{host}}" "$TARGET_HOST" "{{user}}"
 
 	# Offline half of the LUKS provisioning, BEFORE the build: the module only
 	# wakes up for a host listed in usr/secrets/luks.json, and the initrd host

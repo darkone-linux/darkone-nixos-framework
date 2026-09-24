@@ -403,19 +403,7 @@ _luks-show host target:
 		warn "could not build the module closure: initrd NIC drivers unverified"
 	else
 
-		# Wired links only: a Wi-Fi station has no initrd network by design.
-		# Every driver up the parent chain, since the NIC one is not enough.
-		drivers=$(ssh nix@"{{target}}" 'for n in /sys/class/net/* ;do
-			i=${n##*/}
-			case $i in en*|eth*) ;; *) continue ;; esac
-			[ -e "$n/device" ] || continue
-			[ -e "$n/wireless" ] && continue
-			d=$(readlink -f "$n/device")
-			while [ "$d" != "/sys/devices" ] && [ "$d" != "/" ] ;do
-				[ -L "$d/driver/module" ] && basename "$(readlink -f "$d/driver/module")"
-				d=$(dirname "$d")
-			done
-		done | sort -u' || true)
+		drivers=$(just _nic-drivers "{{target}}" || true)
 		missing=""
 		for m in $drivers ;do
 
@@ -428,7 +416,7 @@ _luks-show host target:
 		elif [ -z "$missing" ] ;then
 			pass "the initrd carries every driver the live NICs use ($(echo $drivers))"
 		else
-			fail "the initrd has no$missing: no network in stage 1, nothing answers on $port"
+			fail "the initrd has no$missing: no network in stage 1, nothing answers on $port (just detect-hw {{host}}, then apply)"
 		fi
 	fi
 
