@@ -203,8 +203,8 @@ in
     # FEATURES
     #============================================================================
 
-    programs.fzf = {
-      enable = lib.mkDefault cfg.enableEssentials;
+    programs.fzf = lib.mkIf cfg.enableEssentials {
+      enable = lib.mkDefault true;
       enableZshIntegration = true;
       defaultCommand = "rg --files --hidden";
       defaultOptions = [
@@ -214,14 +214,14 @@ in
     };
 
     # z command to replace cd
-    programs.zoxide = {
-      enable = lib.mkDefault cfg.enableEssentials;
+    programs.zoxide = lib.mkIf cfg.enableEssentials {
+      enable = lib.mkDefault true;
       enableZshIntegration = true;
     };
 
     # ls alternative
-    programs.eza = {
-      enable = lib.mkDefault cfg.enableEssentials;
+    programs.eza = lib.mkIf cfg.enableEssentials {
+      enable = lib.mkDefault true;
       enableZshIntegration = false;
     };
 
@@ -232,8 +232,8 @@ in
     programs.ripgrep.enable = lib.mkDefault cfg.enableEssentials;
 
     # Custom btop
-    programs.btop = {
-      enable = lib.mkDefault cfg.enableEssentials;
+    programs.btop = lib.mkIf cfg.enableEssentials {
+      enable = lib.mkDefault true;
       settings = {
         proc_per_core = true;
         update_ms = 1000;
@@ -242,8 +242,8 @@ in
     };
 
     # Zed editor
-    programs.zed-editor = {
-      enable = lib.mkDefault graphic;
+    programs.zed-editor = lib.mkIf graphic {
+      enable = lib.mkDefault true;
 
       # https://zed.dev/extensions
       # https://github.com/zed-industries/extensions/tree/main/extensions
@@ -353,8 +353,8 @@ in
     };
 
     # Terminal file manager
-    programs.yazi = {
-      enable = lib.mkDefault cfg.enableTools;
+    programs.yazi = lib.mkIf cfg.enableTools {
+      enable = lib.mkDefault true;
       enableZshIntegration = true;
       shellWrapperName = "y";
     };
@@ -367,7 +367,7 @@ in
     # emulator itself — works identically over ssh, no wl-copy needed.
     # :::
     programs.tmux = lib.mkIf cfg.enableEssentials {
-      enable = true;
+      enable = lib.mkDefault true;
 
       # `vi` copy-mode, and 0ms escape so Esc is not swallowed by the agents.
       keyMode = "vi";
@@ -420,7 +420,7 @@ in
 
     # Zellij
     programs.zellij = lib.mkIf cfg.enableTools {
-      enable = true;
+      enable = lib.mkDefault true;
       settings = {
         copy_on_select = true;
         selection_style = "invert";
@@ -501,7 +501,7 @@ in
 
     # Ghostty terminal emulator
     programs.ghostty = lib.mkIf hasGhostty {
-      enable = true;
+      enable = lib.mkDefault true;
       enableZshIntegration = true;
 
       # https://ghostty.org/docs/config/reference
@@ -562,51 +562,13 @@ in
     };
 
     #============================================================================
-    # CLIPBOARD
-    #============================================================================
-
-    # Sync PRIMARY selection to CLIPBOARD so selected text is always
-    # pasteable via both middle-click and Ctrl+V.
-    # TODO: not working -> Watch mode requires a compositor that supports the data-control protocol
-    # systemd.user.services.primary-to-clipboard = lib.mkIf graphic {
-    #   Unit = {
-    #     Description = "Sync PRIMARY selection to CLIPBOARD";
-    #     PartOf = [ "graphical-session.target" ];
-    #   };
-    #   Service = {
-    #     ExecStart = "${pkgs.wl-clipboard}/bin/wl-paste --primary --watch ${pkgs.wl-clipboard}/bin/wl-copy";
-    #     Restart = "on-failure";
-    #     RestartSec = 3;
-    #   };
-    #   Install = {
-    #     WantedBy = [ "graphical-session.target" ];
-    #   };
-    # };
-
-    # Clipboard history (browse with cliphist list | cliphist decode).
-    # TODO: "watch" do not exists -> <store|list|decode|delete|delete-query|wipe|version>
-    # systemd.user.services.cliphist = lib.mkIf graphic {
-    #   Unit = {
-    #     Description = "Clipboard history daemon";
-    #     PartOf = [ "graphical-session.target" ];
-    #   };
-    #   Service = {
-    #     ExecStart = "${pkgs.cliphist}/bin/cliphist watch";
-    #     Restart = "on-failure";
-    #     RestartSec = 3;
-    #   };
-    #   Install = {
-    #     WantedBy = [ "graphical-session.target" ];
-    #   };
-    # };
-
-    #============================================================================
     # GIT
     #============================================================================
 
     # Full featured git
+    # TODO: improve with use of delta
     programs.git = lib.mkIf cfg.enableEssentials {
-      enable = true;
+      enable = lib.mkDefault true;
       settings = {
         user = {
           name = "${user.name}";
@@ -651,7 +613,7 @@ in
 
     # Ensure xterm-ghostty is unknown to remote servers
     programs.ssh = lib.mkIf cfg.enableEssentials {
-      enable = true;
+      enable = lib.mkDefault true;
       enableDefaultConfig = false;
       settings."*".SetEnv = {
         TERM = "xterm-256color";
@@ -666,7 +628,7 @@ in
 
     # Used by git
     programs.difftastic = lib.mkIf cfg.enableEssentials {
-      enable = true;
+      enable = lib.mkDefault true;
       git.enable = true;
 
       # "both" = difftastic as git's diff.external AND a difftool
@@ -680,7 +642,10 @@ in
 
     # Github helper
     # TODO: Complete GH configuration for the current user.
-    programs.gh.enable = true;
+    programs.gh.enable = lib.mkDefault (cfg.enableDeveloper || cfg.enableDnfDeveloper);
+
+    # find moderne écrit en Rust https://github.com/sharkdp/fd
+    programs.fd.enable = lib.mkDefault cfg.enableTools;
 
     #============================================================================
     # VIM

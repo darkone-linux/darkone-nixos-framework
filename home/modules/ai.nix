@@ -253,6 +253,9 @@ in
       # Rust dev stack — needed to build/audit AI tools and system code.
       cargo
       cargo-audit
+      cargo-expand # macro expansion (utile pour débugger)
+      cargo-nextest # lanceur de tests plus rapide que cargo test
+      cargo-watch # rebuild/retest on change
       clippy
       gcc
       pkg-config
@@ -273,7 +276,7 @@ in
       fabric-ai
 
       # Code-quality and file-inspection tools — must stay in sync with the Claude Code allow list.
-      ast-grep # AST-aware search/replace
+      ast-grep # AST-aware search/replace (usefull for refactorings)
       bat # syntax-highlighted cat
       deadnix # remove unused Nix bindings
       fd # user-friendly find
@@ -294,6 +297,9 @@ in
 
       # GitHub CLI — required for agentic PR/issue workflows.
       gh
+
+      # Usefull manipulation tools
+      jq
 
       # Ollama CLI + model manager, only useful when ollama runs locally.
       (lib.mkIf hasLocalAI gollama)
