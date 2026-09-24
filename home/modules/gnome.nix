@@ -1,10 +1,10 @@
 # Gnome tweaks for home-manager.
 #
 # Hides the bare `xterm`, Qt5/Qt6 settings and NixOS manual launchers
-# unconditionally, registers polished `.desktop` entries for `scrcpy` and
-# `scrcpy-console` when the package is part of the user's `home.packages`,
-# and (when `hideTechnicalIcons` is set) hides Settings, Extensions,
-# Printers and File Roller icons for beginner / child profiles.
+# unconditionally, Extensions for non-technical profiles, registers polished
+# `.desktop` entries for `scrcpy` and `scrcpy-console` when the package is
+# part of the user's `home.packages`, and (when `hideTechnicalIcons` is set)
+# hides Settings, Printers and File Roller icons for beginner / child profiles.
 #
 # :::caution[NFS bookmarks]
 # Do not declare `gtk.gtk3.bookmarks` from this module — while NFS home shares
@@ -101,14 +101,8 @@ in
         };
       }
 
-      # Hidden for beginners / children
-      (lib.mkIf cfg.hideTechnicalIcons {
-        "org.gnome.Settings" = {
-          name = "Paramètres";
-          exec = "gnome-control-center";
-          type = "Application";
-          noDisplay = true;
-        };
+      # Hidden for non-technical profiles (no `darkone.home.advanced`)
+      (lib.mkIf (!config.darkone.home.advanced.enable) {
         "org.gnome.Extensions" = {
           name = "Extensions";
           exec = null;
@@ -118,6 +112,16 @@ in
         "org.gnome.Shell.Extensions" = {
           name = "Extensions";
           exec = "gnome-extensions-app";
+          type = "Application";
+          noDisplay = true;
+        };
+      })
+
+      # Hidden for beginners / children
+      (lib.mkIf cfg.hideTechnicalIcons {
+        "org.gnome.Settings" = {
+          name = "Paramètres";
+          exec = "gnome-control-center";
           type = "Application";
           noDisplay = true;
         };
