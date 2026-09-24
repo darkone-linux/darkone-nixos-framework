@@ -1,4 +1,11 @@
+# Disk layout of server1, frozen at install
+#
+# From dnf/hosts/disko/luks-btrfs-1-disk.nix (main=/dev/vda).
+# Rewritten by 'just generate' until install/state.nix exists ('just install'),
+# then never: the disk was formatted with it.
+
 # Simple machine with 1 disk, BTRFS
+# Disk paths: tokens replaced from `disko.devices` of etc/config.yaml.
 # Ex: https://github.com/nix-community/disko/blob/master/example/luks-btrfs-subvolumes.nix
 
 {
@@ -6,7 +13,7 @@
     disk = {
       main = {
         type = "disk";
-        device = "/dev/sda";
+        device = "/dev/vda";
         content = {
           type = "gpt";
           partitions = {
@@ -31,6 +38,14 @@
               content = {
                 type = "luks";
                 name = "crypted";
+
+                # Read only by `disko --mode disko`, never at boot. `just
+                # install` (nixos-anywhere --disk-encryption-keys) and `just
+                # install-key` materialise it from the sops `luks-passphrase`,
+                # so the format keyslot IS the shared fleet passphrase: no
+                # install-only secret to remember, no bootstrap prompt.
+                passwordFile = "/tmp/dnf-luks.key";
+
                 settings = {
                   allowDiscards = true;
                 };

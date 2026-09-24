@@ -31,7 +31,7 @@ luks host action='' ip='auto':
 	[ -n "$hostconf" ] || just _fail "Unknown host '{{host}}' (see etc/config.yaml)."
 
 	# No LUKS = no-op: keeps the recipe safely callable from `just configure`.
-	if ! grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/disko.nix 2>/dev/null ;then
+	if ! grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/install/disko.nix 2>/dev/null ;then
 		just _log "No LUKS volume on {{host}}: nothing to do." "LUKS"
 		exit 0
 	fi
@@ -476,7 +476,7 @@ unlock host ip='' timeout='600':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just unlock "{{host}}" "{{ip}}" "{{timeout}}"
-	if ! grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/disko.nix 2>/dev/null ;then
+	if ! grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/install/disko.nix 2>/dev/null ;then
 		just _log "No LUKS volume on {{host}}: nothing to unlock." "LUKS"
 		exit 0
 	fi

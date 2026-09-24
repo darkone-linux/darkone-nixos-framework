@@ -1,4 +1,5 @@
 # Single-disk NVMe server, BTRFS
+# Disk paths: tokens replaced from `disko.devices` of etc/config.yaml.
 #
 # /dev/nvme0n1
 # ├── /boot (EFI, 1GB, vfat)
@@ -25,7 +26,7 @@
       # NVME1 - Main disk
       main = {
         type = "disk";
-        device = "/dev/nvme0n1";
+        device = "@DEVICE:main@";
         content = {
           type = "gpt";
           partitions = {

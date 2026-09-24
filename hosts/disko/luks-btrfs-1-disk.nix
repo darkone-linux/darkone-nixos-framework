@@ -1,4 +1,5 @@
 # Simple machine with 1 disk, BTRFS
+# Disk paths: tokens replaced from `disko.devices` of etc/config.yaml.
 # Ex: https://github.com/nix-community/disko/blob/master/example/luks-btrfs-subvolumes.nix
 
 {
@@ -6,7 +7,7 @@
     disk = {
       main = {
         type = "disk";
-        device = "/dev/sda";
+        device = "@DEVICE:main@";
         content = {
           type = "gpt";
           partitions = {

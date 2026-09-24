@@ -1,4 +1,5 @@
 # Full server with 3 nvme disks, RAID0, BTRFS + EXT4
+# Disk paths: tokens replaced from `disko.devices` of etc/config.yaml.
 #
 # /dev/nvme0n1 (8TB)
 # ├── /boot (EFI, 1GB, vfat)
@@ -29,7 +30,7 @@
       # NVME1 - Main disk
       main = {
         type = "disk";
-        device = "/dev/nvme0n1";
+        device = "@DEVICE:main@";
         content = {
           type = "gpt";
           partitions = {
@@ -116,7 +117,7 @@
       # NVME2 - RAID0
       media1 = {
         type = "disk";
-        device = "/dev/nvme1n1";
+        device = "@DEVICE:media1@";
         content = {
           type = "gpt";
           partitions = {
@@ -134,7 +135,7 @@
       # NVME3 - RAID0
       media2 = {
         type = "disk";
-        device = "/dev/nvme2n1";
+        device = "@DEVICE:media2@";
         content = {
           type = "gpt";
           partitions = {
@@ -152,7 +153,7 @@
       # External USB disk (hot-pluggable)
       backup = {
         type = "disk";
-        device = "/dev/sda";
+        device = "@DEVICE:backup@";
         content = {
           type = "gpt";
           partitions = {

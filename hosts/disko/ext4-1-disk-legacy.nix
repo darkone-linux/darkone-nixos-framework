@@ -1,11 +1,12 @@
 # Simple machine with 1 disk, EXT4, LEGACY (BIOS/CSM only, no swap)
+# Disk paths: tokens replaced from `disko.devices` of etc/config.yaml.
 
 {
   disko.devices = {
     disk = {
       main = {
         type = "disk";
-        device = "/dev/sda";
+        device = "@DEVICE:main@";
         content = {
           type = "gpt";
           partitions = {

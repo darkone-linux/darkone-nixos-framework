@@ -1,11 +1,12 @@
 # Simple machine with 1 disk, BTRFS
+# Disk paths: tokens replaced from `disko.devices` of etc/config.yaml.
 
 {
   disko.devices = {
     disk = {
       main = {
         type = "disk";
-        device = "/dev/nvme0n1";
+        device = "@DEVICE:main@";
         content = {
           type = "gpt";
           partitions = {

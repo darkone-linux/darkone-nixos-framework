@@ -287,9 +287,9 @@ in
           })
         ];
 
-        # Fallback only: the host's own NIC drivers come from
-        # `usr/machines/<host>/detected-hardware.nix` (`just detect-hw`). This
-        # list covers test VMs and common NICs, plus the bridge for lan0.
+        # Fallback only: the host's own NIC drivers come from `just detect-hw`
+        # (`usr/machines/<host>/hardware/detected-hardware.nix`). This list
+        # covers test VMs and common NICs, plus the bridge for lan0.
         boot.initrd.availableKernelModules = [
           "bridge"
 

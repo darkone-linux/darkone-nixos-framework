@@ -46,7 +46,7 @@ generate:
 		just _gen "users"
 		just _gen "hosts"
 		just _gen "network"
-		just _gen "disko"
+		just _gen "machines"
 	else
 		just _gen-default "modules"
 		just _gen-default "home/modules"

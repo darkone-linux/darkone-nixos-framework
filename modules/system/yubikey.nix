@@ -25,7 +25,7 @@
 # :::note[Zero configuration]
 # Enabled by default, but fully inert until the registry file exists.
 # LUKS support keys on the LUKS volumes found in the host disko config
-# (`usr/machines/<host>/disko.nix`, imported at runtime).
+# (`usr/machines/<host>/install/disko.nix`, imported at runtime).
 # :::
 #
 # :::caution[No lockout by design]

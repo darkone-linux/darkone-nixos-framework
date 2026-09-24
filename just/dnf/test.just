@@ -101,11 +101,11 @@ _fixtures_gen_one dir:
 
 	# The generator writes into an existing var/generated/ (new workspaces
 	# have none yet); create it so generation never fails on a fresh dir.
-	# `disko` is included so workspaces declaring a host with a disko profile
+	# `machines` is included so workspaces declaring a host with a disko profile
 	# (L4 install tier) get their `usr/machines/<host>/` laid down; for
-	# workspaces without such a host the disko pass is a no-op.
+	# workspaces without such a host the pass is a no-op.
 	mkdir -p var/generated
-	for what in hosts users network disko; do
+	for what in hosts users network machines; do
 		if [ -f {{dnfDir}}/../src/generator/Cargo.toml ] && command -v cargo >/dev/null 2>&1; then
 			cargo run --quiet --manifest-path {{dnfDir}}/../src/generator/Cargo.toml -- "$what" >/dev/null
 		elif command -v dnf-generator >/dev/null 2>&1; then
@@ -133,7 +133,7 @@ _fixtures_generate:
 # Two layouts coexist:
 #   - usr/dnf as a symlink to the shared `_skeleton` → re-symlink in tmp;
 #   - usr/dnf as a real directory (L4 disko variants own their
-#     `usr/machines/<host>/`) → copy with `cp -aL` so disko writes stay
+#     `usr/machines/<host>/`) → copy with `cp -aL` so `machines` writes stay
 #     inside tmp instead of being followed through to the skeleton.
 _fixtures_check:
 	#!/usr/bin/env bash

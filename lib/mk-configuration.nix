@@ -27,7 +27,8 @@ let
     talon-nix
     ;
 
-  # NixOS state version applied to fresh hosts/homes
+  # home-manager state version of every home. Hosts freeze theirs in
+  # `usr/machines/<host>/install/state.nix` (`just install`).
   unstableStateVersion = "26.05";
 
   # What `modules/system/dnf-release.nix` stamps on every host. `rev` is absent
@@ -198,6 +199,9 @@ let
     host:
     let
       system = getHostArch host;
+      machineDir = workDir + "/usr/machines/${host.hostname}";
+      hasMachineDir = builtins.pathExists machineDir;
+      stateFile = machineDir + "/install/state.nix";
     in
     {
       inherit system;
@@ -257,13 +261,17 @@ let
         sops-nix.nixosModules.sops
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
-        {
+        ({ config, lib, ... }: {
 
-          # Silence the upstream warning on fresh hosts. Hosts that own a
-          # `usr/machines/<host>/default.nix` keep pinning their own value;
-          # `mkDefault` lets them win.
-          system.stateVersion = nixpkgs.lib.mkDefault unstableStateVersion;
-        }
+          # Installed hosts pin theirs in `install/state.nix`. Tests, ISO and
+          # hosts not yet installed get the release: warned when a machine dir
+          # exists, as a deploy would then drift at every nixpkgs bump.
+          system.stateVersion = lib.mkDefault config.system.nixos.release;
+          warnings = lib.optional (hasMachineDir && !builtins.pathExists stateFile) (
+            "${host.hostname}: usr/machines/${host.hostname}/install/state.nix missing, "
+            + "stateVersion not frozen (written by `just install`)."
+          );
+        })
         {
           home-manager = {
 
@@ -295,15 +303,23 @@ let
       ++ nixpkgs.lib.optionals (getHostBoard host != null) (
         rpiBoardModules nixos-raspberrypi (getHostBoard host)
       )
-      ++ nixpkgs.lib.optional (builtins.pathExists (workDir + "/usr/machines/${host.hostname}")) (
-        workDir + "/usr/machines/${host.hostname}"
+
+      # `not-detected.nix`: what `nixos-generate-config` imports. Deduplicated
+      # by path when `hardware-configuration.nix` imports it too.
+      ++ nixpkgs.lib.optional hasMachineDir (
+        { modulesPath, ... }: { imports = [ (modulesPath + "/installer/scan/not-detected.nix") ]; }
       )
 
-      # Written by `just detect-hw`; imported here, not from the host's
-      # `default.nix` (seeded once), so existing hosts pick it up too.
-      ++ nixpkgs.lib.optional (builtins.pathExists (
-        workDir + "/usr/machines/${host.hostname}/detected-hardware.nix"
-      )) (workDir + "/usr/machines/${host.hostname}/detected-hardware.nix");
+      # Host files by provenance: human, frozen at install, probed, generated.
+      # Explicit list, no directory import: a stray file is never picked up.
+      ++ builtins.filter builtins.pathExists [
+        (machineDir + "/configuration.nix")
+        (machineDir + "/install/disko.nix")
+        stateFile
+        (machineDir + "/hardware/hardware-configuration.nix")
+        (machineDir + "/hardware/detected-hardware.nix")
+        (workDir + "/var/generated/hosts/${host.hostname}.nix")
+      ];
     };
 
   # Public API returned by mkConfigurations (see spec §9.1).

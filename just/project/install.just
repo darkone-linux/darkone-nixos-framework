@@ -43,9 +43,9 @@ copy-hw host target='auto':
 	set -euo pipefail
 	t=$(just _resolve "{{host}}" "{{target}}")
 	just _log "Extracting hardware information..."
-	mkdir -p usr/machines/{{host}}
-	sudo -i -u nix ssh nix@"$t" "sudo nixos-generate-config --no-filesystems --show-hardware-config" > {{workDir}}/usr/machines/{{host}}/hardware-configuration.nix
-	nixfmt -s usr/machines/{{host}}/hardware-configuration.nix
+	mkdir -p usr/machines/{{host}}/hardware
+	sudo -i -u nix ssh nix@"$t" "sudo nixos-generate-config --no-filesystems --show-hardware-config" > {{workDir}}/usr/machines/{{host}}/hardware/hardware-configuration.nix
+	nixfmt -s usr/machines/{{host}}/hardware/hardware-configuration.nix
 
 	# nixos-generate-config never lists NIC drivers: same step, so they cannot drift.
 	just detect-hw "{{host}}" "$t"
@@ -85,8 +85,9 @@ detect-hw host target='auto' user='nix':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	t=$(just _resolve "{{host}}" "{{target}}")
-	out={{workDir}}/usr/machines/{{host}}/detected-hardware.nix
-	[ -d "$(dirname "$out")" ] || just _fail "usr/machines/{{host}} not found: declare the host first."
+	[ -d "{{workDir}}/usr/machines/{{host}}" ] || just _fail "usr/machines/{{host}} not found: declare the host first."
+	out={{workDir}}/usr/machines/{{host}}/hardware/detected-hardware.nix
+	mkdir -p "$(dirname "$out")"
 	mods=$(just _nic-drivers "$t" "{{user}}") || just _fail "Cannot probe {{user}}@$t."
 	if [ -z "$mods" ] ;then
 		just _warn "No wired NIC on {{host}}: no stage 1 network, remote LUKS unlock impossible."
@@ -143,10 +144,11 @@ install host user='nix' ip='auto' do='install':
 	just roaming-clear "{{host}}"
 	just clean
 	just _log "Preparation..."
-	if [ ! -f "./usr/machines/{{host}}/default.nix" ]; then
-		just _fail "Host '{{host}}' not found. Check it exists and has a disko config in etc/config.yaml."
+	if [ ! -f "./usr/machines/{{host}}/install/disko.nix" ]; then
+		just _fail "No disk layout for '{{host}}': declare disko.profile + disko.devices in etc/config.yaml."
 	fi
-	echo "{ }" > ./usr/machines/{{host}}/hardware-configuration.nix
+	mkdir -p ./usr/machines/{{host}}/hardware
+	echo "{ }" > ./usr/machines/{{host}}/hardware/hardware-configuration.nix
 
 	# The install ends on a reboot, and the rest of the chain has to find the
 	# machine again. dnsmasq keys its reservation on the MAC and DNS publishes
@@ -210,6 +212,12 @@ install host user='nix' ip='auto' do='install':
 	# No-op on an unencrypted host.
 	just luks "{{host}}" pre
 
+	# Seal: stateVersion and disk layout frozen from here on, kept on
+	# reinstall. Never in `test` mode, which installs nothing.
+	if [ "{{do}}" = "install" ] ;then
+		just _seal "{{host}}"
+	fi
+
 	just _log "We need to add, commit and build..."
 	git add .
 
@@ -230,7 +238,7 @@ install host user='nix' ip='auto' do='install':
 		# nixos-anywhere refuses --vm-test together with --extra-files or
 		# --disk-encryption-keys, so this mode exercises neither the staged
 		# secrets nor the LUKS format key.
-		if grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/disko.nix 2>/dev/null ;then
+		if grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/install/disko.nix 2>/dev/null ;then
 			just _warn "vm-test cannot supply the LUKS format key: disko will fail on {{host}}."
 		fi
 		{{nix}} run github:nix-community/nixos-anywhere -- --flake .#{{host}} --vm-test
@@ -258,7 +266,7 @@ install host user='nix' ip='auto' do='install':
 		sudo chown -R nix "$stage"
 
 		naflags=()
-		if grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/disko.nix 2>/dev/null ;then
+		if grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/install/disko.nix 2>/dev/null ;then
 
 			# The initrd host key must be on the disk before nixos-install
 			# embeds it in the bootloader: that is what makes the very first
@@ -293,12 +301,35 @@ install host user='nix' ip='auto' do='install':
 			-i "${NIX_HOME}/.ssh/id_ed25519" \
 			--extra-files "$stage" \
 			"${naflags[@]}" \
-			--generate-hardware-config nixos-generate-config {{workDir}}/usr/machines/{{host}}/hardware-configuration.nix \
+			--generate-hardware-config nixos-generate-config {{workDir}}/usr/machines/{{host}}/hardware/hardware-configuration.nix \
 			--target-host {{user}}@$TARGET_HOST
+
+		# Committed before the reboot: a full-install interrupted at unlock or
+		# configure would otherwise lose the only probe of this machine.
+		just _fix_fs_permissions
+		git add usr/machines/{{host}}/hardware
+		git diff --cached --quiet || git -c maintenance.autoDetach=false commit -m "chore(install): hardware of {{host}}"
+		git reset -q
 	else
 		just _fail "Unknown action '{{do}}' — valid values: install, test"
 	fi
 	just _log "Now you can test nix@{{host}} and run 'just configure {{host}}'"
+
+# Seal a host: `install/state.nix` at the release of its locked nixpkgs, what
+# `nixos-generate-config` writes. Also freezes `install/disko.nix` (generator).
+# Never overwritten: delete it to rebuild the host as a new machine.
+_seal host:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	state={{workDir}}/usr/machines/{{host}}/install/state.nix
+	if [ -f "$state" ] ;then
+		just _info "{{host}} already sealed, stateVersion kept." "INSTALL"
+		exit 0
+	fi
+	release=$({{nix}} eval --raw "{{workDir}}#nixosConfigurations.{{host}}.config.system.nixos.release")
+	[[ "$release" =~ ^[0-9]+\.[0-9]+$ ]] || just _fail "Unexpected NixOS release '$release' for {{host}}."
+	sed "s/@STATE_VERSION@/$release/" {{dnfDir}}/hosts/templates/usr-machines-state.nix > "$state"
+	just _log "{{host}} sealed, stateVersion $release." "INSTALL"
 
 # Inlined confirmation, same rationale as `install`.
 #
@@ -312,15 +343,17 @@ install-key host:
 	[ "$ans" = "y" ] || { just _log "Aborted." "INSTALL-KEY"; exit 1; }
 	just _check_infra_admin
 	just _log "Preparation..."
-	if [ ! -f "./usr/machines/{{host}}/default.nix" ]; then
-		just _fail "Host '{{host}}' not found. Check it exists and has a disko config in etc/config.yaml."
+	if [ ! -f "./usr/machines/{{host}}/install/disko.nix" ]; then
+		just _fail "No disk layout for '{{host}}': declare disko.profile + disko.devices in etc/config.yaml, then 'just generate'."
 	fi
 	sudo mkdir -p {{dnfInstallDir}}
 	sudo chmod 750 {{dnfInstallDir}}
 	just _log "Hardware configuration for usb key..."
-	echo "_:{imports=[./../../../dnf/hosts/templates/hardware-usb-key.nix];}" > ./usr/machines/{{host}}/hardware-configuration.nix
+	mkdir -p ./usr/machines/{{host}}/hardware
+	echo "_:{imports=[./../../../../dnf/hosts/templates/hardware-usb-key.nix];}" > ./usr/machines/{{host}}/hardware/hardware-configuration.nix
 	just clean
 	just _fix_fs_permissions
+	just _seal "{{host}}"
 	just _log "We need to add, commit and build..."
 	git add . && (git diff --cached --quiet || git commit -m "chore(install-key): new host {{host}}") && git reset
 	just _log "Launching format with disko..."
@@ -329,7 +362,7 @@ install-key host:
 	# shared fleet passphrase from the path its `passwordFile` names, so the
 	# format keyslot is the managed one. Piped, never captured: cryptsetup
 	# compares raw file contents. No-op on an unencrypted layout.
-	if grep -q '"luks"' ./usr/machines/{{host}}/disko.nix 2>/dev/null ;then
+	if grep -q '"luks"' ./usr/machines/{{host}}/install/disko.nix 2>/dev/null ;then
 		trap 'sudo rm -f /tmp/dnf-luks.key' EXIT
 		SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}} \
 			sops -d --extract '["luks-passphrase"]' {{sopsSecretsFile}} \
@@ -339,7 +372,7 @@ install-key host:
 	fi
 	sudo {{nix}} run github:nix-community/disko -- \
 	  --mode disko \
-	  --root-mountpoint {{dnfInstallDir}} ./usr/machines/{{host}}/disko.nix
+	  --root-mountpoint {{dnfInstallDir}} ./usr/machines/{{host}}/install/disko.nix
 	just _log "NixOS DNF installation..."
 	sudo nixos-install --flake '.#{{host}}' --root {{dnfInstallDir}} --no-root-password
 	just _log "Unmounting new system..."
@@ -444,7 +477,6 @@ full-install host user='nixos' ip='auto':
 	# answers under its own name, at home or wherever it is next plugged in.
 	just roaming-clear "{{host}}"
 	just _done
-	just _log "Don't forget to comment or remove disko config in etc/config.yaml."
 
 # Build DNF iso image. Build from workDir (the consumer flake), whose
 # `mkConfigurations` injects the admin pubkey (`usr/secrets/nix.pub`) into the

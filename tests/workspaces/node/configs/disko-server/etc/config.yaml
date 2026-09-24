@@ -4,7 +4,7 @@
 # :::note[Real `usr/` directory]
 # Unlike other node variants whose `usr/` symlinks straight to
 # `_skeleton/usr`, this variant owns its `usr/` (with per-subdir symlinks to
-# the skeleton) so the disko generator can lay down `usr/machines/server1/`
+# the skeleton) so the `machines` generator can lay down `usr/machines/server1/`
 # without writing through a shared skeleton symlink.
 # :::
 
