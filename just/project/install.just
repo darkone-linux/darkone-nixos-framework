@@ -223,7 +223,7 @@ install host user='nix' ip='auto' do='install':
 
 	# `maintenance.autoDetach=false`: a detached auto-maintenance is still
 	# repacking when `chown -R nix .git` walks the tree, dying on its temp files.
-	git add . && (git diff --cached --quiet || git -c maintenance.autoDetach=false commit -m "New host {{host}} dnf installation") && git reset
+	git add . && (git diff --cached --quiet || git -c maintenance.autoDetach=false commit -m "chore(install): new host {{host}}") && git reset
 	just _log "Launching installation ({{do}})..."
 	if [ "{{do}}" == "test" ]; then
 
@@ -322,7 +322,7 @@ install-key host:
 	just clean
 	just _fix_fs_permissions
 	just _log "We need to add, commit and build..."
-	git add . && (git diff --cached --quiet || git commit -m "New host {{host}} dnf installation") && git reset
+	git add . && (git diff --cached --quiet || git commit -m "chore(install-key): new host {{host}}") && git reset
 	just _log "Launching format with disko..."
 
 	# Local counterpart of `install`'s --disk-encryption-keys: disko reads the
@@ -418,7 +418,7 @@ full-install host user='nixos' ip='auto':
 	# Amend only what `just install` itself committed. When it had nothing to
 	# commit, HEAD is somebody else's work and amending would rewrite it in
 	# silence, so fold the install leftovers into a commit of their own.
-	msg="New host {{host}} dnf installation"
+	msg="chore(full-install): new host {{host}}"
 	git add .
 	if git diff --cached --quiet ;then
 		git reset
