@@ -78,6 +78,22 @@ in
           '';
         };
 
+    # Extensions app, hidden for non-technical profiles. Must live in
+    # XDG_DATA_HOME: the gnome-shell wrapper prepends its own `share/` to
+    # XDG_DATA_DIRS, shadowing any `xdg.desktopEntries` override.
+    home.file.".local/share/applications/org.gnome.Extensions.desktop" =
+      lib.mkIf (!config.darkone.home.advanced.enable)
+        {
+          text = ''
+            [Desktop Entry]
+            Name=Extensions
+            Exec=gnome-extensions-app
+            Icon=org.gnome.Extensions
+            Type=Application
+            NoDisplay=true
+          '';
+        };
+
     xdg.desktopEntries = lib.mkMerge [
 
       # Hidden for every profile: `qt5ct`/`qt6ct` come with
@@ -100,22 +116,6 @@ in
           noDisplay = true;
         };
       }
-
-      # Hidden for non-technical profiles (no `darkone.home.advanced`)
-      (lib.mkIf (!config.darkone.home.advanced.enable) {
-        "org.gnome.Extensions" = {
-          name = "Extensions";
-          exec = null;
-          type = "Application";
-          noDisplay = true;
-        };
-        "org.gnome.Shell.Extensions" = {
-          name = "Extensions";
-          exec = "gnome-extensions-app";
-          type = "Application";
-          noDisplay = true;
-        };
-      })
 
       # Hidden for beginners / children
       (lib.mkIf cfg.hideTechnicalIcons {
