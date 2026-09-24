@@ -10,6 +10,32 @@ observable defaults, `lib.mkConfigurations`, public `just` recipes, the expected
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-24
+
+### ⚠ Breaking
+
+- **machines**: Split usr/machines by provenance
+
+### Added
+
+- **install**: Detect wired NIC drivers into detected-hardware.nix
+- **home**: Delta as git pager, difftastic on demand via aliases
+- **gnome**: Hide qt/manual icons, papers as pdf viewer, no donation nag
+- **gnome**: Hide extensions icon for non-technical profiles
+
+### Fixed
+
+- **release**: Evaluate template hosts with stubbed hardware
+- **smtp**: Network.smtp optional for mail-sending services
+- **install**: Commit messages update (just installs)
+- **tools**: HM advanced refactorings + new tools for AIs
+- **ai**: Merge antigravity settings into a writable file
+- **gnome**: Hide extensions icon via XDG_DATA_HOME, shadowed by gnome-shell
+
+### Dependencies
+
+- dnf-generator v0.2.0
+
 ## [0.2.2] - 2026-09-23
 
 ### Added
@@ -194,7 +220,8 @@ framework as it stands, not the commits that built it.
 | [dnf-boilerplate](https://github.com/darkone-linux/dnf-boilerplate) | `v0.1.0` |
 | [dnf-example](https://github.com/darkone-linux/dnf-example) | `v0.1.0` |
 
-[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.1.0...v0.2.0
