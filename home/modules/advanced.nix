@@ -43,6 +43,10 @@ let
 
   # Extraction of current user from host configuration
   user = users.${config.home.username};
+
+  # `programs.difftastic.git` stays off: HM asserts it exclusive with
+  # `programs.delta.enableGitIntegration`. One command for difftool + aliases.
+  difft = "${lib.getExe config.programs.difftastic.package} --tab-width=8";
 in
 {
   options = {
@@ -383,9 +387,9 @@ in
         set -g focus-events on
         set -g allow-passthrough on
 
-        # Clipboard via OSC 52, announced to the outer terminal.
+        # Clipboard (OSC 52) and hyperlinks (OSC 8), announced to the outer terminal.
         set -s set-clipboard on
-        set -as terminal-features ",*:clipboard:RGB:usstyle"
+        set -as terminal-features ",*:clipboard:RGB:usstyle:hyperlinks"
 
         # CSI u: claude code and opencode need Shift+Enter / Ctrl+Enter to be
         # distinguishable from a plain Return.
@@ -566,7 +570,6 @@ in
     #============================================================================
 
     # Full featured git
-    # TODO: improve with use of delta
     programs.git = lib.mkIf cfg.enableEssentials {
       enable = lib.mkDefault true;
       settings = {
@@ -581,18 +584,34 @@ in
         alias = {
           amend = "!git add . && git commit --amend --no-edit";
           pf = "!git push --force";
+
+          # Structural diffs on demand; delta stays the default pager.
+          dft = "difftool";
+          dfts = "difftool --staged";
+          ddiff = "-c 'diff.external=${difft}' diff";
+          dlog = "-c 'diff.external=${difft}' log -p --ext-diff";
+          dshow = "-c 'diff.external=${difft}' show --ext-diff";
+
+          # Too wide for tmux panes as a default.
+          dsbs = "-c delta.side-by-side=true diff";
         };
         core = {
           editor = "vim";
           whitespace = "fix,-indent-with-non-tab,trailing-space,cr-at-eol";
         };
-        delta = {
-          enable = true;
-          options = {
-            "navigate" = true;
-          };
+        diff = {
+          tool = "difftastic";
+          algorithm = "histogram";
+          colorMoved = "default";
+          colorMovedWS = "allow-indentation-change";
         };
-        diff.tool = "difft";
+        difftool = {
+          prompt = false;
+          difftastic.cmd = ''${difft} "$LOCAL" "$REMOTE"'';
+        };
+        pager.difftool = true;
+        pager.grep = lib.getExe config.programs.delta.package;
+        merge.conflictStyle = "zdiff3";
         web.browser = "firefox";
         push.default = "tracking";
         push.autoSetupRemote = true;
@@ -611,6 +630,22 @@ in
       signing.format = "ssh";
     };
 
+    # Syntax-highlighting pager for git diffs
+    programs.delta = lib.mkIf cfg.enableEssentials {
+      enable = lib.mkDefault true;
+      enableGitIntegration = lib.mkDefault true;
+      options = {
+        navigate = true;
+        line-numbers = true;
+
+        # OSC 8; tmux needs the `hyperlinks` terminal feature.
+        hyperlinks = true;
+      };
+    };
+
+    # Structural AST diff tool used on demand via git difftool / aliases
+    programs.difftastic = lib.mkIf cfg.enableEssentials { enable = lib.mkDefault true; };
+
     # Ensure xterm-ghostty is unknown to remote servers
     programs.ssh = lib.mkIf cfg.enableEssentials {
       enable = lib.mkDefault true;
@@ -624,20 +659,6 @@ in
       # file is silently ignored by ssh, so this costs nothing to the users who
       # never install anything.
       includes = [ "dnf-roaming.conf" ];
-    };
-
-    # Used by git
-    programs.difftastic = lib.mkIf cfg.enableEssentials {
-      enable = lib.mkDefault true;
-      git.enable = true;
-
-      # "both" = difftastic as git's diff.external AND a difftool
-      # (replaces the removed boolean git.diffToolMode = true).
-      git.mode = "both";
-      options = {
-        sort-paths = true;
-        tab-width = 8;
-      };
     };
 
     # Github helper
