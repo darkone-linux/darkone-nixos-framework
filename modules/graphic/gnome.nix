@@ -318,8 +318,11 @@ in
                 ++ (if cfg.enableCaffeine then [ "caffeine@patapon.info" ] else [ ])
                 ++ (if cfg.enableGsConnect then [ "gsconnect@andyholmes.github.io" ] else [ ])
                 ++ (if cfg.enableDashToDock then [ "dash-to-dock@micxgx.gmail.com" ] else [ ]);
+
+                # No `org.gnome.Console.desktop`: gnome-console is the terminal
+                # of non-technical profiles, kept off their dash (still in the
+                # app grid). Technical profiles get Ghostty.
                 favorite-apps = [
-                  "org.gnome.Console.desktop"
                   "com.mitchellh.ghostty.desktop"
                   "brave-browser.desktop"
                   "com.brave.Browser.desktop"
@@ -386,6 +389,11 @@ in
               };
               "org/gnome/settings-daemon/plugins/sharing" = {
                 active = false;
+              };
+
+              # "Support GNOME" notification, raised periodically by gsd-housekeeping
+              "org/gnome/settings-daemon/plugins/housekeeping" = {
+                donation-reminder-enabled = false;
               };
 
               # Recherche locale : indexe tous les dossiers XDG user-dirs

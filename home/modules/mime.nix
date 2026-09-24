@@ -26,7 +26,7 @@ let
       "code.desktop"
       "org.gnome.TextEditor.desktop"
     ];
-    pdf = [ "org.gnome.Evince.desktop" ];
+    pdf = [ "org.gnome.Papers.desktop" ];
     img = [
       "org.geeqie.Geeqie.desktop"
       "firefox-esr.desktop"
@@ -73,7 +73,7 @@ in
         # if cfg.enableAdvanced then
         #   {
         #     "text/plain" = [ "org.gnome.TextEditor.desktop" ];
-        #     "application/pdf" = [ "org.gnome.Evince.desktop" ];
+        #     "application/pdf" = [ "org.gnome.Papers.desktop" ];
         #   }
         # else
         {
