@@ -18,10 +18,14 @@
 # `programs.gh` is enabled with the `github-copilot-cli` extension.
 # OpenCode gets two MCP servers (filesystem, fetch) via `npx -y`.
 # Claude Code enforces an allow/ask/deny permission matrix and an RTK
-# governance hook on Bash calls. Its `settings.json` is NOT pinned as a
-# read-only store symlink: the socle is merged into a WRITABLE
-# `~/.claude/settings.json` on every switch, so plugins/add-ons
-# (claude-mem, graphify, ...) can be installed and managed by hand on top.
+# governance hook on Bash calls.
+# :::
+#
+# :::caution[Writable settings.json]
+# Claude Code and Antigravity CLI rewrite their own `settings.json`: a
+# read-only store symlink breaks them, and fails the next switch on the
+# `.bkp`. The Nix socle is jq-merged into a WRITABLE file on every switch
+# instead; runtime keys (plugins, trusted workspaces) are preserved.
 # :::
 
 {
@@ -57,7 +61,7 @@ let
 
   # Claude Code governance socle (permission matrix + RTK PreToolUse hook).
   # Kept as Nix data, rendered to an immutable store JSON, then merged into a
-  # writable settings.json by `claudeSettingsMerge` below. We keep settings.json
+  # writable settings.json by `mkWritableJsonMerge` below. We keep settings.json
   # writable on purpose: read-only store symlinks would block manual plugin
   # installs (`npx claude-mem install` & co. fail with EROFS).
   claudeSettings = {
@@ -203,32 +207,45 @@ let
     };
   };
 
-  # Immutable JSON rendering of the socle in the nix store.
-  claudeSettingsFile = (pkgs.formats.json { }).generate "claude-code-settings.json" claudeSettings;
+  # Antigravity CLI socle. Merged like Claude's: the CLI rewrites its own
+  # settings.json (`trustedWorkspaces`, `statusLine`), so a store symlink gets
+  # replaced, then the next switch fails on the existing `.bkp`.
+  antigravitySettings = {
+    context.fileName = [
+      "AGENTS.md"
+      "CONTEXT.md"
+      "GEMINI.md"
+    ];
+    telemetry.enable = false;
+  };
 
-  # Activation helper: keep ~/.claude/settings.json WRITABLE while reapplying
-  # the Nix-owned socle on every switch. jq deep-merge with the socle as the
-  # winning operand — nix keys (permissions, RTK hook) always win, but manual
-  # additions (`enabledPlugins`, marketplaces, extra hooks) are preserved.
-  claudeSettingsMerge = pkgs.writeShellScript "claude-settings-merge" ''
-    set -euo pipefail
+  # Activation helper: keep `$HOME/<target>` WRITABLE while reapplying the
+  # Nix-owned socle on every switch. jq deep-merge, socle wins on conflicts;
+  # keys added at runtime (plugins, trusted workspaces...) are preserved.
+  mkWritableJsonMerge =
+    name: target: settings:
+    let
+      socle = (pkgs.formats.json { }).generate "${name}-settings.json" settings;
+    in
+    pkgs.writeShellScript "${name}-settings-merge" ''
+      set -euo pipefail
 
-    settings="$HOME/.claude/settings.json"
+      settings="$HOME/${target}"
 
-    ${pkgs.coreutils}/bin/mkdir -p "$HOME/.claude"
+      ${pkgs.coreutils}/bin/mkdir -p "$(${pkgs.coreutils}/bin/dirname "$settings")"
 
-    if [ -f "$settings" ] && [ ! -L "$settings" ]; then
+      if [ -f "$settings" ] && [ ! -L "$settings" ]; then
 
-      # Writable file already present: merge, socle wins on conflicts.
-      ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$settings" ${claudeSettingsFile} > "$settings.hm-tmp"
-      ${pkgs.coreutils}/bin/mv -f "$settings.hm-tmp" "$settings"
-    else
+        # Writable file already present: merge, socle wins on conflicts.
+        ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$settings" ${socle} > "$settings.hm-tmp"
+        ${pkgs.coreutils}/bin/mv -f "$settings.hm-tmp" "$settings"
+      else
 
-      # First seed, or replacing a leftover read-only store symlink.
-      ${pkgs.coreutils}/bin/rm -f "$settings"
-      ${pkgs.coreutils}/bin/install -m644 ${claudeSettingsFile} "$settings"
-    fi
-  '';
+        # First seed, or replacing a leftover read-only store symlink.
+        ${pkgs.coreutils}/bin/rm -f "$settings"
+        ${pkgs.coreutils}/bin/install -m600 ${socle} "$settings"
+      fi
+    '';
 in
 {
   options = {
@@ -324,7 +341,9 @@ in
     # Seed/merge the governance socle into a writable ~/.claude/settings.json.
     # Runs after the HM writeBoundary so $HOME is fully provisioned.
     home.activation.claudeWritableSettings = lib.mkIf cfg.enableClaude (
-      lib.hm.dag.entryAfter [ "writeBoundary" ] "run ${claudeSettingsMerge}"
+      lib.hm.dag.entryAfter [
+        "writeBoundary"
+      ] "run ${mkWritableJsonMerge "claude-code" ".claude/settings.json" claudeSettings}"
     );
 
     #==========================================================================
@@ -341,22 +360,22 @@ in
     # GOOGLE ANTIGRAVITY
     #==========================================================================
 
-    # Home manager module only
+    # Package + context files only: `settings` stays empty so HM does not pin
+    # settings.json as a store symlink (merged below instead).
     programs.antigravity-cli = lib.mkIf cfg.enableAntigravity {
       enable = true;
-      settings = {
-        context.fileName = [
-          "AGENTS.md"
-          "CONTEXT.md"
-          "GEMINI.md"
-        ];
-        telemetry.enable = false;
-      };
       context = {
         CONTEXT = globalContext;
       };
       commands = { };
     };
+
+    home.activation.antigravityWritableSettings = lib.mkIf cfg.enableAntigravity (
+      lib.hm.dag.entryAfter [ "writeBoundary" ]
+        "run ${
+          mkWritableJsonMerge "antigravity-cli" ".gemini/antigravity-cli/settings.json" antigravitySettings
+        }"
+    );
 
     #==========================================================================
     # OPENCODE
