@@ -420,6 +420,13 @@ in
     expected = ''node_systemd_unit_state{instance="10.0.0.9:9100",state="failed",name!~"a\\.service|b\\.timer"} == 1'';
   };
 
+  # A failing timer oneshot flaps failed/activating on each run: the alert
+  # must outlive a retry instead of resolving and refiring every run.
+  testSystemdFailedKeepFiring = {
+    expr = (builtins.elemAt (nodeRules [ ]) 1).keep_firing_for;
+    expected = "30m";
+  };
+
   # The denylist must not leak into the other node rules (NodeDown here).
   testSystemdDenylistDoesNotTouchNodeDown = {
     expr = (builtins.head (nodeRules [ "mautrix-telegram.service" ])).expr;

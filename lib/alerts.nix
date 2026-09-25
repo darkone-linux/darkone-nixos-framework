@@ -289,6 +289,10 @@ rec {
             alert = "SystemdUnitFailed";
             expr = ''node_systemd_unit_state{instance="${inst}",state="failed"${ignoredUnitsMatcher ignoredUnits}} == 1'';
             "for" = "2m";
+
+            # A timer-driven oneshot that keeps failing leaves `failed` on each
+            # retry (`activating`): without it, one fire + resolve per run.
+            keep_firing_for = "30m";
             labels = commonLabels;
             annotations = {
               summary = "Failed systemd unit on ${host.hostname}";
