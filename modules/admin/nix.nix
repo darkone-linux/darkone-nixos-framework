@@ -34,7 +34,6 @@
 {
   lib,
   config,
-  pkgs,
   dnfLib,
   host,
   hosts,
@@ -113,10 +112,9 @@ in
     # Allow unfree packages
     nixpkgs.config.allowUnfree = true;
 
-    # Legacy `<nixpkgs>` on the search path for `nix-shell` expressions
-    # (e.g. `doc/shell.nix`). Flake-only admin hosts define no channel, so
-    # pin `<nixpkgs>` to the exact revision that built this system.
-    nix.nixPath = [ "nixpkgs=${pkgs.path}" ];
+    # No `nix.nixPath` here: upstream `nixpkgs.flake.setNixPath` already pins
+    # `<nixpkgs>` (`flake:nixpkgs`, the registry). `"${pkgs.path}"` would copy
+    # nixpkgs a second time into the closure (~200 MiB per deploy).
 
     # Large updates / downloads
     # https://nix.dev/manual/nix/2.22/command-ref/conf-file.html?highlight=substit#conf-download-buffer-size
