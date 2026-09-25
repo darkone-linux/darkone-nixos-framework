@@ -4,7 +4,7 @@
 # rosegarden), `enableCreator` (decibels, hydrogen), `enableScore`
 # (musescore, muse-sounds-manager), `enableFun` (mixxx, mousai),
 # `enableCli` (mpg123, cmus, lilypond), `enableEasy` (gnome-music vs.
-# audacious), `enableMpd` (MPD daemon, ncmpcpp, mpdris2), and
+# audacious), `enableMpd` (MPD daemon, ncmpcpp, mpd-mpris), and
 # `enableDev` (lilypond).
 #
 # :::note[NFS-aware music library]
@@ -141,11 +141,16 @@ in
           );
     };
     services.mpd-mpris.enable = cfg.enableMpd;
-    services.mpdris2 = lib.mkIf cfg.enableMpd {
-      enable = true;
-      settings.Connection.host = mpdAddress;
-    };
     programs.ncmpcpp.enable = cfg.enableMpd;
+
+    # Both bridges declare `BusName=org.mpris.MediaPlayer2.mpd`: systemd then
+    # refuses to load the second unit, failing the home-manager activation.
+    assertions = [
+      {
+        assertion = !(config.services.mpd-mpris.enable && config.services.mpdris2.enable);
+        message = "services.mpd-mpris and services.mpdris2 both claim the MPRIS bus name org.mpris.MediaPlayer2.mpd; enable only one.";
+      }
+    ];
     home.sessionVariables = lib.mkIf cfg.enableMpd {
       MPD_HOST = mpdAddress;
       MPD_PORT = toString config.services.mpd.network.port;
