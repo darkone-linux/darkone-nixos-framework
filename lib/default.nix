@@ -117,6 +117,7 @@ in
     primaryMetric
     backupMetric
     uplinkPenalty
+    uplinkProbation
     primaryNetworkFile
     backupNetworkFile
     backupLinkSecret

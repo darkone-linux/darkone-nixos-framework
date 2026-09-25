@@ -40,12 +40,13 @@ in
 
   testMetricsOrder = {
     expr = {
-      inherit (dnfLib) primaryMetric uplinkPenalty;
+      inherit (dnfLib) primaryMetric uplinkProbation uplinkPenalty;
       backup1 = dnfLib.backupMetric 1;
       backup99 = dnfLib.backupMetric 99;
     };
     expected = {
       primaryMetric = 100;
+      uplinkProbation = 10000;
       uplinkPenalty = 20000;
       backup1 = 210;
       backup99 = 1190;

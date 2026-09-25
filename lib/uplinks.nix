@@ -6,9 +6,9 @@
 #
 # :::note[Failover by route metric]
 # Lowest metric wins the default route. A lost link or lease drops its route
-# (kernel failover); a link with an address but no Internet gets
-# `uplinkPenalty` added by `dnf-uplink-monitor`. All links down ⇒ all
-# penalised alike ⇒ same order, no flapping.
+# (kernel failover). `dnf-uplink-monitor` adds `uplinkPenalty` to a link
+# without Internet, `uplinkProbation` to one back from an outage until it
+# proves itself. Tiers: healthy < on probation < dead; order kept within one.
 # :::
 #
 # :::note[Standby wifi]
@@ -38,9 +38,11 @@ in
 rec {
 
   # Route metrics. Backups stay above the primary whatever their priority;
-  # the penalty lifts any link above every healthy one.
+  # probation lifts a link above every healthy one, the penalty above every
+  # link on probation.
   primaryMetric = 100;
   backupMetric = priority: 200 + 10 * priority;
+  uplinkProbation = 10000;
   uplinkPenalty = 20000;
 
   # networkd file stems. `40-<iface>` is the name NixOS derives from

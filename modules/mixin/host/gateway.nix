@@ -26,7 +26,8 @@
 # ```
 #
 # Route metrics steer the default route; `dnf-uplink-monitor` pings through
-# each link and penalises one without Internet. A wifi backup keeps its radio
+# each link, penalises one without Internet and keeps one back from an outage
+# on probation until it answers. A wifi backup keeps its radio
 # off until no preferred link reaches the Internet; an ethernet one stays up,
 # idle. Details: `lib/uplinks.nix`.
 # :::
@@ -97,8 +98,9 @@ let
   check = cfg.linkCheck;
 
   # Health probe + failover. Parallel arrays, one slot per uplink, primary
-  # first. A link is penalised after `failAfter` failed rounds, restored
-  # after `recoverAfter` good ones. Standby radios follow the same hysteresis.
+  # first. `pen`: 0, `probation` (lost, unproven since) or `penalty` (no
+  # Internet); cleared after `recoverAfter` good rounds. Standby radios
+  # follow the same hysteresis.
   monitorScript = pkgs.writeShellScript "dnf-uplink-monitor" ''
     set -u
 
@@ -109,6 +111,7 @@ let
     standby=(${bashArray (map (u: if u.standby then "1" else "0") uplinks)})
     targets=(${bashArray check.targets})
     penalty=${toString dnfLib.uplinkPenalty}
+    probation=${toString dnfLib.uplinkProbation}
     runtime=/run/systemd/network
     dropin=90-dnf-penalty.conf
     textfile=${textfileDir}
@@ -127,15 +130,26 @@ let
     # reconfigures that link only: fresh lease, new route metric.
     set_penalty() {
       local dir="$runtime/''${files[$1]}.network.d"
-      if [ "$2" = 1 ]; then
+      if (( $2 )); then
         ${coreutils}/mkdir -p "$dir"
-        printf '[DHCPv4]\nRouteMetric=%s\n' "$(( metrics[$1] + penalty ))" >"$dir/.$dropin.tmp"
+        printf '[DHCPv4]\nRouteMetric=%s\n' "$(( metrics[$1] + $2 ))" >"$dir/.$dropin.tmp"
         ${coreutils}/mv -f "$dir/.$dropin.tmp" "$dir/$dropin"
       else
         ${coreutils}/rm -f "$dir/$dropin"
       fi
-      penalized[$1]=$2
+      pen[$1]=$2
       ${pkgs.systemd}/bin/networkctl reload
+    }
+
+    # Penalty held by a drop-in of a previous run; unknown value: `penalty`.
+    read_penalty() {
+      local k v p=0
+      [ -e "$1" ] || { echo 0; return; }
+      while IFS='=' read -r k v; do
+        [ "$k" = RouteMetric ] && p=$(( v - metrics[$2] ))
+      done <"$1"
+      (( p == probation )) || p=$penalty
+      echo "$p"
     }
 
     # rfkill node of the phy behind a radio; looked up on each call, a
@@ -188,7 +202,7 @@ let
         echo "# HELP dnf_gateway_link_up 1 when the uplink has a route and reaches the Internet."
         echo "# TYPE dnf_gateway_link_up gauge"
         for i in "''${!ifaces[@]}"; do
-          up=$(( absent[i] == 0 && penalized[i] == 0 ))
+          up=$(( absent[i] == 0 && pen[i] == 0 ))
           echo "dnf_gateway_link_up{interface=\"''${ifaces[i]}\",role=\"''${roles[i]}\"} $up"
         done
         echo "# HELP dnf_gateway_link_active 1 on the uplink carrying the default route."
@@ -212,10 +226,10 @@ let
 
     # Restart-safe: a drop-in left by a previous run is the current state,
     # and so is a standby radio found on (failover in progress).
-    declare -a fails oks absent penalized engaged
+    declare -a fails oks absent pen engaged
     for i in "''${!ifaces[@]}"; do
-      fails[i]=0 oks[i]=0 absent[i]=0 penalized[i]=0 engaged[i]=0
-      [ -e "$runtime/''${files[i]}.network.d/$dropin" ] && penalized[i]=1
+      fails[i]=0 oks[i]=0 absent[i]=0 engaged[i]=0
+      pen[i]=$(read_penalty "$runtime/''${files[i]}.network.d/$dropin" "$i")
       if (( standby[i] )) && d=$(rfkill_dir "''${ifaces[i]}"); then
         [ "$(<"$d/soft")" = 0 ] && engaged[i]=1
       fi
@@ -228,15 +242,15 @@ let
       for i in "''${!ifaces[@]}"; do
         iface=''${ifaces[i]}
 
-        # No lease, no route: nothing to steer. After `failAfter` such rounds
-        # the link is forgotten and comes back unpenalised (hotspot switched
-        # on); fewer rounds are the lease gap of our own `networkctl reload`.
+        # No route for `failAfter` rounds: the link comes back on probation,
+        # behind healthy links, ahead of dead ones (box rebooting, hotspot
+        # switched on). Fewer rounds: lease gap of our own `networkctl reload`.
         if [ -z "$(${ip} -4 route show default dev "$iface" 2>/dev/null)" ]; then
           fails[i]=0 oks[i]=0
           (( absent[i] < ${toString check.failAfter} )) && absent[i]=$(( absent[i] + 1 ))
-          if (( penalized[i] && absent[i] >= ${toString check.failAfter} )); then
-            echo "$iface (''${roles[i]}): no route, penalty cleared"
-            set_penalty "$i" 0
+          if (( pen[i] != probation && absent[i] >= ${toString check.failAfter} )); then
+            echo "$iface (''${roles[i]}): no route, on probation when back"
+            set_penalty "$i" "$probation"
           fi
           continue
         fi
@@ -245,29 +259,29 @@ let
         if reachable "$iface"; then
           fails[i]=0
           (( oks[i] < ${toString check.recoverAfter} )) && oks[i]=$(( oks[i] + 1 ))
-          if (( penalized[i] && oks[i] >= ${toString check.recoverAfter} )); then
+          if (( pen[i] && oks[i] >= ${toString check.recoverAfter} )); then
             echo "$iface (''${roles[i]}): Internet back, route metric ''${metrics[i]}"
             set_penalty "$i" 0
           fi
         else
           oks[i]=0
           (( fails[i] < ${toString check.failAfter} )) && fails[i]=$(( fails[i] + 1 ))
-          if (( !penalized[i] && fails[i] >= ${toString check.failAfter} )); then
+          if (( pen[i] != penalty && fails[i] >= ${toString check.failAfter} )); then
             echo "$iface (''${roles[i]}): no Internet, route metric $(( metrics[i] + penalty ))"
-            set_penalty "$i" 1
+            set_penalty "$i" "$penalty"
           fi
         fi
       done
 
-      # Standby radio: on once every preferred link is lost (penalised, or no
-      # route for `failAfter` rounds), off once one holds `recoverAfter` good
-      # rounds. Links are ordered by metric: preferred ones come first.
+      # Standby radio: on once every preferred link is lost (no Internet, or
+      # no route for `failAfter` rounds), off once one is healthy again.
+      # Links are ordered by metric: preferred ones come first.
       for i in "''${!ifaces[@]}"; do
         (( standby[i] )) || continue
         lost=1 held=0
         for (( j = 0; j < i; j++ )); do
-          (( !penalized[j] && absent[j] < ${toString check.failAfter} )) && lost=0
-          (( !penalized[j] && !absent[j] && oks[j] >= ${toString check.recoverAfter} )) && held=1
+          (( pen[j] != penalty && absent[j] < ${toString check.failAfter} )) && lost=0
+          (( !pen[j] && !absent[j] && oks[j] >= ${toString check.recoverAfter} )) && held=1
         done
         if (( engaged[i] && held )); then
           engaged[i]=0
