@@ -16,6 +16,11 @@
 # carries on without AI.
 # :::
 #
+# :::tip[AI context]
+# `aiContext` (language, style) is written to `/etc/fleet-update/ai-context`:
+# every run on the host reads it, `just fleet-update` as well as the timer.
+# :::
+#
 # :::note[Exit codes]
 # `4` (a run already holds the lock) counts as success: no alert. Any other
 # failure fails the unit and raises the existing `SystemdUnitFailed` alert,
@@ -42,11 +47,6 @@
 }:
 let
   cfg = config.darkone.admin.fleet-update;
-  timerAiContext =
-    cfg.aiContext != null
-    && !(builtins.any (
-      argument: argument == "--ai-context" || lib.hasPrefix "--ai-context=" argument
-    ) cfg.timer.extraArgs);
 
   # `nix-eval-jobs` built against the system Nix: another minor fails to
   # evaluate a consumer repository holding a git submodule
@@ -131,8 +131,11 @@ in
         default = null;
         example = "Answer in French and keep the response concise.";
         description = ''
-          Additional operator guidance included in every AI prompt of the
-          unattended run. `timer.extraArgs` can override it with `--ai-context`.
+          Operator guidance (language, style) included in every AI prompt of a
+          run on this host, `just fleet-update` and the timer alike. Written to
+          `/etc/fleet-update/ai-context`, even without `enable`: in
+          co-development the recipe runs the sources. `--ai-context`, on the
+          command line or in `timer.extraArgs`, overrides it.
         '';
       };
 
@@ -190,76 +193,76 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable (
-    lib.mkMerge [
-      {
-        environment.systemPackages = [ cfg.package ];
+  config = lib.mkMerge [
 
-        assertions = [
-          {
-            assertion = dnfLib.matchesNix {
-              package = nixEvalJobs;
-              nix = config.nix.package;
+    # Read by the tool itself: an interactive run sees it as the timer does.
+    (lib.mkIf (cfg.aiContext != null) {
+      environment.etc."fleet-update/ai-context".text = cfg.aiContext;
+    })
+
+    (lib.mkIf cfg.enable (
+      lib.mkMerge [
+        {
+          environment.systemPackages = [ cfg.package ];
+
+          assertions = [
+            {
+              assertion = dnfLib.matchesNix {
+                package = nixEvalJobs;
+                nix = config.nix.package;
+              };
+              message = "darkone.admin.fleet-update: no nix-eval-jobs built against Nix ${config.nix.package.version} (nixpkgs: ${pkgs.nix-eval-jobs.version}, stable: ${pkgs-stable.nix-eval-jobs.version}); set nix.package to a matching Nix.";
+            }
+          ];
+        }
+
+        (lib.mkIf cfg.timer.enable {
+          assertions = [
+            {
+              assertion = cfg.user != null;
+              message = "darkone.admin.fleet-update.timer needs darkone.admin.fleet-update.user (owner of workDir).";
+            }
+            {
+              assertion = config.darkone.admin.nix.enable;
+              message = "darkone.admin.fleet-update.timer runs on a deployment host: enable darkone.admin.nix.";
+            }
+            {
+              assertion = pkgs ? dnf-generator;
+              message = "darkone.admin.fleet-update.timer needs pkgs.dnf-generator, x86_64-linux only.";
+            }
+          ];
+
+          systemd.services.fleet-update = {
+            description = "DNF fleet update (unattended)";
+            wants = [ "network-online.target" ];
+            after = [ "network-online.target" ];
+
+            # The deployment host is part of the fleet: its own switch must not
+            # stop the run that activates it.
+            restartIfChanged = false;
+
+            serviceConfig = {
+              Type = "oneshot";
+              User = cfg.user;
+              WorkingDirectory = cfg.workDir;
+              ExecStart = "${lib.getExe runner} ${lib.escapeShellArgs cfg.timer.extraArgs}";
+              SuccessExitStatus = [ 4 ];
+              TimeoutStartSec = cfg.timer.timeout;
+
+              # SIGTERM to the tool only: it stops its children and records the
+              # run as interrupted, resumable with `--resume`.
+              KillMode = "mixed";
             };
-            message = "darkone.admin.fleet-update: no nix-eval-jobs built against Nix ${config.nix.package.version} (nixpkgs: ${pkgs.nix-eval-jobs.version}, stable: ${pkgs-stable.nix-eval-jobs.version}); set nix.package to a matching Nix.";
-          }
-        ];
-      }
-
-      (lib.mkIf cfg.timer.enable {
-        assertions = [
-          {
-            assertion = cfg.user != null;
-            message = "darkone.admin.fleet-update.timer needs darkone.admin.fleet-update.user (owner of workDir).";
-          }
-          {
-            assertion = config.darkone.admin.nix.enable;
-            message = "darkone.admin.fleet-update.timer runs on a deployment host: enable darkone.admin.nix.";
-          }
-          {
-            assertion = pkgs ? dnf-generator;
-            message = "darkone.admin.fleet-update.timer needs pkgs.dnf-generator, x86_64-linux only.";
-          }
-        ];
-
-        systemd.services.fleet-update = {
-          description = "DNF fleet update (unattended)";
-          wants = [ "network-online.target" ];
-          after = [ "network-online.target" ];
-
-          # The deployment host is part of the fleet: its own switch must not
-          # stop the run that activates it.
-          restartIfChanged = false;
-
-          serviceConfig = {
-            Type = "oneshot";
-            User = cfg.user;
-            WorkingDirectory = cfg.workDir;
-            ExecStart = "${lib.getExe runner} ${
-              lib.escapeShellArgs (
-                lib.optionals timerAiContext [
-                  "--ai-context"
-                  cfg.aiContext
-                ]
-                ++ cfg.timer.extraArgs
-              )
-            }";
-            SuccessExitStatus = [ 4 ];
-            TimeoutStartSec = cfg.timer.timeout;
-
-            # SIGTERM to the tool only: it stops its children and records the
-            # run as interrupted, resumable with `--resume`.
-            KillMode = "mixed";
           };
-        };
 
-        # Not `Persistent`: a host powered off at the scheduled time must not
-        # deploy the fleet at boot.
-        systemd.timers.fleet-update = {
-          wantedBy = [ "timers.target" ];
-          timerConfig.OnCalendar = cfg.timer.onCalendar;
-        };
-      })
-    ]
-  );
+          # Not `Persistent`: a host powered off at the scheduled time must not
+          # deploy the fleet at boot.
+          systemd.timers.fleet-update = {
+            wantedBy = [ "timers.target" ];
+            timerConfig.OnCalendar = cfg.timer.onCalendar;
+          };
+        })
+      ]
+    ))
+  ];
 }
