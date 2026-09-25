@@ -276,10 +276,7 @@ in
 
       network.internetProbeTargets = lib.mkOption {
         type = lib.types.listOf lib.types.str;
-        default = [
-          "1.1.1.1"
-          "9.9.9.9"
-        ];
+        default = dnfLib.constants.internetProbeTargets;
         description = ''
           External IPs the zone gateway pings to detect a WAN outage. When all
           fail, `ZoneInternetDown` fires and inhibits the (false) down-alerts of

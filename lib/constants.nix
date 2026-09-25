@@ -33,4 +33,12 @@ in
 
   # Network interface used by the tailscale client.
   vpnInterface = "tailscale0";
+
+  # Public anycast resolvers answering ICMP: "is Internet reachable" witnesses
+  # for `ZoneInternetDown` and the gateway backup-link probe. IP literals, so
+  # a probe never depends on the DNS path it is judging.
+  internetProbeTargets = [
+    "1.1.1.1"
+    "9.9.9.9"
+  ];
 }

@@ -9,6 +9,11 @@
 # scenarios (forgejo, fail2ban, ...) bind on `0.0.0.0`/`localhost` and
 # don't need the extra plumbing.
 # :::
+#
+# :::tip[Peer nodes]
+# `extraNodes` adds plain NixOS nodes next to the DNF host (upstream router,
+# LAN client…). They share the driver's specialArgs but import no DNF module.
+# :::
 
 { pkgs, inputs }:
 {
@@ -18,6 +23,7 @@
   testModule ? { },
   testScript,
   lan ? false,
+  extraNodes ? { },
 }:
 let
   inherit (pkgs) lib;
@@ -54,23 +60,25 @@ pkgs.testers.runNixOSTest {
   # nixpkgs (same revision as production).
   node.pkgsReadOnly = false;
 
-  # Single node: the global node.specialArgs is sufficient.
+  # One DNF host: its specialArgs serve every node, peers simply ignore them.
   node.specialArgs = nodeDef.specialArgs;
 
-  nodes.${host} = {
-    imports =
-      nodeDef.modules
-      ++ [
-        ./test-tuning.nix
-        testModule
-      ]
-      ++ lib.optional lan lanModule;
+  nodes = extraNodes // {
+    ${host} = {
+      imports =
+        nodeDef.modules
+        ++ [
+          ./test-tuning.nix
+          testModule
+        ]
+        ++ lib.optional lan lanModule;
 
-    # VM sizing lives here (qemu-vm-only options); test-tuning stays generic.
-    virtualisation = {
-      memorySize = 2048;
-      cores = 2;
-      diskSize = 4096;
+      # VM sizing lives here (qemu-vm-only options); test-tuning stays generic.
+      virtualisation = {
+        memorySize = 2048;
+        cores = 2;
+        diskSize = 4096;
+      };
     };
   };
 }

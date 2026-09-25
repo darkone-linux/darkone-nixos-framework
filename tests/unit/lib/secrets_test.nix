@@ -144,6 +144,21 @@ in
     expected = "external";
   };
 
+  testClassifyBackupLinkSsidIsExternal = {
+    expr = classifySecret "backup-link/phone/ssid";
+    expected = "external";
+  };
+
+  testClassifyBackupLinkPskIsExternal = {
+    expr = classifySecret "backup-link/phone/psk";
+    expected = "external";
+  };
+
+  testClassifyBackupLinkOtherFieldIsUnknown = {
+    expr = classifySecret "backup-link/phone/password";
+    expected = null;
+  };
+
   testClassifyUnknown = {
     expr = classifySecret "brand-new-service-secret";
     expected = null;

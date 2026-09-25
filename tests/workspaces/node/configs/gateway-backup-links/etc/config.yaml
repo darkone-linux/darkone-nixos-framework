@@ -1,0 +1,39 @@
+# node variant: a lone gateway whose uplinks are driven by the scenario.
+# gw1: LAN eth1 (vlan 1), WAN eth2 (vlan 2, "isp" node), backup link eth3
+# (vlan 3, "backup" node) declared in the scenario's test module.
+
+network:
+  domain: "test.local"
+  default:
+    locale: "en_US.UTF-8"
+    timezone: "Etc/UTC"
+  coordination:
+    enable: false
+    hostname: "hcs"
+    domain: "headscale"
+
+zones:
+  z1:
+    description: "Test zone 1"
+    ipPrefix: "10.10"
+    gateway:
+      wan:
+        interface: "eth2"
+      lan:
+        interfaces: ["eth1"]
+      vpn:
+        ipv4: "100.64.0.1"
+
+users:
+  darkone:
+    uid: 1000
+    name: "Darkone"
+    email: "darkone@test.local"
+    profile: "nix-admin"
+    groups: ["global"]
+
+hosts:
+  - hostname: "gw1"
+    name: "Test gateway"
+    zone: "z1:1.1"
+    profile: "gateway"

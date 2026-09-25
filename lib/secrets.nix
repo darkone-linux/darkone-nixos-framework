@@ -283,6 +283,13 @@ rec {
       gen = "external";
     }
 
+    # SSID + passphrase of a network the gateway joins as a client (phone
+    # hotspot, neighbour): only its owner knows them.
+    {
+      pattern = "backup-link/[^/]+/(ssid|psk)";
+      gen = "external";
+    }
+
     #--------------------------------------------------------------------------
     # External: bound to state living outside sops
     #--------------------------------------------------------------------------

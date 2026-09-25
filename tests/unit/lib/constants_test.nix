@@ -35,4 +35,12 @@
     expr = dnfLib.constants.harmoniaRoamingFqdn;
     expected = "harmonia.dnf.internal";
   };
+
+  testInternetProbeTargets = {
+    expr = dnfLib.constants.internetProbeTargets;
+    expected = [
+      "1.1.1.1"
+      "9.9.9.9"
+    ];
+  };
 }

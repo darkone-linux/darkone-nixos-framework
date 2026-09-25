@@ -36,7 +36,8 @@
 # :::caution[R12 — reverse path filtering]
 # Strict mode (`rp_filter = 1`) drops any asymmetric return path. A tailscale
 # subnet router advertising routes with `--snat-subnet-routes=false` is exactly
-# that case, so routers fall back to loose mode (2).
+# that case, so routers fall back to loose mode (2). So does a gateway with
+# backup links: probe replies arrive on a link that is not the preferred route.
 # :::
 #
 # :::caution[R10 — Modules disabled]
@@ -58,7 +59,12 @@ let
   # R12: strict RPF (1) drops asymmetric returns. A tailscale router keeps the
   # tailnet source address (`--snat-subnet-routes=false`), so it needs loose (2).
   tailscaleCfg = config.darkone.service.tailscale;
-  rpFilterMode = if (tailscaleCfg.isGateway || tailscaleCfg.isExitNode) then 2 else 1;
+
+  # Per-link probes of `host/gateway.nix` get their replies on a non-preferred link.
+  gatewayCfg = config.darkone.host.gateway;
+  hasBackupLinks = gatewayCfg.enable && gatewayCfg.backupLinks != { };
+  rpFilterMode =
+    if (tailscaleCfg.isGateway || tailscaleCfg.isExitNode || hasBackupLinks) then 2 else 1;
 in
 {
   options = {

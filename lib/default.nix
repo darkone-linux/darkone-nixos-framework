@@ -27,6 +27,7 @@ let
   matrix = import ./matrix.nix { inherit lib; };
   secrets = import ./secrets.nix { inherit lib; };
   headscalePolicy = import ./headscale-policy.nix { inherit lib topology; };
+  uplinks = import ./uplinks.nix { inherit lib; };
 in
 {
   inherit constants;
@@ -90,6 +91,7 @@ in
     mkMaintenanceRuleGroups
     mkTailscaleRuleGroups
     mkHeadscaleRuleGroups
+    mkUplinkRuleGroups
     mergeRuleGroups
     mkAlertRuleGroups
     mkSilenceRoutes
@@ -110,5 +112,16 @@ in
     secretRules
     classifySecret
     mkSecretPlan
+    ;
+  inherit (uplinks)
+    primaryMetric
+    backupMetric
+    uplinkPenalty
+    primaryNetworkFile
+    backupNetworkFile
+    backupLinkSecret
+    mkUplinks
+    uplinkConflicts
+    mkWpaNetworks
     ;
 }

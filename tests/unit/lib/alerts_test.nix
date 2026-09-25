@@ -156,9 +156,9 @@ in
   };
 
   # ----- mkAlertRuleGroups -----
-  # Six groups (nodes + resources + restic + smartctl + tailscale + headscale);
-  # the disabled laptop is dropped, leaving a single watched node with
-  # node-down + systemd-failed rules.
+  # Seven groups (nodes + resources + restic + smartctl + tailscale + headscale
+  # + uplinks); the disabled laptop is dropped, leaving a single watched node
+  # with node-down + systemd-failed rules.
   testRuleGroupsCount = {
     expr =
       builtins.length
@@ -171,7 +171,7 @@ in
           nodeExporterPort = 9100;
           zoneName = "ag";
         }).groups;
-    expected = 6;
+    expected = 7;
   };
   testNodeGroupName = {
     expr =
@@ -586,6 +586,27 @@ in
   testTailscaleGroupName = {
     expr = (builtins.head (dnfLib.mkTailscaleRuleGroups { zoneName = "ag"; }).groups).name;
     expected = "dnf-tailscale-ag";
+  };
+
+  # ----- mkUplinkRuleGroups -----
+  testUplinkGroupName = {
+    expr = (builtins.head (dnfLib.mkUplinkRuleGroups { zoneName = "ag"; }).groups).name;
+    expected = "dnf-uplinks-ag";
+  };
+  testUplinkOnBackupRule = {
+    expr =
+      let
+        rule = builtins.head (builtins.head (dnfLib.mkUplinkRuleGroups { zoneName = "ag"; }).groups).rules;
+      in
+      {
+        inherit (rule) alert expr;
+        inherit (rule.labels) severity;
+      };
+    expected = {
+      alert = "GatewayOnBackupLink";
+      expr = ''dnf_gateway_link_active{role="backup"} == 1'';
+      severity = "warning";
+    };
   };
 
   # ----- mkHeadscaleRuleGroups -----

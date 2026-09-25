@@ -848,6 +848,32 @@ rec {
     ];
   };
 
+  # Gateway uplink failover, from `dnf-uplink-monitor` (host/gateway.nix) via
+  # the node_exporter textfile collector. Absent metric (no backup link) -> no
+  # series -> no alert.
+  mkUplinkRuleGroups = { zoneName }: {
+    groups = [
+      {
+        name = "dnf-uplinks-${zoneName}";
+        rules = [
+          {
+
+            # Degraded but serving: the zone reaches the Internet through a
+            # backup link. Warn, as a phone or 4G link is metered.
+            alert = "GatewayOnBackupLink";
+            expr = ''dnf_gateway_link_active{role="backup"} == 1'';
+            "for" = "2m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Gateway {{ $labels.instance }} on backup link {{ $labels.interface }}";
+              description = "The zone leaves through backup link {{ $labels.interface }} on ${instLabel}: the WAN has no link, no lease or no Internet.";
+            };
+          }
+        ];
+      }
+    ];
+  };
+
   # Tailnet drift, from `headscale-audit` (service/headscale.nix) via the
   # node_exporter textfile collector of the coordination server. Absent metric
   # (no headscale) -> no series -> no alert. Details in the unit's journal.
@@ -1001,5 +1027,6 @@ rec {
       (mkSmartctlRuleGroups { inherit zoneName; })
       (mkTailscaleRuleGroups { inherit zoneName; })
       (mkHeadscaleRuleGroups { inherit zoneName; })
+      (mkUplinkRuleGroups { inherit zoneName; })
     ];
 }
