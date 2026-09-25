@@ -10,6 +10,11 @@
 # `uplinkPenalty` added by `dnf-uplink-monitor`. All links down ⇒ all
 # penalised alike ⇒ same order, no flapping.
 # :::
+#
+# :::note[Standby wifi]
+# A wifi backup keeps its radio off (rfkill) until no preferred link reaches
+# the Internet: a hotspot is metered and drains a phone. Ethernet stays up.
+# :::
 
 { lib }:
 let
@@ -48,12 +53,13 @@ rec {
 
   # One entry per uplink interface, primary first, then backups by metric.
   # Several wifi links may share one radio: wpa_supplicant picks among them,
-  # the interface keeps the metric of its preferred link.
+  # the interface keeps the metric of its preferred link. `standby`: radio
+  # held off by the monitor while a preferred link is healthy.
   #
   # Usage:
   #   mkUplinks { wanInterface = "eno0"; backupLinks = { phone = { type = "wifi"; interface = "wlp4s0"; priority = 10; }; }; }
-  #   => [ { interface = "eno0"; role = "primary"; metric = 100; ... }
-  #        { interface = "wlp4s0"; role = "backup"; metric = 300; links = [ "phone" ]; ... } ]
+  #   => [ { interface = "eno0"; role = "primary"; metric = 100; standby = false; ... }
+  #        { interface = "wlp4s0"; role = "backup"; metric = 300; standby = true; links = [ "phone" ]; ... } ]
   mkUplinks =
     { wanInterface, backupLinks }:
     let
@@ -68,6 +74,7 @@ rec {
           role = "backup";
           networkFile = backupNetworkFile iface;
           metric = backupMetric (head sorted).priority;
+          standby = (head sorted).type == "wifi";
           links = map (l: l.name) sorted;
         }
       ) (groupBy (l: l.interface) (linkList backupLinks));
@@ -79,6 +86,7 @@ rec {
         role = "primary";
         networkFile = primaryNetworkFile wanInterface;
         metric = primaryMetric;
+        standby = false;
         links = [ ];
       }
     ]

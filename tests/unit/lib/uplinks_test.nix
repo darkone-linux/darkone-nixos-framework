@@ -84,6 +84,7 @@ in
         role = "primary";
         networkFile = "40-eno0";
         metric = 100;
+        standby = false;
         links = [ ];
       }
     ];
@@ -133,11 +134,31 @@ in
       role = "backup";
       networkFile = "45-dnf-backup-wlp4s0";
       metric = 300;
+      standby = true;
       links = [
         "phone"
         "neighbour"
       ];
     };
+  };
+
+  # Only wifi backups idle their radio; primary and ethernet stay up.
+  testUplinksStandby = {
+    expr = map (u: { inherit (u) interface standby; }) uplinks;
+    expected = [
+      {
+        interface = "eno0";
+        standby = false;
+      }
+      {
+        interface = "eno3";
+        standby = false;
+      }
+      {
+        interface = "wlp4s0";
+        standby = true;
+      }
+    ];
   };
 
   #----------------------------------------------------------------------------

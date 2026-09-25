@@ -26,7 +26,9 @@
 # ```
 #
 # Route metrics steer the default route; `dnf-uplink-monitor` pings through
-# each link and penalises one without Internet. Details: `lib/uplinks.nix`.
+# each link and penalises one without Internet. A wifi backup keeps its radio
+# off until no preferred link reaches the Internet; an ethernet one stays up,
+# idle. Details: `lib/uplinks.nix`.
 # :::
 
 {
@@ -90,12 +92,13 @@ let
 
   coreutils = "${pkgs.coreutils}/bin";
   ip = "${pkgs.iproute2}/bin/ip";
+  rfkill = "${pkgs.util-linux}/bin/rfkill";
   bashArray = xs: lib.concatMapStringsSep " " lib.escapeShellArg xs;
   check = cfg.linkCheck;
 
   # Health probe + failover. Parallel arrays, one slot per uplink, primary
   # first. A link is penalised after `failAfter` failed rounds, restored
-  # after `recoverAfter` good ones.
+  # after `recoverAfter` good ones. Standby radios follow the same hysteresis.
   monitorScript = pkgs.writeShellScript "dnf-uplink-monitor" ''
     set -u
 
@@ -103,18 +106,12 @@ let
     files=(${bashArray (map (u: u.networkFile) uplinks)})
     metrics=(${bashArray (map (u: toString u.metric) uplinks)})
     roles=(${bashArray (map (u: u.role) uplinks)})
+    standby=(${bashArray (map (u: if u.standby then "1" else "0") uplinks)})
     targets=(${bashArray check.targets})
     penalty=${toString dnfLib.uplinkPenalty}
     runtime=/run/systemd/network
     dropin=90-dnf-penalty.conf
     textfile=${textfileDir}
-
-    # Restart-safe: a drop-in left by a previous run is the current state.
-    declare -a fails oks absent penalized
-    for i in "''${!ifaces[@]}"; do
-      fails[i]=0 oks[i]=0 absent[i]=0 penalized[i]=0
-      [ -e "$runtime/''${files[i]}.network.d/$dropin" ] && penalized[i]=1
-    done
 
     # Bound to the interface (SO_BINDTODEVICE): follows that link's own
     # default route, even when another link is preferred.
@@ -139,6 +136,32 @@ let
       fi
       penalized[$1]=$2
       ${pkgs.systemd}/bin/networkctl reload
+    }
+
+    # rfkill node of the phy behind a radio; looked up on each call, a
+    # firmware reprobe brings a new phy.
+    rfkill_dir() {
+      local d
+      for d in /sys/class/net/"$1"/phy80211/rfkill*; do
+        [ -e "$d/soft" ] && echo "$d" && return 0
+      done
+      return 1
+    }
+
+    # Idempotent: also turns off a radio switched on behind our back
+    # (systemd-rfkill restore, driver reprobe).
+    sync_radio() {
+      local d want
+      d=$(rfkill_dir "''${ifaces[$1]}") || return 0
+      want=$(( !engaged[$1] ))
+      [ "$(<"$d/soft")" = "$want" ] && return 0
+      if (( want )); then
+        echo "''${ifaces[$1]} (''${roles[$1]}): radio off, a preferred link is healthy"
+        ${rfkill} block "$(<"$d/index")"
+      else
+        echo "''${ifaces[$1]} (''${roles[$1]}): radio on, no preferred link reaches the Internet"
+        ${rfkill} unblock "$(<"$d/index")"
+      fi
     }
 
     # "dev src" of the preferred live default route (main table).
@@ -175,12 +198,28 @@ let
           [ "''${ifaces[i]}" = "$dev" ] && act=1
           echo "dnf_gateway_link_active{interface=\"''${ifaces[i]}\",role=\"''${roles[i]}\"} $act"
         done
+        echo "# HELP dnf_gateway_link_standby 1 when the uplink radio is held off, a preferred link being healthy."
+        echo "# TYPE dnf_gateway_link_standby gauge"
+        for i in "''${!ifaces[@]}"; do
+          echo "dnf_gateway_link_standby{interface=\"''${ifaces[i]}\",role=\"''${roles[i]}\"} $(( standby[i] && !engaged[i] ))"
+        done
       } >"$tmp"
 
       # node_exporter is not root: widen mktemp's 0600 before the rename.
       ${coreutils}/chmod 0644 "$tmp"
       ${coreutils}/mv -f "$tmp" "$textfile/dnf-uplinks.prom"
     }
+
+    # Restart-safe: a drop-in left by a previous run is the current state,
+    # and so is a standby radio found on (failover in progress).
+    declare -a fails oks absent penalized engaged
+    for i in "''${!ifaces[@]}"; do
+      fails[i]=0 oks[i]=0 absent[i]=0 penalized[i]=0 engaged[i]=0
+      [ -e "$runtime/''${files[i]}.network.d/$dropin" ] && penalized[i]=1
+      if (( standby[i] )) && d=$(rfkill_dir "''${ifaces[i]}"); then
+        [ "$(<"$d/soft")" = 0 ] && engaged[i]=1
+      fi
+    done
 
     read -r dev src <<<"$(active)"
     prev_dev=$dev prev_src=$src
@@ -218,6 +257,24 @@ let
             set_penalty "$i" 1
           fi
         fi
+      done
+
+      # Standby radio: on once every preferred link is lost (penalised, or no
+      # route for `failAfter` rounds), off once one holds `recoverAfter` good
+      # rounds. Links are ordered by metric: preferred ones come first.
+      for i in "''${!ifaces[@]}"; do
+        (( standby[i] )) || continue
+        lost=1 held=0
+        for (( j = 0; j < i; j++ )); do
+          (( !penalized[j] && absent[j] < ${toString check.failAfter} )) && lost=0
+          (( !penalized[j] && !absent[j] && oks[j] >= ${toString check.recoverAfter} )) && held=1
+        done
+        if (( engaged[i] && held )); then
+          engaged[i]=0
+        elif (( !engaged[i] && lost )); then
+          engaged[i]=1
+        fi
+        sync_radio "$i"
       done
 
       # Masqueraded flows keep the address of the link they started on: drop
@@ -263,8 +320,9 @@ in
                 "wifi"
               ];
               description = ''
-                `ethernet`: DHCP client on a spare port. `wifi`: WPA2/WPA3
-                client; SSID and passphrase are read from sops
+                `ethernet`: DHCP client on a spare port, always up. `wifi`:
+                WPA2/WPA3 client, radio off (rfkill) until no preferred link
+                reaches the Internet; SSID and passphrase are read from sops
                 (`backup-link/<name>/ssid`, `backup-link/<name>/psk`).
               '';
             };
@@ -524,6 +582,13 @@ in
             ]
           ) wifiLinkNames
         );
+
+        # Standby radios: the monitor writes /dev/rfkill, hidden by
+        # `PrivateDevices`. `-`: no rfkill, no standby, failover still runs.
+        systemd.services.dnf-uplink-monitor.serviceConfig = {
+          BindPaths = [ "-/dev/rfkill" ];
+          DeviceAllow = [ "/dev/rfkill rw" ];
+        };
 
         sops.templates.${wpaTemplate} = {
           content = dnfLib.mkWpaNetworks {
