@@ -98,8 +98,8 @@ let
   check = cfg.linkCheck;
 
   # Health probe + failover. Parallel arrays, one slot per uplink, primary
-  # first. `pen`: 0, `probation` (lost, unproven since) or `penalty` (no
-  # Internet); cleared after `recoverAfter` good rounds. Standby radios
+  # first. `pen`: 0, `probation` (carrier bounced or route lost, unproven
+  # since) or `penalty` (no Internet); cleared after `recoverAfter` good rounds. Standby radios
   # follow the same hysteresis.
   monitorScript = pkgs.writeShellScript "dnf-uplink-monitor" ''
     set -u
@@ -139,6 +139,14 @@ let
       fi
       pen[$1]=$2
       ${pkgs.systemd}/bin/networkctl reload
+    }
+
+    # Counts every carrier loss, even one shorter than a round; empty when
+    # the interface is gone.
+    carrier_changes() {
+      local c=""
+      { c=$(<"/sys/class/net/$1/carrier_changes"); } 2>/dev/null
+      echo "$c"
     }
 
     # Penalty held by a drop-in of a previous run; unknown value: `penalty`.
@@ -226,9 +234,10 @@ let
 
     # Restart-safe: a drop-in left by a previous run is the current state,
     # and so is a standby radio found on (failover in progress).
-    declare -a fails oks absent pen engaged
+    declare -a fails oks absent pen engaged changes
     for i in "''${!ifaces[@]}"; do
       fails[i]=0 oks[i]=0 absent[i]=0 engaged[i]=0
+      changes[i]=$(carrier_changes "''${ifaces[i]}")
       pen[i]=$(read_penalty "$runtime/''${files[i]}.network.d/$dropin" "$i")
       if (( standby[i] )) && d=$(rfkill_dir "''${ifaces[i]}"); then
         [ "$(<"$d/soft")" = 0 ] && engaged[i]=1
@@ -241,6 +250,17 @@ let
     while true; do
       for i in "''${!ifaces[@]}"; do
         iface=''${ifaces[i]}
+
+        # Cable swapped, box rebooted: maybe too fast to lose the route, but
+        # the peer may be another, unproven one. Own `reload` keeps carrier.
+        c=$(carrier_changes "$iface")
+        if [ "$c" != "''${changes[i]}" ]; then
+          changes[i]=$c oks[i]=0
+          if (( pen[i] != probation )); then
+            echo "$iface (''${roles[i]}): carrier bounced, on probation"
+            set_penalty "$i" "$probation"
+          fi
+        fi
 
         # No route for `failAfter` rounds: the link comes back on probation,
         # behind healthy links, ahead of dead ones (box rebooting, hotspot
