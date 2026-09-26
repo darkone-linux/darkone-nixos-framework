@@ -142,7 +142,10 @@
     activation.profiles.minimal.triggers.keys.oxicloud = [ "enable" ];
   };
   vaultwarden = {
-    externalAccess = true;
+
+    # No `externalAccess`: zones and tailnet must resolve it to the HCS tailnet
+    # IP, the only path `/admin` accepts (LAN + tailnet). Public clients reach
+    # it anyway through `global`.
     activation.profiles.minimal.triggers.keys.vaultwarden = [ "enable" ];
   };
   dnsmasq = {

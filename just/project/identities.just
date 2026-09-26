@@ -230,7 +230,7 @@ invite login mode='normal' hash='':
 		fi
 		printf '%s' "$token" \
 			| vwcurl -fsS -o /dev/null -c "$jar" --data-urlencode 'token@-' "$vault/admin" \
-			|| just _fail "Vaultwarden admin login refused ($vault/admin)."
+			|| just _fail "Vaultwarden admin login refused ($vault/admin, LAN or tailnet only)."
 		unset token
 		code=$(vwcurl -sS -o /dev/null -w '%{http_code}' -b "$jar" \
 			"$vault/admin/users/by-mail/$(jq -rn --arg e "$email" '$e | @uri')")

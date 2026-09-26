@@ -1,4 +1,10 @@
-# A full-configured vaultwarden server (wip).
+# A full-configured vaultwarden server.
+#
+# :::note[Admin panel]
+# `/admin` answers the LAN and the tailnet only: zones and tailnet resolve the
+# service to the HCS tailnet IP. Bitwarden clients (web, extension, mobile)
+# stay public.
+# :::
 
 {
   lib,
@@ -50,6 +56,16 @@ in
           varDirs = [ "/var/lib/vaultwarden/icon_cache" ];
         };
         proxy.servicePort = srv.ROCKET_PORT;
+
+        # Same ranges as `internalServiceBindSection`, scoped to the admin panel:
+        # `client_ip` sees the real origin, the HCS trusts the tailnet proxies.
+        proxy.preExtraConfig = ''
+          @vaultwardenAdminExternal {
+            path /admin*
+            not client_ip private_ranges 100.64.0.0/10
+          }
+          abort @vaultwardenAdminExternal
+        '';
       };
     }
 
