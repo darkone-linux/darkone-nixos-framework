@@ -55,24 +55,34 @@ passwd-default:
 	just _fix_fs_permissions
 	just _log "Default password updated, apply it with 'just passwd <login>'" "SOPS"
 
-# Update a user password
+# `hash`: a ready sha-512 crypt hash (`mkpasswd -m sha-512`), sent by a user
+# who sets their password remotely. Single-quote it: it contains `$`.
+#
+# Update a user password (or record a ready hash)
 [group('secrets')]
-passwd user:
+passwd user hash='':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd "{{user}}"
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd "{{user}}" '{{hash}}'
 	if [ ! -f {{sopsSecretsFile}} ] ;then
 		just _fail "No secrets sops file found: run 'just configure-admin-host' first."
 	fi
 	cd {{secretsDir}}
-	echo -n "New password for {{user}}: "
-	read -s PASSWORD
-	echo
-	echo -n "Please confirm: "
-	read -s PASSWORD_CONFIRM
-	echo
-	if [ "$PASSWORD" != "$PASSWORD_CONFIRM" ]; then
-		just _fail "Error: not corresponding."
+	HASH='{{hash}}'
+	if [ -n "$HASH" ] ;then
+		[[ $HASH =~ ^\$6\$(rounds=[0-9]+\$)?[./0-9A-Za-z]{1,16}\$[./0-9A-Za-z]{86}$ ]] \
+			|| just _fail "Not a sha-512 crypt hash: expected the output of 'mkpasswd -m sha-512'."
+	else
+		echo -n "New password for {{user}}: "
+		read -s PASSWORD
+		echo
+		echo -n "Please confirm: "
+		read -s PASSWORD_CONFIRM
+		echo
+		if [ "$PASSWORD" != "$PASSWORD_CONFIRM" ]; then
+			just _fail "Error: not corresponding."
+		fi
+		HASH=$(mkpasswd -m sha-512 "$PASSWORD")
 	fi
 
 	# sops -i and yq --inplace both do an atomic rename inside usr/secrets/, which
@@ -83,7 +93,6 @@ passwd user:
 	just _sops_before_edit
 	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
 	just _log "Updating {{user}} password..." "SOPS"
-	HASH=$(mkpasswd -m sha-512 "$PASSWORD")
 	export HASH
 	sops -d -i {{sopsSecretsFile}}
 	yq --inplace '.user."{{user}}"."password-hash" = strenv(HASH)' {{sopsSecretsFile}}
@@ -224,14 +233,14 @@ yubikey user key='main' action='enroll':
 	just _log "Enrolled {{user}}/{{key}}." "YUBIKEY"
 	just _log "Now: git add usr/secrets/yubikeys.json && git commit ... && just apply" "YUBIKEY"
 
-	# Kanidm passkey: interactive web ceremony (once for the whole SSO). Mint
-	# the reset link now if possible, else print the manual procedure.
-	if [ "$(yq -r '.network.coordination.enable' {{workDir}}/etc/config.yaml)" = "true" ] ;then
-		hcs=$(yq -r '.network.coordination.hostname' {{workDir}}/etc/config.yaml)
-		just _log "Kanidm reset link for the passkey (idm_admin login):" "YUBIKEY"
-		ssh -t nix@"$hcs" "kanidm person credential create-reset-token {{user}} --name idm_admin" \
-			|| just _warn "Token not created — run: just enter $hcs ; kanidm person credential create-reset-token {{user}} --name idm_admin"
+	# Kanidm passkey: interactive web ceremony, once for the whole SSO.
+	idmhost=$(just _account-info "{{user}}" | jq -r '.idmHost // ""')
+	if [ -n "$idmhost" ] && link=$(just _idm-reset-link "$idmhost" "{{user}}") ;then
+		just _log "Kanidm reset link for the passkey, valid until $(sed -n 2p <<< "$link"):" "YUBIKEY"
+		sed -n 1p <<< "$link"
 		just _info "Web ceremony: refuse the password-manager popup (Bitwarden/KeePassXC), the passkey must land on the physical key (FIDO2 PIN + touch)." "YUBIKEY"
+	else
+		just _warn "No Kanidm reset link: create one later with 'just invite {{user}}'."
 	fi
 	just _info "Vaultwarden: add the key in the web vault (Settings > Security > Two-step login, WebAuthn)." "YUBIKEY"
 

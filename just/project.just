@@ -6,6 +6,7 @@
 
 import 'common.just'
 import 'project/_hosts.just'
+import 'project/_idm.just'
 import 'project/_secrets.just'
 import 'project/apply.just'
 import 'project/configure.just'
