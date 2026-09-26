@@ -229,4 +229,13 @@ report() {
 report manual "Missing secret(s) DNF must not invent, set them with 'just sops':"
 report unknown "Secret(s) unknown to the registry (dnf/lib/secrets.nix):"
 
+# An Argon2 hash set by hand makes `just invite` ask for the admin token. Left
+# as is (never overwrite): the migration is the admin's call.
+vwToken=vaultwarden-admin-token
+if jq -e --arg k "$vwToken" 'any(.generate[].keys[]; . == $k)' "$work/plan.json" >/dev/null &&
+  [[ "$(yq -r "$(yqPath "$vwToken") // \"\"" "$plain")" == \$argon2* ]]; then
+  warn "$vwToken holds an Argon2 hash, 'just invite' will ask for the token." \
+    "To migrate to a plain token: delete it with 'just sops', re-run 'just configure-admin-host'."
+fi
+
 echo "$created"

@@ -75,6 +75,9 @@ in
         '';
         mode = "0400";
         owner = "vaultwarden";
+
+        # A rotated admin token applies on deploy, not at the next reboot.
+        restartUnits = [ "vaultwarden.service" ];
       };
 
       #------------------------------------------------------------------------
