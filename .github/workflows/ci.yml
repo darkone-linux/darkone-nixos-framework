@@ -12,6 +12,11 @@ on:
   pull_request:
   workflow_call:
 
+# Same Nix as the developer machines: the action's default drifts on its own
+# release cycle, and eval memory or behaviour differs between Nix versions.
+env:
+  NIX_VERSION: 2.34.8
+
 jobs:
   # Conventional commits are what `git-cliff` turns into the CHANGELOG. A single
   # off-vocabulary type is silently dropped from the release notes, so the
@@ -59,25 +64,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v27
+      - uses: cachix/install-nix-action@v31
         with:
+          install_url: https://releases.nixos.org/nix/nix-${{ env.NIX_VERSION }}/install
           nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Run unit tests
         run: nix run nixpkgs#nix-unit -- --flake .#libTests
 
-  # One runner per system, NOT `--all-systems`.
-  #
-  # `nix flake check --all-systems` evaluates every system inside a single nix
-  # process and keeps it all live: measured peak 17.3 GB, against 16 GB on an
-  # ubuntu-24.04 runner. The OOM killer ended it with SIGTERM (exit 143), with
-  # no output at all. Per system the peak drops to ~8.3 GB (x86_64) and ~7.6 GB
-  # (aarch64), and the two run in parallel.
-  #
-  # If this starts dying again as scenarios are added, do not raise the ceiling:
-  # evaluate one output per nix process (`nix eval .#checks.<sys>.<name>.drvPath`
-  # in a loop), which caps the peak at the heaviest single item (~4.6 GB for
-  # `eval-all`).
+  # One runner per system, one nix process per output: `nix flake check` keeps
+  # every output live, its peak grows with each scenario (11.2 GB per system,
+  # 2026-09) and the 16 GB runner OOM-kills it at random: SIGTERM, exit 143, no
+  # output. Per output, the peak is the heaviest single one (~3.1 GB).
   eval:
     name: Evaluate flake outputs (${{ matrix.system }})
     runs-on: ubuntu-latest
@@ -92,22 +90,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v27
+      - uses: cachix/install-nix-action@v31
         with:
+          install_url: https://releases.nixos.org/nix/nix-${{ env.NIX_VERSION }}/install
           nix_path: nixpkgs=channel:nixos-unstable
 
-      # `--no-build` keeps this a pure evaluation gate: it catches the
-      # `attribute missing` / type errors that only surfaced at deploy time,
-      # without booting the VM scenarios (those live in simulations.yml).
-      # The sed filter mirrors `just check-flake`: DNF's non-standard outputs
-      # are expected, any *other* unknown output stays visible. `sed -u` is
-      # mandatory here — buffered, it swallowed every line of a run that then
-      # died silently.
-      - name: nix flake check (eval only)
-        run: |
-          set -euo pipefail
-          nix flake check --no-build --option system ${{ matrix.system }} 2>&1 \
-            | sed -u -E "/^warning: unknown flake output '(colmena|colmenaHive|homeManagerModules|libTests|mkNodes|version)'$/d"
+      # Pure evaluation gate: it catches the `attribute missing` / type errors
+      # that only surfaced at deploy time, without booting the VM scenarios
+      # (those run in `just simulate`).
+      - name: Evaluate outputs (one nix process each)
+        run: scripts/eval-flake-outputs.sh ${{ matrix.system }}
 
   lint:
     name: Lint and format
@@ -115,8 +107,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v27
+      - uses: cachix/install-nix-action@v31
         with:
+          install_url: https://releases.nixos.org/nix/nix-${{ env.NIX_VERSION }}/install
           nix_path: nixpkgs=channel:nixos-unstable
 
       # Same three tools `just clean` runs locally, so CI and the developer
