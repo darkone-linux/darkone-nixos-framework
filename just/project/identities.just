@@ -387,13 +387,13 @@ invite login mode='normal' hash='':
 	# Normal: what only the admin can do, in the vault web UI.
 	if [ "$mode" = normal ] ;then
 		just _log "$todo" "INVITE"
-		[ "$vaultstate" != absent ] || echo "- [ ] $t_coll"
-		[ "$passwd" = no ] || echo "- [ ] $t_linux"
-		[ -z "$link" ] || echo "- [ ] $t_link $expiry$sep$link"
+		[ "$vaultstate" != absent ] || just _log "- $t_coll" "INVITE"
+		[ "$passwd" = no ] || just _log "- $t_linux" "INVITE"
+		[ -z "$link" ] || just _log "- $t_link $expiry$sep$link" "INVITE"
 		if [ "$vaultstate" = absent ] ;then
-			echo "- [ ] $t_invite"
-			echo "- [ ] $t_confirm"
-			echo "- [ ] $t_urgent"
+			just _log "- $t_invite" "INVITE"
+			just _log "- $t_confirm" "INVITE"
+			just _log "- $t_urgent" "INVITE"
 		fi
 	fi
 
