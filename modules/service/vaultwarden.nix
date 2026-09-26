@@ -100,7 +100,10 @@ in
           ROCKET_PORT = dnfConfig.network.ports.vaultwarden;
           ROCKET_LOG = "critical";
           SENDS_ALLOWED = true;
-          EMERGENCY_ACCESS_ALLOWED = false;
+
+          # Forgotten master password recovery: a trusted contact (the admin,
+          # for non-technical users) takes over after a delay.
+          EMERGENCY_ACCESS_ALLOWED = true;
           EMAIL_CHANGE_ALLOWED = false;
           #LOG_LEVEL = "info";
 
