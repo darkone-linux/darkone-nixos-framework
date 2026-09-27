@@ -25,10 +25,11 @@
 # own lock fully disabled.
 # :::
 #
-# :::caution[Login keyring: two modes, decided by the host]
+# :::caution[Login keyring: autologin user only, two modes decided by the host]
 # An autologin session types no password, so PAM has nothing to hand to
 # gnome-keyring and every secret-using app pops a gcr prompt the UMI user
-# cannot answer. How that is avoided depends on the host:
+# cannot answer. A password login unlocks the keyring as usual and is left
+# alone. For the autologin user, the fix depends on the host:
 #
 # - **Unencrypted host**: the login keyring is seeded with an empty password,
 #   which gnome-keyring stores in plain text and unlocks on its own (it tries
@@ -90,6 +91,11 @@ let
   # An encrypted host feeds the boot passphrase to gnome-keyring through
   # pam_gdm; seeding a passwordless keyring there would throw that away.
   hostHasLuks = (osConfig.darkone.system.luks.volumes or [ ]) != [ ];
+
+  # A password login hands its password to gnome-keyring: seeding there would
+  # swap an encrypted keyring for a plain one (UMI user on a non-UMI host).
+  autoLogin = osConfig.services.displayManager.autoLogin;
+  isAutoLoginUser = autoLogin.enable && autoLogin.user == config.home.username;
 in
 {
   options = {
@@ -246,10 +252,10 @@ in
       done
     '';
 
-    # Passwordless login keyring, for unencrypted hosts only (cf. the header):
-    # gnome-keyring tries an empty password before prompting, and stores such a
-    # keyring as plain ini instead of an encrypted blob.
-    home.activation.umiLoginKeyring = lib.mkIf (!hostHasLuks) (
+    # Passwordless login keyring, for the autologin user of an unencrypted host
+    # only (cf. the header): gnome-keyring tries an empty password before
+    # prompting, and stores such a keyring as plain ini, not an encrypted blob.
+    home.activation.umiLoginKeyring = lib.mkIf (isAutoLoginUser && !hostHasLuks) (
       lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         keyringDir="$HOME/.local/share/keyrings"
         run ${pkgs.coreutils}/bin/mkdir -p -m 700 "$keyringDir"
