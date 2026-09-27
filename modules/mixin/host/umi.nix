@@ -52,7 +52,7 @@ let
   cfg = config.darkone.host.umi;
 
   # Users whose GDM session must be the Cinnamon X11 one (UMI sessions)
-  gazeSessionUsers = lib.unique (
+  umiSessionUsers = lib.unique (
     cfg.gazeUsers ++ lib.optional (cfg.autoLoginUser != null) cfg.autoLoginUser
   );
 in
@@ -113,7 +113,7 @@ in
     # GNOME Wayland session.
     systemd.tmpfiles.rules = map (
       login: "f /var/lib/AccountsService/users/${login} 0644 root root - [User]\\nSession=cinnamon\\n"
-    ) gazeSessionUsers;
+    ) umiSessionUsers;
 
     # A lock screen or a password prompt is a dead-end without a keyboard.
     services.displayManager.autoLogin = lib.mkIf (cfg.autoLoginUser != null) {

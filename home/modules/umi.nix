@@ -236,7 +236,7 @@ in
     # place rather than forcing the whole list, so pins added later survive.
     # The file only exists once Cinnamon has run: on a fresh home the fix
     # lands on the activation that follows the first login.
-    home.activation.gazePanelLaunchers = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    home.activation.umiPanelLaunchers = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       for cfgFile in "$HOME"/.config/cinnamon/spices/grouped-window-list@cinnamon.org/*.json ; do
         [ -e "$cfgFile" ] || continue
         ${pkgs.jq}/bin/jq '."pinned-apps".value |= map(
@@ -249,7 +249,7 @@ in
     # Passwordless login keyring, for unencrypted hosts only (cf. the header):
     # gnome-keyring tries an empty password before prompting, and stores such a
     # keyring as plain ini instead of an encrypted blob.
-    home.activation.gazeLoginKeyring = lib.mkIf (!hostHasLuks) (
+    home.activation.umiLoginKeyring = lib.mkIf (!hostHasLuks) (
       lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         keyringDir="$HOME/.local/share/keyrings"
         run ${pkgs.coreutils}/bin/mkdir -p -m 700 "$keyringDir"
