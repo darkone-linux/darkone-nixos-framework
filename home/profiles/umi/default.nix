@@ -1,9 +1,9 @@
 # Home profile: UMI (Unified Multimodal Input) user, touch + voice + gaze instead of keyboard/mouse.
 #
 # :::note[Usage]
-# Assign with `profile: "umi"` in etc/config.yaml. Designed for hosts using
-# the `darkone.host.umi` profile (which provides udev/uinput and the Xorg
-# session pinning).
+# Assign with `profile: "umi"` in etc/config.yaml. Full setup on hosts using
+# the `darkone.host.umi` profile (Cinnamon X11 session, Talon, Tobii); on any
+# other host, GNOME Wayland with its native accessibility.
 # :::
 {
 
