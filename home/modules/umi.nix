@@ -215,29 +215,23 @@ in
       };
     };
 
-    # Configuration panels a UMI user cannot act on. A `NoDisplay` entry in
-    # ~/.local/share/applications shadows the system one (XDG precedence);
-    # the packages themselves are Cinnamon/GNOME internals, not removable.
-    xdg.desktopEntries = {
-      cinnamon-settings-actions = {
-        name = "Actions";
-        exec = "cinnamon-settings actions";
-        type = "Application";
-        noDisplay = true;
-      };
-      cinnamon-settings-extensions = {
-        name = "Extensions";
-        exec = "cinnamon-settings extensions";
-        type = "Application";
-        noDisplay = true;
-      };
-      "org.gnome.Extensions" = {
-        name = "Extensions";
-        exec = "gnome-extensions-app";
-        type = "Application";
-        noDisplay = true;
-      };
-    };
+    # Cinnamon panels a UMI user cannot act on, hidden by a `NoDisplay` copy in
+    # XDG_DATA_HOME: the cinnamon wrapper prepends its own `share/` to
+    # XDG_DATA_DIRS, shadowing any `xdg.desktopEntries` override.
+    home.file.".local/share/applications/cinnamon-settings-actions.desktop".text = ''
+      [Desktop Entry]
+      Type=Application
+      Name=Actions
+      Exec=cinnamon-settings actions
+      NoDisplay=true
+    '';
+    home.file.".local/share/applications/cinnamon-settings-extensions.desktop".text = ''
+      [Desktop Entry]
+      Type=Application
+      Name=Extensions
+      Exec=cinnamon-settings extensions
+      NoDisplay=true
+    '';
 
     # Cinnamon's stock panel pins name `firefox.desktop`, DNF ships Firefox ESR
     # as `firefox-esr.desktop`: the pin resolves to nothing and the launcher is
