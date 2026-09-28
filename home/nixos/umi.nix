@@ -4,12 +4,18 @@
 # Imported by `modules/user/build.nix` for every user assigned the `umi`
 # profile; the returned attrset is merged into `users.users.<login>`.
 # :::
-{ pkgs, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 {
 
   # Talon needs /dev/uinput (group set by hardware.uinput.enable) and read
-  # access to input devices for tracker/keyboard state
-  extraGroups = [
+  # access to input devices for tracker/keyboard state. UMI hosts only: `input`
+  # reads every keyboard of the machine, useless where Talon is absent.
+  extraGroups = lib.optionals config.darkone.host.umi.enable [
     "input"
     "uinput"
   ];
