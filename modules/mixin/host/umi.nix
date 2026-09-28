@@ -57,6 +57,22 @@ let
   umiUsers = lib.filter (
     login: config.home-manager.users.${login}.darkone.home.umi.enable or false
   ) host.users;
+
+  # GSettings schema defaults of each desktop, rebuilt from its own options as
+  # its nixpkgs module does (only one of them can own the global variable).
+  gnomeCfg = config.services.desktopManager.gnome;
+  gnomeOverrides = pkgs.gnome.nixos-gsettings-overrides.override {
+    inherit (gnomeCfg) extraGSettingsOverrides extraGSettingsOverridePackages favoriteAppsOverride;
+    flashbackEnabled = gnomeCfg.flashback.enableMetacity || gnomeCfg.flashback.customSessions != [ ];
+  };
+  cinnamonOverrides = pkgs.cinnamon-gsettings-overrides.override {
+    inherit (config.services.xserver.desktopManager.cinnamon)
+      extraGSettingsOverridePackages
+      extraGSettingsOverrides
+      ;
+  };
+  schemasOf =
+    overrides: "${overrides}/share/gsettings-schemas/nixos-gsettings-overrides/glib-2.0/schemas";
 in
 {
   options = {
@@ -86,19 +102,17 @@ in
     # X11 desktop for the UMI sessions, launched by GDM alongside GNOME
     services.xserver.desktopManager.cinnamon.enable = true;
 
-    # GNOME and Cinnamon both define this variable (nixpkgs limitation when
-    # two desktops coexist): arbitrate with Cinnamon's exact value. GNOME
-    # sessions only lose schema *defaults* (background, favorite apps) that
-    # DNF re-imposes anyway through its locked dconf databases; Cinnamon
-    # sessions keep their correct Mint defaults.
-    environment.sessionVariables.NIX_GSETTINGS_OVERRIDES_DIR = lib.mkForce "${
-      pkgs.cinnamon-gsettings-overrides.override {
-        inherit (config.services.xserver.desktopManager.cinnamon)
-          extraGSettingsOverridePackages
-          extraGSettingsOverrides
-          ;
-      }
-    }/share/gsettings-schemas/nixos-gsettings-overrides/glib-2.0/schemas";
+    # Both desktops set this variable globally (nixpkgs). GNOME's wins: GNOME
+    # sessions and the GDM greeter read it, and Cinnamon's Mint defaults would
+    # leak there (fonts, an uninstalled `DMZ-White` cursor: grey-square pointer).
+    environment.sessionVariables.NIX_GSETTINGS_OVERRIDES_DIR = lib.mkForce (schemasOf gnomeOverrides);
+
+    # Cinnamon's defaults for the X11 sessions only: GDM starts them through
+    # the NixOS xsession wrapper, never GNOME 50 (Wayland) nor the greeter.
+    services.xserver.displayManager.sessionCommands = ''
+      export NIX_GSETTINGS_OVERRIDES_DIR=${schemasOf cinnamonOverrides}
+      ${pkgs.dbus}/bin/dbus-update-activation-environment --systemd NIX_GSETTINGS_OVERRIDES_DIR
+    '';
 
     # Pin the UMI users' saved GDM session: `f+` rewrites it at every boot and
     # activation, so a session picked once (or an account known before) cannot
