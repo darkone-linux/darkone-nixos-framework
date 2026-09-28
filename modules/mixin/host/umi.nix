@@ -16,9 +16,9 @@
 # Talon requires X11 (Wayland unsupported upstream, not planned) and
 # GNOME 50 dropped its Xorg session, so UMI sessions run Cinnamon (X11,
 # GNOME-like UX, native tray) while other users keep GNOME Wayland. The
-# users listed in `gazeUsers` (plus `autoLoginUser`) get their saved GDM
-# session seeded to "cinnamon" through AccountsService; GDM keeps managing
-# the file afterwards.
+# host users whose home enables `darkone.home.umi` (`umi` user profile) get
+# their saved GDM session seeded to "cinnamon" through AccountsService; GDM
+# keeps managing the file afterwards.
 # :::
 #
 # :::caution[Talon package]
@@ -46,15 +46,17 @@
   lib,
   config,
   pkgs,
+  host,
   ...
 }:
 let
   cfg = config.darkone.host.umi;
 
-  # Users whose GDM session must be the Cinnamon X11 one (UMI sessions)
-  umiSessionUsers = lib.unique (
-    cfg.gazeUsers ++ lib.optional (cfg.autoLoginUser != null) cfg.autoLoginUser
-  );
+  # Users whose GDM session must be the Cinnamon X11 one, read from their home
+  # so that a consumer profile importing `umi` counts too.
+  umiUsers = lib.filter (
+    login: config.home-manager.users.${login}.darkone.home.umi.enable or false
+  ) host.users;
 in
 {
   options = {
@@ -63,12 +65,7 @@ in
       autoLoginUser = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
-        description = "Auto-login user (mandatory for a keyboard-free session).";
-      };
-      gazeUsers = lib.mkOption {
-        type = lib.types.listOf lib.types.str;
-        default = [ ];
-        description = "UMI users whose GDM session is seeded to Cinnamon/X11 (autoLoginUser is always included).";
+        description = "Auto-login user (mandatory for a keyboard-free session), a host user with the `umi` profile.";
       };
       package = lib.mkOption {
         type = lib.types.nullOr lib.types.package;
@@ -113,13 +110,26 @@ in
     # GNOME Wayland session.
     systemd.tmpfiles.rules = map (
       login: "f /var/lib/AccountsService/users/${login} 0644 root root - [User]\\nSession=cinnamon\\n"
-    ) umiSessionUsers;
+    ) umiUsers;
 
     # A lock screen or a password prompt is a dead-end without a keyboard.
     services.displayManager.autoLogin = lib.mkIf (cfg.autoLoginUser != null) {
       enable = true;
       user = cfg.autoLoginUser;
     };
+
+    # A non-UMI autologin user lands in GNOME Wayland (no Talon) and keeps a
+    # keyring nobody can unlock (cf. `darkone.home.umi`).
+    assertions = [
+      {
+        assertion = cfg.autoLoginUser == null || lib.elem cfg.autoLoginUser umiUsers;
+        message = ''
+          darkone.host.umi.autoLoginUser = "${toString cfg.autoLoginUser}" on ${host.hostname} is not
+          a user of this host with the `umi` profile (UMI users: ${lib.concatStringsSep ", " umiUsers}).
+          List the login in the host `users` of etc/config.yaml and give it `profile: "umi"`.
+        '';
+      }
+    ];
 
     # Consequence for the GNOME keyring: the session receives no password, so
     # nothing unlocks it by itself. On an encrypted host the boot passphrase
