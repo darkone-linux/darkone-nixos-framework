@@ -8,6 +8,13 @@
 # `sshDeniedGroups` (default `guests`) expands to `DenyUsers` on each host: a
 # member keeps its local session and loses SSH.
 # :::
+#
+# :::note[authorized_keys registry]
+# `usr/users/<login>/authorized_keys` (consumer workspace, committed, OpenSSH
+# format) feeds `openssh.authorizedKeys` on every host of the user. Missing
+# file = no key; disabled account = file ignored. Private keys never live in
+# the workspace: they stay in each user's Vaultwarden vault (cf. `rbw`).
+# :::
 
 {
   lib,
@@ -16,6 +23,7 @@
   pkgs,
   users,
   userNixosProfiles,
+  workDir,
   ...
 }:
 let
@@ -44,6 +52,10 @@ let
         inherit (user) uid;
         description = "${user.name}";
       };
+
+      # Public, committed registry: `authorizedKeysInHomedir = false` makes it
+      # the only way in over SSH.
+      authorizedKeysFile = workDir + "/usr/users/${login}/authorized_keys";
     in
     {
       name = login;
@@ -61,6 +73,9 @@ let
           base
           // lib.optionalAttrs hasSops {
             hashedPasswordFile = config.sops.secrets."user/${login}/password-hash".path;
+          }
+          // lib.optionalAttrs (builtins.pathExists authorizedKeysFile) {
+            openssh.authorizedKeys.keyFiles = [ authorizedKeysFile ];
           }
           // import userNixosProfiles.${login} {
             inherit

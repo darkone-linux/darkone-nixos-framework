@@ -120,6 +120,10 @@ in
           ROCKET_LOG = "critical";
           SENDS_ALLOWED = true;
 
+          # "SSH key" item type (read by the `rbw` SSH agent). Older clients
+          # still gate it on this server flag, empty by default.
+          EXPERIMENTAL_CLIENT_FEATURE_FLAGS = "ssh-key-vault-item";
+
           # Forgotten master password recovery: a trusted contact (the admin,
           # for non-technical users) takes over after a delay.
           EMERGENCY_ACCESS_ALLOWED = true;

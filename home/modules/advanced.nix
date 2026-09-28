@@ -1,4 +1,10 @@
 # Home profile for advanced users (computer scientists, developers, admins).
+#
+# :::note[SSH keys from Vaultwarden]
+# `enableVaultwardenSsh` turns `rbw` into the SSH agent: private keys stay in
+# the user's vault (end-to-end encrypted), never in clear on disk nor in sops.
+# The user runs `rbw unlock` once per session.
+# :::
 
 {
   lib,
@@ -8,6 +14,8 @@
   config,
   osConfig,
   network,
+  hosts,
+  zone,
   users,
   inputs,
   ...
@@ -43,6 +51,16 @@ let
 
   # Extraction of current user from host configuration
   user = users.${config.home.username};
+  userEmail = user.email or "${config.home.username}@${network.domain}";
+
+  # Vaultwarden SSH agent (rbw). Resolved from `network`/`hosts` only, never
+  # from an option.
+  vaultwardenUrl = dnfLib.serviceHref {
+    name = "vaultwarden";
+    inherit network hosts;
+    preferZone = zone.name;
+  };
+  rbwSocket = "\${XDG_RUNTIME_DIR}/rbw/ssh-agent-socket";
 
   # `programs.difftastic.git` stays off: HM asserts it exclusive with
   # `programs.delta.enableGitIntegration`. One command for difftool + aliases.
@@ -66,9 +84,20 @@ in
       default = true;
       description = "Frequently used tools";
     };
+    darkone.home.advanced.enableVaultwardenSsh = lib.mkEnableOption ''
+      SSH agent backed by the user's Vaultwarden vault (rbw). Do not enable on
+      a host reached with `ssh -A`: the local agent would mask the forwarded one
+    '';
   };
 
   config = lib.mkIf cfg.enable {
+
+    assertions = [
+      {
+        assertion = !cfg.enableVaultwardenSsh || vaultwardenUrl != null;
+        message = "darkone.home.advanced.enableVaultwardenSsh requires a vaultwarden service in etc/config.yaml.";
+      }
+    ];
 
     #============================================================================
     # ENVIRONMENT
@@ -84,6 +113,10 @@ in
       VISUAL = "vim";
       TERMINAL = lib.optionalString hasGhostty "ghostty";
       TERM = "xterm-256color"; # Avoid "can't find terminal definition for xterm-ghostty"
+
+      # ssh-add and `ssh-keygen -Y sign` (git SSH signing) read the variable
+      # only; ssh itself also gets `IdentityAgent` below.
+      SSH_AUTH_SOCK = lib.mkIf cfg.enableVaultwardenSsh rbwSocket;
     };
 
     # Personal binaries in PATH (~/.local/bin already global, cf. minimal profile).
@@ -575,11 +608,7 @@ in
       settings = {
         user = {
           name = "${user.name}";
-          email =
-            if (builtins.hasAttr "email" user) then
-              "${user.email}"
-            else
-              "${config.home.username}@${network.domain}";
+          email = userEmail;
         };
         alias = {
           amend = "!git add . && git commit --amend --no-edit";
@@ -654,11 +683,26 @@ in
         TERM = "xterm-256color";
       };
 
+      # GNOME exports gcr's socket through the systemd user environment:
+      # without `IdentityAgent`, graphical apps (IDE git push) would miss rbw.
+      settings."*".IdentityAgent = lib.mkIf cfg.enableVaultwardenSsh rbwSocket;
+
       # Redirections written by `just roaming` for hosts plugged outside their
       # own zone. Included first so it wins over the settings below; a missing
       # file is silently ignored by ssh, so this costs nothing to the users who
       # never install anything.
       includes = [ "dnf-roaming.conf" ];
+    };
+
+    # Private keys stay in the vault; `rbw-agent` signs on their behalf and
+    # asks for the master password through pinentry when locked.
+    programs.rbw = lib.mkIf cfg.enableVaultwardenSsh {
+      enable = true;
+      settings = {
+        email = userEmail;
+        base_url = vaultwardenUrl;
+        pinentry = if graphic then pkgs.pinentry-gnome3 else pkgs.pinentry-curses;
+      };
     };
 
     # Github helper

@@ -1,0 +1,48 @@
+# User SSH keys test workspace: authorized_keys registry + Vaultwarden SSH
+# agent (rbw). Vaultwarden sits on `server1`, never booted: node1 only needs
+# its URL. Schema mirrors the real /etc/nixos/etc/config.yaml.
+
+network:
+  domain: "test.local"
+  default:
+    locale: "en_US.UTF-8"
+    timezone: "Etc/UTC"
+  coordination:
+    enable: false
+    hostname: "hcs"
+    domain: "headscale"
+
+zones:
+  z1:
+    description: "Test zone 1"
+    ipPrefix: "10.10"
+    gateway:
+      wan:
+        interface: "eth0"
+      lan:
+        interfaces: ["eth1"]
+      vpn:
+        ipv4: "100.64.0.1"
+
+users:
+  darkone:
+    uid: 1000
+    name: "Darkone"
+    email: "darkone@test.local"
+    profile: "nix-admin"
+    groups: ["global"]
+
+hosts:
+  - hostname: "node1"
+    name: "User SSH node"
+    zone: "z1:1.1"
+    profile: "minimal"
+    users: ["darkone"]
+  - hostname: "server1"
+    name: "Vaultwarden server"
+    zone: "z1:1.2"
+    profile: "minimal"
+    services:
+      vaultwarden:
+        title: "Vault"
+        description: "Passwords & keys"
