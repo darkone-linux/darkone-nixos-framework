@@ -2,11 +2,14 @@
 #
 # Touchscreen + voice + gaze (Talon autostart + Onboard).
 #
-# :::note[Pairs with the umi host profile]
-# The host must provide udev/uinput and the Cinnamon X11 session (see
-# `darkone.host.umi`, which defines UMI). This module configures the user side: opt-in dwell
-# click (`enableDwell`), always-visible docked Onboard keyboard with word
-# prediction and sticky modifiers, and Talon session autostart.
+# :::note[Session depends on the host]
+# - **`darkone.host.umi` host**: Cinnamon X11 session (udev, uinput, Talon
+#   provided by the host). Talon and a docked Onboard keyboard (word
+#   prediction, sticky modifiers) start with the session.
+# - **Any other host**: GNOME Wayland with its native accessibility: on-screen
+#   keyboard, big pointer and text. Talon and Onboard, X11-only, stay off.
+#
+# Opt-in dwell click (`enableDwell`) in both cases.
 # :::
 #
 # :::tip[Community scripts]
@@ -15,10 +18,9 @@
 # :::
 #
 # :::note[Dual schemas]
-# The UMI session is Cinnamon (org/cinnamon/*) but the GNOME keys
-# (org/gnome/*) are kept in sync: mousetweaks reads the GNOME a11y schema,
-# and they serve as fallback if the user ever lands in a GNOME session.
-# Exception: keys locked by the DNF gnome module are never mirrored here,
+# Settings go to both families: org/cinnamon/* for the UMI host session,
+# org/gnome/* for GNOME sessions elsewhere (mousetweaks reads it too).
+# Exception: keys locked by the DNF gnome module are never written here,
 # a write to a locked key aborts the whole home-manager `dconf load`.
 # Screen locking stays enabled GNOME-side (locked by the DNF gnome module);
 # `idle-delay = 0` avoids triggering it, and the Cinnamon session has its
@@ -125,21 +127,22 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    home.packages = [ pkgs.onboard ];
-
     # Declarative Talon user scripts
     home.file.".talon/user/community" = lib.mkIf (cfg.communityScripts != null) {
       source = cfg.communityScripts;
       recursive = true;
     };
 
-    # Session autostart (XDG, honored by Cinnamon): Talon then Onboard
+    # Cinnamon-only autostart, both installed by the UMI host: X11 clients,
+    # useless under GNOME Wayland (Talon does not run, Onboard's XTest keys
+    # never reach Wayland windows).
     xdg.configFile."autostart/talon.desktop" = lib.mkIf cfg.enableTalonAutostart {
       text = ''
         [Desktop Entry]
         Type=Application
         Name=Talon
         Exec=talon
+        OnlyShowIn=X-Cinnamon;
         X-GNOME-Autostart-enabled=true
       '';
     };
@@ -148,6 +151,7 @@ in
       Type=Application
       Name=Onboard
       Exec=onboard
+      OnlyShowIn=X-Cinnamon;
       X-GNOME-Autostart-enabled=true
     '';
 
@@ -162,11 +166,14 @@ in
         always-show-universal-access-status = true;
       };
 
+      # GNOME Shell's native keyboard stands in for Onboard. Cinnamon reads
+      # `org/cinnamon/desktop/a11y/applications`: no double keyboard there.
+      "org/gnome/desktop/a11y/applications".screen-keyboard-enabled = true;
+
       # A lock screen is a dead-end without a keyboard: disable Cinnamon
       # locking entirely and never let the session go idle. The GNOME
       # `lock-enabled` key is locked host-wide by the DNF gnome module, so
-      # only `idle-delay = 0` (user-overridable) protects a GNOME fallback
-      # session.
+      # only `idle-delay = 0` (user-overridable) protects a GNOME session.
       "org/cinnamon/desktop/screensaver" = {
         lock-enabled = false;
         idle-activation-enabled = false;
