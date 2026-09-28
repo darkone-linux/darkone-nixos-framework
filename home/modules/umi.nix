@@ -68,11 +68,9 @@ let
     secondary-click-enabled = cfg.enableDwell;
   };
 
-  # Big cursor and text for gaze precision (~15-30 px). `cursor-size` is
-  # absent from the GNOME set on purpose: the key is locked host-wide by the
-  # DNF gnome module (`darkone.host.umi` raises it to 48 there), and a write
-  # to a locked key aborts the whole `dconf load` at activation.
+  # Big cursor and text for gaze precision (~15-30 px)
   interfaceSettings = {
+    cursor-size = 48;
     text-scaling-factor = 1.25;
   };
 
@@ -158,9 +156,7 @@ in
       # Dwell click (both schema families, cf. header)
       "org/cinnamon/desktop/a11y/mouse" = dwellSettings;
       "org/gnome/desktop/a11y/mouse" = dwellSettings;
-      "org/cinnamon/desktop/interface" = interfaceSettings // {
-        cursor-size = 48;
-      };
+      "org/cinnamon/desktop/interface" = interfaceSettings;
       "org/gnome/desktop/interface" = interfaceSettings;
       "org/gnome/desktop/a11y" = {
         always-show-universal-access-status = true;

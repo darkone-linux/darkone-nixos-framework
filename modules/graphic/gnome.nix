@@ -43,7 +43,7 @@ in
     darkone.graphic.gnome.cursorSize = mkOption {
       type = types.ints.positive;
       default = 24;
-      description = "Pointer size in pixels, locked host-wide. UMI hosts (`darkone.host.umi`) raise it to 48.";
+      description = "Default pointer size in pixels, user-overridable (Settings > Accessibility).";
     };
   };
 
@@ -262,7 +262,6 @@ in
               };
               "org/gnome/desktop/interface" = {
                 cursor-theme = "Bibata-Modern-Classic";
-                cursor-size = gvariant.mkInt32 cfg.cursorSize;
                 icon-theme = "Papirus-Dark";
                 gtk-theme = "Adw-dark"; # not Adwaita-dark
                 color-scheme = "prefer-dark";
@@ -427,14 +426,20 @@ in
             };
           }
 
-          # User-overridable defaults (no lockAll): lets the user change or
-          # disable the screen-blank delay in Settings > Power > Blank Screen
+          # User-overridable defaults (no lockAll): Settings or a home module
+          # may change them per user
           {
             settings = {
 
               # Blank the screen after screenBlankDelay seconds (0 = never)
               "org/gnome/desktop/session" = {
                 idle-delay = gvariant.mkUint32 cfg.screenBlankDelay;
+              };
+
+              # An a11y setting: the UMI home raises it for its user only,
+              # other users of the same host keep this default
+              "org/gnome/desktop/interface" = {
+                cursor-size = gvariant.mkInt32 cfg.cursorSize;
               };
             };
           }
