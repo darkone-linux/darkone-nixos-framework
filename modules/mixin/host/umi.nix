@@ -17,8 +17,8 @@
 # GNOME 50 dropped its Xorg session, so UMI sessions run Cinnamon (X11,
 # GNOME-like UX, native tray) while other users keep GNOME Wayland. The
 # host users whose home enables `darkone.home.umi` (`umi` user profile) get
-# their saved GDM session seeded to "cinnamon" through AccountsService; GDM
-# keeps managing the file afterwards.
+# their saved GDM session pinned to "cinnamon" through AccountsService, at
+# every boot: a keyboard-free user cannot pick a session at the greeter.
 # :::
 #
 # :::caution[Talon package]
@@ -105,11 +105,11 @@ in
       }
     }/share/gsettings-schemas/nixos-gsettings-overrides/glib-2.0/schemas";
 
-    # Seed the UMI users' saved GDM session ("f" writes only when the file
-    # is missing, GDM keeps managing it afterwards). Other users keep their
-    # GNOME Wayland session.
+    # Pin the UMI users' saved GDM session: `f+` rewrites it at every boot and
+    # activation, so a session picked once (or an account known before) cannot
+    # stick. Their other AccountsService keys (Icon, Language) are dropped.
     systemd.tmpfiles.rules = map (
-      login: "f /var/lib/AccountsService/users/${login} 0644 root root - [User]\\nSession=cinnamon\\n"
+      login: "f+ /var/lib/AccountsService/users/${login} 0600 root root - [User]\\nSession=cinnamon\\n"
     ) umiUsers;
 
     # A lock screen or a password prompt is a dead-end without a keyboard.
@@ -127,6 +127,17 @@ in
           darkone.host.umi.autoLoginUser = "${toString cfg.autoLoginUser}" on ${host.hostname} is not
           a user of this host with the `umi` profile (UMI users: ${lib.concatStringsSep ", " umiUsers}).
           List the login in the host `users` of etc/config.yaml and give it `profile: "umi"`.
+        '';
+      }
+
+      # GDM's preStart then runs `set-session`, which forces that session on
+      # every normal user at each start: the pin above would be overwritten.
+      {
+        assertion = config.services.displayManager.defaultSession == null;
+        message = ''
+          services.displayManager.defaultSession is set on UMI host ${host.hostname}: GDM would
+          force it on every user, UMI users included (Cinnamon session lost). Leave it unset,
+          GDM already falls back to GNOME for the other users.
         '';
       }
     ];
