@@ -101,9 +101,13 @@
   // which set the levels apart.
   set list(indent: 0pt, body-indent: 0.9em, marker: ([•], [–]).map(m => box(width: 0.6em, m)))
 
-  // Footnotes as in ConTeXt: blue number hung in the margin, every line of
-  // the note on the text column.
+  // Footnotes as in ConTeXt: 80% of the body, body interline, no gap between
+  // notes; blue number hung in the margin, every line on the text column.
+  // Absolute size: typst already shrinks the footnote area, an `em` compounds.
   show footnote: set text(fill: link-blue)
+  show footnote.entry: set text(size: fontsize * 0.8)
+  show footnote.entry: set par(leading: 0.36em)
+  set footnote.entry(gap: fontsize * 0.8 * 0.36)
   show footnote.entry: it => {
     let loc = it.note.location()
     let number = numbering(it.note.numbering, ..counter(footnote).at(loc))
