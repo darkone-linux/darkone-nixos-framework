@@ -702,6 +702,10 @@ in
         email = userEmail;
         base_url = vaultwardenUrl;
         pinentry = if graphic then pkgs.pinentry-gnome3 else pkgs.pinentry-curses;
+
+        # Inactivity delay (reset on each use): one unlock per work day. gcr's
+        # agent, replaced here, never locks within a session.
+        lock_timeout = lib.mkDefault (12 * 3600);
       };
     };
 

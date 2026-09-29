@@ -21,6 +21,7 @@
     node1.succeed(f"grep -q '\"email\": *\"darkone@test.local\"' {cfg}")
     node1.succeed(f"grep -Eq '\"base_url\": *\"https?://[^\"]+\\.test\\.local\"' {cfg}")
     node1.succeed(f"grep -q 'pinentry-curses' {cfg}")
+    node1.succeed(f"grep -q '\"lock_timeout\": *43200' {cfg}")
 
     # Agent socket: env var for ssh-add/ssh-keygen, IdentityAgent for ssh.
     node1.succeed("grep -q 'rbw/ssh-agent-socket' /etc/profiles/per-user/darkone/etc/profile.d/hm-session-vars.sh")
