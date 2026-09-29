@@ -22,6 +22,8 @@
   a6: (x: 10mm, top: 10mm, bottom: 14mm),
 )
 
+#let link-blue = rgb("#0000ff")
+
 #let conf(
   title: none,
   subtitle: none,
@@ -57,8 +59,10 @@
     columns: cols,
   )
 
-  // Airier than typst's default, closer to the ConTeXt table of contents.
+  // Table of contents as in ConTeXt: blue links, airy, spaced dot leaders.
   show outline.entry: set block(spacing: 0.9em)
+  show outline.entry: set text(fill: link-blue)
+  set outline.entry(fill: pad(x: 0.5em, repeat(gap: 0.5em)[.]))
 
   // Unnumbered captions, as in the ConTeXt output.
   set figure(numbering: none)
@@ -74,8 +78,8 @@
   )
 
   // 1em line box + 0.36em leading: the 3ex interline of the ConTeXt output;
-  // paragraphs add its `medium` whitespace (0.51em).
-  set par(justify: true, leading: 0.36em, spacing: 0.87em)
+  // paragraphs add a touch more than its `medium` whitespace (0.51em).
+  set par(justify: true, leading: 0.36em, spacing: 0.95em)
   set heading(numbering: sectionnumbering)
 
   // Absolute sizes: an `em` here would compound with the built-in heading scale.
@@ -84,13 +88,37 @@
   show heading.where(level: 1): set text(size: fontsize * 1.728)
   show heading.where(level: 2): set text(size: fontsize * 1.44)
   show heading.where(level: 3): set text(weight: "bold")
-  show link: set text(fill: rgb("#0000ff"))
+  show link: set text(fill: link-blue)
+
+  // pandoc draws `---` as a centred half-width line: thin, full width, airy.
+  show line.where(start: (25%, 0%)): block(
+    above: 1.5em,
+    below: 1.5em,
+    line(length: 100%, stroke: 0.4pt),
+  )
+
+  // Bodies 1.5em past the marker, whatever its width: the ConTeXt columns,
+  // which set the levels apart.
+  set list(indent: 0pt, body-indent: 0.9em, marker: ([•], [–]).map(m => box(width: 0.6em, m)))
+
+  // Footnotes as in ConTeXt: blue number hung in the margin, every line of
+  // the note on the text column.
+  show footnote: set text(fill: link-blue)
+  show footnote.entry: it => {
+    let loc = it.note.location()
+    let number = numbering(it.note.numbering, ..counter(footnote).at(loc))
+    let mark = link(loc, super(text(fill: link-blue, number)) + h(0.25em))
+    context par(h(-measure(mark).width) + mark + it.note.body)
+  }
 
   // DejaVu Sans Mono box drawing spans 0.928em up, 0.236em down: with these
   // edges and no leading, schema strokes join from one line to the next.
   show raw: set text(font: ("DejaVu Sans Mono",), size: fontsize)
   show raw.where(block: true): set text(top-edge: 0.928em, bottom-edge: -0.236em)
   show raw.where(block: true): set par(leading: 0em, justify: false)
+
+  // Inline code at 85%: DejaVu Sans Mono's x-height outgrows Gentium's.
+  show raw.where(block: false): set text(size: fontsize * 0.85)
 
   // Schemas keep their shape: a block wider than the text is scaled down to
   // fit, where ConTeXt wraps its lines.
@@ -104,9 +132,13 @@
   })
 
   // Long inline identifiers (file names, paths) may break after `_ / . -`
-  // instead of overflowing the margin.
+  // instead of overflowing the margin. Spaces keep the monospace advance
+  // (0.6em) rather than stretch with the justified line, and still break.
+  // An empty box is the break point: a zero-width space would end up in the
+  // text copied from the PDF.
   show raw.where(block: false): it => {
-    show regex("[_/.-]"): c => c + sym.zws
+    show regex("[_/.-]"): c => c + box()
+    show " ": box(width: 0.6em) + box()
     it
   }
 
