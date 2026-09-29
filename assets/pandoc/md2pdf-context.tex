@@ -9,6 +9,15 @@
 \definefontfamily[md2pdf][mm][Latin Modern Math]
 \setupbodyfont[md2pdf]
 
+% pandoc puts every table in an unsplittable float: rows past the page end
+% are silently lost. `split` keeps them; `none` (no caption) only for tables
+% without a title.
+\unexpanded\def\startplacetable[#1]{%
+  \doifinstringelse{title=}{#1}
+    {\startplacefloat[table][#1,location={split,here}]}
+    {\startplacefloat[table][#1,location={split,none}]}}
+\unexpanded\def\stopplacetable{\stopplacefloat}
+
 % Box-drawing glyphs span the full 1.164em line: without zero `\lineskip`,
 % TeX pads every schema line and the strokes break.
 \setuptyping[typing,highlighting][style={\tt\setupinterlinespace[line=1.164em]\lineskip=0pt\lineskiplimit=-\maxdimen}]
