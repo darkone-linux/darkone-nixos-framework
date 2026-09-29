@@ -22,8 +22,9 @@ in
     # Pandoc package + dependencies
     environment.systemPackages = with pkgs; [
       pandoc
-      texliveConTeXt
       perl538Packages.ImageExifTool
+      texliveConTeXt
+      typst
     ];
   };
 }
