@@ -25,7 +25,6 @@ in
       # Console additional features
       console = {
         git.enable = lib.mkDefault true;
-        pandoc.enable = lib.mkDefault false;
         zsh.enable = lib.mkDefault true;
       };
     };

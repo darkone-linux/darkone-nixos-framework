@@ -5,7 +5,6 @@
     ./admin/fleet-update.nix
     ./admin/nix.nix
     ./console/git.nix
-    ./console/pandoc.nix
     ./console/zsh.nix
     ./graphic/gnome.nix
     ./graphic/qemu.nix
