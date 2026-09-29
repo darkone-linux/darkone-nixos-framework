@@ -10,8 +10,8 @@ Usage: md2pdf [OPTION]... FILE...
 
 Convert Markdown files to PDF, next to each source (notes.md -> notes.pdf).
 
-  -b, --big            larger text: 12pt on A4, 13pt on tablet
-  -t, --tablet         A5 page, thin margins: read at 1:1 on a 10" tablet
+  -b, --big            larger text: 12pt on A4, 11pt on tablet
+  -t, --tablet         A6 page, 9pt: zoomed to fit, large text on a tablet
   -e, --engine ENGINE  context or typst (default: $MD2PDF_ENGINE)
   -a, --author NAME    PDF Creator field (default: $MD2PDF_AUTHOR)
   -o, --output FILE    output path, single input only
@@ -72,9 +72,9 @@ fi
 
 # ConTeXt page geometry; md2pdf.typ holds the typst margins of each paper.
 if [ "$tablet" = 1 ]; then
-  paper=a5
-  size="$((big ? 13 : 11))pt"
-  layout="backspace=10mm,width=128mm,topspace=10mm,header=0mm,footer=8mm,height=190mm"
+  paper=a6
+  size="$((big ? 11 : 9))pt"
+  layout="backspace=10mm,width=85mm,topspace=10mm,header=0mm,footer=8mm,height=132mm"
 else
   paper=a4
   size="$((big ? 12 : 10))pt"

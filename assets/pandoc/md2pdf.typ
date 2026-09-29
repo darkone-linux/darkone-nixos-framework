@@ -19,7 +19,7 @@
 // only hand `margin` over from a metadata map, never from `-V`.
 #let margins = (
   a4: (x: 20mm, top: 20mm, bottom: 27mm),
-  a5: (x: 10mm, top: 10mm, bottom: 18mm),
+  a6: (x: 10mm, top: 10mm, bottom: 14mm),
 )
 
 #let conf(

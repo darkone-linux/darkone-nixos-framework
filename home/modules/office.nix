@@ -551,7 +551,7 @@ in
         ```sh
         md2pdf notes.md            # A4, 10pt -> notes.pdf
         md2pdf --big notes.md      # A4, 12pt
-        md2pdf --tablet notes.md   # A5, thin margins, 11pt (13pt with --big)
+        md2pdf --tablet notes.md   # A6, 9pt (11pt with --big), zoomed on a tablet
         md2pdf -e typst notes.md   # force the engine
         ```
 
