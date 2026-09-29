@@ -65,8 +65,9 @@
     bottom-edge: -0.2em,
   )
 
-  // 1em line box + 0.36em leading: the 3ex interline of the ConTeXt output.
-  set par(justify: true, leading: 0.36em, spacing: 1em)
+  // 1em line box + 0.36em leading: the 3ex interline of the ConTeXt output;
+  // paragraphs add its `medium` whitespace (0.51em).
+  set par(justify: true, leading: 0.36em, spacing: 0.87em)
   set heading(numbering: sectionnumbering)
 
   // Absolute sizes: an `em` here would compound with the built-in heading scale.
@@ -82,6 +83,33 @@
   show raw: set text(font: ("DejaVu Sans Mono",), size: fontsize)
   show raw.where(block: true): set text(top-edge: 0.928em, bottom-edge: -0.236em)
   show raw.where(block: true): set par(leading: 0em, justify: false)
+
+  // Schemas keep their shape: a block wider than the text is scaled down to
+  // fit, where ConTeXt wraps its lines.
+  show raw.where(block: true): it => layout(size => {
+    let natural = measure(it).width
+    if natural <= size.width {
+      it
+    } else {
+      scale(size.width / natural * 100%, reflow: true, block(width: natural, it))
+    }
+  })
+
+  // Long inline identifiers (file names, paths) may break after `_ / . -`
+  // instead of overflowing the margin.
+  show raw.where(block: false): it => {
+    show regex("[_/.-]"): c => c + sym.zws
+    it
+  }
+
+  // Tables as in ConTeXt: ragged left cells, compact, ruled top and bottom,
+  // split across pages (a figure is unbreakable by default). pandoc wraps
+  // each table in `align(center)`, which the cells inherit.
+  show figure.where(kind: table): set block(breakable: true)
+  set table(inset: (x: 4pt, y: 3pt))
+  show table: set align(start)
+  show table: set par(justify: false)
+  show table: it => block(stroke: (y: 0.5pt), it)
 
   if title != none {
     align(center, block(below: 2em)[
