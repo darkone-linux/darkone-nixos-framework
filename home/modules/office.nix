@@ -560,7 +560,9 @@ in
         ```
 
         The engine is typst. It renders the raw TeX usual in notes (`\pagebreak`,
-        `\placecontent`, `\centerline`...) and reports any other. A bare
+        `\placecontent`, `\centerline`...) and reports any other. Table
+        columns fit their content, unless the separator dashes differ in
+        length (`|--|--------|`): the widths then follow them. A bare
         `pandoc notes.md -o notes.pdf` uses the same engine, language and fonts.
         Under GNOME, the three layouts are also offered on right click in
         Nautilus (Scripts menu).
