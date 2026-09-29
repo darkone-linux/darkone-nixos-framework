@@ -51,6 +51,22 @@ let
   hasVaultwarden = (findFirst (s: s.name == "vaultwarden") null network.services) != null;
 
   #--------------------------------------------------------------------------
+  # Pandoc (Markdown to PDF)
+  #--------------------------------------------------------------------------
+
+  pandocLang = "${lang}-${country}";
+  pandocEngine = if cfg.enablePandocContext then "context" else "typst";
+
+  # Lowest-priority metadata: a document's YAML block, `-M` and `-V` all win
+  # over it, whereas a defaults `variables` entry turns into a list next to a
+  # `-V` of the same name.
+  pandocMetadata = (pkgs.formats.yaml { }).generate "pandoc-metadata.yaml" {
+    lang = pandocLang;
+    mainfont = "Gentium";
+    monofont = "DejaVu Sans Mono";
+  };
+
+  #--------------------------------------------------------------------------
   # Nextcloud (personal cloud)
   #--------------------------------------------------------------------------
 
@@ -571,10 +587,10 @@ in
       (mkIf cfg.enableOffice liberation_ttf) # Liberation fonts
       (mkIf cfg.enableOffice libreoffice-stable) # Force visible icon theme
       (mkIf cfg.enableOffice lato) # Lato fonts
+      (mkIf cfg.enablePandoc dejavu_fonts) # PDF code blocks: box drawing, symbols
       (mkIf cfg.enablePandoc exiftool) # PDF / image metadata
       (mkIf cfg.enablePandoc gentium) # PDF body font
       (mkIf cfg.enablePandoc librsvg) # `rsvg-convert`: SVG images in PDF output
-      (mkIf cfg.enablePandoc pandoc)
       (mkIf (cfg.enablePandoc && cfg.enablePandocContext) texliveConTeXt) # `--pdf-engine=context`
       (mkIf cfg.enablePandoc typst) # `--pdf-engine=typst`
       (mkIf cfg.enableTools authenticator) # Two-factor authentication code generator
@@ -826,6 +842,20 @@ in
         "Network"
         "FileTransfer"
       ];
+    };
+
+    #--------------------------------------------------------------------------
+    # Pandoc (Markdown to PDF)
+    #--------------------------------------------------------------------------
+
+    # Installs pandoc wrapped with `--defaults`. Without an engine, a bare
+    # `pandoc doc.md -o doc.pdf` looks for the absent `pdflatex`.
+    programs.pandoc = mkIf cfg.enablePandoc {
+      enable = true;
+      defaults = {
+        pdf-engine = pandocEngine;
+        metadata-files = [ "${pandocMetadata}" ];
+      };
     };
 
     #--------------------------------------------------------------------------
