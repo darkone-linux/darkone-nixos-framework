@@ -1,0 +1,14 @@
+% md2pdf ConTeXt setup, included after the pandoc preamble (`-H`).
+
+% Gentium lacks arrows, symbols and box drawing: DejaVu Sans fills those
+% ranges. A fallback must precede its family, hence a family of our own
+% (pandoc's `mainfontfallback` has no effect under LMTX).
+\definefallbackfamily[md2pdf][rm][DejaVu Sans][range={arrows,boxdrawing,dingbats,geometricshapes,mathematicaloperators,miscellaneoussymbols,miscellaneoustechnical,supplementalarrowsa,supplementalarrowsb}]
+\definefontfamily[md2pdf][rm][Gentium]
+\definefontfamily[md2pdf][tt][DejaVu Sans Mono][features=none]
+\definefontfamily[md2pdf][mm][Latin Modern Math]
+\setupbodyfont[md2pdf]
+
+% Box-drawing glyphs span the full 1.164em line: without zero `\lineskip`,
+% TeX pads every schema line and the strokes break.
+\setuptyping[typing,highlighting][style={\tt\setupinterlinespace[line=1.164em]\lineskip=0pt\lineskiplimit=-\maxdimen}]

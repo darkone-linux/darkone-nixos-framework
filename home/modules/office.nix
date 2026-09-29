@@ -3,6 +3,7 @@
 {
   lib,
   config,
+  osConfig,
   zone,
   network,
   inputs,
@@ -64,6 +65,47 @@ let
     lang = pandocLang;
     mainfont = "Gentium";
     monofont = "DejaVu Sans Mono";
+  };
+
+  # Falls back on the GECOS full name, then on the login.
+  md2pdfAuthor =
+    let
+      fullName = osConfig.users.users.${config.home.username}.description or "";
+    in
+    if cfg.pandocAuthor != null then
+      cfg.pandocAuthor
+    else if fullName != "" then
+      fullName
+    else
+      config.home.username;
+
+  # Calls the unwrapped pandoc: md2pdf states every setting itself and must not
+  # inherit `programs.pandoc.defaults`.
+  md2pdf = pkgs.writeShellApplication {
+    name = "md2pdf";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.exiftool
+      pkgs.librsvg
+      pkgs.pandoc
+      pkgs.typst
+    ]
+    ++ optional cfg.enablePandocContext pkgs.texliveConTeXt;
+    runtimeEnv = {
+      MD2PDF_ENGINE = pandocEngine;
+      MD2PDF_AUTHOR = md2pdfAuthor;
+      MD2PDF_METADATA = "${pandocMetadata}";
+      MD2PDF_TYPST_TEMPLATE = "${./../../assets/pandoc/md2pdf.typ}";
+      MD2PDF_CONTEXT_HEADER = "${./../../assets/pandoc/md2pdf-context.tex}";
+
+      # Typst finds the fonts without relying on the user's fontconfig state.
+      # ConTeXt needs nothing: texlive ships Gentium and DejaVu.
+      TYPST_FONT_PATHS = concatStringsSep ":" [
+        "${pkgs.gentium}/share/fonts"
+        "${pkgs.dejavu_fonts}/share/fonts"
+      ];
+    };
+    text = builtins.readFile ./../../assets/pandoc/md2pdf.sh;
   };
 
   #--------------------------------------------------------------------------
@@ -462,8 +504,32 @@ in
     darkone.home.office.enableEmail = mkEnableOption "Email management packages (thunderbird)";
     darkone.home.office.enableSecurity = mkEnableOption "Security tools (keepass)";
     darkone.home.office.enableCalendarContacts = mkEnableOption "Calendar, contacts, tasks and related apps";
-    darkone.home.office.enablePandoc = mkEnableOption "Markdown to PDF toolchain (pandoc, typst, gentium font)";
+    darkone.home.office.enablePandoc = mkOption {
+      type = types.bool;
+      default = false;
+      description = ''
+        Markdown to PDF toolchain: pandoc, typst, Gentium and DejaVu fonts,
+        and the `md2pdf` command (Gentium body, A4, French typography).
+
+        ```sh
+        md2pdf notes.md            # A4, 10pt -> notes.pdf
+        md2pdf --big notes.md      # A4, 12pt
+        md2pdf --tablet notes.md   # A5, thin margins, 11pt (13pt with --big)
+        md2pdf -e typst notes.md   # force the engine
+        ```
+
+        The engine is ConTeXt when `enablePandocContext` is on, typst
+        otherwise. A bare `pandoc notes.md -o notes.pdf` uses the same engine,
+        language and fonts.
+      '';
+    };
     darkone.home.office.enablePandocContext = mkEnableOption "ConTeXt PDF engine for pandoc (~900 MiB, needs enablePandoc)";
+    darkone.home.office.pandocAuthor = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "Jane Doe";
+      description = "Creator written into PDFs by `md2pdf`. `null` takes the account's full name.";
+    };
 
     # Enabled by default
     darkone.home.office.enableEssentials = mkOption {
@@ -591,6 +657,7 @@ in
       (mkIf cfg.enablePandoc exiftool) # PDF / image metadata
       (mkIf cfg.enablePandoc gentium) # PDF body font
       (mkIf cfg.enablePandoc librsvg) # `rsvg-convert`: SVG images in PDF output
+      (mkIf cfg.enablePandoc md2pdf)
       (mkIf (cfg.enablePandoc && cfg.enablePandocContext) texliveConTeXt) # `--pdf-engine=context`
       (mkIf cfg.enablePandoc typst) # `--pdf-engine=typst`
       (mkIf cfg.enableTools authenticator) # Two-factor authentication code generator
