@@ -446,7 +446,8 @@ in
     darkone.home.office.enableEmail = mkEnableOption "Email management packages (thunderbird)";
     darkone.home.office.enableSecurity = mkEnableOption "Security tools (keepass)";
     darkone.home.office.enableCalendarContacts = mkEnableOption "Calendar, contacts, tasks and related apps";
-    darkone.home.office.enablePandoc = mkEnableOption "Markdown to PDF toolchain (pandoc, ConTeXt, typst, gentium font)";
+    darkone.home.office.enablePandoc = mkEnableOption "Markdown to PDF toolchain (pandoc, typst, gentium font)";
+    darkone.home.office.enablePandocContext = mkEnableOption "ConTeXt PDF engine for pandoc (~900 MiB, needs enablePandoc)";
 
     # Enabled by default
     darkone.home.office.enableEssentials = mkOption {
@@ -574,7 +575,7 @@ in
       (mkIf cfg.enablePandoc gentium) # PDF body font
       (mkIf cfg.enablePandoc librsvg) # `rsvg-convert`: SVG images in PDF output
       (mkIf cfg.enablePandoc pandoc)
-      (mkIf cfg.enablePandoc texliveConTeXt) # `--pdf-engine=context`
+      (mkIf (cfg.enablePandoc && cfg.enablePandocContext) texliveConTeXt) # `--pdf-engine=context`
       (mkIf cfg.enablePandoc typst) # `--pdf-engine=typst`
       (mkIf cfg.enableTools authenticator) # Two-factor authentication code generator
       (mkIf cfg.enableTools dialect) # translate
