@@ -58,7 +58,10 @@ let
   #--------------------------------------------------------------------------
 
   pandocLang = "${lang}-${country}";
-  pandocEngine = if cfg.enablePandocContext then "context" else "typst";
+
+  # typst: faster, and its output compared better than ConTeXt's. ConTeXt
+  # stays reachable through `-e context` / `--pdf-engine=context`.
+  pandocEngine = "typst";
 
   # Lowest-priority metadata: a document's YAML block, `-M` and `-V` all win
   # over it, whereas a defaults `variables` entry turns into a list next to a
@@ -546,22 +549,23 @@ in
       default = false;
       description = ''
         Markdown to PDF toolchain: pandoc, typst, Gentium and DejaVu fonts,
-        and the `md2pdf` command (Gentium body, A4, French typography).
+        and the `md2pdf` command (Gentium body, A4, the zone's language).
 
         ```sh
-        md2pdf notes.md            # A4, 10pt -> notes.pdf
-        md2pdf --big notes.md      # A4, 12pt
-        md2pdf --tablet notes.md   # A6, 9pt (11pt with --big), zoomed on a tablet
-        md2pdf -e typst notes.md   # force the engine
+        md2pdf notes.md              # A4, 10pt -> notes.pdf
+        md2pdf --big notes.md        # A4, 12pt
+        md2pdf --tablet notes.md     # A6, 9pt (11pt with --big), zoomed on a tablet
+        md2pdf -e context notes.md   # ConTeXt engine (enablePandocContext)
         ```
 
-        The engine is ConTeXt when `enablePandocContext` is on, typst
-        otherwise. A bare `pandoc notes.md -o notes.pdf` uses the same engine,
-        language and fonts. Under GNOME, the three layouts are also offered on
-        right click in Nautilus (Scripts menu).
+        The engine is typst. It renders the raw TeX usual in notes (`\pagebreak`,
+        `\placecontent`, `\centerline`...) and reports any other. A bare
+        `pandoc notes.md -o notes.pdf` uses the same engine, language and fonts.
+        Under GNOME, the three layouts are also offered on right click in
+        Nautilus (Scripts menu).
       '';
     };
-    darkone.home.office.enablePandocContext = mkEnableOption "ConTeXt PDF engine for pandoc (~900 MiB, needs enablePandoc)";
+    darkone.home.office.enablePandocContext = mkEnableOption "ConTeXt as an alternative PDF engine, `md2pdf -e context` (~900 MiB, needs enablePandoc)";
     darkone.home.office.pandocAuthor = mkOption {
       type = types.nullOr types.str;
       default = null;
