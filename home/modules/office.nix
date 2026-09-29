@@ -97,6 +97,7 @@ let
       MD2PDF_ENGINE = pandocEngine;
       MD2PDF_AUTHOR = md2pdfAuthor;
       MD2PDF_METADATA = "${pandocMetadata}";
+      MD2PDF_LINKS_FILTER = "${./../../assets/pandoc/md2pdf-links.lua}";
       MD2PDF_TYPST_TEMPLATE = "${./../../assets/pandoc/md2pdf.typ}";
       MD2PDF_CONTEXT_HEADER = "${./../../assets/pandoc/md2pdf-context.tex}";
 
