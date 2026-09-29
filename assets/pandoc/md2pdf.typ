@@ -45,12 +45,20 @@
     author: authors.map(author => content-to-string(author.name)),
     keywords: keywords,
   )
+  // The folio pattern (`- 1 -`) stays in the footer: as the page numbering it
+  // would also dress the page numbers of the table of contents.
   set page(
     paper: paper,
     margin: if margin == auto { margins.at(paper, default: auto) } else { margin },
-    numbering: pagenumbering,
+    numbering: if pagenumbering != none { "1" },
+    footer: if pagenumbering != none {
+      context align(center, counter(page).display(pagenumbering))
+    },
     columns: cols,
   )
+
+  // Airier than typst's default, closer to the ConTeXt table of contents.
+  show outline.entry: set block(spacing: 0.9em)
 
   // Unnumbered captions, as in the ConTeXt output.
   set figure(numbering: none)
@@ -114,9 +122,10 @@
   if title != none {
     align(center, block(below: 2em)[
       #text(size: 2.074em)[#title]
+      #set text(size: 1.2em)
       #if subtitle != none {
         parbreak()
-        text(size: 1.44em)[#subtitle]
+        subtitle
       }
       #if authors != () {
         parbreak()

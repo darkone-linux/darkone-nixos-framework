@@ -1,8 +1,8 @@
 # md2pdf: Markdown to PDF through pandoc, with DNF's tuned page layouts.
 #
 # Settings come from the Nix wrapper (`runtimeEnv`): MD2PDF_ENGINE,
-# MD2PDF_AUTHOR, MD2PDF_METADATA, MD2PDF_LINKS_FILTER, MD2PDF_TYPST_TEMPLATE,
-# MD2PDF_CONTEXT_HEADER.
+# MD2PDF_AUTHOR, MD2PDF_METADATA, MD2PDF_LINKS_FILTER, MD2PDF_RAWTEX_FILTER,
+# MD2PDF_TYPST_TEMPLATE, MD2PDF_CONTEXT_HEADER.
 
 usage() {
   cat <<EOF
@@ -113,6 +113,7 @@ case "$engine" in
       # `#cite` fails the build when the document has no bibliography.
       --to=typst-citations
       --pdf-engine=typst
+      --lua-filter="$MD2PDF_RAWTEX_FILTER"
 
       # The template is imported by absolute path: typst reads nothing
       # outside its root, which defaults to the working directory.
