@@ -150,7 +150,8 @@
   // split across pages (a figure is unbreakable by default). pandoc wraps
   // each table in `align(center)`, which the cells inherit.
   show figure.where(kind: table): set block(breakable: true)
-  set table(inset: (x: 4pt, y: 3pt))
+  // x inset: `INSET_PT` of md2pdf-tables.lua counts both sides of it.
+  set table(inset: (x: 5pt, y: 3pt))
   show table: set align(start)
   show table: set par(justify: false)
   show table: it => block(stroke: (y: 0.5pt), it)

@@ -2,7 +2,7 @@
 #
 # Settings come from the Nix wrapper (`runtimeEnv`): MD2PDF_ENGINE,
 # MD2PDF_AUTHOR, MD2PDF_METADATA, MD2PDF_LINKS_FILTER, MD2PDF_RAWTEX_FILTER,
-# MD2PDF_TYPST_TEMPLATE, MD2PDF_CONTEXT_HEADER.
+# MD2PDF_TABLES_FILTER, MD2PDF_TYPST_TEMPLATE, MD2PDF_CONTEXT_HEADER.
 
 usage() {
   cat <<EOF
@@ -71,14 +71,17 @@ if [ -n "$output" ] && [ ${#inputs[@]} -gt 1 ]; then
 fi
 
 # ConTeXt page geometry; md2pdf.typ holds the typst margins of each paper.
+# `textwidth` feeds the typst table layout (md2pdf-tables.lua).
 if [ "$tablet" = 1 ]; then
   paper=a6
   size="$((big ? 11 : 9))pt"
-  layout="backspace=10mm,width=85mm,topspace=10mm,header=0mm,footer=8mm,height=132mm"
+  textwidth=85mm
+  layout="backspace=10mm,width=$textwidth,topspace=10mm,header=0mm,footer=8mm,height=132mm"
 else
   paper=a4
   size="$((big ? 12 : 10))pt"
-  layout="backspace=20mm,width=170mm,topspace=20mm,header=0mm,footer=10mm,height=260mm"
+  textwidth=170mm
+  layout="backspace=20mm,width=$textwidth,topspace=20mm,header=0mm,footer=10mm,height=260mm"
 fi
 
 # Language and fonts come as a metadata file: a document's own YAML block
@@ -114,6 +117,8 @@ case "$engine" in
       --to=typst-citations
       --pdf-engine=typst
       --lua-filter="$MD2PDF_RAWTEX_FILTER"
+      --lua-filter="$MD2PDF_TABLES_FILTER"
+      -V "md2pdf-textwidth=$textwidth"
 
       # The template is imported by absolute path: typst reads nothing
       # outside its root, which defaults to the working directory.
