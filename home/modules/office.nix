@@ -17,6 +17,8 @@ let
   inherit (lib)
     concatStringsSep
     findFirst
+    getExe
+    getExe'
     hasAttr
     makeBinPath
     mkEnableOption
@@ -106,6 +108,39 @@ let
       ];
     };
     text = builtins.readFile ./../../assets/pandoc/md2pdf.sh;
+  };
+
+  md2pdfLabels =
+    if lang == "fr" then
+      {
+        plain = "Markdown vers PDF";
+        big = "Markdown vers PDF (grand)";
+        tablet = "Markdown vers PDF (tablette)";
+        done = "PDF créé";
+        failed = "Échec de la conversion";
+      }
+    else
+      {
+        plain = "Markdown to PDF";
+        big = "Markdown to PDF (big)";
+        tablet = "Markdown to PDF (tablet)";
+        done = "PDF created";
+        failed = "Conversion failed";
+      };
+
+  # Nautilus runs its scripts without a terminal: the outcome goes to a
+  # desktop notification. Selected files arrive as arguments, relative to the
+  # viewed folder, which is the working directory.
+  md2pdfNautilus = flags: {
+    executable = true;
+    text = ''
+      #!/usr/bin/env bash
+      if log="$(${getExe md2pdf} ${flags} "$@" 2>&1)"; then
+        ${getExe' pkgs.libnotify "notify-send"} --app-name=md2pdf "${md2pdfLabels.done}" "$log"
+      else
+        ${getExe' pkgs.libnotify "notify-send"} --app-name=md2pdf --icon=dialog-error "${md2pdfLabels.failed}" "$log"
+      fi
+    '';
   };
 
   #--------------------------------------------------------------------------
@@ -520,7 +555,8 @@ in
 
         The engine is ConTeXt when `enablePandocContext` is on, typst
         otherwise. A bare `pandoc notes.md -o notes.pdf` uses the same engine,
-        language and fonts.
+        language and fonts. Under GNOME, the three layouts are also offered on
+        right click in Nautilus (Scripts menu).
       '';
     };
     darkone.home.office.enablePandocContext = mkEnableOption "ConTeXt PDF engine for pandoc (~900 MiB, needs enablePandoc)";
@@ -923,6 +959,13 @@ in
         pdf-engine = pandocEngine;
         metadata-files = [ "${pandocMetadata}" ];
       };
+    };
+
+    # Right click > Scripts. GNOME only: Nautilus is its file manager.
+    xdg.dataFile = mkIf (cfg.enablePandoc && osConfig.darkone.graphic.gnome.enable) {
+      "nautilus/scripts/${md2pdfLabels.plain}" = md2pdfNautilus "";
+      "nautilus/scripts/${md2pdfLabels.big}" = md2pdfNautilus "--big";
+      "nautilus/scripts/${md2pdfLabels.tablet}" = md2pdfNautilus "--tablet";
     };
 
     #--------------------------------------------------------------------------
