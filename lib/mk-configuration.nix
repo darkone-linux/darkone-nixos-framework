@@ -72,11 +72,6 @@ let
   # `pkgs` the modules actually see.
   genewebOverlay = import ./overlays/geneweb.nix { inherit nixpkgs-geneweb; };
 
-  # Portability overlay: neutralises OxiCloud's `target-cpu=native` so the
-  # binary built on the deployer runs on every node (SIGILL on an older CPU
-  # otherwise). Drop it once the nixpkgs package fixes this.
-  oxicloudOverlay = import ./overlays/oxicloud.nix;
-
   # Compat overlay: forces `__structuredAttrs = false` on `gimp` (build broken
   # otherwise). Drop it once upstream makes `gimp` `__structuredAttrs`-clean.
   gimpOverlay = import ./overlays/gimp.nix;
@@ -218,15 +213,14 @@ let
 
         # `dnfPackagesOverlay` (`pkgs/`) and `dnfGeneratorOverlay` are permanent;
         # the others are temporary, dropped with their upstream imports/inputs —
-        # geneweb (nixpkgs PR #522751), oxicloud (`target-cpu=native`), gimp
-        # (`__structuredAttrs`), logseq (AppImage), talon (x86_64 only),
-        # opencode (pinned to 1.18.29, 1.18.30 crashes).
+        # geneweb (nixpkgs PR #522751), gimp (`__structuredAttrs`), logseq
+        # (AppImage), talon (x86_64 only), opencode (pinned to 1.18.29,
+        # 1.18.30 crashes).
         {
           nixpkgs.overlays = [
             dnfPackagesOverlay
             (dnfGeneratorOverlay system)
             (genewebOverlay system)
-            oxicloudOverlay
             gimpOverlay
             logseqOverlay
             (talonOverlay system)
