@@ -451,7 +451,10 @@ in
     # Herdr
     #==========================================================================
     programs.herdr = {
-      enable = true;
+
+      # TODO: re-enable once nixpkgs unstable links herdr again (ld.bfd 2.46
+      # rejects zig-built libghostty-vt: overlapping FDEs; absent from stable).
+      enable = false;
     };
   };
 }
