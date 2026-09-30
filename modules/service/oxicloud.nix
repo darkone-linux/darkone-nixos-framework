@@ -13,9 +13,24 @@
 # (local password login only).
 # :::
 #
-# :::tip[Storage]
-# File storage, WebDAV, CalDAV and CardDAV are served on the same HTTP port,
-# behind the Caddy reverse proxy. The PostgreSQL database is created locally.
+# :::caution[Accounts with SSO]
+# - Self-registration is closed: accounts are created at the first SSO login.
+# - Members of the Kanidm `admins` group become OxiCloud administrators at that
+#   first login only; later role changes are made in the OxiCloud admin UI.
+# :::
+#
+# :::tip[Storage and clients]
+# File storage, WebDAV (`/webdav/`), CalDAV (`/caldav`) and CardDAV (`/carddav`)
+# are served on the same HTTP port, behind the Caddy reverse proxy. The
+# Nextcloud compatibility layer is on: Nextcloud desktop and mobile clients, and
+# the GNOME Online Accounts Nextcloud provider, connect to the service URL. The
+# PostgreSQL database is created locally.
+# :::
+#
+# :::tip[Mail]
+# When `network.smtp` is set, OxiCloud sends share notifications and email
+# invitations (magic links) through that relay. Without it, email features are
+# disabled.
 # :::
 
 {
@@ -57,6 +72,44 @@ let
 
   # Callback path registered on the Kanidm side; must match `redirectUri`.
   oidcCallbackPath = "/api/auth/oidc/callback";
+
+  # `network.smtp` is optional: without a relay, no mail and no smtp secret.
+  hasSmtp = network ? smtp;
+  inherit (network) smtp;
+
+  # Same set as Caddy's `trusted_proxies static private_ranges 100.64.0.0/10`:
+  # Caddy reaches us from the zone gateway, the HCS (tailnet) or loopback.
+  # Unset, login rate-limit and lockout key on Caddy's IP, shared by all users.
+  trustedProxyCidrs = [
+    "10.0.0.0/8"
+    "172.16.0.0/12"
+    "192.168.0.0/16"
+    "127.0.0.0/8"
+    "100.64.0.0/10"
+    "fd00::/8"
+    "::1/128"
+  ];
+
+  # Two-letter locales shipped in upstream `static/locales/`: an unknown
+  # `OXICLOUD_DEFAULT_LOCALE` aborts the startup, so fall back on upstream (`en`).
+  shippedLocales = [
+    "ar"
+    "de"
+    "en"
+    "es"
+    "fa"
+    "fr"
+    "hi"
+    "it"
+    "ja"
+    "ko"
+    "nl"
+    "pl"
+    "pt"
+    "ru"
+    "zh"
+  ];
+  lang = builtins.substring 0 2 config.darkone.system.i18n.locale;
 in
 {
   options = {
@@ -102,13 +155,20 @@ in
       networking.firewall = dnfLib.mkInternalFirewall host zone [ srvPort ];
 
       #------------------------------------------------------------------------
-      # Database backup
+      # Database
       #------------------------------------------------------------------------
 
       services.postgresqlBackup.enable = true;
 
+      # `ensureUsers` runs in `postgresql-setup.service`: upstream orders on
+      # `postgresql.service` only, so a first boot races the role creation.
+      systemd.services.oxicloud = {
+        after = [ "postgresql.target" ];
+        requires = [ "postgresql.target" ];
+      };
+
       #------------------------------------------------------------------------
-      # OIDC client secret (only when idm is present on the network)
+      # Secrets (OIDC client secret, SMTP password)
       #------------------------------------------------------------------------
 
       # Re-encrypted alias of the kanidm-owned OAuth2 secret, readable by the
@@ -123,6 +183,15 @@ in
 
       sops.templates."oxicloud-oidc-env" = lib.mkIf hasIdm {
         content = "OXICLOUD_OIDC_CLIENT_SECRET=${config.sops.placeholder."${secret}-service"}";
+        mode = "0400";
+        owner = "oxicloud";
+        restartUnits = [ "oxicloud.service" ];
+      };
+
+      sops.secrets."smtp/password" = lib.mkIf hasSmtp { };
+
+      sops.templates."oxicloud-smtp-env" = lib.mkIf hasSmtp {
+        content = "OXICLOUD_SMTP_PASS=${config.sops.placeholder."smtp/password"}";
         mode = "0400";
         owner = "oxicloud";
         restartUnits = [ "oxicloud.service" ];
@@ -154,11 +223,59 @@ in
             inherit clientId;
             redirectUri = "${params.href}${oidcCallbackPath}";
             frontendUrl = params.href;
+
+            # `groups` is not requested upstream. Kanidm emits group SPNs
+            # (`admins@<domain>`); the short name is a fallback.
+            scopes = [
+              "openid"
+              "profile"
+              "email"
+              "groups"
+            ];
+            adminGroups = [
+              "admins"
+              "admins@${network.domain}"
+            ];
           };
+
+          extraEnvironment = lib.mkMerge [
+            {
+              OXICLOUD_TRUST_PROXY_CIDR = lib.concatStringsSep "," trustedProxyCidrs;
+
+              # Nextcloud API layer (`/remote.php/`, `/ocs/`, Login Flow v2).
+              OXICLOUD_NEXTCLOUD_ENABLED = true;
+
+              # Server-rendered pages and emails; `null` keeps the upstream default.
+              OXICLOUD_DEFAULT_LOCALE = if lib.elem lang shippedLocales then lang else null;
+            }
+
+            # Accounts come from Kanidm (JIT provisioning at first SSO login).
+            (lib.mkIf hasIdm { OXICLOUD_DISABLE_REGISTRATION = true; })
+
+            # Password comes from the sops environment file.
+            (lib.mkIf hasSmtp {
+              OXICLOUD_SMTP_HOST = smtp.server;
+              OXICLOUD_SMTP_PORT = smtp.port;
+              OXICLOUD_SMTP_USER = smtp.username;
+              OXICLOUD_SMTP_FROM = "OxiCloud ${network.domain} <noreply@${network.domain}>";
+
+              # `submissions` (465) is implicit TLS; `submission` (587)
+              # upgrades in-band.
+              OXICLOUD_SMTP_TLS =
+                if !smtp.tls then
+                  "none"
+                else if (smtp.protocol or "submissions") == "submissions" then
+                  "tls"
+                else
+                  "starttls";
+            })
+          ];
         };
 
-        # Client secret injected via env (takes precedence over the option).
-        environmentFiles = lib.mkIf hasIdm [ config.sops.templates."oxicloud-oidc-env".path ];
+        # Secrets injected via env (take precedence over the options).
+        environmentFiles =
+          lib.optional hasIdm config.sops.templates."oxicloud-oidc-env".path
+          ++ lib.optional hasSmtp config.sops.templates."oxicloud-smtp-env".path;
       };
     })
   ];
