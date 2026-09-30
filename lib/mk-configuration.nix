@@ -80,6 +80,10 @@ let
   # build (nixpkgs#535206). Drop once upstream fixes the source build.
   logseqOverlay = import ./overlays/logseq.nix;
 
+  # outline overlay: corrected `yarn-fix.patch` + hashes for 1.10.1 (nixpkgs
+  # source fetch fails). Inert on other versions; drop once nixpkgs is fixed.
+  outlineOverlay = import ./overlays/outline.nix;
+
   # Talon overlay: `pkgs.talon` from nix-community/talon-nix (x86_64 only,
   # attribute absent elsewhere). Consumed by UMI (multimodal input) host profiles.
   talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
@@ -214,8 +218,8 @@ let
         # `dnfPackagesOverlay` (`pkgs/`) and `dnfGeneratorOverlay` are permanent;
         # the others are temporary, dropped with their upstream imports/inputs —
         # geneweb (nixpkgs PR #522751), gimp (`__structuredAttrs`), logseq
-        # (AppImage), talon (x86_64 only), opencode (pinned to 1.18.29,
-        # 1.18.30 crashes).
+        # (AppImage), outline (1.10.1 patch/hashes), talon (x86_64 only),
+        # opencode (pinned to 1.18.29, 1.18.30 crashes).
         {
           nixpkgs.overlays = [
             dnfPackagesOverlay
@@ -223,6 +227,7 @@ let
             (genewebOverlay system)
             gimpOverlay
             logseqOverlay
+            outlineOverlay
             (talonOverlay system)
             (opencodeOverlay system)
           ];
