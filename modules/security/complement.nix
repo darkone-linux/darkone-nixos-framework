@@ -45,6 +45,17 @@ let
   mainSecurityCfg = config.darkone.system.security;
   cfg = config.darkone.security.complement;
   isActive = dnfLib.mkIsActive (mainSecurityCfg // { inherit (cfg) enable; });
+
+  # C7: absolute FQDN (trailing dot), exempt from resolv.conf `search`. With
+  # upstream DNS down at boot, `<name>.<zone domain>` hit the gateway's zone
+  # wildcard; chrony kept that address for good. IP literals left as is.
+  ntpFqdn =
+    s:
+    if lib.hasSuffix "." s || lib.hasInfix ":" s || builtins.match "[0-9.]+" s != null then
+      s
+    else
+      "${s}.";
+  ntpServers = map ntpFqdn cfg.ntpServers;
 in
 {
   options = {
@@ -298,7 +309,7 @@ in
             # unauthenticated source alongside the authenticated one — and
             # chrony picked the unauthenticated one to step the clock at boot,
             # which is exactly what NTS is there to prevent.
-            servers = lib.optionals (!cfg.useNts) cfg.ntpServers;
+            servers = lib.optionals (!cfg.useNts) ntpServers;
 
             # `rtcautotrim`, the NixOS default, excludes `rtcsync` — and only
             # `rtcsync` clears the kernel's STA_UNSYNC flag. Left as it was,
@@ -314,7 +325,7 @@ in
               rtcsync
             ''
             + lib.optionalString cfg.useNts ''
-              ${lib.concatMapStringsSep "\n" (s: "server ${s} iburst nts") cfg.ntpServers}
+              ${lib.concatMapStringsSep "\n" (s: "server ${s} iburst nts") ntpServers}
             '';
           };
         })
