@@ -121,7 +121,7 @@ _zone-addrs host:
 # machine plugged anywhere is predictable before it has even booted.
 #
 # Falls back to the host name when nothing matches: a host with no declared MAC
-# is simply not reachable outside its zone.
+# is reachable outside its zone only through the tailnet (`dnf-locate`).
 #
 # A reservation is an expectation, not evidence, so the roaming address is
 # probed before being returned — see the comment on the probe below.
@@ -151,6 +151,10 @@ _target host:
 		echo "$addr"
 	elif up "{{host}}" 22 || up "{{host}}" 2222 ;then
 		echo "{{host}}"
+
+	# Roaming elsewhere (another zone, the tailnet): ask the admin host locator.
+	elif command -v dnf-locate >/dev/null && found=$(dnf-locate --print "{{host}}") ;then
+		echo "$found"
 	else
 		echo "$addr"
 	fi
