@@ -9,8 +9,8 @@
 #           SSH host key `luks/<host>/initrd-key`) and the public manifest entry
 #           in usr/secrets/luks.json. Never touches the target.
 # - ``      `pre`, then converge the target: put the initrd host key back if it
-#           is missing, record the gateway WAN IP so `just enter`/`just unlock`
-#           still find the initrd sshd when the VPN is down, and bootstrap the
+#           is missing, record the gateway WAN IP so `just unlock`
+#           still finds the initrd sshd when the VPN is down, and bootstrap the
 #           shared keyslot of a host installed before the shared-format era.
 # - `passwd` rotate the per-host passphrase, then converge.
 # - `show`  read-only audit: keyslot table + remote-unlock conformity.
@@ -193,8 +193,8 @@ luks host action='' ip='auto':
 	fi
 
 	# Gateways: record the current WAN IP. The VPN route to a zone dies with
-	# its gateway, so `just enter` / `just unlock` fall back to this address to
-	# reach the initrd sshd. Refreshed at each run (ISP renumbering needs a
+	# its gateway, so `just unlock` (`_enter_initrd`) falls back to this
+	# address to reach the initrd sshd. Refreshed at each run (ISP renumbering needs a
 	# re-run). The gateway hostname comes from var/generated/network.nix (same
 	# source as the luks module): the raw config.yaml does not carry it, the
 	# generator derives it from the host profiles.
@@ -461,14 +461,12 @@ _luks-show host target:
 	[ "$failures" -eq 0 ] || just _fail "$failures check(s) failed on {{host}}."
 	just _log "{{host}} is conform." "LUKS"
 
-# Non-interactive sibling of `enter`: answers the LUKS prompt of a host waiting
-# in its initrd without a human in front of it. `systemd-tty-ask-password-agent`
-# only talks to a terminal, so the initrd carries a `dnf-unlock` helper that
-# takes the passphrase on a pipe (dnf/modules/system/luks.nix).
+# Stored passphrases first, piped to the initrd `dnf-unlock` helper: no human
+# needed. None accepted, or no infra key here: the interactive prompt, when a
+# terminal is there (`_enter_initrd`).
 #
-# Called right after a reboot the machine is usually not there yet, so this
-# waits (one dot per attempt) instead of failing. A host with no LUKS volume is
-# a logged no-op, which is what lets `full-install` call it unconditionally.
+# Waits for the host (one dot per attempt): called right after a reboot. No LUKS
+# volume: a logged no-op, so `full-install` calls it unconditionally.
 #
 # Unlock a host waiting for its LUKS passphrase in initrd
 [group('luks')]
@@ -480,11 +478,16 @@ unlock host ip='' timeout='600':
 		just _log "No LUKS volume on {{host}}: nothing to unlock." "LUKS"
 		exit 0
 	fi
-	just _check_infra_admin
+	stored=true
+	if [ ! -f {{sopsInfraKeyFile}} ] ;then
+		[ -t 0 ] || just _check_infra_admin
+		just _warn "No infra key here: the passphrase will be asked."
+		stored=false
+	fi
 	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
 
 	# The WAN address recorded for a gateway is the only way in when the VPN
-	# route to its zone died with it (same fallback as `just enter`).
+	# route to its zone died with it (same fallback as `_enter_initrd`).
 	wan=$(yq -r '."{{host}}".wan // ""' {{secretsDir}}/luks.json 2>/dev/null || true)
 
 	# 2222 first: a host that answers on both is already booted.
@@ -507,7 +510,9 @@ unlock host ip='' timeout='600':
 	# `dnf-unlock` can only report that it ANSWERED the prompt, never that the
 	# passphrase was accepted: a refused one just makes systemd ask again. So
 	# every attempt is confirmed from here instead.
-	for key in '["luks-passphrase"]' '["luks"]["{{host}}"]["passphrase"]' ;do
+	keys=()
+	$stored && keys=('["luks-passphrase"]' '["luks"]["{{host}}"]["passphrase"]')
+	for key in "${keys[@]}" ;do
 		sops -d --extract "$key" {{sopsSecretsFile}} 2>/dev/null \
 			| ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
 				-o ConnectTimeout=10 root@"$addr" dnf-unlock >/dev/null 2>&1 || continue
@@ -540,4 +545,31 @@ unlock host ip='' timeout='600':
 		just _log "{{host}} unlocked at $addr." "LUKS"
 		exit 0
 	done
-	just _fail "Could not unlock {{host}} at $addr — try 'just enter {{host}}'."
+	! $stored || just _warn "No stored passphrase accepted by {{host}}."
+	[ -t 0 ] || just _fail "Could not unlock {{host}} at $addr: run 'just unlock {{host}}' from a terminal to type it."
+	exec just _enter_initrd "{{host}}" "$addr"
+
+# Interactive LUKS prompt of a host waiting in initrd (sshd on 2222): probe the
+# explicit ip, the hostname, then the WAN IP of usr/secrets/luks.json — the VPN
+# route to a zone dies with its gateway. root@, own initrd host key regenerated
+# by every reinstall: outside the `Match user nix` policy, "never pin" restated.
+_enter_initrd host ip='':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	candidates="{{ip}}"
+	[ "{{ip}}" = "{{host}}" ] || candidates="$candidates {{host}}"
+	wan=$(yq -r '."{{host}}".wan // ""' {{secretsDir}}/luks.json 2>/dev/null || true)
+	{ [ -z "$wan" ] || [ "$wan" = "{{ip}}" ] ; } || candidates="$candidates $wan"
+	for c in $candidates ;do
+		if timeout 2 bash -c "exec 3<>/dev/tcp/$c/2222" 2>/dev/null ;then
+			just _log "{{host}} ($c) is waiting in initrd: answering the LUKS prompt..." "LUKS"
+			ssh=(ssh -t -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$c"
+				systemd-tty-ask-password-agent --query --watch)
+			if [ "${USER:-}" = "nix" ]; then
+				exec "${ssh[@]}"
+			else
+				exec sudo -i -u nix "${ssh[@]}"
+			fi
+		fi
+	done
+	just _fail "{{host}}: no initrd answering on port 2222 (tried:$candidates)."

@@ -36,9 +36,9 @@
 # - **remote unlock**: initrd sshd on a dedicated port (2222), own persistent
 #   host key (`/var/lib/luks-initrd/`), root login with the `nix` deploy key
 #   (`usr/secrets/nix.pub`). `just unlock <host>` answers the passphrase prompt
-#   without a human (through the `dnf-unlock` helper shipped in the initrd);
-#   `just enter <host>` is the interactive path. Both fall back to the WAN IP
-#   recorded in the manifest when the VPN route died with the host. Regular
+#   without a human (through the `dnf-unlock` helper shipped in the initrd),
+#   then interactively from a terminal when no stored passphrase works. It
+#   falls back to the WAN IP recorded in the manifest when the VPN route died. Regular
 #   hosts DHCP on wired interfaces (a laptop on Wi-Fi has no initrd network and
 #   falls back to console unlock); zone gateways replicate their production
 #   layout instead — static LAN IP on the lan0 bridge, DHCP on the WAN side —
