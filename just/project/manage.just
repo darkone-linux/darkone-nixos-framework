@@ -26,9 +26,14 @@ enter on ip='auto':
 
 	# Roaming elsewhere (another zone, the tailnet): the name probe hits its
 	# home address, ask the admin host locator before looking for an initrd.
-	if [ "{{ip}}" = "auto" ] && ! up "$target" && command -v dnf-locate >/dev/null \
-		&& found=$(dnf-locate --print "{{on}}" 2>/dev/null) ;then
-		target=$found
+	if [ "{{ip}}" = "auto" ] && ! up "$target" && command -v dnf-locate >/dev/null ;then
+		just _warn "Not found in its zone, locating {{on}}..." 
+		if found=$(dnf-locate --print "{{on}}" 2>/dev/null) ;then
+			target=$found
+			just _log "Target found! Let's continue..." "SSH"
+		else
+			just _warn "Target not found"
+		fi
 	fi
 	if up "$target" ;then
 		just _log "Entering {{on}}..." "SSH"
