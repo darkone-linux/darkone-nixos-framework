@@ -188,6 +188,11 @@ in
               # Local dns reverse
               ("[/" + (extractReversePrefix zone.ipPrefix) + ".in-addr.arpa/]" + dnsmasqAddr)
             ]
+
+            # Tailnet node names: dnsmasq relays them to MagicDNS
+            ++ lib.optional network.coordination.enable (
+              "[/" + dnfLib.constants.tailnetDomain + "/]" + dnsmasqAddr
+            )
             ++
 
               # Reverse DNS upstreams for other subnets
@@ -201,7 +206,7 @@ in
               )
 
             ++ [
-              (lib.mkIf network.coordination.enable "[/100.in-addr.arpa/]100.100.100.100")
+              (lib.mkIf network.coordination.enable "[/100.in-addr.arpa/]${dnfLib.constants.magicDnsAddress}")
 
               "94.140.14.14"
               "94.140.15.15"

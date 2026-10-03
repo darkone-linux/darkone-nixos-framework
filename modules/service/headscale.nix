@@ -47,6 +47,7 @@
 let
   cfg = config.darkone.service.headscale;
   srv = config.services.headscale;
+  inherit (dnfLib.constants) tailnetDomain;
   defaultParams = {
     inherit (network.coordination) domain;
     description = "Headscale DNF service";
@@ -113,7 +114,7 @@ let
         dns:
           magic_dns: true
           override_local_dns: false
-          base_domain: tailnet.internal
+          base_domain: ${tailnetDomain}
         unix_socket: $TMPDIR/headscale.sock
         EOF
         headscale --config config.yaml --force policy check \
@@ -480,7 +481,7 @@ in
             # -> Use an internal domain here to prevent names from
             #    leaking to the internet / external DNS. A name like vpn.mydomain.tld
             #    is not a good idea!
-            base_domain = "tailnet.internal";
+            base_domain = tailnetDomain;
 
             # Force headscale DNS config over node local DNS
             override_local_dns = false;
@@ -518,7 +519,7 @@ in
             # ]
             # ++ lib.attrsets.mapAttrsToList (_: z: z.domain) hcsClientZones;
             #search_domains = lib.attrsets.mapAttrsToList (_: z: z.domain) hcsClientZones;
-            search_domains = [ "tailnet.internal" ];
+            search_domains = [ tailnetDomain ];
 
             # See if we should put global services here (DOES NOT WORK - NO EFFECT)
             # To use for global services?

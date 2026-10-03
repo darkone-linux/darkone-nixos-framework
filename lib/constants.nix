@@ -23,6 +23,11 @@ in
   nixCacheRoamingFqdn = "nix-cache.${roamingDomain}";
   harmoniaRoamingFqdn = "harmonia.${roamingDomain}";
 
+  # MagicDNS namespace of tailnet nodes (headscale `base_domain`), answered by
+  # every node's tailscaled on the quad-100 address, gateways included.
+  tailnetDomain = "tailnet.internal";
+  magicDnsAddress = "100.100.100.100";
+
   # Reserved zone name for the global (Internet-facing) network.
   # Hosts outside this zone are considered local and reachable through a
   # zone gateway.
