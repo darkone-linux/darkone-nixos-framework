@@ -16,6 +16,10 @@
 #   journal. It never tags nor deletes.
 # - `dnf-tailnet-enroll` backs `just tailnet-enroll`: single-use keys tagged
 #   from the declared topology, declared name and tags on the enrolled node.
+# - Unbound view `tailnet-machines`: tagged nodes (HCS aside) get the zone LAN
+#   address of the global services a zone serves (`git.<domain>` on a gateway),
+#   everyone else the public one. `unbound-tailnet-view` lists their tailnet
+#   IPs from headscale, declared nowhere.
 #
 # ```nix
 # darkone.service.headscale.policy.adminDevices.phone-alice = "100.64.0.9";
@@ -74,18 +78,72 @@ let
     lib.optional config.darkone.service.idm.enable "kanidm.service"
     ++ lib.optional config.services.caddy.enable "caddy.service";
 
-  policyFile = (pkgs.formats.json { }).generate "headscale-policy.json" (
-    dnfLib.mkHeadscalePolicy {
-      inherit network hosts users;
-      inherit (cfg.policy)
-        enforce
-        adminDevices
-        exitNodeSources
-        extraAcls
-        extraHosts
-        ;
-    }
+  policy = dnfLib.mkHeadscalePolicy {
+    inherit network hosts users;
+    inherit (cfg.policy)
+      enforce
+      adminDevices
+      exitNodeSources
+      extraAcls
+      extraHosts
+      ;
+  };
+  policyFile = (pkgs.formats.json { }).generate "headscale-policy.json" policy;
+
+  # Unbound view of the tagged nodes, the ones the policy lets into the zone
+  # subnets. Without it a global service served from a zone resolves to the
+  # public wildcard, the HCS, which only proxies HTTPS (git over ssh breaks).
+  # The HCS keeps its own resolution: its tag stays out.
+  machinesView = "tailnet-machines";
+  machinesViewDir = "/run/unbound-tailnet-view";
+  machineTags = lib.subtractLists (dnfLib.tailnetNodeTags { inherit host network; }) (
+    builtins.attrNames policy.tagOwners
   );
+
+  # `<name>.<domain>` records of the zones that point into a zone subnet: the
+  # answers any zone LAN gives (generated `host-record` entries).
+  localZones = lib.filter dnfLib.inLocalZone (lib.attrValues network.zones);
+  inZoneSubnet = ip: lib.any (zone: lib.hasPrefix "${zone.ipPrefix}." ip) localZones;
+  isGlobalName = name: builtins.match "[^.]+\\.${lib.escapeRegex network.domain}" name != null;
+  zoneGlobals = lib.unique (
+    lib.concatMap (
+      zone:
+      lib.concatMap (
+        record:
+        let
+          fields = lib.splitString "," record;
+          ip = lib.last fields;
+        in
+        lib.optionals (inZoneSubnet ip) (
+          map (name: "\"${name}. IN A ${ip}\"") (lib.filter isGlobalName (lib.init fields))
+        )
+      ) (zone.extraDnsmasqSettings.host-record or [ ])
+    ) localZones
+  );
+
+  # Rewritten on change only, checked before unbound reloads: a bad file must
+  # never take the tailnet DNS down. headscale unreachable: last list kept.
+  viewScript = pkgs.writeShellScript "unbound-tailnet-view" ''
+    set -euo pipefail
+    hs() { ${srv.package}/bin/headscale --config /etc/headscale/config.yaml "$@" </dev/null; }
+    file=${machinesViewDir}/nodes.conf
+    new=$(hs nodes list -o json | ${pkgs.jq}/bin/jq -r --argjson tags '${builtins.toJSON machineTags}' '
+      [.[] | select(any((.tags // [])[]; IN($tags[])))
+        | .ip_addresses[]? | select(test("^[0-9.]+$"))]
+      | unique[] | "access-control-view: \(.)/32 ${machinesView}"')
+    old=$(${pkgs.coreutils}/bin/cat "$file" 2>/dev/null || true)
+    [ "$new" != "$old" ] || exit 0
+
+    printf '%s\n' "$new" > "$file.tmp"
+    ${pkgs.coreutils}/bin/mv -f "$file.tmp" "$file"
+    if ! ${config.services.unbound.package}/bin/unbound-checkconf /etc/unbound/unbound.conf >/dev/null; then
+      printf '%s\n' "$old" > "$file"
+      echo "unbound-checkconf refused the new list, previous one restored" >&2
+      exit 1
+    fi
+    ${pkgs.systemd}/bin/systemctl reload unbound.service
+    echo "view ${machinesView}: $(${pkgs.gnugrep}/bin/grep -c . "$file" || true) node(s)"
+  '';
 
   # Throwaway offline instance: a rejected policy fails the build instead of
   # the running server. Users are unknown here, tags, groups and aliases are
@@ -307,6 +365,9 @@ let
           echo "node $id: renamed to $host" >&2
         fi
         nodes | $jq -c --argjson id "$id" 'first(.[] | select(.id == $id)) | del(.nodeKey)'
+
+        # Its tailnet IP joins the unbound view now, not at the next timer run.
+        ${pkgs.systemd}/bin/systemctl start --no-block unbound-tailnet-view.service || true
         ;;
       *) die "$usage" ;;
     esac
@@ -427,6 +488,9 @@ in
               "100.64.0.0/10 allow"
             ];
             inherit (zone.unbound) local-data;
+
+            # `access-control-view` lines of `unbound-tailnet-view`; none yet: no match.
+            include = "\"${machinesViewDir}/*.conf\"";
             harden-glue = true;
             harden-dnssec-stripped = true;
             use-caps-for-id = false;
@@ -457,6 +521,15 @@ in
 
           # Syntax error
           # local-zone = "\"tailnet.internal.\" static";
+
+          # `view-first`: any other name resolves as for everyone.
+          view = [
+            {
+              name = machinesView;
+              view-first = true;
+              local-data = zoneGlobals;
+            }
+          ];
         };
       };
 
@@ -673,6 +746,35 @@ in
         timerConfig = {
           OnBootSec = "5min";
           OnUnitActiveSec = "15min";
+        };
+      };
+
+      # Root: the gRPC socket is `headscale`-group only, and unbound reloads.
+      # The list outlives each run (and unbound restarts), not a reboot.
+      systemd.services.unbound-tailnet-view = {
+        description = "Tailnet IPs of the tagged nodes for the unbound view";
+        after = [
+          "headscale.service"
+          "unbound.service"
+        ];
+        serviceConfig = {
+          Type = "oneshot";
+          ExecStart = viewScript;
+          RuntimeDirectory = baseNameOf machinesViewDir;
+          RuntimeDirectoryPreserve = true;
+          ProtectSystem = "strict";
+          ProtectHome = true;
+          PrivateTmp = true;
+          NoNewPrivileges = true;
+        };
+      };
+
+      # IPs only change on enrollment, which triggers a run: this is a fallback.
+      systemd.timers.unbound-tailnet-view = {
+        wantedBy = [ "timers.target" ];
+        timerConfig = {
+          OnBootSec = "1min";
+          OnUnitActiveSec = "5min";
         };
       };
     })
