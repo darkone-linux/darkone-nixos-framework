@@ -59,7 +59,6 @@
       extraDnsmasqSettings = {
         dhcp-host = [ ];
         dhcp-range = [ "10.10.3.200,10.10.3.249,24h" ];
-        address = [ "/z1.test.local/10.10.1.1" ];
         server = [ ];
         host-record = [
           "node1,node1.z1.test.local,10.10.1.1"
