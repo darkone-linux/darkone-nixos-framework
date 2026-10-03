@@ -106,8 +106,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   # `tsconfig.json` carries the JSX runtime (`@opentui/react`) bun needs to
   # load `.tsx` sources.
   #
-  # `--suffix`, not `--prefix`: host tools win. A store `ping` or `nix` would
-  # shadow the capability wrapper or the daemon-matched client.
+  # `--suffix`, not `--prefix`: host tools win. A store `nix` would shadow the
+  # daemon-matched client.
   installPhase = ''
     runHook preInstall
 

@@ -90,7 +90,7 @@ let
       pkgs.treefmt
     ];
 
-    # `sudo` and `ping` are setuid/capability wrappers, never store paths.
+    # `sudo` is a setuid wrapper, never a store path.
     text = ''
       export PATH="/run/wrappers/bin:$PATH"
       exec fleet-update --no-ui "$@"
