@@ -6,9 +6,9 @@
 alias e := enter
 alias rd := remote-desktop
 
-# When the host answers on port 22, plain ssh as usual. Otherwise it may be
-# waiting in initrd for its LUKS passphrase, where sshd listens on port 2222
-# (dnf/modules/system/luks.nix): probe the explicit ip (if given), the
+# When the host answers on port 22, plain ssh as usual; roaming, `dnf-locate`
+# finds its path. Otherwise it may be waiting in initrd for its LUKS
+# passphrase, where sshd listens on port 2222 (dnf/modules/system/luks.nix): probe the explicit ip (if given), the
 # hostname, then the WAN IP recorded in usr/secrets/luks.json — the VPN
 # route to a zone dies with its gateway, only the WAN side remains. On the
 # first hit, log in as root with the nix deploy key and answer the pending
@@ -22,7 +22,15 @@ enter on ip='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	target="{{on}}" ; [ "{{ip}}" = "auto" ] || target="{{ip}}"
-	if timeout 2 bash -c "exec 3<>/dev/tcp/$target/22" 2>/dev/null ;then
+	up() { timeout 2 bash -c "exec 3<>/dev/tcp/$1/22" 2>/dev/null ; }
+
+	# Roaming elsewhere (another zone, the tailnet): the name probe hits its
+	# home address, ask the admin host locator before looking for an initrd.
+	if [ "{{ip}}" = "auto" ] && ! up "$target" && command -v dnf-locate >/dev/null \
+		&& found=$(dnf-locate --print "{{on}}" 2>/dev/null) ;then
+		target=$found
+	fi
+	if up "$target" ;then
 		just _log "Entering {{on}}..." "SSH"
 		if [ "${USER:-}" = "nix" ]; then
 			exec ssh nix@"$target"
