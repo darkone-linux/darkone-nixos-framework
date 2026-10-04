@@ -1,0 +1,7 @@
+{
+  "uuid": "umi-keyboard@darkone-linux",
+  "name": "UMI on-screen keyboard",
+  "description": "Shows or hides the Onboard keyboard (DNF UMI profile)",
+  "icon": "onboard",
+  "max-instances": 1
+}

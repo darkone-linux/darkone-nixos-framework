@@ -1,0 +1,7 @@
+{
+  "uuid": "umi-mouse@darkone-linux",
+  "name": "UMI hover click",
+  "description": "Hover click types and a gaze-friendly pause zone (DNF UMI profile)",
+  "icon": "input-mouse",
+  "max-instances": 1
+}

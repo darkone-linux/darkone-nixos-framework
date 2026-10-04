@@ -1,0 +1,36 @@
+/* Gaze targets: roomy, with a transparent border so selection never resizes */
+.umi-button {
+    padding: 2px 4px;
+    margin: 0 2px;
+    border: 2px solid transparent;
+    border-radius: 8px;
+}
+
+.umi-button:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.umi-selected {
+    border-color: #4fc3f7;
+    background-color: rgba(79, 195, 247, 0.30);
+}
+
+.umi-zone {
+    margin: 0 2px 0 8px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 8px;
+}
+
+.umi-zone:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.umi-zone-paused {
+    border-color: #ff9800;
+    background-color: rgba(255, 152, 0, 0.35);
+}
+
+.umi-zone-fill {
+    border-radius: 6px;
+    background-color: rgba(76, 175, 80, 0.85);
+}

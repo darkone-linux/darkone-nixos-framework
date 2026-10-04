@@ -6,7 +6,9 @@
 # - **`darkone.host.umi` host**: Cinnamon X11 session (udev, uinput, Talon
 #   provided by the host). Talon and a docked Onboard keyboard (word
 #   prediction, sticky modifiers) start with the session. Panel, icons and
-#   text enlarged for gaze targets (`panelHeight`, `textScaling`).
+#   text enlarged for gaze targets (`panelHeight`, `textScaling`). DNF panel
+#   (`enablePanel`): launchers | open windows, then hover click types and a
+#   pause zone (applet `umi-mouse`), accessibility menu, Onboard toggle.
 # - **Any other host**: GNOME Wayland with its native accessibility: on-screen
 #   keyboard, big pointer and text. Talon and Onboard, X11-only, stay off.
 #
@@ -61,6 +63,7 @@
 }:
 let
   cfg = config.darkone.home.umi;
+  office = config.darkone.home.office;
 
   # Dwell click parameters shared by the GNOME and Cinnamon a11y schemas. The
   # toggles are written even when disabled: leaving the keys out would keep a
@@ -137,7 +140,141 @@ let
         sidebar-icon-size = 32;
       };
     }
+  ]
+  ++ lib.optionals cfg.enablePanel [
+
+    # Launchers move to their own applet, set apart from the open windows
+    {
+      uuid = "panel-launchers@cinnamon.org";
+      id = 15;
+      values = {
+        launcherList = cfg.panelLaunchers;
+        allow-dragging = false;
+      };
+    }
+
+    # A resting gaze must not pop thumbnails up or peek at windows
+    {
+      uuid = "grouped-window-list@cinnamon.org";
+      id = 2;
+      values = {
+        pinned-apps = [ ];
+        onclick-thumbnails = true;
+        enable-hover-peek = false;
+      };
+    }
   ];
+
+  # DNF applets: hover click controls, keyboard toggle
+  appletsDir = ./../../assets/cinnamon/applets;
+
+  # Panel applets, left to right, with pinned instance ids: Cinnamon numbers
+  # its stock list from 0 (existing applet settings survive), additions from 15.
+  panelZones = {
+    left = [
+      [
+        "menu@cinnamon.org"
+        0
+      ]
+      [
+        "separator@cinnamon.org"
+        1
+      ]
+      [
+        "panel-launchers@cinnamon.org"
+        15
+      ]
+      [
+        "separator@cinnamon.org"
+        16
+      ]
+      [
+        "grouped-window-list@cinnamon.org"
+        2
+      ]
+    ];
+    right = [
+      [
+        "umi-mouse@darkone-linux"
+        17
+      ]
+      [
+        "separator@cinnamon.org"
+        18
+      ]
+      [
+        "a11y@cinnamon.org"
+        19
+      ]
+      [
+        "umi-keyboard@darkone-linux"
+        20
+      ]
+      [
+        "separator@cinnamon.org"
+        21
+      ]
+      [
+        "systray@cinnamon.org"
+        3
+      ]
+      [
+        "xapp-status@cinnamon.org"
+        4
+      ]
+      [
+        "notifications@cinnamon.org"
+        5
+      ]
+      [
+        "printers@cinnamon.org"
+        6
+      ]
+      [
+        "removable-drives@cinnamon.org"
+        7
+      ]
+      [
+        "keyboard@cinnamon.org"
+        8
+      ]
+      [
+        "favorites@cinnamon.org"
+        9
+      ]
+      [
+        "network@cinnamon.org"
+        10
+      ]
+      [
+        "sound@cinnamon.org"
+        11
+      ]
+      [
+        "power@cinnamon.org"
+        12
+      ]
+      [
+        "calendar@cinnamon.org"
+        13
+      ]
+      [
+        "cornerbar@cinnamon.org"
+        14
+      ]
+    ];
+  };
+  enabledApplets = lib.concatLists (
+    lib.mapAttrsToList (
+      zone:
+      lib.imap0 (
+        position: applet:
+        "panel1:${zone}:${toString position}:${lib.elemAt applet 0}:${toString (lib.elemAt applet 1)}"
+      )
+    ) panelZones
+  );
+  nextAppletId =
+    1 + lib.foldl' lib.max 0 (map (applet: lib.elemAt applet 1) (panelZones.left ++ panelZones.right));
 
   # gnome-keyring's on-disk format for a keyring with no password: plain ini
   # instead of the encrypted blob, unlocked at startup without a prompt.
@@ -204,6 +341,29 @@ in
         default = 1.5;
         description = "Text scaling factor of the Cinnamon session (buttons grow with their labels).";
       };
+      enablePanel = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Cinnamon panel managed by DNF: launchers and open windows set apart,
+          hover click controls (click types, pause zone), accessibility menu,
+          keyboard toggle. Rewritten at every activation.
+        '';
+      };
+      panelLaunchers = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [
+          "nemo.desktop"
+        ]
+        ++ lib.optional (office.enable && office.enableFirefox) "firefox-esr.desktop"
+        ++ [ "org.gnome.Terminal.desktop" ];
+        defaultText = lib.literalExpression ''[ "nemo.desktop" "firefox-esr.desktop" "org.gnome.Terminal.desktop" ]'';
+        example = [
+          "nemo.desktop"
+          "firefox-esr.desktop"
+        ];
+        description = "Panel launchers (desktop file ids), with `enablePanel`.";
+      };
     };
   };
 
@@ -252,6 +412,8 @@ in
 
       # Taller panel, icons fit to it (0 = best fit for color icons)
       "org/cinnamon" = {
+        enabled-applets = lib.mkIf cfg.enablePanel enabledApplets;
+        next-applet-id = lib.mkIf cfg.enablePanel nextAppletId;
         panels-height = [ "1:${toString cfg.panelHeight}" ];
         panel-zone-icon-sizes = builtins.toJSON [
           {
@@ -299,6 +461,7 @@ in
       # high-contrast targets, sticky modifiers (no key holding), word
       # prediction to cut keystrokes, jitter tolerance.
       "org/onboard" = {
+        show-status-icon = !cfg.enablePanel;
         layout = "Full Keyboard";
         theme = "HighContrast";
         use-system-defaults = false;
@@ -347,21 +510,29 @@ in
       NoDisplay=true
     '';
 
-    # Cinnamon's stock panel pins name `firefox.desktop`, DNF ships Firefox ESR
-    # as `firefox-esr.desktop`: the pin resolves to nothing and the launcher is
-    # silently dropped, leaving only Files and Terminal. Rewrite the id in
-    # place rather than forcing the whole list, so pins added later survive.
-    # The file only exists once Cinnamon has run: on a fresh home the fix
-    # lands on the activation that follows the first login.
-    home.activation.umiPanelLaunchers = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      for cfgFile in "$HOME"/.config/cinnamon/spices/grouped-window-list@cinnamon.org/*.json ; do
-        [ -e "$cfgFile" ] || continue
-        ${pkgs.jq}/bin/jq '."pinned-apps".value |= map(
-          if . == "firefox.desktop" then "firefox-esr.desktop" else . end
-        )' "$cfgFile" > "$cfgFile.new" || continue
-        run ${pkgs.coreutils}/bin/mv -f "$cfgFile.new" "$cfgFile"
-      done
-    '';
+    # DNF panel layout, its applets loaded from XDG_DATA_HOME
+    home.file.".local/share/cinnamon/applets/umi-mouse@darkone-linux" = lib.mkIf cfg.enablePanel {
+      source = appletsDir + "/umi-mouse@darkone-linux";
+    };
+    home.file.".local/share/cinnamon/applets/umi-keyboard@darkone-linux" = lib.mkIf cfg.enablePanel {
+      source = appletsDir + "/umi-keyboard@darkone-linux";
+    };
+
+    # Stock panel only (`enablePanel` off): its pins name `firefox.desktop`,
+    # DNF ships `firefox-esr.desktop`, so the launcher is silently dropped.
+    # Rewritten in place, later pins survive. The file only exists once
+    # Cinnamon has run: on a fresh home, fixed at the next activation.
+    home.activation.umiPanelLaunchers = lib.mkIf (!cfg.enablePanel) (
+      lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        for cfgFile in "$HOME"/.config/cinnamon/spices/grouped-window-list@cinnamon.org/*.json ; do
+          [ -e "$cfgFile" ] || continue
+          ${pkgs.jq}/bin/jq '."pinned-apps".value |= map(
+            if . == "firefox.desktop" then "firefox-esr.desktop" else . end
+          )' "$cfgFile" > "$cfgFile.new" || continue
+          run ${pkgs.coreutils}/bin/mv -f "$cfgFile.new" "$cfgFile"
+        done
+      ''
+    );
 
     # Forced key by key: other values survive. A missing file gets the forced
     # keys only, Cinnamon completes it from the applet schema on next start
