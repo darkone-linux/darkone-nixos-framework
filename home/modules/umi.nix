@@ -33,7 +33,8 @@
 #
 # :::note[Dual schemas]
 # Settings go to both families: org/cinnamon/* for the UMI host session,
-# org/gnome/* for GNOME sessions elsewhere (mousetweaks reads it too).
+# org/gnome/* for GNOME sessions elsewhere. In Cinnamon, csd mirrors the
+# a11y mouse keys between both families, both ways.
 # Exception: keys locked by the DNF gnome module are never written here,
 # a write to a locked key aborts the whole home-manager `dconf load`.
 # Screen locking stays enabled GNOME-side (locked by the DNF gnome module);
@@ -86,9 +87,14 @@ let
   };
 
   # Talon owns Cinnamon's toggle at runtime (tracker automation): writing it
-  # here would switch hover click off at every activation.
+  # here would switch hover click off at every activation. GNOME's toggle too
+  # on a UMI host, csd copies it onto Cinnamon's.
+  umiHost = osConfig.darkone.host.umi.enable or false;
   cinnamonDwellSettings = removeAttrs dwellSettings (
     lib.optional cfg.enableTrackerAuto "dwell-click-enabled"
+  );
+  gnomeDwellSettings = removeAttrs dwellSettings (
+    lib.optional (cfg.enableTrackerAuto && umiHost) "dwell-click-enabled"
   );
 
   # Optional number as a Python literal
@@ -575,7 +581,7 @@ in
 
       # Dwell click (both schema families, cf. header)
       "org/cinnamon/desktop/a11y/mouse" = cinnamonDwellSettings;
-      "org/gnome/desktop/a11y/mouse" = dwellSettings;
+      "org/gnome/desktop/a11y/mouse" = gnomeDwellSettings;
       "org/cinnamon/desktop/interface" = interfaceSettings // {
         text-scaling-factor = cfg.textScaling;
       };

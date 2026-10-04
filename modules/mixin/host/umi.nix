@@ -34,6 +34,13 @@
 # restart Talon (udev), and run the calibration from the Talon menu.
 # :::
 #
+# :::caution[No mousetweaks]
+# muffin does dwell clicks itself (click types from the panel). A mousetweaks
+# daemon in the session would dwell in parallel with plain left clicks (the
+# chosen type is never used), pop its "Hover Click" window and grab the mouse
+# wheel on the root window until logout (`XGrabButton` on buttons 4/5).
+# :::
+#
 # :::note[Expected kernel noise]
 # The tracker declares two video-class interfaces (raw IR eye cameras) that
 # uvcvideo cannot handle: `Unknown video format`, `No supported video formats
@@ -73,6 +80,11 @@ let
   };
   schemasOf =
     overrides: "${overrides}/share/gsettings-schemas/nixos-gsettings-overrides/glib-2.0/schemas";
+
+  # Onboard without its mousetweaks integration (off when the schema is
+  # missing, as on Mint). csd mirrors Cinnamon's dwell key to GNOME's, Onboard
+  # then starts mousetweaks: cf. the "No mousetweaks" note in the header.
+  onboard = pkgs.onboard.override { mousetweaks = pkgs.emptyDirectory; };
 in
 {
   options = {
@@ -180,9 +192,11 @@ in
     systemd.user.settings.Manager.DefaultTimeoutStopSec = "5s";
 
     # Desktop cleanup: apps duplicating a retained one (Xed vs GNOME Text
-    # Editor), useless without a second peer (Warpinator) or unusable without a
-    # keyboard (Seahorse — the keyring is passwordless here, cf. home module).
+    # Editor, stock Onboard vs ours), useless without a second peer
+    # (Warpinator) or unusable without a keyboard (Seahorse — the keyring is
+    # passwordless here, cf. home module).
     environment.cinnamon.excludePackages = [
+      pkgs.onboard
       pkgs.warpinator
       pkgs.xed-editor
     ];
@@ -214,12 +228,7 @@ in
     ];
 
     # Talon itself (if available), Onboard system-wide (docked on-screen
-    # keyboard) and mousetweaks (dwell click daemon, GNOME/Cinnamon a11y)
-    environment.systemPackages =
-      lib.optional (cfg.package != null) cfg.package
-      ++ (with pkgs; [
-        onboard
-        mousetweaks
-      ]);
+    # keyboard). Dwell click is native in muffin and mutter: no mousetweaks.
+    environment.systemPackages = lib.optional (cfg.package != null) cfg.package ++ [ onboard ];
   };
 }
