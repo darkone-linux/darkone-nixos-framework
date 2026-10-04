@@ -21,9 +21,10 @@
 #
 # :::note[Gaze-only pointing (Talon 1.0)]
 # Talon's filters freeze the cursor ~2 mm short of the gaze: the script raises
-# them (`gazeFilterSpeed`, `cursorFilterSpeed`, measured on a Tobii 5). Head
-# Control off by default (`enableHeadControl`): an unsteady head drags the
-# cursor. Mouse Jump always off.
+# them (`gazeFilterSpeed`, `cursorFilterSpeed`, measured on a Tobii 5). Eye
+# Tracking menu modes are declared (`enableGazeControl`, `enableHeadControl`,
+# `enableHeadJump`, `enableMouseJump`, `enableGazeFocus`) and set again at
+# each Talon start: gaze only by default, an unsteady head drags the cursor.
 # :::
 #
 # :::tip[Community scripts]
@@ -97,8 +98,9 @@ let
     lib.optional (cfg.enableTrackerAuto && umiHost) "dwell-click-enabled"
   );
 
-  # Optional number as a Python literal
+  # Optional number, boolean as Python literals
   pyNumber = value: if value == null then "None" else builtins.toJSON value;
+  pyBool = value: if value then "True" else "False";
 
   # Talon user script: the tracker drives gaze control and hover click
   trackerScript = ''
@@ -127,7 +129,15 @@ let
     # Control Mouse filter coefficients, None keeps Talon's own (1.0: 1.0, 2.0)
     GAZE_SPEED = ${pyNumber cfg.gazeFilterSpeed}
     CURSOR_SPEED = ${pyNumber cfg.cursorFilterSpeed}
-    HEAD_CONTROL = ${if cfg.enableHeadControl then "True" else "False"}
+
+    # Eye Tracking menu modes, by toggle action
+    MODES = {
+        "control_gaze_toggle": ${pyBool cfg.enableGazeControl},
+        "control_head_toggle": ${pyBool cfg.enableHeadControl},
+        "control_head_jump_toggle": ${pyBool cfg.enableHeadJump},
+        "control_mouse_jump_toggle": ${pyBool cfg.enableMouseJump},
+        "control_gaze_focus_toggle": ${pyBool cfg.enableGazeFocus},
+    }
 
     # Gaze switch shared with the applet: "off" pauses gaze control, anything
     # else (or no file) keeps it on. Runtime dir: back on at every boot.
@@ -228,12 +238,11 @@ let
         # The applet writes the switch: a tmpfs read, no subprocess
         cron.interval("500ms", apply_gaze)
 
-        # Gaze-only pointing: an unsteady head drags the cursor, Mouse Jump
-        # would only yank a helper's mouse pointer to the gaze
-        if "tracking.control_head_toggle" in registry.actions:
-            actions.tracking.control_head_toggle(HEAD_CONTROL)
-        if "tracking.control_mouse_jump_toggle" in registry.actions:
-            actions.tracking.control_mouse_jump_toggle(False)
+        # Declared modes win over menu choices at each Talon start; 0.4 lacks
+        # some of them
+        for name, on in MODES.items():
+            if "tracking." + name in registry.actions:
+                getattr(actions.tracking, name)(on)
 
         # Talon rebuilds the per-tracker state on reconnect (replug, sleep)
         tune_filters()
@@ -500,10 +509,25 @@ in
           keeps Talon's own (2.0).
         '';
       };
+      enableGazeControl = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Talon Gaze Control, with `enableTrackerAuto`: the cursor follows the gaze.";
+      };
       enableHeadControl = lib.mkEnableOption ''
         Talon Head Control, with `enableTrackerAuto`: head movements also move
         the cursor. Off by default, an unsteady head drags the cursor away
         from the gaze'';
+      enableHeadJump = lib.mkEnableOption ''
+        Talon Head Jump, with `enableTrackerAuto`: a head movement brings the
+        cursor to the gaze'';
+      enableMouseJump = lib.mkEnableOption ''
+        Talon Mouse Jump, with `enableTrackerAuto`: moving a real mouse towards
+        the gaze brings the cursor there. Off by default, it yanks a helper's
+        pointer'';
+      enableGazeFocus = lib.mkEnableOption ''
+        Talon Gaze Focus (experimental), with `enableTrackerAuto`: the window
+        looked at gets the focus'';
       panelHeight = lib.mkOption {
         type = lib.types.ints.between 40 96;
         default = 64;
