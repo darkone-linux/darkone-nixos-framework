@@ -166,10 +166,12 @@ let
     usb.register("detach", on_detach)
   '';
 
-  # Big cursor and text for gaze precision (~15-30 px)
+  # Big cursor and text for gaze precision (~15-30 px). AT-SPI on from the
+  # first login: Onboard's word prediction asks for it in a popup otherwise.
   interfaceSettings = {
     cursor-size = 48;
     text-scaling-factor = 1.25;
+    toolkit-accessibility = true;
   };
 
   # Cinnamon caps panel symbolic icons at 50 px
