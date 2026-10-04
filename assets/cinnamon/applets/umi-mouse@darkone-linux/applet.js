@@ -4,6 +4,8 @@
 //   window does; that window stays closed while this applet is loaded.
 // - Pause zone: a click switches hover click off (`dwell-click-enabled`);
 //   resting the pointer on it for RESUME_MS, or a click, switches it back on.
+// - Gaze button: switches Talon's gaze mouse control off, the eyes then move
+//   nothing; back on with the mouse, touch or voice (`user.umi_gaze`).
 // - Hidden while hover click is off, unless paused from here.
 
 const Applet = imports.ui.applet;
@@ -23,10 +25,16 @@ const DEBOUNCE_MS = 1000;
 
 const CLICK_TYPES = ["single", "double", "drag", "secondary"];
 
+// Gaze switch shared with the Talon user script (dnf-umi/tracker.py): "off"
+// pauses gaze control. Runtime dir: back on at every boot.
+const GAZE_DIR = GLib.build_filenamev([GLib.get_user_runtime_dir(), "dnf-umi"]);
+const GAZE_FILE = GLib.build_filenamev([GAZE_DIR, "gaze"]);
+
 class UmiMouseApplet extends Applet.Applet {
     constructor(metadata, orientation, panelHeight, instanceId) {
         super(orientation, panelHeight, instanceId);
 
+        this._iconDir = `${metadata.path}/icons`;
         this._mouse = new Gio.Settings({ schema_id: "org.cinnamon.desktop.a11y.mouse" });
         this._paused = false;
         this._armed = true;
@@ -36,10 +44,7 @@ class UmiMouseApplet extends Applet.Applet {
 
         this._buttons = new Map();
         for (const type of CLICK_TYPES) {
-            const icon = new St.Icon({
-                gicon: Gio.FileIcon.new(Gio.File.new_for_path(`${metadata.path}/icons/click-${type}.svg`)),
-            });
-            const button = new St.Bin({ style_class: "umi-button", reactive: true, track_hover: true, child: icon });
+            const button = this._iconButton(`click-${type}.svg`);
             this._bindActivation(button, () => this._setClickType(type));
             this._buttons.set(type, button);
             this.actor.add_child(button);
@@ -69,12 +74,21 @@ class UmiMouseApplet extends Applet.Applet {
         this._bindActivation(this._zone, () => this._onZoneActivated());
         this.actor.add_child(this._zone);
 
+        this._lastGazeToggle = 0;
+        this._gazeButton = this._iconButton("gaze-on.svg");
+        this._bindActivation(this._gazeButton, () => this._toggleGaze());
+        this.actor.add_child(this._gazeButton);
+        GLib.mkdir_with_parents(GAZE_DIR, 0o700);
+        this._gazeMonitor = Gio.File.new_for_path(GAZE_FILE).monitor_file(Gio.FileMonitorFlags.NONE, null);
+
         this._signals = [
             [global.settings, global.settings.connect("changed::hoverclick-action", () => this._sync())],
             [this._mouse, this._mouse.connect("changed::dwell-click-enabled", () => this._onDwellChanged())],
+            [this._gazeMonitor, this._gazeMonitor.connect("changed", () => this._syncGaze())],
         ];
         this._holdFloatingWindow(true);
         this._sync();
+        this._syncGaze();
     }
 
     on_applet_added_to_panel() {
@@ -89,16 +103,22 @@ class UmiMouseApplet extends Applet.Applet {
         this._cancelResume();
         for (const [object, id] of this._signals)
             object.disconnect(id);
+        this._gazeMonitor.cancel();
         this._holdFloatingWindow(false);
     }
 
     _resize(size) {
         if (!size)
             return;
-        for (const button of this._buttons.values())
+        for (const button of [...this._buttons.values(), this._gazeButton])
             button.child.icon_size = size;
         this._zoneIcon.icon_size = Math.round(size * 0.75);
         this._zone.width = size * 2;
+    }
+
+    _iconButton(file) {
+        const icon = new St.Icon({ gicon: Gio.FileIcon.new(Gio.File.new_for_path(`${this._iconDir}/${file}`)) });
+        return new St.Bin({ style_class: "umi-button", reactive: true, track_hover: true, child: icon });
     }
 
     // Press swallowed (no applet context menu on a dwell secondary click),
@@ -218,6 +238,35 @@ class UmiMouseApplet extends Applet.Applet {
             GLib.source_remove(this._graceId);
             this._graceId = 0;
         }
+    }
+
+    _gazeOn() {
+        try {
+            const [, contents] = GLib.file_get_contents(GAZE_FILE);
+            return new TextDecoder().decode(contents).trim() !== "off";
+        } catch (e) {
+            return true;
+        }
+    }
+
+    _toggleGaze() {
+        if (Date.now() - this._lastGazeToggle < DEBOUNCE_MS)
+            return;
+        this._lastGazeToggle = Date.now();
+        GLib.mkdir_with_parents(GAZE_DIR, 0o700);
+        GLib.file_set_contents(GAZE_FILE, this._gazeOn() ? "off" : "on");
+        this._syncGaze();
+    }
+
+    _syncGaze() {
+        const on = this._gazeOn();
+        this._gazeButton.child.gicon = Gio.FileIcon.new(
+            Gio.File.new_for_path(`${this._iconDir}/gaze-${on ? "on" : "off"}.svg`)
+        );
+        if (on)
+            this._gazeButton.remove_style_class_name("umi-gaze-off");
+        else
+            this._gazeButton.add_style_class_name("umi-gaze-off");
     }
 
     _sync() {

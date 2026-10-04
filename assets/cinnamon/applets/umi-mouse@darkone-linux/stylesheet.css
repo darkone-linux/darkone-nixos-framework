@@ -35,6 +35,11 @@
     background-color: rgba(76, 175, 80, 0.85);
 }
 
+.umi-gaze-off {
+    border-color: #ff9800;
+    background-color: rgba(255, 152, 0, 0.35);
+}
+
 /* Applet stylesheets join Cinnamon's global theme: the main menu's entries
    get roomier gaze targets here (theme: 6px padding, 4px spacing). */
 .menu-category-button-greyed,
