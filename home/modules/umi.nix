@@ -5,7 +5,8 @@
 # :::note[Session depends on the host]
 # - **`darkone.host.umi` host**: Cinnamon X11 session (udev, uinput, Talon
 #   provided by the host). Talon and a docked Onboard keyboard (word
-#   prediction, sticky modifiers) start with the session.
+#   prediction, sticky modifiers) start with the session. Panel, icons and
+#   text enlarged for gaze targets (`panelHeight`, `textScaling`).
 # - **Any other host**: GNOME Wayland with its native accessibility: on-screen
 #   keyboard, big pointer and text. Talon and Onboard, X11-only, stay off.
 #
@@ -76,6 +77,24 @@ let
     text-scaling-factor = 1.25;
   };
 
+  # Cinnamon caps panel symbolic icons at 50 px
+  symbolicIconSize = lib.min 50 (cfg.panelHeight * 5 / 8);
+
+  # Applet settings forced at activation, by uuid and instance id. Values must
+  # sit strictly inside the schema bounds: Cinnamon resets the others when it
+  # completes a partial file.
+  spicesSettings = [
+    {
+      uuid = "menu@cinnamon.org";
+      id = 0;
+      values = {
+        category-icon-size = 32;
+        application-icon-size = 40;
+        sidebar-icon-size = 32;
+      };
+    }
+  ];
+
   # gnome-keyring's on-disk format for a keyring with no password: plain ini
   # instead of the encrypted blob, unlocked at startup without a prompt.
   plainLoginKeyring = pkgs.writeText "login.keyring" ''
@@ -122,6 +141,16 @@ in
         default = 1.2;
         description = "Dwell click delay in seconds.";
       };
+      panelHeight = lib.mkOption {
+        type = lib.types.ints.between 40 96;
+        default = 64;
+        description = "Cinnamon panel height in pixels, its icons follow (gaze targets).";
+      };
+      textScaling = lib.mkOption {
+        type = lib.types.float;
+        default = 1.5;
+        description = "Text scaling factor of the Cinnamon session (buttons grow with their labels).";
+      };
     };
   };
 
@@ -160,8 +189,37 @@ in
       # Dwell click (both schema families, cf. header)
       "org/cinnamon/desktop/a11y/mouse" = dwellSettings;
       "org/gnome/desktop/a11y/mouse" = dwellSettings;
-      "org/cinnamon/desktop/interface" = interfaceSettings;
+      "org/cinnamon/desktop/interface" = interfaceSettings // {
+        text-scaling-factor = cfg.textScaling;
+      };
       "org/gnome/desktop/interface" = interfaceSettings;
+
+      # Taller panel, icons fit to it (0 = best fit for color icons)
+      "org/cinnamon" = {
+        panels-height = [ "1:${toString cfg.panelHeight}" ];
+        panel-zone-icon-sizes = builtins.toJSON [
+          {
+            panelId = 1;
+            left = 0;
+            center = 0;
+            right = 0;
+          }
+        ];
+        panel-zone-symbolic-icon-sizes = builtins.toJSON [
+          {
+            panelId = 1;
+            left = symbolicIconSize;
+            center = symbolicIconSize;
+            right = symbolicIconSize;
+          }
+        ];
+      };
+
+      # Nemo: big icons, single click opens (a dwell double click needs a mode
+      # switch first)
+      "org/nemo/preferences".click-policy = "single";
+      "org/nemo/icon-view".default-zoom-level = "large";
+      "org/nemo/list-view".default-zoom-level = "large";
       "org/gnome/desktop/a11y" = {
         always-show-universal-access-status = true;
       };
@@ -247,6 +305,29 @@ in
         )' "$cfgFile" > "$cfgFile.new" || continue
         run ${pkgs.coreutils}/bin/mv -f "$cfgFile.new" "$cfgFile"
       done
+    '';
+
+    # Forced key by key: other values survive. A missing file gets the forced
+    # keys only, Cinnamon completes it from the applet schema on next start
+    # (no file monitor: changes apply at the next login).
+    home.activation.umiCinnamonSpices = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      spicesSet() {
+        cfgDir="$HOME/.config/cinnamon/spices/$1"
+        cfgFile="$cfgDir/$2.json"
+        run ${pkgs.coreutils}/bin/mkdir -p "$cfgDir"
+        if [ -e "$cfgFile" ] ; then
+          ${pkgs.jq}/bin/jq --argjson v "$3" \
+            'reduce ($v | to_entries[]) as $e (.; .[$e.key].value = $e.value)' \
+            "$cfgFile" > "$cfgFile.new" || return 0
+        else
+          ${pkgs.jq}/bin/jq -n --argjson v "$3" '$v | map_values({ value: . })' \
+            > "$cfgFile.new" || return 0
+        fi
+        run ${pkgs.coreutils}/bin/mv -f "$cfgFile.new" "$cfgFile"
+      }
+      ${lib.concatMapStrings (
+        s: "spicesSet ${s.uuid} ${toString s.id} ${lib.escapeShellArg (builtins.toJSON s.values)}\n"
+      ) spicesSettings}
     '';
 
     # Passwordless login keyring, for the autologin user of an unencrypted host
