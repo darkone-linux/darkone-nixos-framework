@@ -535,7 +535,7 @@ in
       };
       textScaling = lib.mkOption {
         type = lib.types.float;
-        default = 1.4;
+        default = 1.5;
         description = "Text scaling factor of the Cinnamon session (buttons grow with their labels).";
       };
       enablePanel = lib.mkOption {
