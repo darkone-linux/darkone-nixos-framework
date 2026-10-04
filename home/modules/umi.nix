@@ -143,6 +143,18 @@ let
   ]
   ++ lib.optionals cfg.enablePanel [
 
+    # Roomier entries (umi-mouse stylesheet): a larger popup keeps as many rows
+    {
+      uuid = "menu@cinnamon.org";
+      id = 0;
+      values = {
+        popup-width = 760;
+        popup-height = 520;
+      };
+    }
+  ]
+  ++ lib.optionals cfg.enablePanel [
+
     # Launchers move to their own applet, set apart from the open windows
     {
       uuid = "panel-launchers@cinnamon.org";

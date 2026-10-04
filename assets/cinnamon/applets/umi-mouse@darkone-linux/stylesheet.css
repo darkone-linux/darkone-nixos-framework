@@ -34,3 +34,18 @@
     border-radius: 6px;
     background-color: rgba(76, 175, 80, 0.85);
 }
+
+/* Applet stylesheets join Cinnamon's global theme: the main menu's entries
+   get roomier gaze targets here (theme: 6px padding, 4px spacing). */
+.menu-category-button-greyed,
+.menu-category-button-selected,
+.menu-category-button,
+.menu-application-button-selected,
+.menu-application-button {
+    padding: 10px;
+    spacing: 8px;
+}
+
+.menu-favorites-button {
+    padding: 12px;
+}
