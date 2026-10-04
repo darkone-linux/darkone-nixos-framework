@@ -11,7 +11,10 @@ in
       enableChild = lib.mkDefault graphic;
       enableCli = lib.mkDefault true;
     };
-    education.enableChild = lib.mkDefault graphic;
+    education = {
+      enable = lib.mkDefault graphic;
+      enableChild = lib.mkDefault graphic;
+    };
     music = {
       enable = lib.mkDefault true;
       enableCli = lib.mkDefault true;
