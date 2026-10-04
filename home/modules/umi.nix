@@ -338,7 +338,7 @@ in
       };
       textScaling = lib.mkOption {
         type = lib.types.float;
-        default = 1.5;
+        default = 1.4;
         description = "Text scaling factor of the Cinnamon session (buttons grow with their labels).";
       };
       enablePanel = lib.mkOption {
@@ -352,12 +352,12 @@ in
       };
       panelLaunchers = lib.mkOption {
         type = lib.types.listOf lib.types.str;
+        # No terminal: useless without a keyboard
         default = [
           "nemo.desktop"
         ]
-        ++ lib.optional (office.enable && office.enableFirefox) "firefox-esr.desktop"
-        ++ [ "org.gnome.Terminal.desktop" ];
-        defaultText = lib.literalExpression ''[ "nemo.desktop" "firefox-esr.desktop" "org.gnome.Terminal.desktop" ]'';
+        ++ lib.optional (office.enable && office.enableFirefox) "firefox-esr.desktop";
+        defaultText = lib.literalExpression ''[ "nemo.desktop" "firefox-esr.desktop" ]'';
         example = [
           "nemo.desktop"
           "firefox-esr.desktop"
