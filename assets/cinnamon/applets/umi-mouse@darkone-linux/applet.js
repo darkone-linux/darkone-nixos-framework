@@ -6,7 +6,8 @@
 //   resting the pointer on it for RESUME_MS, or a click, switches it back on.
 // - Gaze button: switches Talon's gaze mouse control off, the eyes then move
 //   nothing; back on with the mouse, touch or voice (`user.umi_gaze`).
-// - Hidden while hover click is off, unless paused from here.
+// - Hidden while hover click is off, unless paused from here; click types
+//   hidden during the pause, back on resume.
 
 const Applet = imports.ui.applet;
 const Clutter = imports.gi.Clutter;
@@ -277,12 +278,13 @@ class UmiMouseApplet extends Applet.Applet {
         if (!this._paused)
             this._cancelResume();
 
+        // Right-aligned panel zone: the pause zone stays put under the pointer
         for (const [type, button] of this._buttons) {
-            if (type === current && !this._paused)
+            button.visible = !this._paused;
+            if (type === current)
                 button.add_style_class_name("umi-selected");
             else
                 button.remove_style_class_name("umi-selected");
-            button.opacity = this._paused ? 90 : 255;
         }
 
         this._zoneIcon.icon_name = this._paused ? "media-playback-start-symbolic" : "media-playback-pause-symbolic";
