@@ -5,7 +5,8 @@
 // - Pause zone: a click switches hover click off (`dwell-click-enabled`);
 //   resting the pointer on it for RESUME_MS, or a click, switches it back on.
 // - Gaze button: switches Talon's gaze mouse control off, the eyes then move
-//   nothing; back on with the mouse, touch or voice (`user.umi_gaze`).
+//   nothing; back on with the mouse, touch or voice (`user.umi_gaze`). Hover
+//   click is paused with it (mouse in hand), resumed when gaze comes back.
 // - Hidden while hover click is off, unless paused from here; click types
 //   hidden during the pause, back on resume.
 
@@ -76,6 +77,7 @@ class UmiMouseApplet extends Applet.Applet {
         this.actor.add_child(this._zone);
 
         this._lastGazeToggle = 0;
+        this._gazeState = null;
         this._gazeButton = this._iconButton("gaze-on.svg");
         this._bindActivation(this._gazeButton, () => this._toggleGaze());
         this.actor.add_child(this._gazeButton);
@@ -259,8 +261,17 @@ class UmiMouseApplet extends Applet.Applet {
         this._syncGaze();
     }
 
+    // Any source of change (button, voice action): the file monitor reports
+    // them all, the applet's own writes included.
     _syncGaze() {
         const on = this._gazeOn();
+        if (on !== this._gazeState) {
+            this._gazeState = on;
+            if (!on && this._mouse.get_boolean("dwell-click-enabled"))
+                this._pause();
+            else if (on && this._paused)
+                this._resume();
+        }
         this._gazeButton.child.gicon = Gio.FileIcon.new(
             Gio.File.new_for_path(`${this._iconDir}/gaze-${on ? "on" : "off"}.svg`)
         );
