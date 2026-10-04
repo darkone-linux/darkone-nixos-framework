@@ -120,6 +120,9 @@ let
     }
   );
 
+  # CLI/services only: a GUI app from stable links an older glibc than the
+  # unstable Mesa in /run/opengl-driver, so `libGLX_mesa` fails to load and
+  # the app aborts on "Could not initialize GLX".
   nixpkgsStableFor = forAllSystems (
     system:
     import nixpkgs-stable {

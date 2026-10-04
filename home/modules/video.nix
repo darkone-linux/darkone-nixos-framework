@@ -17,7 +17,6 @@
 
 {
   pkgs,
-  pkgs-stable,
   lib,
   config,
   ...
@@ -42,14 +41,14 @@ in
       #(lib.mkIf cfg.enableTools handbrake)
       celluloid
       (lib.mkIf cfg.enableAlternative mpv)
-      (lib.mkIf cfg.enableEditing pkgs-stable.kdePackages.kdenlive)
-      (lib.mkIf cfg.enableEditing pkgs-stable.shotcut)
+      (lib.mkIf cfg.enableEditing kdePackages.kdenlive)
+      (lib.mkIf cfg.enableEditing shotcut)
       (lib.mkIf cfg.enableTools ffmpeg)
       (lib.mkIf cfg.enableTools mlt)
       (lib.mkIf cfg.enableTools video-trimmer)
       (lib.mkIf cfg.enableTools vlc)
       (lib.mkIf cfg.enableTools parabolic) # yt-dlp frontend
-      (lib.mkIf cfg.enableUnfree pkgs-stable.davinci-resolve)
+      (lib.mkIf cfg.enableUnfree davinci-resolve)
     ];
 
     programs.obs-studio = lib.mkIf cfg.enableCreator {

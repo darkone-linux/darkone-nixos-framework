@@ -2,7 +2,6 @@
 
 {
   pkgs,
-  pkgs-stable,
   lib,
   config,
   ...
@@ -78,19 +77,17 @@ in
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) maxima) # math
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) octaveFull) # math
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) scilab-bin) # math
-      (lib.mkIf (cfg.enableMisc && (cfg.enableBaby || cfg.enableChild)) pkgs-stable.gcompris)
+      (lib.mkIf (cfg.enableMisc && (cfg.enableBaby || cfg.enableChild)) gcompris)
       (lib.mkIf (cfg.enableMisc && cfg.enableChild) kdePackages.blinken) # memory training
       (lib.mkIf (cfg.enableMisc && cfg.enableStudent) anki) # training cards
       (lib.mkIf (cfg.enableMusic && (cfg.enableBaby || cfg.enableChild)) tuxpaint)
       (lib.mkIf (cfg.enableMusic && (cfg.enableChild || cfg.enableStudent)) solfege)
       (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) atomix) # Atom puzzle
-      (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) pkgs-stable.celestia)
+      (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) celestia)
       (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) gnome-maps)
-      (lib.mkIf (
-        cfg.enableScience && (cfg.enableChild || cfg.enableStudent)
-      ) pkgs-stable.kdePackages.kalzium) # periodic elements
+      (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) kdePackages.kalzium) # periodic elements
       (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) kdePackages.kgeography) # geography
-      (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) pkgs-stable.avogadro2) # molecules
+      (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) avogadro2) # molecules
       (lib.mkIf (cfg.enableDraw && (cfg.enableChild || cfg.enableStudent)) pencil2d)
       (lib.mkIf (cfg.enableDraw && (cfg.enableChild || cfg.enableStudent)) synfigstudio)
       (lib.mkIf (cfg.enableDraw && (cfg.enableChild || cfg.enableStudent)) ffmpeg) # Synfig dependency

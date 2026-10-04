@@ -3,7 +3,7 @@
 {
   lib,
   config,
-  pkgs-stable,
+  pkgs,
   ...
 }:
 let
@@ -28,7 +28,7 @@ in
       #enableKvm = true; # -> Compilation
       inherit (cfg) enableExtensionPack;
       addNetworkInterface = false;
-      package = pkgs-stable.virtualbox;
+      package = pkgs.virtualbox;
     };
 
     # Permissions

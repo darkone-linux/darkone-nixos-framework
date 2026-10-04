@@ -2,7 +2,6 @@
 
 {
   pkgs,
-  pkgs-stable,
   lib,
   config,
   osConfig,
@@ -62,7 +61,7 @@ in
       (lib.mkIf isChildOrTeen kdePackages.kpat) # Solitaire games
       (lib.mkIf isChildOrTeen kdePackages.picmi) # Logical game
       (lib.mkIf isChildOrTeen leocad) # Virt lego
-      (lib.mkIf isChildOrTeen pkgs-stable.gnome-2048)
+      (lib.mkIf isChildOrTeen gnome-2048)
       (lib.mkIf isNotBaby gnome-chess)
       (lib.mkIf isNotBaby gnome-mahjongg)
       (lib.mkIf isNotBaby gnome-mines)
