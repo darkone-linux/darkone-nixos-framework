@@ -158,6 +158,11 @@ in
     # pam_gnome_keyring); elsewhere `darkone.home.umi` seeds a passwordless
     # keyring. Both modes are documented in that home module's header.
 
+    # `su` hands over the X cookie (pam_xauth, NixOS default): a CLI run as
+    # another user then pops its keyring prompts on the UMI display, and a gcr
+    # system prompt grabs it — a dead end without a keyboard.
+    security.pam.services.su.forwardXAuth = lib.mkForce false;
+
     # Known GNOME + autologin workaround (double getty race)
     systemd.services."getty@tty1".enable = lib.mkIf (cfg.autoLoginUser != null) false;
     systemd.services."autovt@tty1".enable = lib.mkIf (cfg.autoLoginUser != null) false;
