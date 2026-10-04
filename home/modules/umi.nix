@@ -5,10 +5,11 @@
 # :::note[Session depends on the host]
 # - **`darkone.host.umi` host**: Cinnamon X11 session (udev, uinput, Talon
 #   provided by the host). Talon and a docked Onboard keyboard (word
-#   prediction, sticky modifiers) start with the session. Panel, icons and
-#   text enlarged for gaze targets (`panelHeight`, `textScaling`). DNF panel
-#   (`enablePanel`): launchers | open windows, then hover click types, pause
-#   zone, gaze switch (applet `umi-mouse`), accessibility menu, Onboard toggle.
+#   prediction, sticky modifiers) start with the session, the keyboard hidden
+#   until asked for. Panel, icons and text enlarged for gaze targets
+#   (`panelHeight`, `textScaling`). DNF panel (`enablePanel`): launchers | open
+#   windows, then hover click types, pause zone, gaze switch (applet
+#   `umi-mouse`), accessibility menu, Onboard toggle.
 # - **Any other host**: GNOME Wayland with its native accessibility: on-screen
 #   keyboard, big pointer and text. Talon and Onboard, X11-only, stay off.
 #
@@ -453,7 +454,11 @@ in
         X-GNOME-Autostart-enabled=true
       '';
     };
-    xdg.configFile."autostart/onboard.desktop".text = ''
+
+    # Named after Onboard's own entry to replace it: cinnamon-session starts
+    # that one too (`screen-keyboard-enabled` on, for GNOME), and the second
+    # instance shows the first, defeating `start-minimized`.
+    xdg.configFile."autostart/onboard-autostart.desktop".text = ''
       [Desktop Entry]
       Type=Application
       Name=Onboard
@@ -522,7 +527,9 @@ in
       # Onboard tuned for touch and gaze input: fixed docked position, big
       # high-contrast targets, sticky modifiers (no key holding), word
       # prediction to cut keystrokes, jitter tolerance.
+      # Hidden at login: shown on demand from its panel button or tray icon
       "org/onboard" = {
+        start-minimized = true;
         show-status-icon = !cfg.enablePanel;
         layout = "Full Keyboard";
         theme = "HighContrast";
