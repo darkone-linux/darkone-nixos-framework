@@ -19,7 +19,7 @@
 # with the shared one (nixos-anywhere --disk-encryption-keys), so the format
 # keyslot IS the shared keyslot. See dnf/modules/system/luks.nix.
 #
-# LUKS provisioning: shared + per-host passphrase, remote unlock (idempotent)
+# LUKS provisioning & info. Actions: pre, passwd, show
 [group('luks')]
 luks host action='' ip='auto':
 	#!/usr/bin/env bash
