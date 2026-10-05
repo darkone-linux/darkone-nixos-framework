@@ -169,7 +169,7 @@ in
       (lib.mkIf (graphic && cfg.enableTools && cfg.enableDeveloper) lorem) # Generate placeholder text
       (lib.mkIf (graphic && cfg.enableTools && cfg.enableDeveloper) sqlitebrowser)
       (lib.mkIf (graphic && cfg.enableTools && cfg.enableNixAdmin) bustle) # Graphical D-Bus message analyser and profiler
-      (lib.mkIf (graphic && cfg.enableTools) apostrophe) # Distraction free Markdown editor
+      #(lib.mkIf (graphic && cfg.enableTools) apostrophe) # Dépendance à python 3.12 - echec
       (lib.mkIf (graphic && cfg.enableTools) collision) # Check hashes for your files
       (lib.mkIf (graphic && cfg.enableTools) gnome-connections) # VNC / RDP Client
       (lib.mkIf (graphic && cfg.enableTools) gnome-logs)
