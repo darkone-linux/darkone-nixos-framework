@@ -21,10 +21,11 @@
 #   zone). Runs nginx on the internal IP, port `network.ports.nixCache`.
 # - clients: every local-zone host. Their substituters become the zone's
 #   harmonia instances (direct, LAN/tailnet) plus this proxy.
-# - roaming clients (`roaming = true`): nomadic hosts moved between zones.
-#   Their substituters are the zone-neutral names (`harmonia.dnf.internal`,
-#   `nix-cache.dnf.internal`) that each zone's DNS resolves to its own cache
-#   services (see `service/dnsmasq.nix`), so the cache follows the laptop.
+# - roaming clients (`roaming = true`, set by the `roaming` host feature):
+#   nomadic hosts moved between zones. Their substituters are the zone-neutral
+#   names (`harmonia.dnf.internal`, `nix-cache.dnf.internal`) that each zone's
+#   DNS resolves to its own cache services (see `service/dnsmasq.nix`), so the
+#   cache follows the laptop. `fleet-update` builds such a host on itself.
 # - global-zone hosts (`www`, a datacenter VPS): no LAN, no gateway, so no
 #   proxy. They take the `global` harmonia over the tailnet and the fleet key,
 #   without which they can pull nothing the fleet built.
@@ -162,12 +163,16 @@ in
     };
     darkone.service.nix-cache.roaming = lib.mkOption {
       type = lib.types.bool;
-      default = false;
+
+      # One declaration for both sides: `fleet-update` reads the same feature.
+      default = (host.features or { }) ? "roaming";
+      defaultText = lib.literalExpression ''host.features ? "roaming"'';
       description = ''
         Nomadic host (laptop moved between zones): replace the zone-pinned
         substituters with the zone-neutral names every zone's DNS resolves to
         its own cache services. Outside any DNF zone the names NXDOMAIN
-        instantly and Nix falls back to cache.nixos.org.
+        instantly and Nix falls back to cache.nixos.org. Declared by the
+        `roaming` feature in `config.yaml`; set it by hand for a temporary move.
       '';
     };
   };
