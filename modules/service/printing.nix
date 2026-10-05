@@ -45,13 +45,10 @@ in
             [ ]
         )
         ++ (
-          if cfg.loadAll || cfg.enableHpPrinters then
-            [
-              hplip
-              hplipWithPlugin
-            ]
-          else
-            [ ]
+
+          # `hplipWithPlugin` is `hplip.override { withPlugin = true; }`: both
+          # ship the same PPDs, buildEnv would keep one at random.
+          if cfg.loadAll || cfg.enableHpPrinters then [ hplipWithPlugin ] else [ ]
         );
     };
 
