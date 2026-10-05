@@ -238,6 +238,11 @@ in
             # Cache must be disabled to not disturb dnsmasq configuration changes
             cache_enabled = false;
 
+            # No rate limit: zone resolver, closed to the WAN (gateway assertion).
+            # The default, 20 queries/s per /24 with no cache, drops the bursts of
+            # a fleet deployment — each lost answer a 5 s glibc retry.
+            ratelimit = 0;
+
             # Retrieve client ips from dnsmasq (Active EDNS Client Subnet)
             # Note: deactivated -> dnsmasq forward external queries to adguard
             #ecs = true;
