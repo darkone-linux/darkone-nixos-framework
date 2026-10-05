@@ -57,12 +57,14 @@ let
   # plugin.
   hasWhiteboard = lib.elem "whiteboard" cfg.plugins;
 
-  # Apps fetched from the appstore and bundled by nixpkgs, i.e. every
-  # package under `services.nextcloud.package.packages.apps` for this
-  # release. Installed (and occ-enabled) only when listed in `cfg.plugins`.
+  # Every package under `services.nextcloud.package.packages.apps` for this
+  # release; installed (and occ-enabled) only when listed in `cfg.plugins`.
+  # `notify_push` is left out: always on, its own module adds the app.
   appstoreApps = [
+    "bbb"
     "bookmarks"
     "calendar"
+    "calendar_resource_management"
     "checksum"
     "collectives"
     "contacts"
@@ -70,9 +72,11 @@ let
     "cospend"
     "dav_push"
     "deck"
+    "drawio"
     "end_to_end_encryption"
     "files_automatedtagging"
     "files_linkeditor"
+    "files_mindmap"
     "files_retention"
     "forms"
     "gpoddersync"
@@ -84,21 +88,19 @@ let
     "integration_openai"
     "integration_paperless"
     "mail"
-    "memories"
+    "maps"
     "music"
-    "news"
     "nextpod"
     "notes"
-    "notify_push"
     "oidc"
     "oidc_login"
     "onlyoffice"
+    "pantry"
     "phonetrack"
     "polls"
     "previewgenerator"
     "qownnotesapi"
     "quota_warning"
-    "recognize"
     "registration"
     "repod"
     "richdocuments"
@@ -158,12 +160,12 @@ in
       ];
       example = appstoreApps ++ shippedToggleableApps;
       description = ''
-        Nextcloud apps to enable. Only `calendar` and `contacts` are on by
-        default; Talk (`spreed`), the dashboard, activity feed, photos, and
-        every other app stay disabled until listed here.
+        Nextcloud apps to enable. Only `calendar`, `contacts` and `tasks` are
+        on by default; Talk (`spreed`), the dashboard, activity feed, photos,
+        and every other app stay disabled until listed here.
 
-        `user_oidc` is required for Kanidm SSO and is force-included
-        regardless of this list.
+        `user_oidc` (Kanidm SSO) and `notify_push` (client push) are always
+        on, regardless of this list.
       '';
     };
   };
@@ -297,10 +299,9 @@ in
         enable = true;
 
         # Pinned on purpose: nixpkgs would otherwise follow `stateVersion`, and
-        # Nextcloud refuses to skip a major (33 -> 35 is impossible, 33 -> 34
-        # then 34 -> 35 is the only path). Bump one major at a time, and only
-        # once the running instance reports the previous one (`occ status`).
-        package = pkgs.nextcloud34;
+        # Nextcloud refuses to skip a major (34 -> 35 only, never 33 -> 35).
+        # Bump one major at a time, once `occ status` reports the previous one.
+        package = pkgs.nextcloud35;
         hostName = params.fqdn;
         maxUploadSize = "16G";
         https = false;
@@ -318,13 +319,10 @@ in
         # PostgreSQL database
         database.createLocally = true;
 
-        # Configuration PHP et cache
+        # Only the opcache sizes raised above the upstream defaults (8 / 128).
         phpOptions = {
           "opcache.interned_strings_buffer" = "64";
-          "opcache.max_accelerated_files" = "10000";
           "opcache.memory_consumption" = "256";
-          "opcache.revalidate_freq" = "1";
-          "opcache.fast_shutdown" = "1";
         };
 
         # Cache Redis
@@ -333,21 +331,16 @@ in
         # Disable app store
         appstoreEnable = false;
 
-        # Default applications
         # `user_oidc` is force-included (required for Kanidm SSO); other
         # apps come from `cfg.plugins`, intersected with the appstore
         # catalogue so shipped-only entries (e.g. `photos`) are ignored here.
-        # `notify_push` is deliberately absent: its own module already adds
-        # the app, and defining it twice breaks the merge.
+        # Store paths, bumped with the flake: no `autoUpdateApps` timer.
         extraApps =
           let
             inherit (config.services.nextcloud.package.packages) apps;
             enabled = lib.unique (lib.intersectLists cfg.plugins appstoreApps ++ [ "user_oidc" ]);
           in
           lib.genAttrs enabled (name: apps.${name});
-
-        # Apps config
-        autoUpdateApps.enable = true;
 
         # Client push: the desktop client gets change notifications over a
         # websocket instead of polling every 30s (much less PHP churn too).
@@ -374,10 +367,11 @@ in
           # SSRF guard (DnsPinMiddleware) blocks local/private targets by
           # default; allow them so OIDC discovery succeeds on the VPN.
           allow_local_remote_servers = lib.mkIf hasIdm true;
+
+          # `hostName` (the FQDN) is added upstream.
           trusted_domains = [
             "localhost"
             params.domain
-            params.fqdn
           ];
 
           # 100.64.0.0/10 is the tailnet (CGNAT) range the comment above refers
@@ -390,6 +384,9 @@ in
             "::1"
           ];
           default_phone_region = lib.toUpper (builtins.substring 3 2 zone.locale);
+
+          # Heavy daily background jobs run 01:00-05:00 UTC, off peak hours.
+          maintenance_window_start = 1;
         }
 
         # SMTP params
@@ -403,20 +400,16 @@ in
           mail_smtphost = network.smtp.server or "";
           mail_smtpauth = true;
 
-          # `submissions` (465) is implicit TLS -> "ssl"; `submission` (587)
-          # upgrades in-band -> "tls".
-          mail_smtpsecure = lib.optionalString network.smtp.tls (
-            if (network.smtp.protocol or "submissions") == "submissions" then "ssl" else "tls"
-          );
+          # Upstream enum is `""` | `"ssl"`. `submissions` (465) is implicit
+          # TLS -> "ssl"; `submission` (587) stays empty, the mailer upgrades
+          # through STARTTLS on its own.
+          mail_smtpsecure = lib.optionalString (
+            network.smtp.tls && (network.smtp.protocol or "submissions") == "submissions"
+          ) "ssl";
           mail_smtptimeout = 30;
           mail_from_address = "noreply";
         };
       };
-
-      # Ensure PostgreSQL and Redis are enabled
-      # TODO: enable services.postgresqlBackup
-      services.postgresql.enable = lib.mkDefault true;
-      services.redis.servers.nextcloud.enable = lib.mkDefault true;
 
       # PostgreSQL backup (all databases by default)
       services.postgresqlBackup.enable = true;
