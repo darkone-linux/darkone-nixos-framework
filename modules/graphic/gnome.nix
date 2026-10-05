@@ -1,4 +1,16 @@
 # Pre-configured gnome environment with dependences.
+#
+# :::note[Login keyring after `just passwd`]
+# PAM unlocks the login keyring with the session password, which a change
+# made by the admin cannot re-encrypt (the old password is unknown). The next
+# password login drops the keyring: GNOME recreates it, empty, on the new
+# password. No prompt, and the old password opens nothing anymore.
+# :::
+#
+# :::caution[Keyring secrets lost on each admin password change]
+# Apps ask once again for their credentials. Opt-out, for a keyring with a
+# password of its own: `darkone.home.gnome.keepKeyring`.
+# :::
 
 {
   lib,
@@ -10,8 +22,13 @@
 }:
 let
   inherit (lib)
+    concatStringsSep
+    escapeShellArg
+    filterAttrs
     findFirst
     gvariant
+    mapAttrsToList
+    mkAfter
     mkEnableOption
     mkForce
     mkIf
@@ -21,6 +38,69 @@ let
   cfg = config.darkone.graphic.gnome;
   hasInternalCloud =
     (findFirst (s: s.name == "nextcloud" || s.name == "oxicloud") null network.services) != null;
+
+  # Keyring reset (cf. header): accounts whose session password comes from a
+  # declared hash file (`just passwd`), minus the per-user opt-outs.
+  keyringResetUsers = filterAttrs (
+    login: user:
+    user.isNormalUser
+    && user.hashedPasswordFile != null
+    && !(config.home-manager.users.${login}.darkone.home.gnome.keepKeyring or false)
+  ) config.users.users;
+  keyringResetCases = concatStringsSep "\n  " (
+    mapAttrsToList (
+      login: user:
+      "${escapeShellArg login}) hashFile=${escapeShellArg user.hashedPasswordFile} home=${escapeShellArg user.home} ;;"
+    ) keyringResetUsers
+  );
+
+  # Run as root by PAM. One fingerprint of the hash file per account: a new
+  # fingerprint means a new password, hence a keyring to drop.
+  keyringReset = pkgs.writeShellScript "keyring-reset" ''
+    set -euo pipefail
+    umask 077
+
+    case "''${PAM_USER:-}" in
+      ${keyringResetCases}
+      *) exit 0 ;;
+    esac
+    uid=$(${pkgs.coreutils}/bin/id -u -- "$PAM_USER")
+    gid=$(${pkgs.coreutils}/bin/id -g -- "$PAM_USER")
+
+    # A running daemon (screen unlock, second session) holds the keyring:
+    # never delete under it, the next login retries
+    [ ! -S "/run/user/$uid/keyring/control" ] || exit 0
+    [ -r "$hashFile" ] || exit 0
+
+    fingerprint=$(${pkgs.coreutils}/bin/sha256sum < "$hashFile")
+    fingerprint=''${fingerprint%% *}
+    stamp=/var/lib/keyring-reset/$PAM_USER
+
+    # Files of the user's home are handled as the user: no symlink there can
+    # make root read or delete anything else
+    asUser() {
+      ${pkgs.util-linux}/bin/setpriv --reuid="$uid" --regid="$gid" --clear-groups -- "$@"
+    }
+
+    if [ -e "$stamp" ]; then
+      [ "$(${pkgs.coreutils}/bin/cat "$stamp")" != "$fingerprint" ] || exit 0
+      keyrings=$home/.local/share/keyrings
+
+      # A keyring with no password (plain ini, `[keyring]` header, cf.
+      # `darkone.home.umi`) is not tied to the session password: kept
+      magic=$(asUser ${pkgs.coreutils}/bin/head -c 9 -- "$keyrings/login.keyring" 2>/dev/null) || magic=absent
+      if [ "$magic" != absent ] && [ "$magic" != "[keyring]" ]; then
+        asUser ${pkgs.coreutils}/bin/rm -f -- "$keyrings/login.keyring" "$keyrings/user.keystore"
+        ${pkgs.util-linux}/bin/logger -t keyring-reset -p authpriv.notice \
+          "$PAM_USER: session password changed, login keyring dropped"
+      fi
+    else
+
+      # First sight records only: the rollout drops no keyring
+      ${pkgs.coreutils}/bin/mkdir -p /var/lib/keyring-reset
+    fi
+    printf '%s\n' "$fingerprint" > "$stamp"
+  '';
 in
 {
   options = {
@@ -128,6 +208,23 @@ in
     # user out on every `switch`/`test`. A display-manager change applies on the
     # next reboot instead.
     systemd.services.display-manager.restartIfChanged = false;
+
+    # Keyring reset (cf. header): after the password prompt, before
+    # `pam_gnome_keyring` stashes it. Key (`pam_u2f`) and autologin sessions
+    # never get there, they bring no password to recreate the keyring with.
+    security.pam.services.login.rules.auth.keyring-reset = {
+      enable = config.security.pam.services.login.enableGnomeKeyring;
+      control = "optional";
+      modulePath = "${config.security.pam.package}/lib/security/pam_exec.so";
+      order = config.security.pam.services.login.rules.auth.gnome_keyring.order - 10;
+
+      # `quiet`: a failure never reaches the greeter
+      settings = {
+        quiet = true;
+        type = "auth";
+      };
+      args = mkAfter [ "${keyringReset}" ];
+    };
 
     #==========================================================================
     # GNOME DEFAULT APPLICATIONS & SERVICES

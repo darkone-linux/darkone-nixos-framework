@@ -5,6 +5,8 @@
 # `.desktop` entries for `scrcpy` and `scrcpy-console` when the package is
 # part of the user's `home.packages`, and (when `hideTechnicalIcons` is set)
 # hides Settings, Printers and File Roller icons for beginner / child profiles.
+# `keepKeyring` opts the user out of the login keyring reset that follows an
+# admin password change (read by the NixOS gnome module).
 #
 # :::caution[NFS bookmarks]
 # Do not declare `gtk.gtk3.bookmarks` from this module — while NFS home shares
@@ -25,6 +27,7 @@ in
   options = {
     darkone.home.gnome.enable = lib.mkEnableOption "Enable gnome settings for home manager";
     darkone.home.gnome.hideTechnicalIcons = lib.mkEnableOption "Hide some icons for beginners / children / babies";
+    darkone.home.gnome.keepKeyring = lib.mkEnableOption "Keep the login keyring when the admin changes the session password (keyring with a password of its own)";
   };
 
   config = lib.mkIf cfg.enable {
