@@ -10,6 +10,107 @@ observable defaults, `lib.mkConfigurations`, public `just` recipes, the expected
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-05
+
+### ⚠ Breaking
+
+- **office**: Move darkone.console.pandoc to darkone.home.office.enablePandoc
+- **manage**: Just enter is port 22 only, just unlock takes the initrd prompt
+- **nextcloud**: Move to 35, drop news/memories/recognize plugins
+
+### Added
+
+- **vaultwarden**: Allow emergency access for master password recovery
+- **invite**: Just invite, welcome sheet and Kanidm reset link
+- **secrets**: Warn on a hashed vaultwarden admin token
+- **umi**: Derive UMI users from their user profile
+- **gnome**: Let users override the pointer size, UMI users get 48 px
+- **umi**: Native GNOME a11y for UMI users outside UMI hosts
+- **user**: SSH keys via authorized_keys registry and rbw agent
+- **home**: Rbw vault lock after 12h of inactivity
+- **pandoc**: Added typst
+- **office**: Make ConTeXt optional in the pandoc toolchain
+- **office**: Default pandoc PDF engine, language and fonts
+- **office**: Md2pdf command with ConTeXt and typst layouts
+- **office**: Nautilus entries to convert Markdown to PDF
+- **office**: Md2pdf typst layout closer to ConTeXt, schemas fit width
+- **office**: Md2pdf typst renders raw TeX breaks and TOC, ConTeXt-like title
+- **office**: Md2pdf --tablet on A6 at 9pt, the layout tuned for tablets
+- **office**: Md2pdf and pandoc default to the typst engine
+- **office**: Md2pdf typst polish: TOC, rules, lists, footnotes, inline code
+- **office**: Md2pdf typst footnotes at 80%, tight as with ConTeXt
+- **office**: Md2pdf typst sizes table columns from their content
+- **oxicloud**: Trusted proxy, kanidm admins, nextcloud api, smtp, locale
+- **dns**: Resolve tailnet node names from zone LANs
+- **admin**: Dnf-locate routes ssh to roaming fleet hosts
+- **engine**: Presence probe over the deploy ssh connection
+- **enter**: Dnf-locate logs
+- **headscale**: Unbound view gives tagged nodes the LAN address of zone globals
+- **umi**: Larger Cinnamon panel, icons and text, single-click Nemo
+- **umi**: Eye tracker plugged in enables gaze control and hover click
+- **umi**: Gaze panel with hover click types, pause zone and keyboard toggle
+- **umi**: No terminal launcher, text scaling 1.4
+- **umi**: Roomier Cinnamon menu entries
+- **umi**: Panel gaze switch, Talon action user.umi_gaze
+- **umi**: Accessibility on from first login, no Onboard prompt
+- **umi**: Onboard starts hidden, replaces its own autostart entry
+- **umi**: Hide click type buttons while hover click is paused
+- **umi**: Faster Talon gaze filters, head control and mouse jump off
+- **umi**: Gaze button off pauses hover click, back on resumes it
+- **umi**: Declarative Talon eye tracking modes (gaze, head, jumps, focus)
+- **umi**: Gaze settings updates
+- **nix-cache**: Roaming host feature sets the roaming substituters
+
+### Fixed
+
+- **invite**: Todo -> just log
+- **gdm**: Realign gdm-greeter UIDs with nixpkgs
+- **umi**: Pin UMI users' GDM session to Cinnamon at every boot
+- **umi**: Hide Cinnamon panels through XDG_DATA_HOME, drop dead GNOME entry
+- **umi**: Keep Cinnamon GSettings defaults out of GNOME and the GDM greeter
+- **office**: Md2pdf typst tolerates stray citations and dead links
+- **office**: Md2pdf ConTeXt no longer drops table rows at page breaks
+- **security**: C7 NTP servers as absolute FQDN, immune to search domain
+- **ai**: Disable herdr, unstable build fails to link
+- **outline**: Overlay fixing 1.10.1 yarn patch and hashes
+- **dns**: Undeclared zone names no longer resolve to the gateway
+- **manage**: Just enter reaches roaming hosts through dnf-locate
+- **child**: Enable education module, enableChild alone installed nothing
+- **student**: Enable education module, enableStudent alone installed nothing
+- **umi**: No X forwarding through su on UMI hosts, prompts lock the screen
+- **umi**: Talon 1.0 support in the tracker script, Always On switched off
+- **umi**: No mousetweaks in Cinnamon, click types, wheel and no hover popup
+- **home**: GUI apps off pkgs-stable, glibc mismatch with Mesa driver
+- **home**: Disable apostrophe, its python 3.12 deps fail to build
+- **adguardhome**: No rate limit on the zone resolver
+- **nextcloud**: Declarative smtp password via services.nextcloud.secrets
+
+### Security
+
+- **vaultwarden**: Restrict /admin to internal networks
+- **umi**: Seed passwordless keyring for the autologin user only
+- **umi**: Grant input/uinput groups on UMI hosts only
+
+### Removed
+
+- **oxicloud**: Drop target-cpu overlay, fixed in nixpkgs
+- **education**: Drop celestia, build broken against FFmpeg 8
+- **printing**: Drop hplip duplicate of hplipWithPlugin in CUPS drivers
+
+### Changed
+
+- **umi**: Align internal identifiers on the umi naming
+
+### Documentation
+
+- **umi**: Profile header describes the session per host
+- **office**: Md2pdf table width rule in the enablePandoc description
+
+### Dependencies
+
+- dnf-generator v0.2.1
+- fleet-update v0.7.4
+
 ## [0.3.1] - 2026-09-25
 
 ### Added
@@ -246,7 +347,8 @@ framework as it stands, not the commits that built it.
 | [dnf-boilerplate](https://github.com/darkone-linux/dnf-boilerplate) | `v0.1.0` |
 | [dnf-example](https://github.com/darkone-linux/dnf-example) | `v0.1.0` |
 
-[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.2.1...v0.2.2
