@@ -7,11 +7,18 @@
 # - `nextcloud-whiteboard-secret`: JWT shared with the whiteboard backend
 #   (only read when `whiteboard` is in `plugins`);
 # - `oidc-secret-<client>`: Kanidm OAuth2 client secret, declared by the idm
-#   module and re-encrypted here for the `occ` provisioning unit.
+#   module and re-encrypted here for the `occ` provisioning unit;
+# - `smtp/password`: SMTP relay password (only with `network.smtp`). External:
+#   entered by hand, never generated.
 #
-# `just configure-admin-host` generates all of them, idempotently, and never
+# `just configure-admin-host` generates the others, idempotently, and never
 # overwrites an existing one. Run it before rebuilding: sops-nix activation
 # fails on a missing entry.
+# :::
+#
+# :::note[Running occ]
+# `services.nextcloud.secrets` makes `occ` load systemd credentials: run
+# `sudo nextcloud-occ` (PHP still runs as `nextcloud`), not `sudo -u nextcloud`.
 # :::
 
 {
@@ -56,6 +63,10 @@ let
   # it used to run unconditionally even though `whiteboard` is not a default
   # plugin.
   hasWhiteboard = lib.elem "whiteboard" cfg.plugins;
+
+  # Credentials of the upstream units, for our own `occ` units: without them
+  # the wrapper falls back to `systemd-run`, denied to the `nextcloud` user.
+  occCredentials = config.systemd.services.nextcloud-cron.serviceConfig.LoadCredential;
 
   # Every package under `services.nextcloud.package.packages.apps` for this
   # release; installed (and occ-enabled) only when listed in `cfg.plugins`.
@@ -243,6 +254,9 @@ in
         key = secret;
       };
 
+      # Root-owned on purpose: read by PID 1 through `LoadCredential`.
+      sops.secrets."smtp/password" = lib.mkIf hasSmtp { };
+
       # Internal nginx
       services.nginx = {
         virtualHosts."${params.fqdn}" = {
@@ -306,8 +320,9 @@ in
         maxUploadSize = "16G";
         https = false;
 
-        # TODO: https://search.nixos.org/options?channel=unstable&show=services.nextcloud.secrets
-        #secrets = {};
+        # `nix_read_secret` in `override.config.php`: out of the store and of
+        # the writable `config.php`, wins over a password typed in the admin UI.
+        secrets = lib.mkIf hasSmtp { mail_smtppassword = config.sops.secrets."smtp/password".path; };
 
         # Configuration de base
         config = {
@@ -428,6 +443,7 @@ in
         serviceConfig = {
           Type = "oneshot";
           User = "nextcloud";
+          LoadCredential = occCredentials;
         };
         script = lib.concatMapStringsSep "\n" (
           name:
@@ -456,6 +472,7 @@ in
         serviceConfig = {
           Type = "oneshot";
           User = "nextcloud";
+          LoadCredential = occCredentials;
         };
         script = ''
           ${lib.getExe config.services.nextcloud.occ} config:app:set \
@@ -514,6 +531,7 @@ in
         serviceConfig = {
           Type = "oneshot";
           User = "nextcloud";
+          LoadCredential = occCredentials;
           Restart = "on-failure";
           RestartSec = "60s";
         };
