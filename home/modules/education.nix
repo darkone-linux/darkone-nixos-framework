@@ -84,7 +84,7 @@ in
       (lib.mkIf (cfg.enableMisc && babyOrChild) gcompris)
       (lib.mkIf (cfg.enableMisc && cfg.enableChild) kdePackages.blinken) # memory training
       (lib.mkIf (cfg.enableMisc && cfg.enableStudent) anki) # training cards
-      (lib.mkIf (cfg.enableMusic && babyOrChild) tuxpaint)
+      (lib.mkIf (cfg.enableDraw && babyOrChild) tuxpaint)
       (lib.mkIf (cfg.enableMusic && childOrStudent) solfege)
       (lib.mkIf (cfg.enableScience && childOrStudent) atomix) # Atom puzzle
       (lib.mkIf (cfg.enableScience && childOrStudent) gnome-maps)
