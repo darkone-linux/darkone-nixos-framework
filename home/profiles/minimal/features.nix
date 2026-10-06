@@ -40,9 +40,15 @@ in
     enable = true;
     autocd = true;
     plugins = [
+
+      # p10k.zsh alone: the whole assets/ tree would land in every home and
+      # rebuild it at each asset change.
       {
         name = "powerlevel10k-config";
-        src = ./../../../assets;
+        src = lib.fileset.toSource {
+          root = ./../../../assets;
+          fileset = ./../../../assets/p10k.zsh;
+        };
         file = "p10k.zsh";
       }
       {
