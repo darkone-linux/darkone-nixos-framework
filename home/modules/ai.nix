@@ -13,9 +13,9 @@
 # On a local ollama host (`darkone.service.ai`): `gollama` and the `ollama`
 # CLI, and Aider falls back on the local model when Claude is off.
 #
-# `programs.gh` is enabled with the `github-copilot-cli` extension. Claude
-# Code enforces an allow/ask/deny permission matrix and an RTK governance
-# hook on Bash calls.
+# GitHub CLI (`gh`) and Copilot CLI (`copilot`) are installed. Claude Code
+# enforces an allow/ask/deny permission matrix and an RTK governance hook on
+# Bash calls.
 # :::
 #
 # :::caution[Writable settings.json]
@@ -312,6 +312,9 @@ in
       # GitHub CLI — required for agentic PR/issue workflows.
       gh
 
+      # Standalone `copilot` agent: not a gh extension (no `gh-*` binary).
+      github-copilot-cli
+
       # JSON processing
       jq
 
@@ -416,13 +419,10 @@ in
     };
 
     #==========================================================================
-    # GITHUB CLI EXTENSIONS
+    # GITHUB CLI
     #==========================================================================
 
-    programs.gh = {
-      enable = true;
-      extensions = [ pkgs.github-copilot-cli ];
-    };
+    programs.gh.enable = true;
 
     #==========================================================================
     # AIDER
