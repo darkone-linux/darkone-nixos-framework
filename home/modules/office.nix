@@ -44,7 +44,6 @@ let
 
   # Services deployed anywhere on the network
   hasService = name: lib.any (s: s.name == name) network.services;
-  hasMattermost = hasService "mattermost";
   hasMatrix = hasService "matrix";
   hasVaultwarden = hasService "vaultwarden";
 
@@ -230,7 +229,6 @@ in
       #(mkIf hasVaultwarden bitwarden-desktop) # TMP: Vulnerability + huge build -> electron is not maintained any more
       (mkIf (cfg.enableCommunication && cfg.enableMore) tuba) # Browse the Fediverse
       (mkIf (cfg.enableCommunication && cfg.enableMore) zoom-us)
-      (mkIf (cfg.enableCommunication && hasMattermost) mattermost-desktop)
       (mkIf (cfg.enableTools && cfg.enableMore) pika-backup) # Simple backups based on borg -> Security ?
       (mkIf (cfg.enableTools && cfg.enableMore) simple-scan)
       (mkIf (cfg.enableTools && !hasVaultwarden) gnome-secrets)
