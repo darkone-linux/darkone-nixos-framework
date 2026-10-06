@@ -12,6 +12,10 @@
     ./mime.nix
     ./music.nix
     ./office.nix
+    ./office/browsers.nix
+    ./office/matrix.nix
+    ./office/nextcloud.nix
+    ./office/pandoc.nix
     ./umi.nix
     ./video.nix
   ];

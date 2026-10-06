@@ -1,29 +1,32 @@
-# Common tools for office desktop.
+# Office desktop: browsers, office suite, communication, cloud and PDF tools.
+#
+# Packages are gated by audience flags (`enableEssentials`, `enableOffice`,
+# `enableTools`, `enableCommunication`...). Sub-modules (`office/`):
+#
+# - `browsers.nix`: Firefox ESR (LibreWolf, Chromium) with shared policies:
+#   zone homepage and locale, tracking protection, Bitwarden pinned when the
+#   network runs Vaultwarden.
+# - `matrix.nix`: Element Desktop pre-configured for the network homeserver
+#   (Kanidm SSO), Fractal as an option; both may start with the session.
+# - `nextcloud.nix`: desktop client bound to the network instance, and
+#   `nextcloud-webdav-login` for GNOME Online Accounts.
+# - `pandoc.nix`: `md2pdf` and the pandoc defaults (`enablePandoc`).
 
 {
   lib,
   config,
-  osConfig,
   zone,
   network,
-  inputs,
   pkgs,
-  host,
   hosts,
   dnfLib,
   ...
 }:
 let
   inherit (lib)
-    concatStringsSep
-    getExe
-    getExe'
-    makeBinPath
     mkEnableOption
-    mkForce
     mkIf
     mkOption
-    optional
     optionalString
     types
     ;
@@ -32,10 +35,6 @@ let
   # Locale
   inherit (zone) lang;
   country = dnfLib.extractCountryFromLocale zone.locale;
-
-  # Matrix
-  localMatrixServer = "https://matrix.${network.domain}";
-  idmUri = "https://idm.${network.domain}";
 
   # Homepage of this zone
   homeService = dnfLib.findService "homepage" zone.name network.services;
@@ -47,111 +46,10 @@ let
   hasService = name: lib.any (s: s.name == name) network.services;
   hasMattermost = hasService "mattermost";
   hasMatrix = hasService "matrix";
-  hasMatrixClient = cfg.enableCommunication && hasMatrix;
   hasVaultwarden = hasService "vaultwarden";
 
-  #--------------------------------------------------------------------------
-  # Pandoc (Markdown to PDF)
-  #--------------------------------------------------------------------------
-
-  pandocLang = "${lang}-${country}";
-
-  # typst: faster, and its output compared better than ConTeXt's. ConTeXt
-  # stays reachable through `-e context` / `--pdf-engine=context`.
-  pandocEngine = "typst";
-
-  # Lowest-priority metadata: a document's YAML block, `-M` and `-V` all win
-  # over it, whereas a defaults `variables` entry turns into a list next to a
-  # `-V` of the same name.
-  pandocMetadata = (pkgs.formats.yaml { }).generate "pandoc-metadata.yaml" {
-    lang = pandocLang;
-    mainfont = "Gentium";
-    monofont = "DejaVu Sans Mono";
-  };
-
-  # Falls back on the GECOS full name, then on the login.
-  md2pdfAuthor =
-    let
-      fullName = osConfig.users.users.${config.home.username}.description or "";
-    in
-    if cfg.pandocAuthor != null then
-      cfg.pandocAuthor
-    else if fullName != "" then
-      fullName
-    else
-      config.home.username;
-
-  # Calls the unwrapped pandoc: md2pdf states every setting itself and must not
-  # inherit `programs.pandoc.defaults`.
-  md2pdf = pkgs.writeShellApplication {
-    name = "md2pdf";
-    runtimeInputs = [
-      pkgs.coreutils
-      pkgs.exiftool
-      pkgs.librsvg
-      pkgs.pandoc
-      pkgs.typst
-    ]
-    ++ optional cfg.enablePandocContext pkgs.texliveConTeXt;
-    runtimeEnv = {
-      MD2PDF_ENGINE = pandocEngine;
-      MD2PDF_AUTHOR = md2pdfAuthor;
-      MD2PDF_METADATA = "${pandocMetadata}";
-      MD2PDF_LINKS_FILTER = "${./../../assets/pandoc/md2pdf-links.lua}";
-      MD2PDF_RAWTEX_FILTER = "${./../../assets/pandoc/md2pdf-rawtex.lua}";
-      MD2PDF_TABLES_FILTER = "${./../../assets/pandoc/md2pdf-tables.lua}";
-      MD2PDF_TYPST_TEMPLATE = "${./../../assets/pandoc/md2pdf.typ}";
-      MD2PDF_CONTEXT_HEADER = "${./../../assets/pandoc/md2pdf-context.tex}";
-
-      # Typst finds the fonts without relying on the user's fontconfig state.
-      # ConTeXt needs nothing: texlive ships Gentium and DejaVu.
-      TYPST_FONT_PATHS = concatStringsSep ":" [
-        "${pkgs.gentium}/share/fonts"
-        "${pkgs.dejavu_fonts}/share/fonts"
-      ];
-    };
-    text = builtins.readFile ./../../assets/pandoc/md2pdf.sh;
-  };
-
-  md2pdfLabels =
-    if lang == "fr" then
-      {
-        plain = "Markdown vers PDF";
-        big = "Markdown vers PDF (grand)";
-        tablet = "Markdown vers PDF (tablette)";
-        done = "PDF créé";
-        failed = "Échec de la conversion";
-      }
-    else
-      {
-        plain = "Markdown to PDF";
-        big = "Markdown to PDF (big)";
-        tablet = "Markdown to PDF (tablet)";
-        done = "PDF created";
-        failed = "Conversion failed";
-      };
-
-  # Nautilus runs its scripts without a terminal: the outcome goes to a
-  # desktop notification. Selected files arrive as arguments, relative to the
-  # viewed folder, which is the working directory.
-  md2pdfNautilus = flags: {
-    executable = true;
-    text = ''
-      #!/usr/bin/env bash
-      if log="$(${getExe md2pdf} ${flags} "$@" 2>&1)"; then
-        ${getExe' pkgs.libnotify "notify-send"} --app-name=md2pdf "${md2pdfLabels.done}" "$log"
-      else
-        ${getExe' pkgs.libnotify "notify-send"} --app-name=md2pdf --icon=dialog-error "${md2pdfLabels.failed}" "$log"
-      fi
-    '';
-  };
-
-  #--------------------------------------------------------------------------
-  # Nextcloud (personal cloud)
-  #--------------------------------------------------------------------------
-
-  # Reads only `network`/`hosts`, never an option, so it can safely back the
-  # `nextcloud.enable` default without recursing through the option system.
+  # Nextcloud. `detectedNextcloud` reads only `network`/`hosts`, never an
+  # option: it backs the `nextcloud.enable` default without recursion.
   detectedNextcloud = dnfLib.serviceHref {
     name = "nextcloud";
     inherit network hosts;
@@ -160,333 +58,6 @@ let
   nextcloudUrl = if cfg.nextcloud.server != null then cfg.nextcloud.server else detectedNextcloud;
   hasNextcloud = cfg.nextcloud.enable && nextcloudUrl != null;
   hasNextcloudWebdav = hasNextcloud && cfg.nextcloud.enableWebdav;
-
-  # Client unit PATH (HM pins the profile only). `xdg-open` needs `gio`
-  # (glib), else it probes a browser list without `firefox-esr`: the wizard's
-  # "Open" fails, and each click mints a token that voids the copied link.
-  nextcloudClientPath = concatStringsSep ":" [
-    (makeBinPath [
-      pkgs.glib
-      pkgs.xdg-utils
-    ])
-    "${config.home.profileDirectory}/bin"
-  ];
-
-  # Nextcloud account in GNOME Online Accounts (files, calendar, contacts).
-  # The web UI mints no app password for an OIDC user (user_oidc#468): Login
-  # Flow v2, the desktop client's own HTTP API, does. GOA mounts the share and
-  # feeds Evolution; a GTK bookmark would be a credential-less duplicate.
-  nextcloudWebdavLogin = pkgs.writeShellApplication {
-    name = "nextcloud-webdav-login";
-    runtimeInputs = with pkgs; [
-      coreutils
-      curl
-      gawk
-      glib
-      jq
-      libsecret
-      xdg-utils
-    ];
-    text = ''
-      server="${toString nextcloudUrl}"
-      host="''${server#*://}"
-      host="''${host%%/*}"
-      goa_conf="''${XDG_CONFIG_HOME:-$HOME/.config}/goa-1.0/accounts.conf"
-
-      # Login Flow v2: anonymous POST, then poll while the user authenticates
-      # in the browser. The User-Agent names the app password server-side.
-      init="$(curl -fsS -X POST -A "DNF $(uname -n)" "$server/index.php/login/v2")"
-      login_url="$(jq -r .login <<< "$init")"
-      poll_token="$(jq -r .poll.token <<< "$init")"
-      poll_endpoint="$(jq -r .poll.endpoint <<< "$init")"
-
-      echo "Autorisez l'accès dans le navigateur, puis revenez ici."
-      xdg-open "$login_url" >/dev/null 2>&1 || echo "URL à ouvrir : $login_url"
-
-      # 404 while pending, 200 once granted. The token lives 20 minutes.
-      deadline="$(( $(date +%s) + 1200 ))"
-      result=""
-      while [ "$(date +%s)" -lt "$deadline" ]; do
-        if result="$(curl -fsS -X POST -d "token=$poll_token" "$poll_endpoint" 2>/dev/null)"; then
-          break
-        fi
-        sleep 2
-      done
-
-      if [ -z "$result" ]; then
-        echo "Délai dépassé : aucune autorisation reçue." >&2
-        exit 1
-      fi
-
-      # The Nextcloud uid, which is what GOA authenticates with. Never assume
-      # it matches the local account: user_oidc derives it from the provider,
-      # and a user may well run their services under another login.
-      login_name="$(jq -r .loginName <<< "$result")"
-      app_password="$(jq -r .appPassword <<< "$result")"
-
-      # Derived from the server, so re-running refreshes the account in place
-      # instead of stacking a second one next to it.
-      account="account_$(printf '%s' "$server" | cksum | cut -d' ' -f1)_0"
-
-      # Seed the keyring first: rewriting the config file is what makes the
-      # daemon reload, so the credential has to already be there. GOA reads a
-      # GVariant vardict, and jq supplies the string escaping.
-      if ! printf "{'password': <%s>}" "$(jq -n --arg p "$app_password" '$p')" \
-        | secret-tool store --label="GOA owncloud credentials for identity $account" \
-            xdg:schema org.gnome.OnlineAccounts \
-            goa-identity "owncloud:gen0:$account"
-      then
-        echo "Trousseau inaccessible : compte non enregistré." >&2
-        exit 1
-      fi
-
-      # Rewrite our own block only; any other account in the file is kept.
-      mkdir -p "$(dirname "$goa_conf")"
-      touch "$goa_conf"
-      tmp="$(mktemp)"
-      awk -v drop="[Account $account]" '
-        $0 == drop { skip = 1; next }
-        /^\[/ { skip = 0 }
-        !skip
-      ' "$goa_conf" > "$tmp"
-
-      # Mirrors what the GOA "Nextcloud" provider writes itself, explicit port
-      # included; the provider is still named `owncloud` internally.
-      #
-      # `Identity` is the credential half and must stay the Nextcloud uid;
-      # `PresentationIdentity` is display only, and gvfs reuses it verbatim to
-      # name the mount. Left to the provider's `uid@host` default that reads
-      # as `IDM-<uuid>@cloud.example.com` in the file manager sidebar,
-      # hence an explicit, human label.
-      cat >> "$tmp" <<EOF
-
-      [Account $account]
-      Provider=owncloud
-      Identity=$login_name
-      PresentationIdentity=Nextcloud ($host)
-      Uri=https://$host:443/remote.php/webdav/
-      FilesEnabled=true
-      CalendarEnabled=true
-      CalDavUri=https://$host:443/remote.php/dav/
-      ContactsEnabled=true
-      CardDavUri=https://$host:443/remote.php/dav/
-      AcceptSslErrors=false
-      EOF
-      mv "$tmp" "$goa_conf"
-      chmod 644 "$goa_conf"
-
-      # Wakes the daemon when it is not running; when it is, its own file
-      # monitor has already picked the account up.
-      gdbus introspect --session --dest org.gnome.OnlineAccounts \
-        --object-path /org/gnome/OnlineAccounts >/dev/null 2>&1 || true
-
-      echo ""
-      echo "  Compte Nextcloud : $login_name"
-      echo "  Serveur          : $host"
-      echo ""
-      echo "Fichiers, agenda et contacts sont reliés à ce compte ; le partage"
-      echo "apparaît dans le gestionnaire de fichiers."
-      echo ""
-      echo "Mot de passe d'application, pour tout autre client WebDAV :"
-      echo ""
-      echo "    $app_password"
-    '';
-  };
-
-  # Drops the GTK bookmark the client adds on its sync folder
-  # (`Utility::setupFavLink`), a duplicate of the account's sidebar entry.
-  # Sync roots read from the client config: the wizard allows any folder.
-  nextcloudDropSyncBookmark = pkgs.writeShellApplication {
-    name = "nextcloud-drop-sync-bookmark";
-    runtimeInputs = with pkgs; [
-      coreutils
-      diffutils
-      gnused
-    ];
-    text = ''
-      conf_home="''${XDG_CONFIG_HOME:-$HOME/.config}"
-      bookmarks="$conf_home/gtk-3.0/bookmarks"
-      client_conf="$conf_home/Nextcloud/nextcloud.cfg"
-
-      if [ ! -f "$bookmarks" ] || [ ! -f "$client_conf" ]; then
-        exit 0
-      fi
-
-      # `0\Folders\1\localPath=/home/me/Nextcloud/`, one line per sync root.
-      roots="$(sed -n 's/^[0-9]*\\Folders\\[0-9]*\\localPath=//p' "$client_conf")"
-      if [ -z "$roots" ]; then
-        exit 0
-      fi
-
-      tmp="$(mktemp)"
-      while IFS= read -r line; do
-
-        # `URI [label]`, percent-encoded once the file manager has rewritten
-        # the file; `%b` turns `%C3%A9` back into the raw UTF-8 bytes.
-        uri="''${line%% *}"
-        target="''${uri#file://}"
-        target="$(printf '%b' "''${target//%/\\x}")"
-        keep=1
-        while IFS= read -r root; do
-          if [ -n "$root" ] && [ "''${target%/}" = "''${root%/}" ]; then
-            keep=0
-          fi
-        done <<< "$roots"
-        if [ "$keep" = 1 ]; then
-          printf '%s\n' "$line"
-        fi
-      done < "$bookmarks" > "$tmp"
-
-      # Rewrite only on a real change: the path unit driving this watches the
-      # very file being written.
-      if ! cmp -s "$tmp" "$bookmarks"; then
-        cat "$tmp" > "$bookmarks"
-      fi
-      rm -f "$tmp"
-    '';
-  };
-
-  # Common Firefox / Librewolf policies
-  # https://mozilla.github.io/policy-templates/
-  commonPolicies = {
-    BlockAboutConfig = !cfg.enableUnsafeFeatures;
-    BlockAboutAddons = false;
-    CaptivePortal = false;
-    DisablePocket = true;
-    DisableTelemetry = true;
-    DisableFirefoxStudies = true;
-    DisableFirefoxAccounts = true;
-    DisableMasterPasswordCreation = true;
-    PasswordManagerEnabled = false;
-    DontCheckDefaultBrowser = true;
-    SearchBar = "unified";
-    GoToIntranetSiteForSingleWordEntryInAddressBar = true;
-    HttpsOnlyMode = if cfg.enableUnsafeFeatures then "enabled" else "force_enabled";
-    NewTabPage = true;
-    OfferToSaveLogins = false;
-    OverrideFirstRunPage = mkIf hasHomepage homeUrl;
-    PopupBlocking.Default = true;
-    PrimaryPassword = false;
-    PrivateBrowsingModeAvailability = 0; # Available, not forced
-    PromptForDownloadLocation = true;
-    RequestedLocales = "${lang},${lang}-${country}";
-    SearchSuggestEnabled = true;
-    SkipTermsOfUse = true;
-    ShowHomeButton = hasHomepage;
-    StartDownloadsInTempDirectory = false;
-    TranslateEnabled = false;
-    DisplayBookmarksToolbar = "never";
-
-    Homepage = mkIf hasHomepage {
-      URL = homeUrl;
-      StartPage = "homepage";
-      Locked = true;
-    };
-
-    # New Tab page content, locked against UI changes
-    FirefoxHome = {
-      Search = true;
-      TopSites = true;
-      SponsoredTopSites = false;
-      Highlights = true;
-      Pocket = false;
-      Stories = false;
-      SponsoredPocket = false;
-      SponsoredStories = false;
-      Snippets = false;
-      Locked = true;
-    };
-
-    FirefoxSuggest = {
-      WebSuggestions = true;
-      SponsoredSuggestions = false;
-      ImproveSuggest = true;
-      Locked = true;
-    };
-
-    GenerativeAI = {
-      Enable = cfg.enableUnsafeFeatures;
-      Chatbot = cfg.enableUnsafeFeatures;
-      LinkPreviews = cfg.enableUnsafeFeatures;
-      TabGroups = cfg.enableUnsafeFeatures;
-      Locked = true;
-    };
-
-    PictureInPicture = {
-      Enable = true;
-      Locked = true;
-    };
-
-    UserMessaging = {
-      ExtensionRecommendations = cfg.enableUnsafeFeatures;
-      FeatureRecommendations = cfg.enableUnsafeFeatures;
-      UrlbarInterventions = true;
-      SkipOnboarding = false;
-      MoreFromMozilla = false;
-      FirefoxLabs = cfg.enableUnsafeFeatures;
-      Locked = true;
-    };
-
-    EnableTrackingProtection = {
-      Value = true;
-      Locked = true;
-      Cryptomining = true;
-      Fingerprinting = true;
-      EmailTracking = true;
-      SuspectedFingerprinting = true;
-    };
-
-    # Go to about:support to obtain informations and UUID
-    ExtensionSettings = {
-
-      # Pin bitwarden
-      "{446900e4-71c2-419f-a6a7-df9c091e268b}" = mkIf hasVaultwarden { default_area = "navbar"; };
-    };
-
-    # TODO: for childs
-    # WebsiteFilter = {
-    #   Block = [];
-    #   Exceptions = [];
-    # };
-  };
-
-  # Common Firefox / Librewolf settings
-  commonProfileSettings = {
-    "intl.accept_languages" = "${lang},${lang}-${country},en-us,en";
-    "general.useragent.locale" = "${lang}";
-
-    "extensions.pocket.enabled" = false;
-    "extensions.autoDisableScopes" = 0; # Auto-install extensions!
-
-    "browser.startup.homepage" = mkIf hasHomepage homeUrl;
-    "browser.search.defaultenginename" = "google";
-    "browser.search.order.1" = "google";
-    "browser.aboutConfig.showWarning" = false;
-    "browser.compactmode.show" = true;
-    "browser.newtabpage.activity-stream.feeds.section.topstories" = false;
-    "browser.newtabpage.activity-stream.feeds.snippets" = false;
-    "browser.newtabpage.activity-stream.section.highlights.includePocket" = false;
-    "browser.newtabpage.activity-stream.section.highlights.includeBookmarks" = false;
-    "browser.newtabpage.activity-stream.section.highlights.includeDownloads" = false;
-    "browser.newtabpage.activity-stream.section.highlights.includeVisited" = false;
-    "browser.newtabpage.activity-stream.showSponsored" = false;
-    "browser.newtabpage.activity-stream.system.showSponsored" = false;
-    "browser.newtabpage.activity-stream.showSponsoredTopSites" = false;
-    "browser.newtabpage.pinned" = optional hasHomepage {
-      title = zone.description;
-      url = homeUrl;
-    };
-    "browser.contentblocking.category" = {
-      Value = "strict";
-      Status = "locked";
-    };
-
-    "privacy.trackingprotection.enabled" = true;
-    "privacy.trackingprotection.socialtracking.enabled" = true;
-
-    # Open on the current workspace, not the one of the last session
-    "widget.disable-workspace-management" = true;
-  };
 in
 {
   options = {
@@ -624,6 +195,28 @@ in
         '';
       };
     };
+
+    # Values shared with the `office/` sub-modules.
+    darkone.home.office.shared = mkOption {
+      type = types.raw;
+      internal = true;
+      readOnly = true;
+      default = {
+        inherit
+          lang
+          country
+          hasHomepage
+          homeUrl
+          hasMatrix
+          hasVaultwarden
+          nextcloudUrl
+          hasNextcloud
+          hasNextcloudWebdav
+          ;
+      };
+      defaultText = "computed";
+      description = "Office values shared with the `office/` sub-modules.";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -662,7 +255,7 @@ in
       (mkIf cfg.enablePandoc exiftool) # PDF / image metadata
       (mkIf cfg.enablePandoc gentium) # PDF body font
       (mkIf cfg.enablePandoc librsvg) # `rsvg-convert`: SVG images in PDF output
-      (mkIf cfg.enablePandoc md2pdf)
+      (mkIf cfg.enablePandoc cfg.md2pdf)
       (mkIf (cfg.enablePandoc && cfg.enablePandocContext) texliveConTeXt) # `--pdf-engine=context`
       (mkIf cfg.enablePandoc typst) # `--pdf-engine=typst`
       (mkIf cfg.enableTools authenticator) # Two-factor authentication code generator
@@ -686,7 +279,7 @@ in
       # `services.nextcloud-client` only defines the systemd unit; it never
       # installs the package, hence this explicit entry.
       (mkIf hasNextcloud nextcloud-client)
-      (mkIf hasNextcloudWebdav nextcloudWebdavLogin)
+      (mkIf hasNextcloudWebdav cfg.nextcloud.webdavLogin)
       (mkIf hasVaultwarden bitwarden-cli)
     ];
 
@@ -715,411 +308,6 @@ in
     systemd.user.tmpfiles.rules = [
       "L ${config.home.homeDirectory}/.config/libreoffice/4/user/registrymodifications.xcu - - - - ${config.home.homeDirectory}/.config/libreoffice/4/user/registrymodifications.init.xcu"
     ];
-
-    #--------------------------------------------------------------------------
-    # Matrix desktop clients
-    #--------------------------------------------------------------------------
-
-    # Element is the default client, the only one pre-configurable. Fractal
-    # lacks `m.login.sso` (native OIDC/MAS only, Synapse runs legacy
-    # `oidc_providers`), a declarative config and a background mode.
-
-    # TODO: complete, share with modules/service/element.nix
-    programs.element-desktop = mkIf hasMatrixClient {
-      enable = true;
-      settings = {
-        default_server_config = {
-          "m.homeserver" = {
-            base_url = localMatrixServer;
-            server_name = "${network.domain} matrix server";
-          };
-        };
-        show_labs_settings = true;
-        default_theme = "dark";
-        default_federate = false;
-        default_country_code = country;
-        room_directory.servers = [ localMatrixServer ];
-        brand = network.domain;
-        sso_redirect_options = {
-          immediate = true;
-          on_welcome_page = true;
-          on_login_page = true;
-        };
-        oidc_static_clients."${idmUri}/".client_id = "matrix-synapse";
-        oidc_metadata = {
-          client_uri = idmUri;
-          logo_uri = idmUri + "/pkg/img/logo.svg";
-        };
-      };
-    };
-
-    # Auto-start Element (hidden, background-friendly client)
-    systemd.user.services.element-desktop = mkIf (hasMatrixClient && cfg.enableElementAutoStart) {
-      Unit = {
-        Description = "Element Desktop (autostart)";
-        After = [ "graphical-session.target" ];
-        PartOf = [ "graphical-session.target" ];
-      };
-      Install = {
-        WantedBy = [ "graphical-session.target" ];
-      };
-      Service = {
-        ExecStart = "${pkgs.element-desktop}/bin/element-desktop --no-update --hidden";
-        Restart = "on-failure";
-      };
-    };
-
-    # Auto-start Fractal (opt-in: no --hidden, opens a visible window)
-    systemd.user.services.fractal = mkIf (hasMatrix && cfg.enableFractalAutoStart) {
-      Unit = {
-        Description = "Fractal (autostart)";
-        After = [ "graphical-session.target" ];
-        PartOf = [ "graphical-session.target" ];
-      };
-      Install = {
-        WantedBy = [ "graphical-session.target" ];
-      };
-      Service = {
-        ExecStart = "${pkgs.fractal}/bin/fractal";
-        Restart = "on-failure";
-      };
-    };
-
-    #--------------------------------------------------------------------------
-    # Nextcloud desktop client
-    #--------------------------------------------------------------------------
-
-    services.nextcloud-client = mkIf hasNextcloud {
-      enable = true;
-      startInBackground = true;
-    };
-
-    # Wizard pre-fill in ExecStartPre: the `--override*` flags write the
-    # client config, then exit. With the server set, the wizard goes straight
-    # to browser (Kanidm SSO) authentication; no folder, no forced sync.
-    systemd.user.services.nextcloud-client = mkIf hasNextcloud {
-
-      # `-`: a failed pre-fill must not cost the user their client. The wizard
-      # then merely opens with an empty server field.
-      Service.ExecStartPre =
-        "-"
-        + concatStringsSep " " (
-          [
-            "${pkgs.nextcloud-client}/bin/nextcloud"
-            "--overrideserverurl ${toString nextcloudUrl}"
-          ]
-          ++ optional (
-            cfg.nextcloud.syncDir != null
-          ) "--overridelocaldir ${config.home.homeDirectory}/${toString cfg.nextcloud.syncDir}"
-        );
-
-      # Without this the wizard's "Open" button cannot reach a browser, see
-      # `nextcloudClientPath`.
-      Service.Environment = mkForce [ "PATH=${nextcloudClientPath}" ];
-
-      # Computed rather than conditional: the unit stays defined either way, so
-      # `systemctl --user start nextcloud-client` still works when auto-start
-      # is off.
-      Install.WantedBy = mkForce (optional cfg.nextcloud.enableAutoStart "graphical-session.target");
-    };
-
-    # Watch the bookmarks file rather than patch it once: the client writes
-    # its entry when the user finishes the wizard, long after activation.
-    systemd.user.services.nextcloud-drop-sync-bookmark = mkIf hasNextcloud {
-      Unit = {
-        Description = "Remove the duplicate Nextcloud sync folder bookmark";
-      };
-      Service = {
-        Type = "oneshot";
-        ExecStart = "${nextcloudDropSyncBookmark}/bin/nextcloud-drop-sync-bookmark";
-      };
-
-      # Also on login: `PathChanged` never fires for a file already sitting
-      # there when the path unit starts.
-      Install = {
-        WantedBy = [ "graphical-session.target" ];
-      };
-    };
-
-    systemd.user.paths.nextcloud-drop-sync-bookmark = mkIf hasNextcloud {
-      Unit = {
-        Description = "Watch the GTK bookmarks for the Nextcloud sync entry";
-      };
-      Path = {
-        PathChanged = "${config.xdg.configHome}/gtk-3.0/bookmarks";
-      };
-      Install = {
-        WantedBy = [ "graphical-session.target" ];
-      };
-    };
-
-    # The client writes its own autostart entry (`Utility::setLaunchOnStartup`,
-    # called on every config migration) and that entry launches it bare, with
-    # no pre-filled server, racing the unit above. `Hidden=true` is the XDG way
-    # to retire an autostart entry; as a store symlink it also survives the
-    # client trying to write the file back.
-    xdg.configFile."autostart/Nextcloud.desktop" = mkIf hasNextcloud {
-      text = ''
-        [Desktop Entry]
-        Type=Application
-        Name=Nextcloud
-        Hidden=true
-      '';
-    };
-
-    # A workstation that ran the client before this module carries that entry
-    # as a real file, and home-manager aborts rather than clobber one. Retire
-    # it before the link check, keeping a copy: activation must not destroy
-    # something the user could have edited.
-    home.activation.retireNextcloudAutostart = mkIf hasNextcloud (
-      lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
-        entry="${config.xdg.configHome}/autostart/Nextcloud.desktop"
-        if [ -f "$entry" ] && [ ! -L "$entry" ]; then
-          run mv $VERBOSE_ARG "$entry" "$entry.dnf-backup"
-        fi
-      ''
-    );
-
-    # Connecting the account needs a credential the web UI cannot issue to an
-    # OIDC user; this entry runs the Login Flow v2 helper in a terminal.
-    #
-    # Short name on purpose: the GNOME grid ellipsises past ~14 characters, so
-    # the first word is all the user gets to tell this icon apart from the
-    # sync client sitting next to it.
-    xdg.desktopEntries.nextcloud-webdav-login = mkIf hasNextcloudWebdav {
-      name = "Webdav Login";
-      genericName = "Nextcloud Online Account";
-      comment = "Link files, calendar and contacts to my Nextcloud account";
-      exec = "${nextcloudWebdavLogin}/bin/nextcloud-webdav-login";
-      icon = "nextcloud";
-      terminal = true;
-      type = "Application";
-      categories = [
-        "Network"
-        "FileTransfer"
-      ];
-    };
-
-    #--------------------------------------------------------------------------
-    # Pandoc (Markdown to PDF)
-    #--------------------------------------------------------------------------
-
-    # Installs pandoc wrapped with `--defaults`. Without an engine, a bare
-    # `pandoc doc.md -o doc.pdf` looks for the absent `pdflatex`.
-    programs.pandoc = mkIf cfg.enablePandoc {
-      enable = true;
-      defaults = {
-        pdf-engine = pandocEngine;
-        metadata-files = [ "${pandocMetadata}" ];
-      };
-    };
-
-    # Right click > Scripts. GNOME only: Nautilus is its file manager.
-    xdg.dataFile = mkIf (cfg.enablePandoc && osConfig.darkone.graphic.gnome.enable) {
-      "nautilus/scripts/${md2pdfLabels.plain}" = md2pdfNautilus "";
-      "nautilus/scripts/${md2pdfLabels.big}" = md2pdfNautilus "--big";
-      "nautilus/scripts/${md2pdfLabels.tablet}" = md2pdfNautilus "--tablet";
-    };
-
-    #--------------------------------------------------------------------------
-    # Firefox (general browser)
-    #--------------------------------------------------------------------------
-
-    programs.firefox = mkIf cfg.enableFirefox {
-      enable = true;
-      package = pkgs.firefox-esr;
-
-      # Firefox only reads ~/.mozilla/firefox (no XDG support in ESR 140, and
-      # the nixpkgs wrapper forces MOZ_LEGACY_PROFILES=1). Pin the legacy path
-      # explicitly: the HM 26.05 XDG default would provision a profile the
-      # browser never opens (declarative extensions silently ignored).
-      configPath = ".mozilla/firefox";
-
-      # Lang https://releases.mozilla.org/pub/firefox/releases/140.7.0esr/linux-x86_64/
-      languagePacks = [ "${lang}" ];
-
-      # Default profile
-      profiles = {
-        default = {
-          id = 0;
-          name = "default";
-          isDefault = true;
-
-          # Check about:config for options.
-          settings = commonProfileSettings;
-
-          search = {
-            force = true;
-            default = "google";
-            order = [
-              "google"
-              "duckduckgo"
-              "nix-options"
-              "nix-packages"
-            ];
-            engines = {
-              nix-options = {
-                name = "Nix Options";
-                urls = [
-                  {
-                    template = "https://search.nixos.org/options";
-                    params = [
-                      {
-                        name = "channel";
-                        value = "unstable";
-                      }
-                      {
-                        name = "query";
-                        value = "{searchTerms}";
-                      }
-                    ];
-                  }
-                ];
-                icon = "${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
-                definedAliases = [ "@no" ];
-              };
-              nix-packages = {
-                name = "Nix Packages";
-                urls = [
-                  {
-                    template = "https://search.nixos.org/packages";
-                    params = [
-                      {
-                        name = "channel";
-                        value = "unstable";
-                      }
-                      {
-                        name = "query";
-                        value = "{searchTerms}";
-                      }
-                    ];
-                  }
-                ];
-                icon = "${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
-                definedAliases = [ "@np" ];
-              };
-              google.metaData.alias = "@g";
-            };
-          };
-
-          extensions = {
-            force = true;
-            packages = with inputs.firefox-addons.packages.${pkgs.stdenv.hostPlatform.system}; [
-              (mkIf hasVaultwarden bitwarden)
-              (mkIf cfg.enableUBlock ublock-origin)
-              (mkIf (lang == "fr") french-language-pack)
-              (mkIf (lang == "fr") french-dictionary)
-            ];
-            settings."uBlock0@raymondhill.net".settings = mkIf cfg.enableUBlock {
-              selectedFilterLists = [
-                "ublock-filters"
-                "ublock-badware"
-                "ublock-privacy"
-                "ublock-unbreak"
-                "ublock-quick-fixes"
-              ];
-            };
-          };
-
-          # TODO: https://nix-community.github.io/home-manager/options.xhtml#opt-programs.firefox.profiles._name_.containers
-          # containers = {};
-        };
-      };
-
-      policies = commonPolicies;
-    };
-
-    #--------------------------------------------------------------------------
-    # LibreWolf (for kids)
-    #--------------------------------------------------------------------------
-
-    # TEMPORARY: librewolf-151.0.2-1 is marked insecure upstream (no nixpkgs
-    # maintainer). Disabled fleet-wide to keep evaluation pure; drop the
-    # `&& false` once nixpkgs ships a maintained, secure build.
-    programs.librewolf = mkIf (cfg.enableLibreWolf && false) {
-      enable = true;
-
-      # Lang https://releases.mozilla.org/pub/firefox/releases/140.7.0esr/linux-x86_64/
-      languagePacks = [ "${lang}" ];
-
-      # Default profile
-      profiles = {
-        default = {
-          id = 0;
-          name = "default";
-          isDefault = true;
-
-          # Check about:config for options.
-          settings = commonProfileSettings;
-
-          search = {
-            force = true;
-            default = "duckduckgo";
-            order = [ "duckduckgo" ];
-          };
-
-          extensions = {
-            force = true;
-            packages = with inputs.firefox-addons.packages.${pkgs.stdenv.hostPlatform.system}; [
-              (mkIf hasVaultwarden bitwarden)
-              (mkIf (lang == "fr") french-language-pack)
-              (mkIf (lang == "fr") french-dictionary)
-            ];
-          };
-
-          # TODO: https://nix-community.github.io/home-manager/options.xhtml#opt-programs.firefox.profiles._name_.containers
-          # containers = {};
-        };
-      };
-
-      policies = commonPolicies // {
-        WebsiteFilter = {
-          Block = [ "<all_urls>" ];
-          Exceptions = [
-            "https://*.${network.domain}/*"
-            "https://cdn.jsdelivr.net/*"
-            "http://127.0.0.1/*"
-            "https://127.0.0.1/*"
-            "http://localhost/*"
-            "https://localhost/*"
-            "http://${host.name}.${zone.domain}/*"
-            "https://${host.name}.${zone.domain}/*"
-            "http://${host.name}/*"
-            "https://${host.name}/*"
-            "http://[::1]/*"
-            "https://[::1]/*"
-          ];
-        };
-      };
-    };
-
-    #--------------------------------------------------------------------------
-    # Chromium (alternative)
-    #--------------------------------------------------------------------------
-
-    # Chromium (wip) - not working
-    programs.chromium = mkIf cfg.enableChromium {
-      enable = true;
-      #package = pkgs.ungoogled-chromium;
-      extensions = [
-        "aapbdbdomjkkjkaonfhkkikfgjllcleb" # Google Translate
-        "gcbommkclmclpchllfjekcdonpmejbdp" # https everywhere
-        (mkIf cfg.enableUBlock "cjpalhdlnbpafiamejdnhcphjbkeiagm") # ublock origin
-        "oldceeleldhonbafppcapldpdifcinji" # Language tool
-        "gppongmhjkpfnbhagpmjfkannfbllamg" # Wappalyzer
-        "nfkmalbckemmklibjddenhnofgnfcdfp" # Channel Blocker
-        "hdannnflhlmdablckfkjpleikpphncik" # Youtube Speed Control
-        "bbeaicapbccfllodepmimpkgecanonai" # Block Tube
-        "jjnkmicfnfojkkgobdfeieblocadmcie" # Tube Archivist companion
-        "mnjggcdmjocbbbhaepdhchncahnbgone" # SponsorBlock
-        "icallnadddjmdinamnolclfjanhfoafe" # Fast Forward
-        (mkIf hasVaultwarden "nngceckbapebfimnlniiiahkandclblb") # Bitwarden
-      ];
-      dictionaries = [
-        pkgs.hunspellDictsChromium.fr_FR
-        pkgs.hunspellDictsChromium.en_US
-      ];
-    };
 
     #--------------------------------------------------------------------------
     # Thunderbird
