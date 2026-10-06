@@ -152,8 +152,10 @@ in
 
       # Infra age key: restricted, outside the repository.
       SOPS_AGE_KEY_FILE = "/etc/sops/age/infra.key";
-      MANPAGER = "sh -c 'col -bx | bat -l man -p'"; # bat
-      MANROFFOPT = "-c"; # bat
+
+      # Man pages through bat, only when it is installed
+      MANPAGER = lib.mkIf config.programs.bat.enable "sh -c 'col -bx | bat -l man -p'";
+      MANROFFOPT = lib.mkIf config.programs.bat.enable "-c";
       EDITOR = "vim";
       VISUAL = "vim";
       TERMINAL = lib.optionalString hasGhostty "ghostty";
