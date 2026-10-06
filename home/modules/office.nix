@@ -16,10 +16,8 @@
 let
   inherit (lib)
     concatStringsSep
-    findFirst
     getExe
     getExe'
-    hasAttr
     makeBinPath
     mkEnableOption
     mkForce
@@ -33,25 +31,24 @@ let
 
   # Locale
   inherit (zone) lang;
-  country = builtins.substring 3 2 zone.locale;
+  country = dnfLib.extractCountryFromLocale zone.locale;
 
   # Matrix
   localMatrixServer = "https://matrix.${network.domain}";
   idmUri = "https://idm.${network.domain}";
 
-  # Homepage (TODO: simplify lookup of the zone homepage)
-  homeService = findFirst (s: s.name == "homepage" && s.zone == zone.name) null network.services;
-  homeDomain = optionalString (homeService != null) (
-    if (hasAttr "domain" homeService) then homeService.domain else homeService.name
-  );
+  # Homepage of this zone
+  homeService = dnfLib.findService "homepage" zone.name network.services;
+  homeDomain = optionalString (homeService != null) (homeService.domain or homeService.name);
   hasHomepage = homeDomain != "";
   homeUrl = optionalString hasHomepage "https://${homeDomain}.${zone.domain}";
 
-  # Has services
-  hasMattermost = (findFirst (s: s.name == "mattermost") null network.services) != null;
-  hasMatrix = (findFirst (s: s.name == "matrix") null network.services) != null;
+  # Services deployed anywhere on the network
+  hasService = name: lib.any (s: s.name == name) network.services;
+  hasMattermost = hasService "mattermost";
+  hasMatrix = hasService "matrix";
   hasMatrixClient = cfg.enableCommunication && hasMatrix;
-  hasVaultwarden = (findFirst (s: s.name == "vaultwarden") null network.services) != null;
+  hasVaultwarden = hasService "vaultwarden";
 
   #--------------------------------------------------------------------------
   # Pandoc (Markdown to PDF)
@@ -164,20 +161,9 @@ let
   hasNextcloud = cfg.nextcloud.enable && nextcloudUrl != null;
   hasNextcloudWebdav = hasNextcloud && cfg.nextcloud.enableWebdav;
 
-  # Search path of the client unit, overriding the profile-only one
-  # home-manager pins.
-  #
-  # The wizard's "Open" button ends in `xdg-open`, whose GNOME branch is
-  # guarded by `command -v gio`. Without glib it silently falls through to the
-  # generic branch, which probes a hardcoded browser list (`firefox`,
-  # `chromium`, `www-browser`...) that a NixOS profile shipping `firefox-esr`
-  # never satisfies: `xdg-open: no method available for opening <url>`, and a
-  # login-flow token minted for nothing.
-  #
-  # That failure is what makes "Copy link" look broken too: every click on
-  # either button mints a *new* token and the client only polls the last one,
-  # so a link copied after a few dead "Open" attempts is already superseded
-  # server-side and lands on "Unauthorized".
+  # Client unit PATH (HM pins the profile only). `xdg-open` needs `gio`
+  # (glib), else it probes a browser list without `firefox-esr`: the wizard's
+  # "Open" fails, and each click mints a token that voids the copied link.
   nextcloudClientPath = concatStringsSep ":" [
     (makeBinPath [
       pkgs.glib
@@ -186,18 +172,10 @@ let
     "${config.home.profileDirectory}/bin"
   ];
 
-  # Nextcloud account helper (files, calendar, contacts).
-  #
-  # Nextcloud refuses to mint an app password from the web UI for an OIDC
-  # user: it asks to confirm a local password that does not exist
-  # (user_oidc#468). Login Flow v2 is the documented way around it — the very
-  # one the desktop client uses — and it is a plain HTTP API, so a script can
-  # drive it and hand the result to GNOME Online Accounts.
-  #
-  # GOA rather than a GTK bookmark: `modules/graphic/gnome.nix` already turns
-  # it on whenever the network carries a cloud, it mounts the share on its
-  # own, and the same entry feeds Evolution over CalDAV/CardDAV. A bookmark
-  # would only add a credential-less duplicate of that mount.
+  # Nextcloud account in GNOME Online Accounts (files, calendar, contacts).
+  # The web UI mints no app password for an OIDC user (user_oidc#468): Login
+  # Flow v2, the desktop client's own HTTP API, does. GOA mounts the share and
+  # feeds Evolution; a GTK bookmark would be a credential-less duplicate.
   nextcloudWebdavLogin = pkgs.writeShellApplication {
     name = "nextcloud-webdav-login";
     runtimeInputs = with pkgs; [
@@ -315,16 +293,9 @@ let
     '';
   };
 
-  # Drops the GTK bookmark the client plants on its sync folder.
-  #
-  # `Utility::setupFavLink` appends `file://<syncdir>` to the GTK bookmarks
-  # the first time a folder is configured, which lands right next to the
-  # entry the file manager already shows for the same account: two sidebar
-  # rows, one target. Only the bookmark is ours to remove.
-  #
-  # The sync roots are read back from the client's own config rather than
-  # from `syncDir`: the wizard lets the user pick any folder, and this must
-  # still match what they chose.
+  # Drops the GTK bookmark the client adds on its sync folder
+  # (`Utility::setupFavLink`), a duplicate of the account's sidebar entry.
+  # Sync roots read from the client config: the wizard allows any folder.
   nextcloudDropSyncBookmark = pkgs.writeShellApplication {
     name = "nextcloud-drop-sync-bookmark";
     runtimeInputs = with pkgs; [
@@ -379,7 +350,7 @@ let
   # https://mozilla.github.io/policy-templates/
   commonPolicies = {
     BlockAboutConfig = !cfg.enableUnsafeFeatures;
-    BlockAboutAddons = false; # !cfg.enableUnsafeFeatures;
+    BlockAboutAddons = false;
     CaptivePortal = false;
     DisablePocket = true;
     DisableTelemetry = true;
@@ -412,16 +383,7 @@ let
       Locked = true;
     };
 
-    # Search: show/hide the search bar on the Firefox New Tab page.
-    # TopSites: enable/disable showing most-visited sites on the New Tab page.
-    # SponsoredTopSites: allow/block sponsored sites among the Top Sites.
-    # Highlights: show/hide recent items (visited pages, downloads, bookmarks).
-    # Pocket: show/hide Pocket recommendations on the New Tab page.
-    # Stories: enable/disable the recommended articles feed (Pocket/Discover).
-    # SponsoredPocket: allow/block sponsored content in Pocket recommendations.
-    # SponsoredStories: allow/block sponsored articles in the Discover feed.
-    # Snippets: show/hide Mozilla informational or promotional messages on the home page.
-    # Locked: prevent the user from changing these settings from the Firefox UI.
+    # New Tab page content, locked against UI changes
     FirefoxHome = {
       Search = true;
       TopSites = true;
@@ -458,8 +420,8 @@ let
     UserMessaging = {
       ExtensionRecommendations = cfg.enableUnsafeFeatures;
       FeatureRecommendations = cfg.enableUnsafeFeatures;
-      UrlbarInterventions = true; # ?
-      SkipOnboarding = false; # ?
+      UrlbarInterventions = true;
+      SkipOnboarding = false;
       MoreFromMozilla = false;
       FirefoxLabs = cfg.enableUnsafeFeatures;
       Locked = true;
@@ -522,9 +484,7 @@ let
     "privacy.trackingprotection.enabled" = true;
     "privacy.trackingprotection.socialtracking.enabled" = true;
 
-    # Firefox 75+ remembers the last workspace it was opened on as part of its session management.
-    # This is annoying, because I can have a blank workspace, click Firefox from the launcher, and
-    # then have Firefox open on some other workspace.
+    # Open on the current workspace, not the one of the last session
     "widget.disable-workspace-management" = true;
   };
 in
@@ -760,21 +720,11 @@ in
     # Matrix desktop clients
     #--------------------------------------------------------------------------
 
-    # Element is the default Matrix client and the only one we can pre-configure.
-    #
-    # Fractal cannot replace it as a declarative/OIDC default because:
-    #
-    # - Auth mismatch: our Synapse uses legacy `oidc_providers` (`m.login.sso`,
-    #   no MAS). Element supports `m.login.sso`; Fractal only supports native
-    #   OIDC (MSC3861/MAS) and would need a MAS migration to authenticate.
-    # - No declarative config: Element accepts a config (homeserver + OIDC);
-    #   Fractal's GSettings exposes nothing equivalent, so server/OIDC cannot
-    #   be pre-seeded and each user must log in interactively.
-    # - No background mode: Fractal has no `--hidden`/tray, so an auto-start
-    #   pops a visible window every login (hence `enableFractalAutoStart` is
-    #   opt-in and off by default).
+    # Element is the default client, the only one pre-configurable. Fractal
+    # lacks `m.login.sso` (native OIDC/MAS only, Synapse runs legacy
+    # `oidc_providers`), a declarative config and a background mode.
 
-    # TODO: complete, factorize with element.nix
+    # TODO: complete, share with modules/service/element.nix
     programs.element-desktop = mkIf hasMatrixClient {
       enable = true;
       settings = {
@@ -840,19 +790,9 @@ in
       startInBackground = true;
     };
 
-    # The wizard pre-fill flags are a one-shot *configuration* command, not
-    # launch options: `application.cpp` writes them to the client config then
-    # calls `std::exit(0)`. Passing them to ExecStart therefore configures the
-    # client and never runs it, so they belong in ExecStartPre — which leaves
-    # the home-manager ExecStart (`nextcloud --background`) alone.
-    #
-    # Pre-filling the server is what lets an account be bound without shipping
-    # a password: the wizard jumps straight to browser authentication (Kanidm
-    # SSO), which mints an app password of its own.
-    #
-    # `--overridelocaldir` stays out unless explicitly asked for: with the
-    # server alone the wizard stops on its folder page instead of committing
-    # the user to a sync.
+    # Wizard pre-fill in ExecStartPre: the `--override*` flags write the
+    # client config, then exit. With the server set, the wizard goes straight
+    # to browser (Kanidm SSO) authentication; no folder, no forced sync.
     systemd.user.services.nextcloud-client = mkIf hasNextcloud {
 
       # `-`: a failed pre-fill must not cost the user their client. The wizard
@@ -980,8 +920,6 @@ in
     #--------------------------------------------------------------------------
     # Firefox (general browser)
     #--------------------------------------------------------------------------
-
-    # TODO: https://nix-community.github.io/home-manager/options.xhtml#opt-programs.chromium.dictionaries
 
     programs.firefox = mkIf cfg.enableFirefox {
       enable = true;
