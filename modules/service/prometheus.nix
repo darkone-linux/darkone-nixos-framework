@@ -82,7 +82,9 @@ let
   # host when it runs Postfix. Deduplicated by hostname.
   postfixCandidates =
     (lib.filter (hostRunsUnit "postfix.service") nodes)
-    ++ lib.optional (config.darkone.service.postfix.enable && (host.features ? "monitoring-node")) host;
+    ++ lib.optional (
+      config.darkone.service.postfix.enable && config.darkone.service.monitoring.isNode
+    ) host;
   postfixHosts = lib.foldl' (
     acc: h: if lib.any (x: x.hostname == h.hostname) acc then acc else acc ++ [ h ]
   ) [ ] postfixCandidates;

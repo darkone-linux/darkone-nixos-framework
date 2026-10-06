@@ -93,7 +93,7 @@ let
   # Native Prometheus metrics, exposed only where a zone Prometheus scrapes
   # this host. Bound to the scrapeable IP (like the node exporter), not the
   # loopback the HTTP listener may use on the HCS.
-  isNode = host.features ? "monitoring-node";
+  isNode = config.darkone.service.monitoring.isNode;
   metricsPort = dnfConfig.network.ports.matrixMetrics;
   metricsIp = dnfLib.preferredIp host;
 

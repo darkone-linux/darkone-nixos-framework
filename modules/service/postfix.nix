@@ -16,7 +16,7 @@ let
   inherit (network) smtp;
 
   # Run/scrape the exporter only where a zone Prometheus collects this host.
-  isNode = host.features ? "monitoring-node";
+  isNode = config.darkone.service.monitoring.isNode;
   postfixExporterPort = dnfConfig.network.ports.postfixExporter;
 
   # Match addresses without a dot in the domain (e.g. user@host) -> noreply@domain.tld

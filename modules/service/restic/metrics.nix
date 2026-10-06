@@ -8,14 +8,13 @@
   config,
   lib,
   dnfLib,
-  host,
   pkgs,
   ...
 }:
 let
   cfg = config.darkone.service.restic;
   textfileDir = dnfLib.constants.textfileCollectorDir;
-  isNode = host.features ? "monitoring-node";
+  isNode = config.darkone.service.monitoring.isNode;
 
   # Run as ExecStartPost: oneshot ExecStartPost only fires when the backup
   # itself succeeded, so the stamp tracks the last *successful* run. Full store
