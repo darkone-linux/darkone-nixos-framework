@@ -52,6 +52,7 @@ in
         # Meta rule: valid iff R45 OR R46 is active.
         # On NixOS: R46 is an exception → R37 valid only if R45 is active.
         (lib.mkIf (isActive "R37" "reinforced" "base" [ "no-mac" ]) {
+
           # Assertion: at least one MAC active
           assertions = [
             {
@@ -77,6 +78,7 @@ in
             # TODO: add DNF in-house profiles for registered services
             packages = [ ]; # e.g. pkgs.apparmor-profiles
             policies = {
+
               # Example inline profile:
               # "dnf-nginx".profile = ''
               #   /usr/sbin/nginx {

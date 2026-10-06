@@ -67,14 +67,10 @@ in
     networking.firewall = {
       enable = true;
 
-      # No `allowedUDPPorts`: it emits no `iifname` and no source match, so the
-      # game and its discovery range landed on every leg of the host. Three
-      # rules, all anchored on the zone prefix:
-      #
-      # - 2757 covers the discovery broadcast as well as its unicast form;
-      # - 2759 is the game server port;
-      # - the ephemeral range receives the discovery answer, which conntrack
-      #   cannot relate to a broadcast request.
+      # No `allowedUDPPorts`: without `iifname` nor source match, every host leg
+      # would get the game. Three rules on the zone prefix: 2757 (discovery,
+      # broadcast and unicast), 2759 (game server), the ephemeral range (the
+      # discovery answer, which conntrack cannot relate to a broadcast).
       extraInputRules = lib.optionalString inLocalZone ''
         ip saddr ${zoneCidr} udp dport { 2757, 2759 } accept
         ip saddr ${zoneCidr} udp dport 32768-60999 accept

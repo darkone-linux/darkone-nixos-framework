@@ -25,6 +25,7 @@ in
   config = lib.mkIf cfg.enable (
     lib.mkMerge [
       {
+
         # Based on desktop configuration
         darkone.host.desktop.enable = lib.mkDefault true;
 

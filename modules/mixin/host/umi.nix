@@ -179,15 +179,10 @@ in
     systemd.services."getty@tty1".enable = lib.mkIf (cfg.autoLoginUser != null) false;
     systemd.services."autovt@tty1".enable = lib.mkIf (cfg.autoLoginUser != null) false;
 
-    # Several units of a desktop session ignore SIGTERM and only die on the
-    # stop timeout: `gdm-session-worker [pam/gdm-autologin]` (GDM gives up on
-    # it first: "isn't dying after 5 seconds, now ignoring it") and, user-side,
-    # the VBoxClient guest services. At the 90s default that is minutes of
-    # shutdown. Nothing here holds state worth a long drain.
-    #
-    # Both managers are needed: the session scope belongs to the system one
-    # (logind never sets TimeoutStopUSec on it, so it inherits this default),
-    # the VBoxClient services to the per-user one.
+    # Session units ignoring SIGTERM (`gdm-session-worker [pam/gdm-autologin]`,
+    # VBoxClient services) die on the stop timeout only: minutes of shutdown at
+    # the 90s default, for no state worth a long drain. Both managers: the
+    # session scope inherits the system default, VBoxClient the per-user one.
     systemd.settings.Manager.DefaultTimeoutStopSec = "5s";
     systemd.user.settings.Manager.DefaultTimeoutStopSec = "5s";
 
@@ -207,16 +202,10 @@ in
     # UMI users join input/uinput via `home/nixos/umi.nix`.
     hardware.uinput.enable = true;
 
-    # Tobii consumer trackers (USB vendor 2104): grant device access to the
-    # logged-in user without root. Talon's Tobii stream engine claims the
-    # vendor-specific interface through libusb, which needs r/w on
-    # /dev/bus/usb/*.
-    #
-    # The rule MUST sort before systemd's 73-seat-late.rules, which is what
-    # actually runs `RUN{builtin}+="uaccess"` for tagged devices. A rule added
-    # through `services.udev.extraRules` lands in 99-local.rules, i.e. after
-    # 73: the tag is set too late, no ACL is ever granted and MODE="0660" only
-    # makes the node *less* reachable (verified on hardware, tracker 2104:0313).
+    # Tobii consumer trackers (USB vendor 2104): r/w for the logged-in user, as
+    # Talon's stream engine claims the vendor interface through libusb. The rule
+    # MUST sort before systemd's 73-seat-late.rules (which runs `uaccess`):
+    # `services.udev.extraRules` lands in 99-local.rules, too late for any ACL.
     services.udev.packages = [
       (pkgs.writeTextFile {
         name = "tobii-udev-rules";

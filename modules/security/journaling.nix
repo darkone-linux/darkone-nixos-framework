@@ -73,6 +73,7 @@ in
           #   if $programname == 'nginx'  then -/var/log/nginx.log
           #   if $programname == 'sshd'   then -/var/log/sshd.log
           # '';
+
           # Permissions via tmpfiles (cf. R50)
           systemd.tmpfiles.rules = [
             "f /var/log/nginx.log  0640 root adm -"

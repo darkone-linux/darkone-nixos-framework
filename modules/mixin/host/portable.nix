@@ -25,8 +25,8 @@ in
   config = lib.mkIf cfg.enable (
     lib.mkMerge [
       {
-        # Based on laptop configuration
-        #darkone.host.laptop.enable = true;
+
+        # Based on the minimal configuration, not on the laptop one
         darkone.host.minimal.enable = true;
 
         # ANSSI machine category: a USB key is used as a workstation, and it

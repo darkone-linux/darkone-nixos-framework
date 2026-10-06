@@ -268,6 +268,7 @@ in
                 "hmac-sha2-512-etm@openssh.com"
                 "hmac-sha2-256-etm@openssh.com"
               ];
+
               # Unlike Ciphers/KexAlgorithms/Macs (list-typed in the openssh
               # module), HostKeyAlgorithms is freeform and must be a string.
               HostKeyAlgorithms = lib.concatStringsSep "," [

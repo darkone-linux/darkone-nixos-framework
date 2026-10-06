@@ -43,15 +43,11 @@ let
     even_deny_root = false;
   };
 
-  # Stacks that actually gate a password. Derived from the services' own
-  # `enable` flags, never from `security.pam.services` itself — reading an
-  # option this block also defines would recurse.
-  #
-  # - `sshd` stays out: DNF forbids password authentication, so faillock can
-  #   never count there — it could only refuse a key-based rescue session for
-  #   a lock earned on the console.
-  # - `gdm-password` stays out: it substacks `login`, and a second pair would
-  #   count every failure twice (lock-out at 2 attempts, not `deny`).
+  # Stacks that actually gate a password, from the services' own `enable`
+  # flags (reading `security.pam.services`, defined here too, would recurse):
+  # - not `sshd`: no password there, a lock earned on the console would only
+  #   refuse a key-based rescue session;
+  # - not `gdm-password`: it substacks `login`, failures would count twice.
   faillockServices = [
     "login"
     "su"

@@ -44,6 +44,7 @@ in
   config = lib.mkIf cfg.enable (
     lib.mkMerge [
       {
+
         # Is a server
         darkone.host.server.enable = true;
 

@@ -24,6 +24,7 @@ in
   config = lib.mkIf cfg.enable (
     lib.mkMerge [
       {
+
         # Load minimal configuration
         darkone.host.minimal.enable = lib.mkDefault true;
 

@@ -155,7 +155,8 @@ in
         "fbdev"
         "amdgpu"
         "intel"
-        #"nvidia"
+
+        # "nvidia": per host, never by default.
       ];
 
       # LightDM options if activated
@@ -278,8 +279,7 @@ in
       (mkIf cfg.enableDashToDock gnomeExtensions.dash-to-dock)
       (mkIf cfg.enableGsConnect gnomeExtensions.gsconnect)
       bibata-cursors
-      #gnomeExtensions.appindicator # Old one
-      gnomeExtensions.status-tray # New one
+      gnomeExtensions.status-tray # Tray icons, replaces appindicator
       gnomeExtensions.just-perfection
 
       # Force focus + raise on newly mapped windows. Works around Mutter's
@@ -367,6 +367,7 @@ in
                 enable-hot-corners = false; # Disable hot-corner actions when the cursor reaches a screen corner
               };
               "org/gnome/desktop/background" = {
+
                 # Reference to a file in the store:
                 # https://github.com/NixOS/nixpkgs/blob/18bcb1ef6e5397826e4bfae8ae95f1f88bf59f4f/nixos/modules/services/x11/desktop-managers/gnome.nix#L36
                 picture-uri-dark = "${pkgs.nixos-artwork.wallpapers.simple-blue.gnomeFilePath}";
@@ -406,8 +407,7 @@ in
               "org/gnome/shell" = {
                 disable-user-extensions = false;
                 enabled-extensions = [
-                  #"appindicatorsupport@rgcjonas.gmail.com" # old one
-                  "status-tray@keithvassallo.com" # new one
+                  "status-tray@keithvassallo.com" # Tray icons, replaces appindicator
                   "blur-my-shell@aunetx"
                   "steal-my-focus-window@steal-my-focus-window"
                 ]

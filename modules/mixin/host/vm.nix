@@ -26,6 +26,7 @@ in
   config = lib.mkIf (cfg.enableVirtualbox || cfg.enableXen || cfg.enableQemu) (
     lib.mkMerge [
       {
+
         # Based on server configuration
         darkone.host.server.enable = lib.mkDefault true;
 

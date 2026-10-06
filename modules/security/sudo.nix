@@ -128,6 +128,7 @@ in
         (lib.mkIf (isActive "R40" "intermediary" "base" [ ]) {
           assertions = [
             {
+
               # Ensure no extraRules targets root except sudo.allowedRootRules
               assertion = lib.all (
                 rule:
@@ -145,6 +146,7 @@ in
         (lib.mkIf (isActive "R41" "reinforced" "base" [ ]) {
           assertions = [
             {
+
               # Ensure no bare EXEC: without a command list
               # TODO: parse security.sudo.extraConfig to detect bare "EXEC:"
               assertion = true;
@@ -157,6 +159,7 @@ in
         (lib.mkIf (isActive "R42" "intermediary" "base" [ ]) {
           assertions = [
             {
+
               # Negations defeat exhaustive allowlists: reject `!` in raw config,
               # in command specs and in runAs targets.
               assertion =
@@ -176,6 +179,7 @@ in
         (lib.mkIf (isActive "R44" "intermediary" "base" [ ]) {
           assertions = [
             {
+
               # Best-effort: reject a command whose basename is an interactive
               # editor. Deeper parsing (cvtsudoers -f json) is checkScript work.
               assertion = !(lib.any isEditorCmd allCommandStrings);

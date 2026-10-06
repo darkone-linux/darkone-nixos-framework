@@ -439,13 +439,10 @@ in
         # Routed traffic (forward chain)
         #--------------------------------------------------------------------------
 
-        # Routed packets bypass the input chain, and without `filterForward`
-        # there is no forward chain at all: kernel policy ACCEPT, i.e. an open
-        # route Internet -> zone subnet on a gateway with a public WAN.
-        #
-        # `established,related` and `ct status dnat` (port forwards) come from
-        # the upstream chains. `iifname` matches a string, so a rule may name
-        # an interface that does not exist yet.
+        # Routed packets skip the input chain, and without `filterForward` there
+        # is no forward chain at all (policy ACCEPT: Internet -> zone subnet).
+        # `established,related` and `ct status dnat` come from the upstream
+        # chains; `iifname` matches a string, the interface may not exist yet.
         networking.firewall = {
 
           # mkDefault: an unusual gateway (container runtime, second uplink)

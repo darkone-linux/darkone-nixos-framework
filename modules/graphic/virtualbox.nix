@@ -25,7 +25,8 @@ in
     # Virtualbox module
     virtualisation.virtualbox.host = {
       enable = true;
-      #enableKvm = true; # -> Compilation
+
+      # `enableKvm` off: it triggers a VirtualBox build.
       inherit (cfg) enableExtensionPack;
       addNetworkInterface = false;
       package = pkgs.virtualbox;

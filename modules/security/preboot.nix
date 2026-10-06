@@ -134,6 +134,7 @@ in
               [ "iommu.passthrough=0" ]
             else
               [
+
                 # Intel and AMD: common parameter + runtime-specific one
                 # intel_iommu=on / amd_iommu=on is detected by the kernel
                 # on modern systems; we force iommu=force for both.

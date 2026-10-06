@@ -72,16 +72,11 @@ let
   # restore a session that no longer exists.
   stateFile = "/run/dnf-remote-desktop.state";
 
-  # Upstream hardcodes the METADATA cursor mode when mirroring a physical
-  # monitor (`create_stream`, src/grd-rdp-layout-manager.c): the pointer's
-  # *shape* is sent as an RDP pointer update but never its *position*, so the
-  # client draws the remote cursor wherever the local mouse happens to be and
-  # an observer never sees what the user is pointing at. EMBEDDED asks mutter
-  # to composite the pointer into the video instead — which also stops the
-  # PipeWire cursor metadata, so no second cursor appears.
-  #
-  # Deliberately a `--replace-fail` rather than a patch file: no context lines
-  # to rot, and a loud, legible failure the day upstream touches that call.
+  # Mirroring a monitor, upstream hardcodes the METADATA cursor mode
+  # (src/grd-rdp-layout-manager.c): the client gets the pointer shape, never
+  # its position, so an observer cannot see what the user points at. EMBEDDED
+  # composites it into the video. `--replace-fail`, not a patch: no context to
+  # rot, a loud failure the day upstream touches that call.
   embeddedCursorOverlay = _final: prev: {
     gnome-remote-desktop = prev.gnome-remote-desktop.overrideAttrs (old: {
       postPatch = (old.postPatch or "") + ''

@@ -124,6 +124,7 @@ in
         # sideEffects: init_on_* ~1-3% CPU, nosmt ~-30% multi-thread, debugfs=off breaks perf
         (lib.mkIf (isActive "R8" "intermediary" "base" [ ]) {
           boot.kernelParams = [
+
             # L1 Terminal Fault: full mitigation + SMT disabled
             (if cfg.disableSmt then "l1tf=full,force" else "l1tf=flush")
             "pti=on" # Page Table Isolation (Meltdown)
@@ -137,6 +138,7 @@ in
             "init_on_free=1" # Memory wipe on free
             "randomize_kstack_offset=on" # Kernel stack ASLR
             "vsyscall=none" # Disable legacy vsyscall
+
             # All CPU vulnerabilities (belt-and-suspenders)
             (if cfg.disableSmt then "mitigations=auto,nosmt" else "mitigations=auto")
             "debugfs=off" # Forbid /sys/kernel/debug
@@ -157,6 +159,7 @@ in
         # sideEffects: restrictUserns breaks rootless Docker/Podman, Flatpak
         (lib.mkIf (isActive "R9" "intermediary" "base" [ ]) {
           boot.kernel.sysctl = {
+
             # Memory and processes
             "kernel.kexec_load_disabled" = 1; # Disable kexec (except tag needs-kexec)
             "kernel.core_uses_pid" = 1; # core dump with PID in the name
@@ -194,6 +197,7 @@ in
           # Reinforced level: ptrace_scope=2; high level: 3
           boot.kernel.sysctl."kernel.yama.ptrace_scope" =
             if dnfLib.levelMapping.${mainSecurityCfg.level} >= dnfLib.levelMapping."reinforced" then 2 else 1;
+
           # Full LSM stack is configured in complement.nix (C2)
         })
 

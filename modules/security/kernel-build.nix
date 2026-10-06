@@ -92,6 +92,7 @@ let
       MODULE_SIG_FORCE = lib.kernel.yes;
       MODULE_SIG_ALL = lib.kernel.yes;
       MODULE_SIG_SHA512 = lib.kernel.yes;
+
       # MODULE_SIG_KEY managed via sops-nix: "/var/lib/anssi-mod-signing.pem"
       # TODO: wire with darkone.system.sops for the signing key
     })

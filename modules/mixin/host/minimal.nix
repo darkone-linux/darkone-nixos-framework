@@ -32,6 +32,7 @@ in
   config = lib.mkIf cfg.enable (
     lib.mkMerge [
       {
+
         # Darkone main modules
         darkone.system = {
           hardware.enable = true;

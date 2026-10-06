@@ -213,21 +213,12 @@ in
             });
           };
 
-          # TLS hardening, through the nginx module's own options.
-          #
-          # `ssl_protocols` and `ssl_ciphers` are emitted unconditionally by
-          # that module, so writing them again in `commonHttpConfig` is always
-          # a duplicate — nginx refuses to start on "ssl_ciphers directive is
-          # duplicate", and neither the nginx.conf derivation nor gixy sees it.
-          # `mkDefault` so a host keeps the last word.
-          #
-          # The headers are NOT here. `add_header` replaces the parent set
-          # wholesale rather than adding to it, so a block at `http` level is
-          # dropped by the first vhost or location carrying a header of its own
-          # — nextcloud's vhost, the nix-cache `location /`. gixy refuses the
-          # shadowing outright and the nginx.conf no longer builds: the rule
-          # took every nginx host of the fleet down with it, while protecting
-          # none of them. Hence a snippet to include, as on the Caddy side.
+          # TLS through the nginx module's own options: it always emits
+          # `ssl_protocols`/`ssl_ciphers`, and a copy in `commonHttpConfig`
+          # stops nginx ("duplicate"). `mkDefault`: a host keeps the last word.
+          # Headers live in a snippet to include: an `http`-level `add_header`
+          # is dropped by any vhost or location setting its own, and gixy then
+          # fails the build (nextcloud, nix-cache).
           services.nginx = lib.mkIf (config.services.nginx.enable && cfg.httpsHeaders) {
             sslProtocols = lib.mkDefault "TLSv1.3 TLSv1.2";
             sslCiphers = lib.mkDefault cfg.tlsCiphers;
