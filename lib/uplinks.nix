@@ -1,7 +1,7 @@
 # DNF — zone gateway uplinks: primary WAN + backup links.
 #
-# Pure data for `mixin/host/gateway.nix`: which interface carries which
-# networkd file and route metric, the conflicts to assert, and the
+# Pure data for `mixin/host/gateway/backup-links.nix`: which interface carries
+# which networkd file and route metric, the conflicts to assert, and the
 # wpa_supplicant networks rendered by a sops template.
 #
 # :::note[Failover by route metric]

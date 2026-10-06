@@ -776,9 +776,8 @@ rec {
       }
     ];
 
-  # Gateway uplink failover, from `dnf-uplink-monitor` (host/gateway.nix) via
-  # the node_exporter textfile collector. Absent metric (no backup link) -> no
-  # series -> no alert.
+  # Gateway uplink failover, from `dnf-uplink-monitor`
+  # (`gateway/backup-links.nix`). No backup link, no metric, no alert.
   mkUplinkRuleGroups =
     { zoneName }:
     mkGroup "uplinks" zoneName [

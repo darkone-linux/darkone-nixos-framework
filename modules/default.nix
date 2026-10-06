@@ -15,6 +15,7 @@
     ./graphic/virtualbox.nix
     ./mixin/host/desktop.nix
     ./mixin/host/gateway.nix
+    ./mixin/host/gateway/backup-links.nix
     ./mixin/host/hcs.nix
     ./mixin/host/laptop.nix
     ./mixin/host/minimal.nix

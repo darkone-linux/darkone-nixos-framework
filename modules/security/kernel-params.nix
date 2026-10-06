@@ -60,7 +60,7 @@ let
   # tailnet source address (`--snat-subnet-routes=false`), so it needs loose (2).
   tailscaleCfg = config.darkone.service.tailscale;
 
-  # Per-link probes of `host/gateway.nix` get their replies on a non-preferred link.
+  # Per-link probes of `host/gateway/backup-links.nix` get replies on a non-preferred link.
   gatewayCfg = config.darkone.host.gateway;
   hasBackupLinks = gatewayCfg.enable && gatewayCfg.backupLinks != { };
   rpFilterMode =
