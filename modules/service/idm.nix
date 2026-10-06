@@ -8,6 +8,10 @@
 # one `oidc-secret-<client>` per provisioned OAuth2 client. Read them back with
 # `just sops` on the rare occasions an admin needs one.
 # :::
+#
+# Sub-modules (`idm/`):
+# - `replication.nix`: multi-zone read-only replication, HCS to zone gateways;
+# - `provision.nix`: OAuth2 clients (template registry), groups and persons.
 
 {
   lib,
@@ -15,168 +19,23 @@
   dnfConfig,
   network,
   host,
-  hosts,
   zone,
   config,
-  users,
   pkgs,
-  workDir,
   ...
 }:
 let
   inherit (lib)
-    any
-    concatMap
-    filter
-    filterAttrs
-    hasAttrByPath
     listToAttrs
-    mapAttrs
-    mapAttrsToList
     mkEnableOption
     mkIf
     mkMerge
-    mkOption
-    optionalAttrs
-    types
     ;
   cfg = config.darkone.service.idm;
   srvPort = dnfConfig.network.ports.kanidm;
   inherit (config.sops) secrets;
   isHcs = dnfLib.isHcs host zone network;
-  isMainReplica = isHcs || !network.coordination.enable;
-
-  #--------------------------------------------------------------------------
-  # Multi-zone read-only replication (automatic, derived from declared services)
-  #--------------------------------------------------------------------------
-
-  # idm on the HCS only, or on a gateway without HCS: one instance. On the HCS
-  # and >= 1 zone gateway: the HCS supplies (WriteReplica), gateways consume.
-  # Two-step bootstrap: `just apply` generates every certificate (gateways stay
-  # WriteReplicaNoUI), then `just idm-sync-certs` + `just apply` adds the
-  # partners and flips the gateways to ReadOnlyReplica.
-
-  # A coordinated local-zone gateway is a read-only replica candidate.
-  isZoneReplica =
-    dnfLib.isGateway host zone && dnfLib.inLocalZone zone && network.coordination.enable;
-
-  globalZone = dnfLib.constants.globalZone;
-  replPort = dnfConfig.network.ports.kanidmReplication;
-  hcsVpnIp = network.zones.${globalZone}.gateway.vpn.ipv4;
-  mkReplOrigin = ip: "repl://${ip}:${toString replPort}";
-  hcsOrigin = mkReplOrigin hcsVpnIp;
-
-  # Replication identity certificates are PUBLIC and fetched out-of-band by
-  # `just idm-sync-certs` into the consumer workspace. A missing file (phase 1,
-  # before the peer has generated its identity) simply omits the partner block
-  # so the node still boots and emits its own certificate. Newlines/spaces are
-  # stripped: the TOML value must be the bare single-line certificate.
-  readReplCert =
-    hostname:
-    let
-      f = workDir + "/usr/secrets/replication/${hostname}.pem";
-    in
-    if builtins.pathExists f then
-      builtins.replaceStrings [ "\n" "\r" " " ] [ "" "" "" ] (builtins.readFile f)
-    else
-      "";
-
-  # HCS (supplier) certificate. Public, synced out-of-band by `just idm-sync-certs`
-  # into usr/secrets/replication/. Empty until step 1's certificates are gathered.
-  hcsReplCert = readReplCert network.coordination.hostname;
-
-  # Where idm runs on the network. `network.services` mirrors the per-host service
-  # declarations (config.yaml -> var/generated/), and the `idm` key drives
-  # `darkone.service.idm.enable` (lib/service-activation.nix), so this is the
-  # authoritative cross-host view of "which nodes run idm".
-  idmInstances = filter (s: s.name == "idm") network.services;
-
-  # idm declared on the HCS itself.
-  idmOnHcs = any (s: s.zone == globalZone && s.host == network.coordination.hostname) idmInstances;
-
-  # Local-zone gateways that run idm = replication consumers (need a gateway VPN
-  # IP to bind the pull origin). Keyed by zone name.
-  replConsumerZones = filterAttrs (
-    _: z:
-    dnfLib.inLocalZone z
-    && hasAttrByPath [ "gateway" "hostname" ] z
-    && hasAttrByPath [ "gateway" "vpn" "ipv4" ] z
-    && any (s: s.zone == z.name && s.host == z.gateway.hostname) idmInstances
-  ) network.zones;
-
-  # Scenario 3 only: replication engages when idm runs on the HCS *and* on at
-  # least one local gateway, on a coordinated network. Scenarios 1 & 2 leave
-  # every binding below collapsed to the single-instance behaviour.
-  replicationActive = network.coordination.enable && idmOnHcs && replConsumerZones != { };
-
-  # This node takes part in replication: the HCS as supplier, an idm-running
-  # local gateway as consumer.
-  replEnabled = replicationActive && (isHcs || (isZoneReplica && replConsumerZones ? ${zone.name}));
-
-  # This gateway is a replication consumer (in both bootstrap steps). A consumer
-  # is NEVER provisioned: it mirrors the HCS through replication, so provisioning
-  # it would create a divergent DB that the supplier overwrites. (It also avoids
-  # the provisioning post-start, whose readiness probe hits the web UI that a
-  # WriteReplicaNoUI does not serve.)
-  isReplConsumer = replEnabled && isZoneReplica;
-
-  # A consumer only switches to the read-only role once its HCS supplier cert is
-  # synced (step 2). Until then it is a WriteReplicaNoUI that boots and emits its
-  # own replication identity (step 1), but stays unprovisioned (empty DB) — it
-  # only serves logins once replication is established in step 2.
-  isRoReplica = isReplConsumer && hcsReplCert != "";
-
-  # Supplier side (HCS): one `allow-pull` block per zone-gateway consumer whose
-  # certificate has already been synced.
-  replSupplierBlocks = listToAttrs (
-    filter (e: e != null) (
-      mapAttrsToList (
-        _: z:
-        let
-          cert = readReplCert z.gateway.hostname;
-        in
-        if cert == "" then
-          null
-        else
-          {
-            name = mkReplOrigin z.gateway.vpn.ipv4;
-            value = {
-              type = "allow-pull";
-              consumer_cert = cert;
-            };
-          }
-      ) replConsumerZones
-    )
-  );
-
-  # Consumer side (zone gateway): a single `pull` block toward the HCS supplier.
-  replConsumerBlocks = optionalAttrs (hcsReplCert != "") {
-    ${hcsOrigin} = {
-      type = "pull";
-      supplier_cert = hcsReplCert;
-      automatic_refresh = true;
-    };
-  };
-
-  # Effective `replication` settings for this node (only used when replEnabled).
-  replSettings = {
-    origin = if isHcs then hcsOrigin else mkReplOrigin zone.gateway.vpn.ipv4;
-    bindaddress = "${if isHcs then hcsVpnIp else zone.gateway.vpn.ipv4}:${toString replPort}";
-  }
-  // (if isHcs then replSupplierBlocks else replConsumerBlocks);
-
-  # https://kanidm.github.io/kanidm/stable/integrations/oauth2.html#configuration
-  scopeMaps = rec {
-    users = [
-      "openid"
-      "email"
-      "profile"
-      "groups"
-    ];
-    admins = users;
-    posix = users;
-    devs = users;
-  };
+  inherit (cfg.replication) isMainReplica;
 
   defaultParams = {
     title = "Authentification";
@@ -185,151 +44,10 @@ let
     icon = "kanidm";
   };
   params = dnfLib.extractServiceParams host network "idm" defaultParams;
-
-  # OAuth2 client expansion: cross-product of registered templates with the
-  # service instances declared in `network.services`. Each raw pair captures
-  # ONE (template, instance) tuple; they are then grouped by `clientId` to
-  # produce one provisioned kanidm client per logical service (multi-zone
-  # services share a single client with a merged `originUrl` list).
-  oauth2Templates = config.darkone.service.idm.oauth2;
-  rawPairs = concatMap (
-    svc:
-    let
-      tpl = oauth2Templates.${svc.name} or null;
-    in
-    if tpl == null || !tpl.enable then
-      [ ]
-    else
-      let
-        svcHost = dnfLib.findHost svc.host svc.zone hosts;
-        svcRegistration = config.darkone.system.services.service.${svc.name} or { };
-        svcDflts = svcRegistration.defaultParams or { };
-        svcParams = dnfLib.buildServiceParams svcHost network svc svcDflts;
-        clientId = dnfLib.oauth2ClientName {
-          inherit (svc) name;
-          inherit (tpl) clientName;
-        } svcParams;
-      in
-      [
-        {
-          inherit clientId tpl;
-          params = svcParams;
-          secret = "oidc-secret-${clientId}";
-        }
-      ]
-  ) network.services;
-
-  # Logical OAuth2 clients to provision. Each entry merges all raw pairs
-  # sharing the same `clientId`: `originUrls` is the union of redirect URIs
-  # (typed as a list by kanidm-provision), `originLanding` is the landing of
-  # the first instance (typed as a scalar). See `dnfLib.mkOauth2Clients`.
-  oauth2Clients = dnfLib.mkOauth2Clients rawPairs;
-
-  # Forward-auth client used by oauth2-proxy (system/services.nix). A single
-  # static kanidm client shared by every gateway's proxy. The callback lives on
-  # each zone's homepage FQDN (the auth anchor, already TLS-provisioned), so we
-  # register one redirect URI per homepage instance (kanidm accepts a list).
-  homepageInstances = filter (s: s.name == "homepage") network.services;
-  authCallbackUrls = lib.unique (
-    map (
-      svc:
-      let
-        svcHost = dnfLib.findHost svc.host svc.zone hosts;
-        homepageDflts = config.darkone.system.services.service.homepage.defaultParams or { };
-      in
-      "${(dnfLib.buildServiceParams svcHost network svc homepageDflts).href}/oauth2/callback"
-    ) homepageInstances
-  );
 in
 {
   options = {
     darkone.service.idm.enable = mkEnableOption "Enable local SSO with Kanidm";
-
-    # OAuth2 client registry: every OIDC-capable service module contributes a
-    # template, unconditionally. Kanidm provisions one client per (template,
-    # instance of `network.services`), prefixing the template paths with each
-    # instance's resolved `params.href`.
-    darkone.service.idm.oauth2 = mkOption {
-      default = { };
-      description = ''
-        OAuth2/OIDC client templates contributed by service modules.
-        Kanidm provisions one client per matching entry in `network.services`,
-        with `clientId = dnfLib.oauth2ClientName`.
-      '';
-      type = types.attrsOf (
-        types.submodule (_: {
-          options = {
-
-            # Disable the template without unloading the consumer module.
-            enable = mkOption {
-              type = types.bool;
-              default = true;
-              description = "Whether to provision OAuth2 clients for this template.";
-            };
-
-            # Override the auto-derived client name. Use this only when an
-            # historical identifier must be preserved (eg. "matrix-synapse",
-            # "open-webui", "lasuite-docs").
-            clientName = mkOption {
-              type = types.nullOr types.str;
-              default = null;
-              description = "Override the kanidm client name. Defaults to dnfLib.oauth2ClientName.";
-            };
-
-            displayName = mkOption {
-              type = types.str;
-              description = "Human-readable name shown on the kanidm consent screen.";
-            };
-
-            imageFile = mkOption {
-              type = types.path;
-              description = "Application icon. Re-uploaded on every kanidm-provision run.";
-            };
-
-            # Path components only (eg. `/oauth/callback`). idm.nix expands
-            # them per instance with `${params.href}${path}`.
-            redirectPaths = mkOption {
-              type = types.listOf types.str;
-              default = [ ];
-              description = "OAuth2 redirect paths (one per accepted callback URL).";
-            };
-
-            landingPath = mkOption {
-              type = types.str;
-              default = "/";
-              description = "Auto-connect entry point path on the service.";
-            };
-
-            enableLegacyCrypto = mkOption {
-              type = types.bool;
-              default = false;
-              description = "Allow legacy JWT signing algorithms (eg. RS256).";
-            };
-
-            allowInsecureClientDisablePkce = mkOption {
-              type = types.bool;
-              default = false;
-              description = "Disable PKCE on the client (only for clients that do not implement it).";
-            };
-
-            preferShortUsername = mkOption {
-              type = types.nullOr types.bool;
-              default = null;
-              description = "Use the short username (no domain) in the `preferred_username` claim.";
-            };
-
-            # Future home for service-specific extras: `claimMaps`,
-            # `scopeMaps` overrides, etc. Merged verbatim into the
-            # generated kanidm provision attrset.
-            extra = mkOption {
-              type = types.attrs;
-              default = { };
-              description = "Extra attributes merged into the provisioned client (claimMaps, etc).";
-            };
-          };
-        })
-      );
-    };
   };
 
   config = mkMerge [
@@ -368,58 +86,25 @@ in
       # Kanidm user & secrets
       #========================================================================
 
-      # Kanidm internal secrets + OAuth2 client secrets (one per provisioned
-      # client, generated from `oauth2Clients`). The `oidc-secret-internal`
-      # entry is consumed by oauth2-proxy (in `system/services.nix`), not by
-      # kanidm provisioning, hence its presence in the static list.
-      sops.secrets = mkMerge [
-        (listToAttrs (
-          map
-            (item: {
-              name = item;
-              value = {
-                mode = "0400";
-                owner = "kanidm";
-              };
-            })
-            [
-              "kanidm-idm-admin-password"
-              "kanidm-admin-password"
-              "kanidm-tls-chain"
-              "kanidm-tls-key"
-              "oidc-secret-internal"
-            ]
-        ))
-        (listToAttrs (
-          map (c: {
-            name = c.secret;
+      # Kanidm internal secrets. `oidc-secret-internal` backs oauth2-proxy
+      # (`system/services/oauth2-proxy.nix`), not a provisioned client.
+      sops.secrets = listToAttrs (
+        map
+          (item: {
+            name = item;
             value = {
               mode = "0400";
               owner = "kanidm";
             };
-          }) oauth2Clients
-        ))
-      ];
-
-      # Invariant: all instances of the same clientId point to the
-      # same secret name (derived from clientId by construction). The block
-      # below documents this invariant and would raise a clear error if
-      # `mkOauth2Clients` were to change strategy.
-      assertions = map (c: {
-        assertion = lib.unique (map (i: i.secret) c.instances) == [ c.secret ];
-        message = "OAuth2 client '${c.clientId}': secret divergence across instances";
-      }) oauth2Clients;
-
-      #========================================================================
-      # Replication firewall (HCS supplier only)
-      #========================================================================
-
-      # Consumers (zone gateways) initiate the pull connection towards the HCS,
-      # so only the supplier needs the replication port reachable, and only over
-      # the tailnet. Merges with the port 53 rule set by `headscale/dns.nix`.
-      networking.firewall.interfaces.${config.services.tailscale.interfaceName}.allowedTCPPorts = mkIf (
-        replEnabled && isHcs
-      ) [ replPort ];
+          })
+          [
+            "kanidm-idm-admin-password"
+            "kanidm-admin-password"
+            "kanidm-tls-chain"
+            "kanidm-tls-key"
+            "oidc-secret-internal"
+          ]
+      );
 
       #========================================================================
       # Kanidm service
@@ -507,33 +192,11 @@ in
             # Address and port the LDAP server is bound to. Setting this to null disables the LDAP interface.
             ldapbindaddress = mkIf isMainReplica "${host.vpnIp}:636";
 
-            # The role of this server. This affects the replication relationship and thereby available features.
-            # Scenarios 1 & 2 keep the historical behaviour. In scenario 3 the HCS
-            # supplies; an idm gateway is a functional WriteReplicaNoUI in step 1
-            # (emitting its identity) and flips to ReadOnlyReplica in step 2 once
-            # its HCS supplier cert is synced.
-            role =
-              if !replEnabled then
-                (if isMainReplica then "WriteReplica" else "WriteReplicaNoUI")
-              else if isHcs then
-                "WriteReplica"
-              else if isRoReplica then
-                "ReadOnlyReplica"
-              else
-                "WriteReplicaNoUI";
-
             # Internal TLS certificate. Self-signed (see the file header):
             # Caddy fronts this listener with `tls_insecure_skip_verify`, so it
             # never has to chain to anything.
             tls_chain = secrets.kanidm-tls-chain.path;
             tls_key = secrets.kanidm-tls-key.path;
-
-            # Multi-zone replication. Emitted automatically: always on the HCS
-            # supplier, and on a zone gateway once the HCS cert is synced (see
-            # replEnabled). The top-level origin/bindaddress make the node
-            # generate its replication identity at first boot; partner sub-blocks
-            # appear once the peer certificates have been synced (see readReplCert).
-            replication = mkIf replEnabled replSettings;
           };
         };
 
@@ -564,107 +227,6 @@ in
             # the `[kanidm]` provider table (nixpkgs asserts this).
             kanidm.pam_allowed_login_groups = [ "posix" ];
           };
-        };
-
-        #----------------------------------------------------------------------
-        # Provision
-        #----------------------------------------------------------------------
-
-        provision = {
-
-          # Provisioning writes to the database, so it must never run on a
-          # replication consumer (WriteReplicaNoUI in step 1, ReadOnlyReplica in
-          # step 2): the consumer receives its whole state from the HCS supplier.
-          # Standalone instances (scenarios 1 & 2) are provisioned as before.
-          enable = !isReplConsumer;
-
-          # Determines whether deleting an entity in this provisioning config should automatically cause them to be removed from kanidm, too.
-          # This works because the provisioning tool tracks all entities it has ever created.
-          # If this is set to false, you need to explicitly specify present = false to delete an entity.
-          autoRemove = true;
-          adminPasswordFile = secrets.kanidm-admin-password.path;
-          idmAdminPasswordFile = secrets.kanidm-idm-admin-password.path;
-          groups = {
-            posix = {
-              present = true; # default
-              members = mapAttrsToList (name: _: name) users;
-
-              # Optional. Defaults to true if not given.
-              # Whether groups should be appended (false) or overwritten (true).
-              # In append mode, members of this group can be managed manually in kanidm
-              # in addition to members declared here, but removing a member from this state.json
-              # will not remove the corresponding member from the group in kanidm! Removals have
-              # to be reflected manually!
-              overwriteMembers = true;
-            };
-            users.members = mapAttrsToList (name: _: name) users;
-            admins.members = mapAttrsToList (name: _: name) (
-              filterAttrs (_: u: any (g: g == "idm-admins") u.groups) users
-            );
-            devs.members = mapAttrsToList (name: _: name) (
-              filterAttrs (_: u: any (g: g == "idm-devs") u.groups) users
-            );
-          }
-
-          # Logins allowed to register a personal device on the tailnet: the
-          # headscale OAuth2 client maps its scopes to this group only.
-          // optionalAttrs network.coordination.enable { tailnet.members = dnfLib.tailnetUsers users; };
-
-          #----------------------------------------------------------------------
-          # OAuth2 provisioning
-          #----------------------------------------------------------------------
-
-          # `darkone.service.idm.oauth2.<name>` templates expanded against
-          # `network.services`, merged by `clientId` (`rawPairs`/`oauth2Clients`
-          # above; canonical template: `service/forgejo.nix`). A multi-zone
-          # service gets one client listing every zone's redirect URI.
-
-          systems.oauth2 =
-            listToAttrs (
-              map (c: {
-                name = c.clientId;
-                value = {
-                  inherit (c.tpl)
-                    displayName
-                    imageFile
-                    enableLegacyCrypto
-                    allowInsecureClientDisablePkce
-                    ;
-                  originUrl = c.originUrls;
-                  inherit (c) originLanding;
-                  basicSecretFile = config.sops.secrets.${c.secret}.path;
-                  inherit scopeMaps;
-                }
-                // optionalAttrs (c.tpl.preferShortUsername != null) { inherit (c.tpl) preferShortUsername; }
-                // c.tpl.extra;
-              }) oauth2Clients
-            )
-
-            # Static client backing oauth2-proxy forward auth. Not derived from a
-            # service template: it guards arbitrary reverse-proxy vhosts, with the
-            # group policy enforced per-service by Caddy (allowed_groups query).
-            // {
-              internal-service = {
-                displayName = "DNF protected services";
-                originUrl = authCallbackUrls;
-                originLanding = "https://idm.${network.domain}";
-                basicSecretFile = config.sops.secrets.oidc-secret-internal.path;
-                inherit scopeMaps;
-              };
-            };
-
-          #----------------------------------------------------------------------
-          # Users provisioning
-          #----------------------------------------------------------------------
-
-          # https://github.com/oddlama/kanidm-provision?tab=readme-ov-file#json-schema
-          persons = mapAttrs (_: u: {
-            present = true; # default
-            displayName = u.name;
-            legalName = u.name;
-            mailAddresses = [ u.email ];
-            groups = [ "posix" ];
-          }) users;
         };
       };
     })

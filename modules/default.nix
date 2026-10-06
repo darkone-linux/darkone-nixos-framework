@@ -57,6 +57,8 @@
     ./service/home-assistant.nix
     ./service/homepage.nix
     ./service/idm.nix
+    ./service/idm/provision.nix
+    ./service/idm/replication.nix
     ./service/immich.nix
     ./service/jellyfin.nix
     ./service/jitsi-meet.nix

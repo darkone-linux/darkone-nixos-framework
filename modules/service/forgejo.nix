@@ -105,7 +105,7 @@ in
         preferShortUsername = true;
 
         # Path templates relative to params.href (https://git.<domain>).
-        # idm.nix prefixes them with the resolved href to produce the final URLs.
+        # `idm/provision.nix` prefixes them with the resolved href.
         # These need to exactly match the OAuth2 redirect target on the consumer side.
         redirectPaths = [ "/user/oauth2/idm/callback" ];
         landingPath = "/user/oauth2/idm"; # Auto-connect entry point

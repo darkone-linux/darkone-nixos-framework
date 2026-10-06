@@ -88,7 +88,7 @@ in
           "/auth/login"
           "/user-settings"
 
-          # Custom scheme for the mobile app — kept as absolute URL by idm.nix.
+          # Custom scheme for the mobile app, kept absolute by `mkOauth2Clients`.
           "app.immich:///oauth-callback"
         ];
         landingPath = "/";

@@ -62,7 +62,7 @@ rec {
     };
 
   # One Kanidm client per `clientId` out of `{ clientId; tpl; params; secret; }`
-  # pairs (cf. `idm.nix`): instances of a multi-zone service share it.
+  # pairs (cf. `idm/provision.nix`): a multi-zone service shares one client.
   # - `originUrls`: every instance's redirect URIs, deduplicated;
   # - `originLanding`, `tpl`, `secret`: from the first instance (Kanidm takes
   #   a single landing URL; template and secret derive from the client id);
