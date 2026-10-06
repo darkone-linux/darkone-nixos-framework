@@ -80,6 +80,8 @@
     ./service/printing.nix
     ./service/prometheus.nix
     ./service/restic.nix
+    ./service/restic/metrics.nix
+    ./service/restic/server.nix
     ./service/searx.nix
     ./service/stk.nix
     ./service/tailscale.nix

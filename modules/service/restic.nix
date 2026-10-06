@@ -52,19 +52,11 @@
 # surfaces, through ResticBackupStale / ResticBackupCritical, which watch the
 # last successful run.
 # :::
-
+#
 # :::note[Cloud sync folders are never backed up]
 # A Nextcloud/ownCloud sync folder replicates a server-side original that is
 # backed up on its own, and restic never dedups across repositories. Caught by
 # path (`/home/*/Nextcloud`, numbered variants included) and by journal marker.
-# :::
-#
-# :::caution[`listenAll` widens the bind, not the firewall]
-# The server binds `params.ip`, i.e. the LAN address on a gateway. Clients
-# reaching it from another zone over the tailnet need `listenAll = true`
-# (bind `0.0.0.0`). The firewall stays the boundary: `lan0` gets the port from
-# `getInternalInterfaceFwPath`, `tailscale0` is already a trusted interface on
-# a gateway, and the WAN never opens it.
 # :::
 #
 # :::danger[Migrating repos created before this layout]
@@ -78,6 +70,11 @@
 # rmdir <data-dir>/<hostname>/srv
 # ```
 # :::
+#
+# Sub-modules (`restic/`):
+# - `server.nix`: the REST server, one account per fleet host;
+# - `metrics.nix`: backup freshness metrics for the restic alerts.
+
 {
   config,
   lib,
@@ -86,7 +83,6 @@
   network,
   zone,
   host,
-  hosts,
   pkgs,
   ...
 }:
@@ -244,24 +240,6 @@ let
   # must add a matching target zone.
   referencedZones = lib.unique (lib.filter (z: z != "") (map (t: t.zone) cfg.targets));
 
-  # Fleet hosts deduplicated by hostname: one REST account per hostname.
-  serverHosts = lib.foldl' (
-    acc: h: if lib.any (x: x.hostname == h.hostname) acc then acc else acc ++ [ h ]
-  ) [ ] hosts;
-
-  # Runtime htpasswd assembly: one bcrypt entry per fleet hostname.
-  htpasswdFile = "/run/restic-rest/htpasswd";
-  htpasswdLines = lib.concatStringsSep "\n" (
-    lib.imap0 (
-      idx: h:
-      let
-        pw = config.sops.secrets."restic/${h.hostname}/rest-password".path;
-        flag = if idx == 0 then "-bBc" else "-bB";
-      in
-      ''${pkgs.apacheHttpd}/bin/htpasswd ${flag} "${htpasswdFile}" "${h.hostname}" "$(${pkgs.coreutils}/bin/cat ${pw})"''
-    ) serverHosts
-  );
-
   # Module main params (REST server bind address).
   srvPort = dnfConfig.network.ports.restic;
   defaultParams = {
@@ -269,16 +247,9 @@ let
   };
   params = dnfLib.extractServiceParams host network "restic" defaultParams;
 
-  # Backup freshness metrics in the textfile collector: per-job success stamp
-  # (mkResticMetric) plus the declared-jobs list (resticDeclared). Monitored
-  # nodes only; `mkResticRuleGroups` turns a stale stamp into an alert.
-  textfileDir = dnfLib.constants.textfileCollectorDir;
-  isNode = host.features ? "monitoring-node";
-
   # Scheme + authority of a `rest:` repository ("http://host:port"), null for a
-  # local one. Matched on the final `services.restic.backups` so a job declared
-  # straight by a consumer (ms-a2's `medias-lg`) is covered like the generated
-  # ones.
+  # local one. Matched on the final `services.restic.backups`: a job declared
+  # by the consumer itself is covered like the generated ones.
   restEndpoint =
     repository:
     let
@@ -294,61 +265,6 @@ let
   resticReachable = pkgs.writeShellScript "restic-reachable" ''
     ${pkgs.curl}/bin/curl --silent --show-error --output /dev/null \
       --connect-timeout 5 --max-time 15 "$1" || exit 1
-  '';
-
-  # Run as ExecStartPost: oneshot ExecStartPost only fires when the backup
-  # itself succeeded, so the stamp tracks the last *successful* run. Full store
-  # paths: systemd units start with an empty PATH.
-  mkResticMetric =
-    name:
-    pkgs.writeShellScript "restic-metric-${name}" ''
-      set -eu
-      tmp="$(${pkgs.coreutils}/bin/mktemp "${textfileDir}/.restic-${name}.XXXXXX")"
-
-      # `backup`, not `job`: the scrape owns `job`, an exported one comes back
-      # as `exported_job` and the alert rules can no longer tell jobs apart.
-      ${pkgs.coreutils}/bin/printf 'dnf_restic_last_success_timestamp{backup="%s"} %s\n' \
-        "${name}" "$(${pkgs.coreutils}/bin/date +%s)" > "$tmp"
-
-      # mktemp creates 0600; node_exporter runs as a non-root user and must read
-      # the file, so widen before the atomic rename.
-      ${pkgs.coreutils}/bin/chmod 0644 "$tmp"
-      ${pkgs.coreutils}/bin/mv -f "$tmp" "${textfileDir}/restic-${name}.prom"
-    '';
-
-  # Declared-jobs list: epoch each job was first seen on this host. The rules
-  # fall back to it while a job has no success stamp, so a job that never
-  # succeeds still ages into ResticBackupStale/Critical.
-  resticDeclared = pkgs.writeShellScript "restic-declared" ''
-    set -eu
-    names=${lib.escapeShellArg (lib.concatStringsSep " " (builtins.attrNames config.services.restic.backups))}
-    out="${textfileDir}/restic.prom"
-    now="$(${pkgs.coreutils}/bin/date +%s)"
-    tmp="$(${pkgs.coreutils}/bin/mktemp "${textfileDir}/.restic.XXXXXX")"
-    for name in $names; do
-
-      # First-seen epoch from the previous run, else now: a reboot or a switch
-      # must not restart the grace period.
-      key="dnf_restic_declared_timestamp{backup=\"$name\"}"
-      since="$(${pkgs.gawk}/bin/awk -v k="$key" '$1 == k { print $2; exit }' "$out" 2>/dev/null || true)"
-      ${pkgs.coreutils}/bin/printf '%s %s\n' "$key" "''${since:-$now}" >> "$tmp"
-    done
-
-    # Same world-readable atomic write as mkResticMetric.
-    ${pkgs.coreutils}/bin/chmod 0644 "$tmp"
-    ${pkgs.coreutils}/bin/mv -f "$tmp" "$out"
-
-    # A removed job's success stamp never refreshes: Stale/Critical would fire
-    # forever. The `restic-*` glob never matches `restic.prom`.
-    for f in "${textfileDir}"/restic-*.prom; do
-      [ -e "$f" ] || continue
-      name="''${f##*/restic-}"
-      name="''${name%.prom}"
-      case " $names " in
-        *" $name "*) ;;
-        *) ${pkgs.coreutils}/bin/rm -f "$f" ;;
-      esac
-    done
   '';
 in
 {
@@ -436,6 +352,16 @@ in
       ];
       description = "Medias dirs (/srv/medias/<xxx>) included in the 'medias' category";
     };
+
+    # Values shared with the `restic/` sub-modules.
+    darkone.service.restic.shared = lib.mkOption {
+      type = lib.types.raw;
+      internal = true;
+      readOnly = true;
+      default = { inherit params; };
+      defaultText = "computed";
+      description = "Restic values shared with the `restic/` sub-modules.";
+    };
   };
 
   config = lib.mkMerge [
@@ -472,22 +398,14 @@ in
           owner = "root";
         }))
 
-        # This host's REST credential (consumed by the env template below).
-        # On a server, it is already declared in the all-hosts set hereafter.
+        # This host's REST credential (consumed by the env template below). A
+        # server declares it along with every host's (`restic/server.nix`).
         (lib.mkIf (!cfg.enableServer) {
           "restic/${host.hostname}/rest-password" = {
             mode = "0400";
             owner = "root";
           };
         })
-
-        # Server: every fleet host's REST credential, to assemble the htpasswd.
-        (lib.mkIf cfg.enableServer (
-          lib.genAttrs (map (h: "restic/${h.hostname}/rest-password") serverHosts) (_: {
-            mode = "0400";
-            owner = "root";
-          })
-        ))
       ];
 
       # REST environment: declarative username + per-host password. Harmless for
@@ -501,13 +419,8 @@ in
       };
 
       #----------------------------------------------------------------------
-      # Ordering & firewall
+      # Ordering
       #----------------------------------------------------------------------
-
-      # Backup-age metric: the textfile dir must exist and be writable from the
-      # (hardened) backup units. Harmless on a non-node, but only useful where a
-      # node_exporter scrapes it.
-      systemd.tmpfiles.rules = lib.mkIf isNode [ "d ${textfileDir} 0755 root root -" ];
 
       # Run backups only after remote filesystems are mounted.
       systemd.services = lib.mkMerge [
@@ -518,34 +431,6 @@ in
           })
         ))
 
-        # Stamp the success timestamp after each backup (see mkResticMetric).
-        # Merged backup set, so a hand-declared job is watched like a generated
-        # one. ReadWritePaths punches the textfile dir through ProtectSystem.
-        (lib.mkIf isNode (
-          lib.mapAttrs' (
-            name: _:
-            lib.nameValuePair "restic-backups-${name}" {
-              serviceConfig.ExecStartPost = lib.mkAfter [ (mkResticMetric name) ];
-              serviceConfig.ReadWritePaths = lib.mkAfter [ textfileDir ];
-            }
-          ) config.services.restic.backups
-        ))
-
-        # Declared-jobs list and orphan cleanup (see resticDeclared). Names are
-        # baked into the script: a changed list changes the unit, RemainAfterExit
-        # keeps it active so the switch restarts it.
-        (lib.mkIf isNode {
-          restic-declared = {
-            description = "Export declared restic jobs, drop stamps of removed ones";
-            wantedBy = [ "multi-user.target" ];
-            serviceConfig = {
-              Type = "oneshot";
-              RemainAfterExit = true;
-              ExecStart = resticDeclared;
-            };
-          };
-        })
-
         # Remote targets: an off-site server that is down must skip the run,
         # not fail it (cf. the header note). Matched on the merged backup set
         # so consumer-declared jobs are covered too.
@@ -555,59 +440,14 @@ in
             serviceConfig.ExecCondition = [ "${resticReachable} ${restEndpoint b.repository}" ];
           }
         ) (lib.filterAttrs (_: b: restEndpoint b.repository != null) config.services.restic.backups))
-
-        # Server: assemble the multi-user htpasswd before the REST server starts.
-        # Unsandboxed oneshot so the file exists before the server's namespace
-        # binds it read-only (cf. ReadOnlyPaths in the upstream unit).
-        (lib.mkIf cfg.enableServer {
-          restic-rest-htpasswd = {
-            description = "Assemble restic REST htpasswd from per-host secrets";
-            wantedBy = [ "multi-user.target" ];
-            before = [ "restic-rest-server.service" ];
-            requiredBy = [ "restic-rest-server.service" ];
-            serviceConfig = {
-              Type = "oneshot";
-              RemainAfterExit = true;
-            };
-            script = ''
-              ${pkgs.coreutils}/bin/install -d -m 0750 -o restic -g restic /run/restic-rest
-              ${htpasswdLines}
-              ${pkgs.coreutils}/bin/chown restic:restic "${htpasswdFile}"
-              ${pkgs.coreutils}/bin/chmod 0640 "${htpasswdFile}"
-            '';
-          };
-          restic-rest-server = {
-            after = [ "restic-rest-htpasswd.service" ];
-            requires = [ "restic-rest-htpasswd.service" ];
-          };
-        })
       ];
-
-      networking.firewall = lib.mkIf cfg.enableServer (
-        lib.setAttrByPath (dnfLib.getInternalInterfaceFwPath host zone) { allowedTCPPorts = [ srvPort ]; }
-      );
 
       #----------------------------------------------------------------------
       # Restic service
       #----------------------------------------------------------------------
 
-      services.restic = {
-
-        # REST server: stores every host's repository under serverDataDir.
-        server = lib.mkIf cfg.enableServer {
-          enable = true;
-          listenAddress = "${if cfg.listenAll then "0.0.0.0" else params.ip}:${toString srvPort}";
-          dataDir = cfg.serverDataDir;
-          htpasswd-file = htpasswdFile;
-
-          # Per-host isolation: requires authenticated user == repo path prefix
-          # (= hostname).
-          privateRepos = true;
-        };
-
-        # Backups: generated from targets x categories.
-        backups = backupAttrs;
-      };
+      # Backups: generated from targets x categories.
+      services.restic.backups = backupAttrs;
     })
   ];
 }
