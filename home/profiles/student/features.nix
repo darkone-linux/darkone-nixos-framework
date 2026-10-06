@@ -18,7 +18,7 @@ in
       enableFirefox = lib.mkDefault graphic;
     };
     music = {
-      enable = lib.mkDefault true;
+      enable = lib.mkDefault graphic;
       enableCli = lib.mkDefault true;
       enableFun = lib.mkDefault graphic;
       enableScore = lib.mkDefault graphic;
