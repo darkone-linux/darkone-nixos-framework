@@ -91,7 +91,7 @@ let
   # request relayed by a trusted upstream is judged on the origin IP, not the
   # proxy's. `trusted_proxies` is set globally below.
   internalServiceBindSection = ''
-    @external not client_ip private_ranges 100.64.0.0/10
+    @external not client_ip private_ranges ${dnfLib.constants.tailnetIpv4Cidr}
     abort @external
   '';
 
@@ -262,7 +262,7 @@ in
       # front. Only meaningful when there is a tailnet relaying requests.
       + optionalString hasHeadscale ''
         servers {
-          trusted_proxies static private_ranges 100.64.0.0/10
+          trusted_proxies static private_ranges ${dnfLib.constants.tailnetIpv4Cidr}
         }
       '';
 

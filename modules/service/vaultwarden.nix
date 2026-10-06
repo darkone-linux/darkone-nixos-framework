@@ -62,7 +62,7 @@ in
         proxy.preExtraConfig = ''
           @vaultwardenAdminExternal {
             path /admin*
-            not client_ip private_ranges 100.64.0.0/10
+            not client_ip private_ranges ${dnfLib.constants.tailnetIpv4Cidr}
           }
           abort @vaultwardenAdminExternal
         '';

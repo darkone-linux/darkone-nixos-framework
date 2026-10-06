@@ -77,7 +77,7 @@ let
   hasSmtp = network ? smtp;
   inherit (network) smtp;
 
-  # Same set as Caddy's `trusted_proxies static private_ranges 100.64.0.0/10`:
+  # Same set as Caddy's `trusted_proxies` (private ranges + tailnet):
   # Caddy reaches us from the zone gateway, the HCS (tailnet) or loopback.
   # Unset, login rate-limit and lockout key on Caddy's IP, shared by all users.
   trustedProxyCidrs = [
@@ -85,7 +85,7 @@ let
     "172.16.0.0/12"
     "192.168.0.0/16"
     "127.0.0.0/8"
-    "100.64.0.0/10"
+    dnfLib.constants.tailnetIpv4Cidr
     "fd00::/8"
     "::1/128"
   ];

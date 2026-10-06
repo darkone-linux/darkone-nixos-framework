@@ -69,11 +69,11 @@ in
         inet_protocols = "ipv4";
         mynetworks = [
           "10.0.0.0/8"
-          "100.64.0.0/10"
+          dnfLib.constants.tailnetIpv4Cidr
           "127.0.0.0/8"
         ];
 
-        # Remplacement du sender incomplet
+        # Rewrite incomplete senders into full addresses
         sender_canonical_maps = "regexp:${senderCanonicalFile}";
 
         # Configuration TLS

@@ -1,6 +1,11 @@
 # Fail2ban DNF specific module.
 
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  dnfLib,
+  ...
+}:
 let
   cfg = config.darkone.service.fail2ban;
 in
@@ -24,7 +29,7 @@ in
       };
       ignoreIP = [
         "10.0.0.0/8"
-        "100.64.0.0/10"
+        dnfLib.constants.tailnetIpv4Cidr
       ];
     };
   };
