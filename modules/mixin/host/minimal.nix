@@ -2,7 +2,7 @@
 #
 # :::caution[Services declaration]
 # A number of services (immich, nextcloud, forgejo, etc.) can be declared in
-# `usr/config.yaml` of each host, regardless of its type (server, laptop,
+# `etc/config.yaml` of each host, regardless of its type (server, laptop,
 # desktop, etc.). **It is advisable to declare them in the yaml file so that
 # the service is visible across the entire network!**
 # :::

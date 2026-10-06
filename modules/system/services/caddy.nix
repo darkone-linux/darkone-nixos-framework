@@ -403,17 +403,11 @@ in
           };
         }) hostsForTls
 
-        # Externally-exposed zone services on the HCS. The HCS terminates the
-        # public TLS cert for the zone FQDN and reverse-proxies the whole host
-        # (incl. `/oauth2/*`) to the zone gateway over the tailnet. The gateway
-        # then serves its own vhost (SSO + real backend), so no oauth2 lives
-        # here. `Host` is preserved so the gateway matches its zone vhost.
-        #
-        # `tls_server_name` forces the upstream SNI to the FQDN: the gateway
-        # dial address is a tailnet IP, but its on-demand TLS keys certs by SNI
-        # and would reject the IP (`tls: internal error`). Under that FQDN the
-        # gateway serves the very certificate issued here and synced to it, so
-        # the peer is verified against the system roots — no skip-verify.
+        # Zone services exposed through the HCS: public TLS ends here, the whole
+        # host (SSO included) is proxied to the zone gateway over the tailnet,
+        # `Host` kept. `tls_server_name`: the gateway's on-demand TLS keys certs
+        # by SNI and rejects a bare tailnet IP; under the FQDN it serves the
+        # certificate synced from here, verified without skip-verify.
         ++ map (e: {
           "${e.fqdn}" = {
             logFormat = mkIf accessLogEnabled (mkLogFormat e.fqdn);

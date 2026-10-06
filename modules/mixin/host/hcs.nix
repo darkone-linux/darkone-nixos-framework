@@ -1,7 +1,7 @@
 # The main headscale coordination server.
 #
 # :::tip[A ready-to-use headscale server!]
-# The network is configured in `usr/config.yaml` file.
+# The network is configured in `etc/config.yaml` file.
 # Additional enabled services (authentication, etc.)
 # are automatically configured with consistent network plumbing on your
 # global network.

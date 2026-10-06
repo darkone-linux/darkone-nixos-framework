@@ -42,21 +42,14 @@ let
     inherit (cfg.service.${service.name}) proxy;
   }) network.services;
 
-  # Need Oauth2 proxy if has protected service in THIS zone. Scoped like
-  # `authAnchor` below: the anchor (and oauth2-proxy) is per-zone, so a zone
-  # without a protected service must not require a homepage anchor just because
-  # another zone has one.
+  # SSO is per zone: only a protected service of THIS zone needs oauth2-proxy
+  # and its homepage anchor.
   hasProtectedServices = any (s: s.proxy.isProtected && s.params.zone == zone.name) services;
 
-  # Single auth anchor per zone: oauth2-proxy's public `/oauth2/*` endpoints are
-  # hosted on the homepage FQDN, which already has a provisioned TLS certificate.
-  # This avoids a synthetic `auth.<zone>` host (no cert in the HCS->gateway sync).
-  # Every protected service sends the login flow here; the shared `.<zone>` cookie
-  # keeps SSO across services.
-  #
-  # Must be the homepage of THIS zone: oauth2-proxy's whitelist-domain and cookie
-  # are scoped to `.<zone>` (see below), so anchoring on another zone's homepage
-  # drops the post-login `rd` and strands the user on the wrong zone's homepage.
+  # Auth anchor: oauth2-proxy's `/oauth2/*` live on this zone's homepage FQDN,
+  # which already has a synced TLS certificate (a synthetic `auth.<zone>` has
+  # none). Another zone's homepage would drop the post-login `rd`: cookie and
+  # whitelist are scoped to `.<zone>`.
   authAnchor = findFirst (s: s.name == "homepage" && s.params.zone == zone.name) null services;
   authHost = if authAnchor != null then authAnchor.params.fqdn else null;
 

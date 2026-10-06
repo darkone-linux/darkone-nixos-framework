@@ -1,7 +1,7 @@
 # The main gateway / router of a local network zone.
 #
 # :::tip[A ready-to-use gateway!]
-# The gateway is configured in `usr/config.yaml` file.
+# The gateway is configured in `etc/config.yaml` file.
 # Additional enabled services (homepage, adguardhome, forgejo, nix-cache...)
 # are automatically configured with consistent network plumbing on the
 # gateway and all machines on the local network.

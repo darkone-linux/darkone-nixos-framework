@@ -2,7 +2,7 @@
 #
 # Exposes locally built / realised store paths over plain HTTP (port 5000),
 # signed with the deployment-wide binary-cache key. Enable per host from
-# `usr/config.yaml` (services.harmonia), like any other DNF service.
+# `etc/config.yaml` (services.harmonia), like any other DNF service.
 #
 # :::note[How harmonia works with the nix-cache proxy]
 # Harmonia is a *source* of packages, served **directly** to clients over the
