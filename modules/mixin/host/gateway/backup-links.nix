@@ -1,24 +1,4 @@
-# Gateway backup uplinks: Internet in degraded mode.
-#
-# :::tip[Backup links: Internet in degraded mode]
-# `backupLinks` adds uplinks (spare ethernet port, wifi client such as a phone
-# hotspot) the zone falls back to when the WAN loses its link, its lease or
-# the Internet:
-#
-# ```nix
-# darkone.host.gateway.backupLinks.phone = {
-#   type = "wifi";          # SSID + passphrase: sops `backup-link/phone/{ssid,psk}`
-#   interface = "wlp4s0";
-#   priority = 10;          # lower = preferred among backups
-# };
-# ```
-#
-# Route metrics steer the default route; `dnf-uplink-monitor` pings through
-# each link, penalises one without Internet and keeps one back from an outage
-# on probation until it answers. A wifi backup keeps its radio
-# off until no preferred link reaches the Internet; an ethernet one stays up,
-# idle. Details: `lib/uplinks.nix`.
-# :::
+# DNF gateway: backup uplinks. Doc: `../gateway.nix` header.
 
 {
   lib,

@@ -1,12 +1,4 @@
-# DNF SSO: oauth2-proxy in front of the protected services of a zone, backed
-# by the Kanidm `internal-service` OAuth2 client.
-#
-# :::note[Flow]
-# Caddy `forward_auth` checks every request against `/oauth2/auth` (cf.
-# `caddy.nix`). The login flow is anchored on the zone homepage FQDN, which
-# hosts oauth2-proxy's public `/oauth2/*` endpoints; a cookie scoped to the
-# zone domain keeps the session across its services.
-# :::
+# DNF services: oauth2-proxy SSO. Doc: `../services.nix` header.
 
 {
   lib,

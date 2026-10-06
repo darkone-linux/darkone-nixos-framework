@@ -12,6 +12,24 @@
 # Sub-modules (`idm/`):
 # - `replication.nix`: multi-zone read-only replication, HCS to zone gateways;
 # - `provision.nix`: OAuth2 clients (template registry), groups and persons.
+#
+# #### Replication (`replication.nix`)
+#
+# Automatic, derived from where `idm` is declared:
+# - idm on the HCS only, or on a gateway without HCS: one instance;
+# - on the HCS and >= 1 zone gateway: the HCS supplies (WriteReplica), each
+#   idm gateway consumes.
+#
+# Two-step bootstrap: `just apply` generates every replication certificate
+# (gateways stay WriteReplicaNoUI), then `just idm-sync-certs` + `just apply`
+# adds the partners and flips the gateways to ReadOnlyReplica.
+#
+# #### Provisioning (`provision.nix`)
+#
+# Every OIDC-capable service module contributes a client template to
+# `darkone.service.idm.oauth2`; one client is provisioned per (template,
+# instance), merged by `clientId` across zones. Never on a replication
+# consumer: it mirrors the HCS.
 
 {
   lib,

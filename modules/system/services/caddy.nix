@@ -1,11 +1,4 @@
-# DNF reverse proxy: one Caddy vhost per resolved service, plus the HTTP(S)
-# firewall of zone gateways and of the HCS.
-#
-# :::note[Exposure]
-# - zone services: on the zone gateway, under the zone domain;
-# - global services: on the HCS, under the network domain;
-# - `external-hosts`: zone services the HCS fronts, proxied to their gateway.
-# :::
+# DNF services: Caddy reverse proxy. Doc: `../services.nix` header.
 
 {
   lib,

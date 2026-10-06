@@ -1,12 +1,4 @@
-# DNF headscale: unbound, the tailnet pivot DNS of the HCS.
-#
-# Internal names reach it through headscale split DNS; it forwards each zone
-# domain to the zone gateway, and the rest to Quad9 over TLS.
-#
-# View `tailnet-machines`: tagged nodes (HCS aside) get the zone LAN address
-# of the global services a zone serves (`git.<domain>` on a gateway),
-# everyone else the public one. `unbound-tailnet-view` lists their tailnet
-# IPs from headscale, declared nowhere.
+# DNF headscale: tailnet pivot DNS. Doc: `../headscale.nix` header.
 
 {
   lib,

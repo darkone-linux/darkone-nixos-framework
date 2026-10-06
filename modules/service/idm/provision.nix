@@ -1,9 +1,4 @@
-# DNF idm: Kanidm provisioning (OAuth2 clients, groups, persons).
-#
-# Every OIDC-capable service module contributes a client template to
-# `darkone.service.idm.oauth2`; one client is provisioned per (template,
-# instance), merged by `clientId` across zones. Never on a replication
-# consumer: it mirrors the HCS.
+# DNF idm: Kanidm provisioning. Doc: `../idm.nix` header.
 
 {
   lib,

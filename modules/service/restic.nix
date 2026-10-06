@@ -74,6 +74,27 @@
 # Sub-modules (`restic/`):
 # - `server.nix`: the REST server, one account per fleet host;
 # - `metrics.nix`: backup freshness metrics for the restic alerts.
+#
+# #### REST server (`server.nix`)
+#
+# One account per fleet host (`restic/<hostname>/rest-password`), checked
+# against an htpasswd assembled at boot; `privateRepos` confines each host to
+# its own `<hostname>/` prefix.
+#
+# :::caution[`listenAll` widens the bind, not the firewall]
+# The server binds `params.ip`, i.e. the LAN address on a gateway. Clients
+# reaching it from another zone over the tailnet need `listenAll = true`
+# (bind `0.0.0.0`). The firewall stays the boundary: `lan0` gets the port from
+# `getInternalInterfaceFwPath`, `tailscale0` is already a trusted interface on
+# a gateway, and the WAN never opens it.
+# :::
+#
+# #### Metrics (`metrics.nix`)
+#
+# Monitored nodes only (`monitoring-node` feature): each job stamps its last
+# success in the textfile collector, and `restic-declared` lists the declared
+# jobs so a job that never succeeds still ages into a `dnf-restic-<zone>`
+# alert.
 
 {
   config,

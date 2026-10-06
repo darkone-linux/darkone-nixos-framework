@@ -3,16 +3,36 @@
 # Joins the HCS, zone gateways (`isGateway`: zone subnet advertised, routes
 # accepted, own resolver kept) and roaming hosts.
 #
-# Sub-modules (`tailscale/`):
-# - `cert-sync.nix`: zone gateways pull the HCS Caddy certificates;
-# - `selfheal.nix`: watchdog restarting a disconnected tailscaled;
-# - `autopause.nix`: roaming clients pause tailscale on a zone LAN.
-#
 # :::note[Enrollment]
 # No shared key. `just tailnet-enroll <host>`, also run by `just configure`,
 # mints a single-use key tagged for the host on the HCS and hands it to
 # `dnf-tailnet-join`. Idempotent: an enrolled node is left untouched.
 # :::
+#
+# Sub-modules (`tailscale/`):
+# - `cert-sync.nix`: zone gateways pull the HCS Caddy certificates;
+# - `selfheal.nix`: watchdog restarting a disconnected tailscaled;
+# - `autopause.nix`: roaming clients pause tailscale on a zone LAN.
+#
+# #### Certificate sync (`cert-sync.nix`)
+#
+# Public certificates are issued on the HCS only; each zone gateway pulls the
+# whole Caddy storage over the tailnet (rsync as `nix`, elevated to `caddy` on
+# the HCS side), then publishes it to its own Caddy.
+#
+# #### Self-heal (`selfheal.nix`)
+#
+# Every minute, checks that the backend runs and the control plane sees the
+# node online; restarts tailscaled after a sustained loss. Exports
+# `dnf_tailscale_*` metrics for the `TailscaleFlapping`/`TailscaleUnhealthy`
+# alerts.
+#
+# #### Auto-pause (`autopause.nix`)
+#
+# Roaming clients only. On a DNF zone LAN, `--accept-dns` would hijack
+# resolv.conf (local dnsmasq/AdGuard) and `--accept-routes` collide with the
+# connected zone subnet: a NetworkManager dispatcher pauses tailscale there
+# and resumes it elsewhere.
 
 {
   lib,

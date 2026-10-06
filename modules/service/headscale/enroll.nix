@@ -1,7 +1,4 @@
-# DNF headscale: `dnf-tailnet-enroll`, the root side of `just tailnet-enroll`.
-#
-# Single-use keys tagged from the declared topology; the enrolled node gets
-# its declared name and tags.
+# DNF headscale: `dnf-tailnet-enroll`. Doc: `../headscale.nix` header.
 
 {
   lib,

@@ -1,8 +1,4 @@
-# DNF restic: backup freshness metrics, for the `dnf-restic-<zone>` alerts.
-#
-# Monitored nodes only (`monitoring-node` feature): each job stamps its last
-# success in the textfile collector, and `restic-declared` lists the declared
-# jobs so a job that never succeeds still ages into an alert.
+# DNF restic: backup freshness metrics. Doc: `../restic.nix` header.
 
 {
   config,

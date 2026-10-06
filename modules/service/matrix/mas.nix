@@ -1,39 +1,4 @@
-# DNF matrix: authentication delegated to Matrix Authentication Service (MAS).
-#
-# All authentication is delegated to Matrix Authentication Service, always:
-# Element X, QR login and the `/account` self-service portal only exist there,
-# and synapse's own auth is deprecated upstream (MSC3861). Kanidm stays the
-# identity source: MAS is the OIDC client instead of synapse, and synapse only
-# asks MAS to introspect tokens. Served on the same vhost:
-# MAS owns the root + compat auth endpoints, synapse keeps `/_matrix/*` and
-# `/_synapse/*`; client discovery is automatic (synapse serves
-# `auth_metadata` itself), so no well-known change.
-#
-# Required sops secrets, all created by `just configure-admin-host`:
-# `mas-encryption-secret`, `mas-synapse-secret` and `mas-rsa-private-key`.
-#
-# `dnf-mas` (root) wraps `mas-cli` for host-side administration: registration
-# tokens, `promote-admin`, `register-user`, `syn2mas`. MAS runs with
-# `DynamicUser` and reads its secrets from systemd credentials, which do not
-# exist outside the running unit; the wrapper rebuilds an equivalent
-# credentials directory from the sops files, so it works whether the service
-# is up or down (syn2mas needs it down).
-#
-# `mas-cli` only acts, never lists: enable the `matrix-admin` service for the
-# read side (accounts, devices, sessions), it speaks both admin APIs.
-#
-# :::danger[Immutable once started]
-# `mas-encryption-secret` and the Kanidm provider ULID must never change
-# after MAS's first start (encrypted DB data / upstream account links).
-# :::
-#
-# :::danger[Migrating a pre-MAS instance]
-# A homeserver that predates MAS needs the `syn2mas` migration (accounts,
-# passwords, sessions, external ids) or nobody logs in again. Deploy first,
-# then, with both services stopped: `sudo dnf-mas syn2mas check`,
-# `... migrate --dry-run`, `... migrate`. Procedure in
-# `.specs/matrix-authentication-service.md`.
-# :::
+# DNF matrix: authentication delegated to MAS. Doc: `../matrix.nix` header.
 
 {
   lib,

@@ -1,8 +1,4 @@
-# DNF tailscale: roaming clients pause tailscale on a DNF zone LAN.
-#
-# There `--accept-dns` would hijack resolv.conf (local dnsmasq/AdGuard) and
-# `--accept-routes` collide with the connected zone subnet. A NetworkManager
-# dispatcher pauses tailscale on a zone LAN and resumes it elsewhere.
+# DNF tailscale: roaming auto-pause. Doc: `../tailscale.nix` header.
 
 {
   lib,

@@ -1,48 +1,4 @@
-# DNF matrix: audio/video calls, MatrixRTC backend (LiveKit SFU + JWT service).
-#
-# Two stacks coexist, because no single one covers every client:
-#
-# - Legacy 1:1 WebRTC, negotiated over synapse and relayed by coturn
-#   (`darkone.service.turn`). The only thing Element Classic speaks.
-# - MatrixRTC (`matrixRtc.enable`): a LiveKit SFU plus its authorization
-#   service, for group calls and for Element Call. Element X speaks *only*
-#   this one and reports "call is not supported"
-#   (`MISSING_MATRIX_RTC_TRANSPORT`) without it; Element Web/Desktop embed
-#   Element Call too and gain group calls from it.
-#
-# Both are served from the matrix vhost, next to synapse and MAS: the SFU
-# websocket on `/livekit/sfu`, the JWT service on `/livekit/jwt`. Clients
-# discover it from `matrix_rtc.transports` (synapse, MSC4143) and, as a
-# fallback for older ones, from `rtc_foci` in the well-known.
-#
-# Required sops secret: `livekit-secret` (`just configure-admin-host`),
-# shared by the SFU and the JWT service.
-#
-# :::caution[Media ports must reach the host]
-# Media does not go through the reverse proxy. The UDP range and the TCP
-# fallback are opened on the public interface, so a NATed host needs them
-# forwarded, and `rtc.use_external_ip` set (untested here: the HCS holds its
-# public address directly).
-# :::
-#
-# :::caution[Echo cancellation is not a server-side setting]
-# `services.livekit.settings` is freeform: unknown keys reach the config
-# file silently. LiveKit's `audio` section only tunes active speaker
-# detection and RED redundancy; `echo_cancellation`, `noise_suppression`
-# and `channels` do not exist there. They are `getUserMedia` constraints,
-# owned by the client.
-#
-# No SFU setting can fix an echoing participant:
-#
-# - LiveKit forwards Opus without ever decoding it.
-# - AEC needs the local speaker reference, which never leaves the device.
-# - Element Call encrypts media end to end, so the SFU cannot read it.
-#
-# The remedy is device-side: a headset, or Element Call's own audio
-# processing toggles. Beware the diagnosis trap: a handset whose hardware
-# AEC advertises itself but does nothing echoes for everyone *else*, never
-# for its own user.
-# :::
+# DNF matrix: MatrixRTC calls (LiveKit). Doc: `../matrix.nix` header.
 
 {
   lib,

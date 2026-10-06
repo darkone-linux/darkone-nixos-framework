@@ -2,11 +2,36 @@
 # is resolved against the network topology.
 #
 # :::caution[Special internal module]
-# The resolved registry (`darkone.system.services.resolved`) feeds:
-# - the homepage sections (below);
-# - `services/caddy.nix`: reverse proxy vhosts, TLS, HTTP(S) firewall;
-# - `services/oauth2-proxy.nix`: Kanidm SSO of the protected services.
-# `persist.*` entries are the folders and files to back up.
+# The resolved registry (`darkone.system.services.resolved`) feeds the
+# homepage sections and the sub-modules below. `persist.*` entries are the
+# folders and files to back up.
+# :::
+#
+# Sub-modules (`services/`):
+# - `caddy.nix`: reverse proxy vhosts, TLS, HTTP(S) firewall;
+# - `oauth2-proxy.nix`: Kanidm SSO of the protected services.
+#
+# #### Reverse proxy (`caddy.nix`)
+#
+# One Caddy vhost per resolved service, plus the HTTP(S) firewall of zone
+# gateways and of the HCS.
+#
+# :::note[Exposure]
+# - zone services: on the zone gateway, under the zone domain;
+# - global services: on the HCS, under the network domain;
+# - `external-hosts`: zone services the HCS fronts, proxied to their gateway.
+# :::
+#
+# #### SSO (`oauth2-proxy.nix`)
+#
+# oauth2-proxy in front of the protected services of a zone, backed by the
+# Kanidm `internal-service` OAuth2 client.
+#
+# :::note[Flow]
+# Caddy `forward_auth` checks every request against `/oauth2/auth`. The login
+# flow is anchored on the zone homepage FQDN, which hosts oauth2-proxy's
+# public `/oauth2/*` endpoints; a cookie scoped to the zone domain keeps the
+# session across its services.
 # :::
 
 {

@@ -1,9 +1,5 @@
-# DNF tailscale: zone gateways pull the Caddy certificates of the HCS.
-#
-# Public certificates are issued on the HCS only; each zone gateway pulls the
-# whole Caddy storage over the tailnet (rsync as `nix`, elevated to `caddy` on
-# the HCS side), then publishes it to its own Caddy.
-#
+# DNF tailscale: HCS certificate sync. Doc: `../tailscale.nix` header.
+
 # TODO: feedback on sync health status.
 
 {

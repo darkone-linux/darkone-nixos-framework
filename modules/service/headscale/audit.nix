@@ -1,8 +1,4 @@
-# DNF headscale: `headscale-audit`, live tailnet against the declared one.
-#
-# Every 15 min, compares the live nodes with the declared topology: metrics
-# for the `dnf-headscale-<zone>` alerts, details in its journal. It never tags
-# nor deletes.
+# DNF headscale: `headscale-audit`. Doc: `../headscale.nix` header.
 
 {
   lib,

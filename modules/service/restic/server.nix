@@ -1,17 +1,4 @@
-# DNF restic: the REST server, storing every fleet host's repositories.
-#
-# One account per fleet host (`restic/<hostname>/rest-password`), checked
-# against an htpasswd assembled at boot; `privateRepos` confines each host to
-# its own `<hostname>/` prefix.
-#
-# :::caution[`listenAll` widens the bind, not the firewall]
-# The server binds `params.ip`, i.e. the LAN address on a gateway. Clients
-# reaching it from another zone over the tailnet need `listenAll = true`
-# (bind `0.0.0.0`). The firewall stays the boundary: `lan0` gets the port from
-# `getInternalInterfaceFwPath`, `tailscale0` is already a trusted interface on
-# a gateway, and the WAN never opens it.
-# :::
-#
+# DNF restic: the REST server. Doc: `../restic.nix` header.
 
 {
   config,

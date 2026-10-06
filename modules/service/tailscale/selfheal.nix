@@ -1,9 +1,4 @@
-# DNF tailscale: self-heal watchdog.
-#
-# Every minute, checks that the backend runs and the control plane sees the
-# node online; restarts tailscaled after a sustained loss. Exports
-# `dnf_tailscale_*` metrics for the `TailscaleFlapping`/`TailscaleUnhealthy`
-# alerts.
+# DNF tailscale: self-heal watchdog. Doc: `../tailscale.nix` header.
 
 {
   lib,

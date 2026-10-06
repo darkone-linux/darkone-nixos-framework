@@ -12,11 +12,6 @@
 # - Personal devices log in through Kanidm (OIDC), for members of the Kanidm
 #   `tailnet` group; their keys expire after `nodeExpiry`.
 #
-# Sub-modules (`headscale/`):
-# - `dns.nix`: unbound, the tailnet pivot DNS, and its `tailnet-machines` view;
-# - `audit.nix`: `headscale-audit`, live nodes against the declared topology;
-# - `enroll.nix`: `dnf-tailnet-enroll`, behind `just tailnet-enroll`.
-#
 # ```nix
 # darkone.service.headscale.policy.adminDevices.phone-alice = "100.64.0.9";
 # ```
@@ -30,6 +25,33 @@
 # headscale still starts without Kanidm and falls back to CLI registration
 # until its next restart. Registered nodes are unaffected.
 # :::
+#
+# Sub-modules (`headscale/`):
+# - `dns.nix`: unbound, the tailnet pivot DNS, and its `tailnet-machines` view;
+# - `audit.nix`: `headscale-audit`, live nodes against the declared topology;
+# - `enroll.nix`: `dnf-tailnet-enroll`, behind `just tailnet-enroll`.
+#
+# #### Pivot DNS (`dns.nix`)
+#
+# unbound on the HCS. Internal names reach it through headscale split DNS; it
+# forwards each zone domain to the zone gateway, the rest to Quad9 over TLS.
+#
+# View `tailnet-machines`: tagged nodes (HCS aside) get the zone LAN address
+# of the global services a zone serves (`git.<domain>` on a gateway),
+# everyone else the public one. `unbound-tailnet-view` lists their tailnet
+# IPs from headscale, declared nowhere.
+#
+# #### Audit (`audit.nix`)
+#
+# `headscale-audit`, every 15 min: live nodes against the declared topology.
+# Metrics for the `dnf-headscale-<zone>` alerts, details in its journal. It
+# never tags nor deletes.
+#
+# #### Enrollment (`enroll.nix`)
+#
+# `dnf-tailnet-enroll`, root side of `just tailnet-enroll`: single-use keys
+# tagged from the declared topology; the enrolled node gets its declared name
+# and tags.
 
 # TODO: works but can be simplified / optimized.
 {
