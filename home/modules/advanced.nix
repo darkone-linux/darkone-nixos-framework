@@ -352,17 +352,6 @@ in
       # Zed options -> json config
       userSettings = {
 
-        # AI assistant off (TODO: agent configuration)
-        assistant = {
-          enabled = false;
-          version = "2";
-          default_open_ai_model = null;
-          default_model = {
-            provider = "zed.dev";
-            model = "claude-3-5-sonnet-latest";
-          };
-        };
-
         node = {
           path = lib.getExe pkgs.nodejs;
           npm_path = lib.getExe' pkgs.nodejs "npm";
