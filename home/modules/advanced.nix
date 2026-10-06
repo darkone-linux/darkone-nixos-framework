@@ -157,7 +157,6 @@ in
       MANPAGER = lib.mkIf config.programs.bat.enable "sh -c 'col -bx | bat -l man -p'";
       MANROFFOPT = lib.mkIf config.programs.bat.enable "-c";
       TERMINAL = lib.mkIf hasGhostty "ghostty";
-      TERM = "xterm-256color"; # Avoid "can't find terminal definition for xterm-ghostty"
 
       # ssh-add and `ssh-keygen -Y sign` (git SSH signing) read the variable
       # only; ssh itself also gets `IdentityAgent` below.
