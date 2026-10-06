@@ -156,8 +156,6 @@ in
       # Man pages through bat, only when it is installed
       MANPAGER = lib.mkIf config.programs.bat.enable "sh -c 'col -bx | bat -l man -p'";
       MANROFFOPT = lib.mkIf config.programs.bat.enable "-c";
-      EDITOR = "vim";
-      VISUAL = "vim";
       TERMINAL = lib.mkIf hasGhostty "ghostty";
       TERM = "xterm-256color"; # Avoid "can't find terminal definition for xterm-ghostty"
 
@@ -685,7 +683,7 @@ in
     # Full config: https://github.com/jagajaga/my_configs/blob/master/.nixpkgs/vimrc.nix
     programs.vim = {
       enable = true;
-      defaultEditor = true; # Define EDITOR envvar
+      defaultEditor = true; # EDITOR and VISUAL
 
       # Vim plugins
       plugins = with pkgs.vimPlugins; [
