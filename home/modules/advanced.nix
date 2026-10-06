@@ -172,7 +172,6 @@ in
     #============================================================================
 
     home.packages = with pkgs; [
-      #(lib.mkIf graphic cliphist) # Clipboard history manager
       (lib.mkIf fleetTools age)
       (lib.mkIf fleetTools astro-language-server) # astro-ls: doc/ (Astro/Starlight) LSP
       (lib.mkIf fleetTools bun) # `just fleet-update` from src/dnf-fleet-update (codev)
@@ -499,7 +498,6 @@ in
         copy_on_select = true;
         selection_style = "invert";
         copy_clipboard = "primary";
-        #show_startup_tips = false;
         show_release_notes = false;
         ui = {
           pane_frames = {
@@ -847,19 +845,5 @@ in
         nmap <leader>f  <Plug>(coc-format-selected)
       '';
     };
-
-    #============================================================================
-    # SECURITY (WIP)
-    #============================================================================
-
-    #  programs.gpg.enable = true;
-    #  services.gpg-agent = {
-    #    enable = true;
-    #    defaultCacheTtl = 34560000;
-    #    maxCacheTtl = 34560000;
-    #    enableSshSupport = true;
-    #    enableZshIntegration = true;
-    #    pinentryPackage = pkgs.pinentry-curses;
-    #  };
   };
 }

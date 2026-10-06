@@ -37,7 +37,6 @@ in
   config = lib.mkIf cfg.enable {
 
     home.packages = with pkgs; [
-      #(lib.mkIf cfg.enableTools handbrake)
       celluloid
       (lib.mkIf cfg.enableAlternative mpv)
       (lib.mkIf cfg.enableEditing kdePackages.kdenlive)

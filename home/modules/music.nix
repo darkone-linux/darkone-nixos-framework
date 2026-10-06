@@ -29,7 +29,6 @@
 
 let
   cfg = config.darkone.home.music;
-  #graphic = osConfig.darkone.graphic.gnome.enable;
   hasNfs = osConfig.darkone.service.nfs.enable;
   isNfsClient =
     (dnfLib.resolveNfs {
@@ -64,14 +63,10 @@ in
     # [audqt]
     # theme=dark
 
-    # Frescobaldi
-    #nixpkgs.config.permittedInsecurePackages = [ "qtwebengine-5.15.19" ];
-    #nixpkgs.config.permittedInsecurePackages = lib.optional cfg.enableScore "qtwebengine-5.15.19";
-
     # Nix packages
     home.packages = with pkgs; [
       #(lib.mkIf cfg.enableCreator lmms) # Compilation fail
-      #(lib.mkIf (!cfg.enableEasy) lollypop) # Bof
+      #(lib.mkIf (!cfg.enableEasy) lollypop) # Not worth it
       (lib.mkIf (cfg.enableDev || cfg.enableCli) lilypond-with-fonts)
       (lib.mkIf cfg.enableCreator decibels)
       (lib.mkIf cfg.enableCreator hydrogen)
