@@ -2,7 +2,7 @@
 #
 # Installs an audio player (`vlc`) and the MP3 encoder (`lame`)
 # unconditionally, then layers editors and effects (`audacity`,
-# `easyeffects` with the `easyeffects-fw16` preset) when `enableTools` is
+# `easyeffects`) when `enableTools` is
 # set. Real-time noise reduction (`noisetorch`) is intentionally disabled
 # because it requires PulseAudio.
 
@@ -33,9 +33,6 @@ in
     ];
 
     # https://github.com/wwmm/easyeffects
-    services.easyeffects = lib.mkIf cfg.enableTools {
-      enable = true;
-      preset = "easyeffects-fw16";
-    };
+    services.easyeffects = lib.mkIf cfg.enableTools { enable = true; };
   };
 }
