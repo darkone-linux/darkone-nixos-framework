@@ -94,7 +94,9 @@ let
       # Prevent users from bypassing the permission system at runtime.
       disableBypassPermissionsMode = "disable";
 
-      # Policy: allow = read-only/idempotent, ask = writes/destructive.
+      # Policy: allow = inspection, local builds, formatting; ask = history,
+      # deletions, external effects. Not a sandbox: `xargs`, `find -exec` or
+      # `awk` can still run any command.
       allow = [
 
         # File inspection
@@ -127,16 +129,15 @@ let
         "Bash(rust-analyzer:*)"
         "Bash(shellcheck:*)"
 
-        # Git — read only
+        # Git — inspection and staging
         "Bash(git blame:*)"
         "Bash(git diff:*)"
         "Bash(git log:*)"
         "Bash(git show:*)"
         "Bash(git status:*)"
         "Bash(git add:*)"
-        "Bash(git checkout:*)"
 
-        # Nix — read/evaluation only
+        # Nix — evaluation and local builds
         "Bash(nix eval:*)"
         "Bash(nix flake check:*)"
         "Bash(nix repl:*)"
@@ -149,13 +150,13 @@ let
         "Bash(cargo fmt:*)"
         "Bash(cargo test:*)"
 
-        # Formatters — idempotent, no side effects
+        # Formatters — rewrite files in place, idempotent
         "Bash(nixfmt:*)"
         "Bash(shfmt:*)"
         "Bash(statix:*)"
         "Bash(treefmt:*)"
 
-        # Network — read/download only
+        # Network — HTTP clients
         "Bash(curl:*)"
         "Bash(wget:*)"
 
@@ -175,13 +176,14 @@ let
 
       ask = [
 
-        # Git — state-modifying
+        # Git — history and working tree changes (checkout drops edits)
+        "Bash(git checkout:*)"
         "Bash(git commit:*)"
         "Bash(git push:*)"
         "Bash(git rebase:*)"
         "Bash(git reset:*)"
 
-        # Nix — builds and installs write to the store
+        # Nix — runs arbitrary packages
         "Bash(nix shell:*)"
 
         # Cargo — publish and install have external effects
