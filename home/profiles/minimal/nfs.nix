@@ -42,7 +42,7 @@ in
           rmdir "$2" || mv "$2" "$2".bak
         fi
         if [ -L "$2" ]; then
-          if [ "$(readlink -- $2)" != "$1" ]; then
+          if [ "$(readlink -- "$2")" != "$1" ]; then
             ln -sfn "$1" "$2"
           fi
           return
