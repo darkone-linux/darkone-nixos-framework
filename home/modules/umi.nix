@@ -300,8 +300,6 @@ let
         popup-height = 520;
       };
     }
-  ]
-  ++ lib.optionals cfg.enablePanel [
 
     # Launchers move to their own applet, set apart from the open windows
     {
@@ -330,111 +328,41 @@ let
 
   # Panel applets, left to right, with pinned instance ids: Cinnamon numbers
   # its stock list from 0 (existing applet settings survive), additions from 15.
+  applet = uuid: id: { inherit uuid id; };
   panelZones = {
     left = [
-      [
-        "menu@cinnamon.org"
-        0
-      ]
-      [
-        "separator@cinnamon.org"
-        1
-      ]
-      [
-        "panel-launchers@cinnamon.org"
-        15
-      ]
-      [
-        "separator@cinnamon.org"
-        16
-      ]
-      [
-        "grouped-window-list@cinnamon.org"
-        2
-      ]
+      (applet "menu@cinnamon.org" 0)
+      (applet "separator@cinnamon.org" 1)
+      (applet "panel-launchers@cinnamon.org" 15)
+      (applet "separator@cinnamon.org" 16)
+      (applet "grouped-window-list@cinnamon.org" 2)
     ];
     right = [
-      [
-        "umi-mouse@darkone-linux"
-        17
-      ]
-      [
-        "separator@cinnamon.org"
-        18
-      ]
-      [
-        "a11y@cinnamon.org"
-        19
-      ]
-      [
-        "umi-keyboard@darkone-linux"
-        20
-      ]
-      [
-        "separator@cinnamon.org"
-        21
-      ]
-      [
-        "systray@cinnamon.org"
-        3
-      ]
-      [
-        "xapp-status@cinnamon.org"
-        4
-      ]
-      [
-        "notifications@cinnamon.org"
-        5
-      ]
-      [
-        "printers@cinnamon.org"
-        6
-      ]
-      [
-        "removable-drives@cinnamon.org"
-        7
-      ]
-      [
-        "keyboard@cinnamon.org"
-        8
-      ]
-      [
-        "favorites@cinnamon.org"
-        9
-      ]
-      [
-        "network@cinnamon.org"
-        10
-      ]
-      [
-        "sound@cinnamon.org"
-        11
-      ]
-      [
-        "power@cinnamon.org"
-        12
-      ]
-      [
-        "calendar@cinnamon.org"
-        13
-      ]
-      [
-        "cornerbar@cinnamon.org"
-        14
-      ]
+      (applet "umi-mouse@darkone-linux" 17)
+      (applet "separator@cinnamon.org" 18)
+      (applet "a11y@cinnamon.org" 19)
+      (applet "umi-keyboard@darkone-linux" 20)
+      (applet "separator@cinnamon.org" 21)
+      (applet "systray@cinnamon.org" 3)
+      (applet "xapp-status@cinnamon.org" 4)
+      (applet "notifications@cinnamon.org" 5)
+      (applet "printers@cinnamon.org" 6)
+      (applet "removable-drives@cinnamon.org" 7)
+      (applet "keyboard@cinnamon.org" 8)
+      (applet "favorites@cinnamon.org" 9)
+      (applet "network@cinnamon.org" 10)
+      (applet "sound@cinnamon.org" 11)
+      (applet "power@cinnamon.org" 12)
+      (applet "calendar@cinnamon.org" 13)
+      (applet "cornerbar@cinnamon.org" 14)
     ];
   };
   enabledApplets = lib.concatLists (
     lib.mapAttrsToList (
-      zone:
-      lib.imap0 (
-        position: applet:
-        "panel1:${zone}:${toString position}:${lib.elemAt applet 0}:${toString (lib.elemAt applet 1)}"
-      )
+      zone: lib.imap0 (position: a: "panel1:${zone}:${toString position}:${a.uuid}:${toString a.id}")
     ) panelZones
   );
-  nextAppletId =
-    1 + lib.foldl' lib.max 0 (map (applet: lib.elemAt applet 1) (panelZones.left ++ panelZones.right));
+  nextAppletId = 1 + lib.foldl' lib.max 0 (map (a: a.id) (panelZones.left ++ panelZones.right));
 
   # gnome-keyring's on-disk format for a keyring with no password: plain ini
   # instead of the encrypted blob, unlocked at startup without a prompt.

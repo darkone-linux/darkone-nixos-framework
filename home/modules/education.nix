@@ -9,6 +9,10 @@
 
 let
   cfg = config.darkone.home.education;
+
+  # Audiences sharing a package
+  babyOrChild = cfg.enableBaby || cfg.enableChild;
+  childOrStudent = cfg.enableChild || cfg.enableStudent;
 in
 {
   options = {
@@ -61,14 +65,14 @@ in
 
     # Packages
     home.packages = with pkgs; [
-      #(lib.mkIf (cfg.enableMisc && (cfg.enableChild || cfg.enableStudent)) wike) # wikipedia - lourd
-      (lib.mkIf (cfg.enableComputer && (cfg.enableChild || cfg.enableStudent)) kdePackages.kturtle) # logo
-      (lib.mkIf (cfg.enableComputer && (cfg.enableChild || cfg.enableStudent)) klavaro)
-      (lib.mkIf (cfg.enableLang && (cfg.enableChild || cfg.enableStudent)) kdePackages.parley) # vocabulary
-      (lib.mkIf (cfg.enableLang && (cfg.enableChild || cfg.enableStudent)) verbiste)
-      (lib.mkIf (cfg.enableLang && (cfg.enableChild || cfg.enableStudent)) gnome-characters)
-      (lib.mkIf (cfg.enableMath && (cfg.enableChild || cfg.enableStudent)) geogebra) # math (note: geogebra6 -> build fail, current is 5)
-      (lib.mkIf (cfg.enableMath && (cfg.enableChild || cfg.enableStudent)) kdePackages.kmplot) # math
+      #(lib.mkIf (cfg.enableMisc && childOrStudent) wike) # Wikipedia reader, too heavy
+      (lib.mkIf (cfg.enableComputer && childOrStudent) kdePackages.kturtle) # logo
+      (lib.mkIf (cfg.enableComputer && childOrStudent) klavaro)
+      (lib.mkIf (cfg.enableLang && childOrStudent) kdePackages.parley) # vocabulary
+      (lib.mkIf (cfg.enableLang && childOrStudent) verbiste)
+      (lib.mkIf (cfg.enableLang && childOrStudent) gnome-characters)
+      (lib.mkIf (cfg.enableMath && childOrStudent) geogebra) # math (note: geogebra6 -> build fail, current is 5)
+      (lib.mkIf (cfg.enableMath && childOrStudent) kdePackages.kmplot) # math
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) gnome-graphs)
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) kdePackages.cantor) # math
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) kdePackages.kalgebra) # math
@@ -77,19 +81,19 @@ in
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) maxima) # math
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) octaveFull) # math
       (lib.mkIf (cfg.enableMath && cfg.enableStudent) scilab-bin) # math
-      (lib.mkIf (cfg.enableMisc && (cfg.enableBaby || cfg.enableChild)) gcompris)
+      (lib.mkIf (cfg.enableMisc && babyOrChild) gcompris)
       (lib.mkIf (cfg.enableMisc && cfg.enableChild) kdePackages.blinken) # memory training
       (lib.mkIf (cfg.enableMisc && cfg.enableStudent) anki) # training cards
-      (lib.mkIf (cfg.enableMusic && (cfg.enableBaby || cfg.enableChild)) tuxpaint)
-      (lib.mkIf (cfg.enableMusic && (cfg.enableChild || cfg.enableStudent)) solfege)
-      (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) atomix) # Atom puzzle
-      (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) gnome-maps)
-      (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) kdePackages.kalzium) # periodic elements
-      (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) kdePackages.kgeography) # geography
-      (lib.mkIf (cfg.enableScience && (cfg.enableChild || cfg.enableStudent)) avogadro2) # molecules
-      (lib.mkIf (cfg.enableDraw && (cfg.enableChild || cfg.enableStudent)) pencil2d)
-      (lib.mkIf (cfg.enableDraw && (cfg.enableChild || cfg.enableStudent)) synfigstudio)
-      (lib.mkIf (cfg.enableDraw && (cfg.enableChild || cfg.enableStudent)) ffmpeg) # Synfig dependency
+      (lib.mkIf (cfg.enableMusic && babyOrChild) tuxpaint)
+      (lib.mkIf (cfg.enableMusic && childOrStudent) solfege)
+      (lib.mkIf (cfg.enableScience && childOrStudent) atomix) # Atom puzzle
+      (lib.mkIf (cfg.enableScience && childOrStudent) gnome-maps)
+      (lib.mkIf (cfg.enableScience && childOrStudent) kdePackages.kalzium) # periodic elements
+      (lib.mkIf (cfg.enableScience && childOrStudent) kdePackages.kgeography) # geography
+      (lib.mkIf (cfg.enableScience && childOrStudent) avogadro2) # molecules
+      (lib.mkIf (cfg.enableDraw && childOrStudent) pencil2d)
+      (lib.mkIf (cfg.enableDraw && childOrStudent) synfigstudio)
+      (lib.mkIf (cfg.enableDraw && childOrStudent) ffmpeg) # Synfig dependency
     ];
   };
 }

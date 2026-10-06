@@ -29,14 +29,59 @@ let
   # Nix administrator host (additional tools)
   onAdminHost = osConfig.darkone.admin.nix.enable;
 
+  # Package groups also pulled by `enableDnfDeveloper`. Fleet tools: generator,
+  # secrets, deployment and doc toolchain, on the admin host only.
+  fleetTools = (onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper;
+  essentialsOrDnfDev = cfg.enableEssentials || cfg.enableDnfDeveloper;
+  nixAdminOrDnfDev = cfg.enableNixAdmin || cfg.enableDnfDeveloper;
+
   # Ghostty activation
   hasGhostty = graphic && cfg.enableTools;
 
   # Ghostty, zellij, tmux
   termBgColor = "#0F0F0F";
   termFgColor = "#F0F0F0";
+  termAccentColor = "#57e389";
+  termDimColor = "#666666";
 
-  # Last colmena release
+  # Zellij theme: one emphasis palette shared by every UI component.
+  zellijTheme =
+    let
+      green = termAccentColor;
+      cyan = "#4ff1fd";
+      magenta = "#c061cb";
+      orange = "#f58b11";
+      component = base: background: {
+        inherit base background;
+        emphasis_0 = orange;
+        emphasis_1 = cyan;
+        emphasis_2 = green;
+        emphasis_3 = magenta;
+      };
+    in
+    {
+      inherit
+        green
+        cyan
+        magenta
+        orange
+        ;
+      fg = termFgColor;
+      bg = termBgColor;
+      black = termBgColor;
+      red = "#ed333b";
+      yellow = "#f8e45c";
+      blue = "#5ca2f8";
+      white = "#ffffff";
+      text_unselected = component termFgColor termBgColor;
+      text_selected = component termBgColor green;
+      ribbon_unselected = component termBgColor termFgColor;
+      ribbon_selected = component termBgColor green;
+      frame_unselected = component termDimColor termBgColor;
+      frame_selected = component green termBgColor;
+    };
+
+  # colmena `main` branch (flake input), ahead of nixpkgs
   inherit (inputs.colmena.packages.${pkgs.stdenv.hostPlatform.system}) colmena;
 
   # Built against the system Nix: another minor breaks `fleet-update` on a
@@ -105,7 +150,7 @@ in
 
     home.sessionVariables = {
 
-      # Infra age key now lives under /etc/sops/age (restricted), not in the repo.
+      # Infra age key: restricted, outside the repository.
       SOPS_AGE_KEY_FILE = "/etc/sops/age/infra.key";
       MANPAGER = "sh -c 'col -bx | bat -l man -p'"; # bat
       MANROFFOPT = "-c"; # bat
@@ -131,31 +176,31 @@ in
 
     home.packages = with pkgs; [
       #(lib.mkIf graphic cliphist) # Clipboard history manager
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) age)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) astro-language-server) # astro-ls: doc/ (Astro/Starlight) LSP
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) bun) # `just fleet-update` from src/dnf-fleet-update (codev)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) cargo)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) colmena)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) pkgs-stable.d2) # doc diagrams
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) deadnix)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) gcc) # Useful for rust generator
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) just)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) nixEvalJobs)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) nix-output-monitor) # nom (nom develop, nom build, xxx |& nom)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) nix-unit)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) nixfmt)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) rustc)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) sops)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) ssh-to-age)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) statix)
-      (lib.mkIf ((onAdminHost && cfg.enableNixAdmin) || cfg.enableDnfDeveloper) treefmt)
-      (lib.mkIf (cfg.enableEssentials || cfg.enableDnfDeveloper) git-cliff) # `just bump` / `just release` changelog
-      (lib.mkIf (cfg.enableEssentials || cfg.enableDnfDeveloper) jq) # dnf-fleet-update release recipes
-      (lib.mkIf (cfg.enableEssentials || cfg.enableDnfDeveloper) nodejs_24) # CoC, required for vim / doc/ toolchain: astro/starlight build
-      (lib.mkIf (cfg.enableEssentials || cfg.enableDnfDeveloper) rsync)
-      (lib.mkIf (cfg.enableEssentials || cfg.enableDnfDeveloper) wipe)
-      (lib.mkIf (cfg.enableNixAdmin || cfg.enableDnfDeveloper) mkpasswd)
-      (lib.mkIf (cfg.enableNixAdmin || cfg.enableDnfDeveloper) yq-go)
+      (lib.mkIf fleetTools age)
+      (lib.mkIf fleetTools astro-language-server) # astro-ls: doc/ (Astro/Starlight) LSP
+      (lib.mkIf fleetTools bun) # `just fleet-update` from src/dnf-fleet-update (codev)
+      (lib.mkIf fleetTools cargo)
+      (lib.mkIf fleetTools colmena)
+      (lib.mkIf fleetTools pkgs-stable.d2) # doc diagrams
+      (lib.mkIf fleetTools deadnix)
+      (lib.mkIf fleetTools gcc) # Rust generator build
+      (lib.mkIf fleetTools just)
+      (lib.mkIf fleetTools nixEvalJobs)
+      (lib.mkIf fleetTools nix-output-monitor) # nom (nom develop, nom build, xxx |& nom)
+      (lib.mkIf fleetTools nix-unit)
+      (lib.mkIf fleetTools nixfmt)
+      (lib.mkIf fleetTools rustc)
+      (lib.mkIf fleetTools sops)
+      (lib.mkIf fleetTools ssh-to-age)
+      (lib.mkIf fleetTools statix)
+      (lib.mkIf fleetTools treefmt)
+      (lib.mkIf essentialsOrDnfDev git-cliff) # `just bump` / `just release` changelog
+      (lib.mkIf essentialsOrDnfDev jq) # dnf-fleet-update release recipes
+      (lib.mkIf essentialsOrDnfDev nodejs_24) # vim CoC, doc/ toolchain (Astro/Starlight build)
+      (lib.mkIf essentialsOrDnfDev rsync)
+      (lib.mkIf essentialsOrDnfDev wipe)
+      (lib.mkIf nixAdminOrDnfDev mkpasswd)
+      (lib.mkIf nixAdminOrDnfDev yq-go)
       (lib.mkIf (graphic && (cfg.enableDeveloper || cfg.enableAdmin)) vscode) # TODO: module
       (lib.mkIf (graphic && (cfg.enableDeveloper || cfg.enableAdmin)) vscode-extensions.antfu.slidev)
       (lib.mkIf (graphic && cfg.enableAdmin) filezilla)
@@ -311,16 +356,11 @@ in
       # Zed options -> json config
       userSettings = {
 
-        # AI Assistant (todo)
+        # AI assistant off (TODO: agent configuration)
         assistant = {
           enabled = false;
           version = "2";
           default_open_ai_model = null;
-
-          ### PROVIDER OPTIONS
-          ### zed.dev models { claude-3-5-sonnet-latest } requires github connected
-          ### anthropic models { claude-3-5-sonnet-latest claude-3-haiku-latest claude-3-opus-latest  } requires API_KEY
-          ### copilot_chat models { gpt-4o gpt-4 gpt-3.5-turbo o1-preview } requires github connected
           default_model = {
             provider = "zed.dev";
             model = "claude-3-5-sonnet-latest";
@@ -376,7 +416,7 @@ in
           };
         };
 
-        ## tell zed to use direnv and direnv can use a flake.nix environment.
+        # direnv environments (flake.nix included) through the shell hook
         load_direnv = "shell_hook";
         base_keymap = "VSCode";
         theme = {
@@ -447,11 +487,11 @@ in
 
         # Discreet status bar, dark background matching ghostty/zellij.
         set -g status-style "bg=${termBgColor},fg=${termFgColor}"
-        set -g status-left "#[fg=#57e389] #S "
-        set -g status-right "#[fg=#666666]#h "
-        set -g window-status-current-style "fg=${termBgColor},bg=#57e389"
-        set -g pane-active-border-style "fg=#57e389"
-        set -g pane-border-style "fg=#666666"
+        set -g status-left "#[fg=${termAccentColor}] #S "
+        set -g status-right "#[fg=${termDimColor}]#h "
+        set -g window-status-current-style "fg=${termBgColor},bg=${termAccentColor}"
+        set -g pane-active-border-style "fg=${termAccentColor}"
+        set -g pane-border-style "fg=${termDimColor}"
       '';
     };
 
@@ -469,69 +509,7 @@ in
             rounded_corners = true;
           };
         };
-        themes = {
-          soft_dark = rec {
-            fg = termFgColor;
-            bg = termBgColor;
-            black = termBgColor;
-            red = "#ed333b";
-            green = "#57e389";
-            yellow = "#f8e45c";
-            blue = "#5ca2f8";
-            magenta = "#c061cb";
-            cyan = "#4ff1fd";
-            white = "#ffffff";
-            orange = "#f58b11";
-            text_unselected = {
-              base = termFgColor;
-              background = termBgColor;
-              emphasis_0 = orange;
-              emphasis_1 = cyan;
-              emphasis_2 = green;
-              emphasis_3 = magenta;
-            };
-            text_selected = {
-              base = termBgColor;
-              background = green;
-              emphasis_0 = orange;
-              emphasis_1 = cyan;
-              emphasis_2 = green;
-              emphasis_3 = magenta;
-            };
-            ribbon_unselected = {
-              base = termBgColor;
-              background = termFgColor;
-              emphasis_0 = orange;
-              emphasis_1 = cyan;
-              emphasis_2 = green;
-              emphasis_3 = magenta;
-            };
-            ribbon_selected = {
-              base = termBgColor;
-              background = green;
-              emphasis_0 = orange;
-              emphasis_1 = cyan;
-              emphasis_2 = green;
-              emphasis_3 = magenta;
-            };
-            frame_unselected = {
-              base = "#666666";
-              background = termBgColor;
-              emphasis_0 = orange;
-              emphasis_1 = cyan;
-              emphasis_2 = green;
-              emphasis_3 = magenta;
-            };
-            frame_selected = {
-              base = green;
-              background = termBgColor;
-              emphasis_0 = orange;
-              emphasis_1 = cyan;
-              emphasis_2 = green;
-              emphasis_3 = magenta;
-            };
-          };
-        };
+        themes.soft_dark = zellijTheme;
         theme = "soft_dark";
       };
     };
@@ -552,33 +530,18 @@ in
         window-padding-y = 6;
         copy-on-select = "clipboard";
 
-        # A bell on an unfocused surface sets the urgency hint, which GNOME
-        # turns into a tray notification that survives the window being
-        # activated: it only ever accumulates as a dock badge. Consistent with
-        # visual-bell/event-sounds, disabled in modules/graphic/gnome.nix.
+        # No urgency hint: GNOME keeps it as a dock badge that only accumulates.
+        # Bells are silenced in modules/graphic/gnome.nix too.
         bell-features = "no-attention";
 
-        # Otherwise the working directory flag is ignored by a running instance (nautilus open terminal)
+        # A running instance would ignore `--working-directory` (Nautilus script).
         gtk-single-instance = false;
       };
     };
 
-    # "Open in Ghostty" entry in Nautilus.
-    #
-    # :::note[Why a Nautilus script and not nautilus-open-any-terminal]
-    # Under GNOME 50, Nautilus does not load the nautilus-python layer, so the
-    # extension never registers its menu item. Nautilus scripts are a built-in
-    # mechanism (no extension, no GSettings schema), hence reliable.
-    # :::
-    #
-    # Ghostty inherits the cwd, so the script just resolves the target directory
-    # and cd's into it. gtk-single-instance is disabled above so a running
-    # instance honours this directory instead of ignoring it.
-    #
-    # Right-clicking a folder selects it: the folder is passed as $1, while
-    # NAUTILUS_SCRIPT_CURRENT_URI is the *parent* (the viewed directory). So we
-    # prefer the selected item, falling back to the viewed directory (empty-space
-    # click). A selected file resolves to its containing directory.
+    # "Open in Ghostty" Nautilus script: GNOME 50 Nautilus no longer loads
+    # nautilus-python, so nautilus-open-any-terminal never shows up. Target:
+    # the selected item ($1), else the viewed folder; a file gives its folder.
     xdg.dataFile = lib.mkIf hasGhostty {
       "nautilus/scripts/Open in Ghostty" = {
         executable = true;
@@ -607,7 +570,7 @@ in
       enable = lib.mkDefault true;
       settings = {
         user = {
-          name = "${user.name}";
+          inherit (user) name;
           email = userEmail;
         };
         alias = {
@@ -655,7 +618,7 @@ in
         ".idea"
       ];
 
-      # Undefined but required from 02/2025
+      # No default format since HM 25.05
       signing.format = "ssh";
     };
 
@@ -675,7 +638,7 @@ in
     # Structural AST diff tool used on demand via git difftool / aliases
     programs.difftastic = lib.mkIf cfg.enableEssentials { enable = lib.mkDefault true; };
 
-    # Ensure xterm-ghostty is unknown to remote servers
+    # Remote hosts lack the xterm-ghostty terminfo
     programs.ssh = lib.mkIf cfg.enableEssentials {
       enable = lib.mkDefault true;
       enableDefaultConfig = false;
