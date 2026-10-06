@@ -81,9 +81,11 @@ let
     includeCoAuthoredBy = false;
     theme = "dark";
 
+    # npx, and the node scripts it runs, need node in PATH: only the advanced
+    # module installs it.
     statusLine = {
       type = "command";
-      command = "npx -y ccstatusline@latest";
+      command = "PATH=${pkgs.nodejs}/bin:$PATH npx -y ccstatusline@latest";
       padding = 0;
       refreshInterval = 10;
     };
