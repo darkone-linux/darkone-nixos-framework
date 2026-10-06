@@ -253,18 +253,18 @@ rec {
             host = host.hostname;
           };
 
-          # A scraped target that stops answering: the node (or its exporter) is
-          # down. `up` is the canonical liveness signal. WAN-reached hosts wait
-          # a little longer so a concurrent `ZoneInternetDown` declares first
-          # and inhibits this (likely false) per-host alert.
+          # Node or exporter down (`up == 0`). WAN-reached hosts wait longer: a
+          # concurrent `ZoneInternetDown` fires first and inhibits this likely
+          # false alert.
+          downFor = if reach == "wan" then "5m" else "2m";
           nodeDown = {
             alert = "NodeDown";
             expr = ''up{job="node",instance="${inst}"} == 0'';
-            "for" = if reach == "wan" then "5m" else "2m";
+            "for" = downFor;
             labels = commonLabels;
             annotations = {
               summary = "Node ${host.hostname} is down";
-              description = "${host.hostname} (${inst}) has not been scrapeable for 2m.";
+              description = "${host.hostname} (${inst}) has not been scrapeable for ${downFor}.";
             };
           };
 

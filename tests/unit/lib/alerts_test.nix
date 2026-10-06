@@ -368,6 +368,45 @@ in
     expected = "wan";
   };
 
+  # ----- NodeDown delay (mkNodeRuleGroups) -----
+  # A WAN-reached host waits for `ZoneInternetDown`; the description names the
+  # delay actually applied.
+  testNodeDownLocalDelay = {
+    expr =
+      let
+        rule = ruleAt 0 (nodeDoc (serverA { }));
+      in
+      [
+        rule."for"
+        rule.annotations.description
+      ];
+    expected = [
+      "2m"
+      "a (10.0.0.9:9100) has not been scrapeable for 2m."
+    ];
+  };
+  testNodeDownWanDelay = {
+    expr =
+      let
+        rule = ruleAt 0 (nodeDoc {
+          hostname = "hcs";
+          profile = "hcs";
+          ip = "1.2.3.4";
+          zone = "www";
+          features = { };
+          services = { };
+        });
+      in
+      [
+        rule."for"
+        rule.annotations.description
+      ];
+    expected = [
+      "5m"
+      "hcs (1.2.3.4:9100) has not been scrapeable for 5m."
+    ];
+  };
+
   # ----- SystemdUnitFailed denylist (mkNodeRuleGroups) -----
   # Empty denylist (the default): the selector is left untouched, so every failed
   # unit still alerts.
