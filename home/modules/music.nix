@@ -113,12 +113,6 @@ in
           name "PipeWire Sound Server"
         }
 
-        # Or PulseAudio:
-        # audio_output {
-        #   type "pulse"
-        #   name "PulseAudio"
-        # }
-
         max_connections "20"
       '';
       musicDirectory =

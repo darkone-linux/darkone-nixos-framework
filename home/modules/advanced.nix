@@ -743,9 +743,6 @@ in
         " Always show the status line
         set laststatus=2
 
-        " Format the status line
-        "set statusline=\ %{HasPaste()}%F%m%r%h\ %w\ \ CWD:\ %r%{getcwd()}%h\ \ \ Line:\ %l
-
         " Gruvbox (theme)
         set termguicolors
         set background=dark
@@ -754,10 +751,7 @@ in
         hi! Normal ctermbg=NONE guibg=NONE
         hi! NonText ctermbg=NONE guibg=NONE
 
-        " Airline options
-        "let g:airline#extensions#tabline#enabled = 1
-        "let g:airline_powerline_fonts = 1
-
+        " Status line (lightline)
         let g:lightline = {
         \ 'colorscheme': 'jellybeans',
         \ 'active': {
