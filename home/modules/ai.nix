@@ -1,24 +1,21 @@
 # AI coding tools and supporting utilities.
 #
 # :::note[Flags]
-# - `darkone.home.ai.enable` master switch installs utility packages
-#   (aichat, llm, fabric-ai, gh, lazygit, direnv, code-quality tools, etc.)
-#   and enables the per-agent flag system below.
-# - `darkone.home.ai.enable{Claude,OpenCode,Codex,Aider,Goose}` each
-#   installs and configures a specific AI coding agent.
-# - `darkone.home.ai.preferLocal` when combined with a local `darkone.service.ai`
-#   ollama host, agents default to the local model instead of cloud APIs.
+# - `darkone.home.ai.enable`: utility packages (aichat, llm, fabric-ai, gh,
+#   lazygit, direnv, Rust and code-quality tools) and the agent flags below.
+# - `darkone.home.ai.enable{Claude,OpenCode,Codex,Antigravity,Aider,Goose}`:
+#   one AI coding agent each.
+# - `darkone.home.ai.preferLocal`: OpenCode defaults to the local ollama model
+#   on a `darkone.service.ai` host.
 # :::
 #
 # :::tip[Per-host wiring]
-# This module reads `osConfig.darkone.service.ai.enable` to detect a
-# local ollama host.  On such hosts, `gollama`, the `ollama` CLI, and
-# local-model defaults for Aider / OpenCode are activated automatically.
+# On a local ollama host (`darkone.service.ai`): `gollama` and the `ollama`
+# CLI, and Aider falls back on the local model when Claude is off.
 #
-# `programs.gh` is enabled with the `github-copilot-cli` extension.
-# OpenCode gets two MCP servers (filesystem, fetch) via `npx -y`.
-# Claude Code enforces an allow/ask/deny permission matrix and an RTK
-# governance hook on Bash calls.
+# `programs.gh` is enabled with the `github-copilot-cli` extension. Claude
+# Code enforces an allow/ask/deny permission matrix and an RTK governance
+# hook on Bash calls.
 # :::
 #
 # :::caution[Writable settings.json]
@@ -271,7 +268,7 @@ in
       cargo
       cargo-audit
       cargo-expand # macro expansion (useful to debug)
-      cargo-nextest # lanceur de tests plus rapide que cargo test
+      cargo-nextest # faster test runner than `cargo test`
       cargo-watch # rebuild/retest on change
       clippy
       gcc
@@ -293,7 +290,7 @@ in
       fabric-ai
 
       # Code-quality and file-inspection tools — must stay in sync with the Claude Code allow list.
-      ast-grep # AST-aware search/replace (usefull for refactorings)
+      ast-grep # AST-aware search/replace (refactorings)
       bat # syntax-highlighted cat
       deadnix # remove unused Nix bindings
       fd # user-friendly find
@@ -315,7 +312,7 @@ in
       # GitHub CLI — required for agentic PR/issue workflows.
       gh
 
-      # Usefull manipulation tools
+      # JSON processing
       jq
 
       # Ollama CLI + model manager, only useful when ollama runs locally.
@@ -448,8 +445,9 @@ in
     };
 
     #==========================================================================
-    # Herdr
+    # HERDR
     #==========================================================================
+
     programs.herdr = {
 
       # TODO: re-enable once nixpkgs unstable links herdr again (ld.bfd 2.46

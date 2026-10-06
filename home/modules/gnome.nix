@@ -1,10 +1,9 @@
 # Gnome tweaks for home-manager.
 #
-# Hides the bare `xterm`, Qt5/Qt6 settings and NixOS manual launchers
-# unconditionally, Extensions for non-technical profiles, registers polished
-# `.desktop` entries for `scrcpy` and `scrcpy-console` when the package is
-# part of the user's `home.packages`, and (when `hideTechnicalIcons` is set)
-# hides Settings, Printers and File Roller icons for beginner / child profiles.
+# Hides launchers: the bare `xterm`, Qt5/Qt6 settings and NixOS manual for
+# every profile, `scrcpy` and `scrcpy-console` when installed, Extensions for
+# non-technical profiles, and (`hideTechnicalIcons`) Settings, Printers and
+# File Roller for beginner / child profiles.
 # `keepKeyring` opts the user out of the login keyring reset that follows an
 # admin password change (read by the NixOS gnome module).
 #
@@ -45,7 +44,7 @@ in
       Categories=System;TerminalEmulator;
     '';
 
-    # Useless icons
+    # scrcpy is a CLI tool: its launchers are noise in the app grid
     home.file.".local/share/applications/scrcpy.desktop" =
       lib.mkIf (lib.elem pkgs.scrcpy config.home.packages)
         {

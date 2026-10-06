@@ -3,8 +3,8 @@
 # Always installs the lightweight viewer (`geeqie`) and editor (`gimp`),
 # then layers tooling by audience: `enableBeginner` adds `pinta`,
 # `enablePro` adds `inkscape`/`krita`/`yed`, `enable3D` (with
-# `enablePro`) adds `blender`, `enableCAD` adds `freecad` (from stable
-# nixpkgs to avoid Qt churn), and `enableCli` adds `imagemagick`/`jhead`.
+# `enablePro`) adds `blender`, `enableCAD` adds `freecad`, and `enableCli`
+# adds `imagemagick`/`jhead`.
 
 {
   lib,

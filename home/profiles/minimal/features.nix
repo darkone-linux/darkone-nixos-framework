@@ -1,3 +1,6 @@
+# Features of every profile: zsh with powerlevel10k, and the terminal
+# shortcut (Ctrl+Alt+T) on Ghostty, else GNOME Console.
+
 {
   pkgs,
   lib,

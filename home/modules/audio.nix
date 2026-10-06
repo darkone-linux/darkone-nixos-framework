@@ -19,10 +19,9 @@ in
 {
   options = {
     darkone.home.audio.enable = lib.mkEnableOption "Audio tools";
-    darkone.home.audio.enableTools = lib.mkEnableOption "Audio tools / editors (audacity, easyeffect, noisetorch...)";
+    darkone.home.audio.enableTools = lib.mkEnableOption "Audio tools / editors (audacity, easyeffects)";
   };
 
-  # TODO: to complete
   config = lib.mkIf cfg.enable {
 
     # Nix packages

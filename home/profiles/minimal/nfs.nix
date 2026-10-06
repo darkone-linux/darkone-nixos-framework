@@ -1,3 +1,9 @@
+# NFS home shares: XDG user dirs linked to the user's NFS home.
+#
+# :::caution[GTK bookmarks]
+# Rewritten at each activation while NFS is on: user-added bookmarks are lost.
+# :::
+
 {
   lib,
   pkgs,
@@ -21,10 +27,8 @@ let
   baseDir = if isServer then srv-dirs.nfs else "/mnt/nfs";
 in
 {
-  # Home dirs creation
-  # IMPORTANT: international names do NOT works with xdg.userDirs
-  # This script create links from user dirs to NFS targets
-  # NOTE: XDG_DATA_DIRS is required otherwise xdg-user-dirs-update do not find local traductions (mo files)
+  # A script, not `xdg.userDirs`: localised dir names come from
+  # `xdg-user-dirs-update`, which needs XDG_DATA_DIRS for its translations.
   home.activation.bindXdgToNfs = lib.mkIf isEnable (
     lib.hm.dag.entryAfter [ "writeBoundary" ] ''
 

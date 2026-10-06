@@ -78,8 +78,7 @@ in
     # STK
     #--------------------------------------------------------------------------
 
-    # Unlock STK
-    # Runs after HM writes config files (writeBoundary)
+    # Unlock every STK kart and track, once HM has written its files
     home.activation = lib.mkIf stk {
       unlockSupertuxkart = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         configPath="${config.home.homeDirectory}/.config/supertuxkart/config-0.10"

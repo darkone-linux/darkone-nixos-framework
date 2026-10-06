@@ -2,10 +2,9 @@
 #
 # Always installs the default player (`celluloid`, GTK4/libadwaita front-end
 # over mpv) and gates the rest by audience: `enableTools` (ffmpeg, mlt, vlc,
-# video-trimmer, parabolic), `enableEditing` (kdenlive + shotcut from stable
-# nixpkgs), `enableCreator` (OBS Studio with `obs-backgroundremoval`,
-# `obs-vkcapture`, etc.), `enableUnfree` (davinci-resolve from stable),
-# and `enableAlternative` (mpv).
+# video-trimmer, parabolic), `enableEditing` (kdenlive, shotcut),
+# `enableCreator` (OBS Studio with `obs-backgroundremoval`, `obs-vkcapture`,
+# etc.), `enableUnfree` (davinci-resolve) and `enableAlternative` (mpv).
 #
 # :::caution[Not GNOME Showtime]
 # Showtime 50 deadlocks on some files — `get_state(CLOCK_TIME_NONE)` on the

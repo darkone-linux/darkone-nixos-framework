@@ -1,4 +1,4 @@
-# Teenager profile features
+# Gamer profile features
 
 { lib, osConfig, ... }:
 let
