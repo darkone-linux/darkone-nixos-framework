@@ -272,9 +272,11 @@ let
             # Install in /etc/profiles instead of ~/.nix-profile
             useUserPackages = true;
 
-            # Backup colliding files (e.g. .zshrc) instead of failing.
-            # LIMITATION: bails if a .bkp already exists.
+            # Colliding files (a .zshrc, a mimeapps.list rewritten by an app)
+            # move to `<file>.bkp`, overwriting an older backup rather than
+            # failing the activation.
             backupFileExtension = "bkp";
+            overwriteBackup = true;
 
             users = builtins.listToAttrs (map mkHome host.users);
 
