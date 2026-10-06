@@ -6,8 +6,8 @@
 # - `browsers.nix`: Firefox ESR (LibreWolf, Chromium) with shared policies:
 #   zone homepage and locale, tracking protection, Bitwarden pinned when the
 #   network runs Vaultwarden.
-# - `matrix.nix`: Element Desktop pre-configured for the network homeserver
-#   (Kanidm SSO), Fractal as an option; both may start with the session.
+# - `matrix.nix`: Element Desktop as soon as the network runs Matrix,
+#   pre-configured (Kanidm SSO); Fractal with `enableCommunication`.
 # - `nextcloud.nix`: desktop client bound to the network instance, and
 #   `nextcloud-webdav-login` for GNOME Online Accounts.
 # - `pandoc.nix`: `md2pdf` and the pandoc defaults (`enablePandoc`).
@@ -122,16 +122,16 @@ in
       description = "[Huntspell Lang](https://mynixos.com/nixpkgs/packages/hunspellDicts)";
     };
 
-    # Matrix desktop client auto-start (Element stays the default, see below).
+    # Matrix desktop clients auto-start (cf. office/matrix.nix)
     darkone.home.office.enableElementAutoStart = mkOption {
       type = types.bool;
       default = true;
-      description = "Auto-start Element Desktop on login when a local Matrix server is present";
+      description = "Auto-start Element Desktop (hidden) on login when the network runs Matrix";
     };
     darkone.home.office.enableFractalAutoStart = mkOption {
       type = types.bool;
       default = false;
-      description = "Auto-start Fractal on login when a local Matrix server is present (opt-in, see caveats below)";
+      description = "Auto-start Fractal on login, with `enableCommunication` (opt-in: no background mode, its window opens)";
     };
 
     # Nextcloud desktop integration. Binds the account and nothing else: a
@@ -274,7 +274,7 @@ in
       (mkIf cfg.enableSecurity keepmenu) # Dmenu/Rofi frontend for Keepass databases
       (mkIf cfg.enableSecurity gnome-secrets)
       (mkIf cfg.enableSecurity git-credential-keepassxc)
-      (mkIf hasMatrix fractal)
+      (mkIf (cfg.enableCommunication && hasMatrix) fractal)
 
       # `services.nextcloud-client` only defines the systemd unit; it never
       # installs the package, hence this explicit entry.
