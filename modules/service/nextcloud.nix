@@ -59,9 +59,7 @@ let
   # `network.smtp` is optional: without a relay, Nextcloud sends no mail.
   hasSmtp = network ? smtp;
 
-  # The whiteboard backend is useless without the app that talks to it, and
-  # it used to run unconditionally even though `whiteboard` is not a default
-  # plugin.
+  # The whiteboard backend is useless without the app that talks to it.
   hasWhiteboard = lib.elem "whiteboard" cfg.plugins;
 
   # Credentials of the upstream units, for our own `occ` units: without them
@@ -324,7 +322,7 @@ in
         # the writable `config.php`, wins over a password typed in the admin UI.
         secrets = lib.mkIf hasSmtp { mail_smtppassword = config.sops.secrets."smtp/password".path; };
 
-        # Configuration de base
+        # Base configuration
         config = {
           adminuser = cfg.adminUser;
           adminpassFile = config.sops.secrets."nextcloud-admin-password".path;
@@ -389,16 +387,14 @@ in
             params.domain
           ];
 
-          # 100.64.0.0/10 is the tailnet (CGNAT) range the comment above refers
-          # to. It used to read 10.64.0.0/10, which is a subset of the
-          # 10.0.0.0/8 entry below — dead weight, and the tailnet was missing.
+          # The tailnet, then the zone LANs.
           trusted_proxies = [
-            "100.64.0.0/10"
+            dnfLib.constants.tailnetIpv4Cidr
             "10.0.0.0/8"
             "127.0.0.1"
             "::1"
           ];
-          default_phone_region = lib.toUpper (builtins.substring 3 2 zone.locale);
+          default_phone_region = dnfLib.extractCountryFromLocale zone.locale;
 
           # Heavy daily background jobs run 01:00-05:00 UTC, off peak hours.
           maintenance_window_start = 1;
