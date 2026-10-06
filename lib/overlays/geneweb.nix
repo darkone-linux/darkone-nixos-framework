@@ -1,10 +1,10 @@
-# Overlay temporaire : expose `pkgs.geneweb` depuis la PR nixpkgs#522751
-# tant qu'elle n'est pas mergée dans `nixos-unstable`.
+# Temporary overlay: exposes `pkgs.geneweb` from nixpkgs PR #522751 until it
+# lands in `nixos-unstable`.
 #
-# :::tip
-# À supprimer une fois la PR fusionnée : la disparition de l'input
-# `nixpkgs-geneweb` dans `flake.nix` rend ce fichier mort, et `pkgs.geneweb`
-# devient naturellement fourni par le tree `nixpkgs` principal.
+# :::tip[Cleanup]
+# Drop it once the PR is merged: without the `nixpkgs-geneweb` input of
+# `flake.nix` this file is dead, and the main `nixpkgs` tree provides
+# `pkgs.geneweb`.
 # :::
 
 { nixpkgs-geneweb }:
@@ -12,9 +12,8 @@
 system: _final: _prev:
 let
 
-  # Réimport ciblé du tree PR pour ce `system`. `allowUnfree` suit la
-  # politique du framework (cf. `mk-configuration.nix:nixpkgsFor`) pour que
-  # la closure de `geneweb` puisse tirer ses deps OCaml sans friction.
+  # The PR tree for this `system`. `allowUnfree` follows the framework policy
+  # (cf. `nixpkgsFor` in `mk-configuration.nix`).
   pkgs-geneweb = import nixpkgs-geneweb {
     inherit system;
     config.allowUnfree = true;
@@ -22,8 +21,7 @@ let
 in
 {
 
-  # Les 3 deps OCaml (calendars, unidecode, not-ocamlfind) sont tirées
-  # transitivement via la closure de `geneweb` : pas d'exposition top-level
-  # nécessaire.
+  # Its 3 OCaml deps (calendars, unidecode, not-ocamlfind) come through the
+  # `geneweb` closure: no top-level exposure needed.
   inherit (pkgs-geneweb) geneweb;
 }

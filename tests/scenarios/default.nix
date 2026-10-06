@@ -8,7 +8,7 @@
 # stub — made `nix flake check` report the scenario as PASSING, hiding the
 # coverage gap behind a green tick.
 #
-# TODO: réorganiser les scénarios (home manager, profiles, combinaisons...)
+# TODO: reorganise the scenarios (home manager, profiles, combinations...)
 
 { pkgs, inputs }:
 let

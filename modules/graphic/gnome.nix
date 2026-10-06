@@ -328,11 +328,9 @@ in
       sushi.enable = true; # Files preview in Nautilus
     };
 
-    # LocalSearch (ex-Tracker) flushe sa base sur SIGTERM et peut retenir
-    # user@.service jusqu'à 90 s au halt (indexation lourde sur postes dev).
-    # Il journalise sa progression et reprend au boot suivant : on borne son
-    # arrêt à 5 s pour ne pas retarder l'extinction (pire cas = ré-index
-    # incrémental des fichiers modifiés entre-temps).
+    # LocalSearch (ex-Tracker) flushes its base on SIGTERM and can hold
+    # user@.service up to 90s at halt. It resumes at the next boot: its stop
+    # is bounded to 5s (worst case: incremental re-index of changed files).
     systemd.user.services.localsearch-3 = {
       overrideStrategy = "asDropin";
       serviceConfig.TimeoutStopSec = 5;

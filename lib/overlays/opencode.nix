@@ -1,15 +1,14 @@
-# Overlay temporaire : épingle `pkgs.opencode`/`pkgs.opencode-desktop` à
-# 1.18.29 depuis `nixpkgs-opencode` (nixpkgs juste avant #561612).
+# Temporary overlay: pins `pkgs.opencode`/`pkgs.opencode-desktop` to 1.18.29
+# from `nixpkgs-opencode` (nixpkgs right before #561612).
 #
 # :::caution[Why]
-# 1.18.30 plante sur chaque prompt (`SystemPrompt.environment` TypeError,
-# régression upstream). 1.18.29 est la dernière version connue qui fonctionne.
+# 1.18.30 crashes on every prompt (`SystemPrompt.environment` TypeError,
+# upstream regression). 1.18.29 is the last version known to work.
 # :::
 #
-# :::tip
-# À supprimer une fois un correctif publié amont : repasser `pkgs.opencode`
-# par le tree `nixpkgs` principal et retirer l'input `nixpkgs-opencode`
-# (cf. `flake.nix`).
+# :::tip[Cleanup]
+# Drop it once a fix is released upstream: take `pkgs.opencode` from the main
+# `nixpkgs` tree again and remove the `nixpkgs-opencode` input (cf. `flake.nix`).
 # :::
 
 { nixpkgs-opencode }:

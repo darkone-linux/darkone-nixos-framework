@@ -713,7 +713,7 @@ in
     # TODO: Complete GH configuration for the current user.
     programs.gh.enable = lib.mkDefault (cfg.enableDeveloper || cfg.enableDnfDeveloper);
 
-    # find moderne écrit en Rust https://github.com/sharkdp/fd
+    # Modern find, written in Rust: https://github.com/sharkdp/fd
     programs.fd.enable = lib.mkDefault cfg.enableTools;
 
     #============================================================================

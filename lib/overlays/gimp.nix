@@ -1,14 +1,13 @@
-# Overlay : reconstruit `pkgs.gimp` sans `__structuredAttrs`.
+# Overlay: rebuilds `pkgs.gimp` without `__structuredAttrs`.
 #
-# :::caution[Pourquoi]
-# Le `__structuredAttrs = true` hérité d'amont casse le build de `gimp`
-# (variables d'environnement / hook attendant l'ancien format d'attributs).
-# On force `__structuredAttrs = false` pour retomber sur le comportement qui
-# construit correctement le paquet.
+# :::caution[Why]
+# The `__structuredAttrs = true` inherited from upstream breaks the `gimp`
+# build (environment variables / hooks expecting the old attribute format).
+# Forcing it off falls back on the behaviour that builds the package.
 # :::
 #
 # :::tip[Cleanup]
-# À supprimer dès qu'amont rend `gimp` compatible `__structuredAttrs`.
+# Drop it once upstream makes `gimp` `__structuredAttrs`-clean.
 # :::
 
 _final: prev: {

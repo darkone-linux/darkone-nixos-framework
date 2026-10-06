@@ -1,18 +1,18 @@
-# Service test : GeneWeb sur un host "server" (core + sops réel).
+# Service test: GeneWeb on a "server" host (core + real sops).
 #
-# Couverture :
-#   - `geneweb.service` (unité principale) est active
-#   - toute unité `geneweb-*` chargée est active — détecte un split d'unités
-#     upstream sans épingler une révision nixpkgs précise
-#   - le service répond en HTTP sur le port 2317
+# Coverage:
+#   - `geneweb.service` (main unit) is active
+#   - every loaded `geneweb-*` unit is active: catches an upstream unit split
+#     without pinning a nixpkgs revision
+#   - the service answers HTTP on port 2317
 #
-# Hors scope (couvert ailleurs ou optionnel) :
-#   - caddy reverse proxy : vit sur la gateway en topo réelle, pas sur le host geneweb
-#   - bases généalogiques : `services.geneweb.databases` vide ici → pas de
-#     `geneweb-init.service` à attendre. Activer si l'on veut couvrir
-#     l'initialisation déclarative.
+# Out of scope (covered elsewhere, or optional):
+#   - caddy reverse proxy: lives on the gateway in the real topology
+#   - genealogy bases: `services.geneweb.databases` is empty here, hence no
+#     `geneweb-init.service` to wait for. Enable it to cover the declarative
+#     initialisation.
 #
-# Boote server1 uniquement ; gw1 reste data-only.
+# Boots server1 only; gw1 stays data-only.
 
 { pkgs, inputs }:
 (import ../../lib/mkNodeTest.nix { inherit pkgs inputs; }) {
@@ -20,21 +20,20 @@
   workspace = ../../workspaces/node/configs/server-geneweb;
   host = "server1";
 
-  # `services.geneweb.interface` défaut = null → gwd écoute sur toutes
-  # les interfaces. Pas besoin de `lan = true`.
+  # `services.geneweb.interface` defaults to null: gwd listens on every
+  # interface, no need for `lan = true`.
 
   testScript = ''
     start_all()
 
     server1.wait_for_unit("multi-user.target")
 
-    # Unité principale du module upstream.
+    # Main unit of the upstream module.
     server1.wait_for_unit("geneweb.service")
     server1.succeed("systemctl is-active geneweb.service")
 
-    # Auto-découverte : toute unité `geneweb-*` chargée doit être verte.
-    # Couvre un éventuel split (ex. `geneweb-init.service`) sans épingler
-    # de version nixpkgs.
+    # Auto-discovery: every loaded `geneweb-*` unit must be green. Covers a
+    # possible split (e.g. `geneweb-init.service`) without pinning nixpkgs.
     server1.succeed(
         "set -e; "
         "for u in $(systemctl list-units 'geneweb-*.service' "
@@ -44,8 +43,8 @@
         "done"
     )
 
-    # HTTP entrypoint : gwd écoute sur 2317 par défaut. La racine renvoie
-    # la page de sélection des bases (200 même si aucune base déclarée).
+    # HTTP entrypoint: gwd listens on 2317 by default. The root serves the
+    # base selection page (200 even without any declared base).
     server1.wait_for_open_port(2317)
     server1.wait_until_succeeds(
         "curl -fsSL -o /dev/null -w '%{http_code}' "

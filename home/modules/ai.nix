@@ -270,7 +270,7 @@ in
       # Rust dev stack — needed to build/audit AI tools and system code.
       cargo
       cargo-audit
-      cargo-expand # macro expansion (utile pour débugger)
+      cargo-expand # macro expansion (useful to debug)
       cargo-nextest # lanceur de tests plus rapide que cargo test
       cargo-watch # rebuild/retest on change
       clippy
@@ -320,7 +320,7 @@ in
 
       # Ollama CLI + model manager, only useful when ollama runs locally.
       (lib.mkIf hasLocalAI gollama)
-      (lib.mkIf hasLocalAI pkgs-stable.ollama) # stable = plus récent
+      (lib.mkIf hasLocalAI pkgs-stable.ollama) # stable is newer here
 
       # Per-agent packages.
       (lib.mkIf cfg.enableAider aider-chat)
