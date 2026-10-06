@@ -17,7 +17,7 @@ in
     games = {
       enable = lib.mkDefault true;
       enableTeenager = lib.mkDefault graphic;
-      enableCli = true;
+      enableCli = lib.mkDefault true;
     };
     education = {
       enable = lib.mkDefault graphic;

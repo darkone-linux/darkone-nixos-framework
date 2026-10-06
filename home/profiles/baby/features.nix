@@ -5,6 +5,7 @@ let
   graphic = osConfig.darkone.graphic.gnome.enable;
 in
 {
+  darkone.home.gnome.hideTechnicalIcons = lib.mkDefault true;
   darkone.home.games = {
     enable = lib.mkDefault graphic;
     enableBaby = lib.mkDefault graphic;

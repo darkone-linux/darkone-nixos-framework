@@ -6,6 +6,7 @@ let
 in
 {
   darkone.home = {
+    gnome.hideTechnicalIcons = lib.mkDefault true;
     games = {
       enable = lib.mkDefault true;
       enableChild = lib.mkDefault graphic;

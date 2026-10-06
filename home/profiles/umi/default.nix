@@ -5,10 +5,10 @@
 # the `darkone.host.umi` profile (Cinnamon X11 session, Talon, Tobii); on any
 # other host, GNOME Wayland with its native accessibility.
 # :::
-{
 
+{ lib, ... }: {
   imports = [ ./../normal ];
 
   # Multimodal input: Talon autostart (voice, gaze) + Onboard (touch)
-  darkone.home.umi.enable = true;
+  darkone.home.umi.enable = lib.mkDefault true;
 }
