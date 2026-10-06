@@ -67,7 +67,7 @@ in
     darkone.home.office.enableTools = mkEnableOption "Little (gnome) tools (iotas, dialect, etc.)";
     darkone.home.office.enableProductivity = mkEnableOption "Productivity apps (obsidian, time mgm, projects, etc.)";
     darkone.home.office.enableCommunication = mkEnableOption "Communication tools";
-    darkone.home.office.enableOffice = mkEnableOption "Office packages (libreoffice, huntspell, fonts...)";
+    darkone.home.office.enableOffice = mkEnableOption "Office packages (libreoffice, hunspell, fonts...)";
     darkone.home.office.enableFirefox = mkEnableOption "Enable firefox";
     darkone.home.office.enableLibreWolf = mkEnableOption "Enable LibreWolf (firefox alternative)";
     darkone.home.office.enableChromium = mkEnableOption "Enable chromium";
@@ -114,11 +114,11 @@ in
     };
 
     # TODO: auto-lang
-    darkone.home.office.huntspellLang = mkOption {
+    darkone.home.office.hunspellLang = mkOption {
       type = types.str;
       default = "fr-moderne";
       example = "en-us";
-      description = "[Huntspell Lang](https://mynixos.com/nixpkgs/packages/hunspellDicts)";
+      description = "[Hunspell dictionary](https://mynixos.com/nixpkgs/packages/hunspellDicts)";
     };
 
     # Matrix desktop clients auto-start (cf. office/matrix.nix)
@@ -244,7 +244,7 @@ in
       (mkIf cfg.enableFirefox gnomeExtensions.pip-on-top)
       (mkIf cfg.enableFirefox shadowfox)
       (mkIf cfg.enableOffice hunspell)
-      (mkIf cfg.enableOffice hunspellDicts.${cfg.huntspellLang})
+      (mkIf cfg.enableOffice hunspellDicts.${cfg.hunspellLang})
       (mkIf cfg.enableOffice inter) # Inter fonts
       (mkIf cfg.enableOffice liberation_ttf) # Liberation fonts
       (mkIf cfg.enableOffice libreoffice-stable) # Force visible icon theme
