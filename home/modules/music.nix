@@ -30,7 +30,7 @@
 let
   cfg = config.darkone.home.music;
   #graphic = osConfig.darkone.graphic.gnome.enable;
-  hasNfsServer = osConfig.darkone.service.nfs.enable;
+  hasNfs = osConfig.darkone.service.nfs.enable;
   isNfsClient =
     (dnfLib.resolveNfs {
       inherit host hosts zone;
@@ -41,7 +41,6 @@ let
       "/mnt/nfs/homes/${config.home.username}/Music"
     else
       "${osConfig.darkone.system.srv-dirs.homes}/${config.home.username}/Music";
-  mpdAddress = config.services.mpd.network.listenAddress;
 in
 {
   options = {
@@ -109,10 +108,9 @@ in
       timidity
     ];
 
-    # MPD
+    # MPD, MPD_HOST / MPD_PORT exported by the HM module
     services.mpd = lib.mkIf cfg.enableMpd {
       enable = true;
-      enableSessionVariables = true;
       network.listenAddress = "0.0.0.0";
       extraConfig = ''
         audio_output {
@@ -129,7 +127,7 @@ in
         max_connections "20"
       '';
       musicDirectory =
-        if hasNfsServer then
+        if hasNfs then
           mpdMusicDir
         else
           (
@@ -150,10 +148,6 @@ in
         message = "services.mpd-mpris and services.mpdris2 both claim the MPRIS bus name org.mpris.MediaPlayer2.mpd; enable only one.";
       }
     ];
-    home.sessionVariables = lib.mkIf cfg.enableMpd {
-      MPD_HOST = mpdAddress;
-      MPD_PORT = toString config.services.mpd.network.port;
-    };
 
     # TODO: Users in audio group
     # LETIN: all-users = builtins.attrNames config.users.users;
