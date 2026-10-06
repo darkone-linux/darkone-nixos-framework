@@ -201,6 +201,41 @@ in
     expected = [ "who-knows-what" ];
   };
 
+  # One unit per bundle rule: a certificate never pairs with the key of
+  # another service, and an existing pair never blocks a new one.
+  testPlanOneUnitPerBundleRule = {
+    expr =
+      (dnfLib.mkSecretPlanWith
+        [
+          {
+            pattern = "a-tls-(chain|key)";
+            gen = "x509";
+          }
+          {
+            pattern = "b-tls-(chain|key)";
+            gen = "x509";
+          }
+        ]
+        [ "b-tls-key" "a-tls-chain" "b-tls-chain" "a-tls-key" ]
+      ).generate;
+    expected = [
+      {
+        gen = "x509";
+        keys = [
+          "a-tls-chain"
+          "a-tls-key"
+        ];
+      }
+      {
+        gen = "x509";
+        keys = [
+          "b-tls-chain"
+          "b-tls-key"
+        ];
+      }
+    ];
+  };
+
   testPlanEmpty = {
     expr = mkSecretPlan [ ];
     expected = {

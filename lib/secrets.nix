@@ -27,10 +27,14 @@ let
     filter
     findFirst
     groupBy
+    head
     mapAttrsToList
     sort
     unique
     ;
+
+  # First rule of `rules` matching `key`, or null.
+  matchRule = rules: key: findFirst (r: builtins.match r.pattern key != null) null rules;
 in
 rec {
 
@@ -48,9 +52,8 @@ rec {
   ];
 
   # Generators emitting SEVERAL sops entries at once: a certificate and its
-  # private key are born together or they simply do not match. Their entries
-  # are grouped into a single generation unit, produced only when every member
-  # is missing (a half-present pair is left untouched and reported).
+  # private key are born together or they do not match. Each rule using one is
+  # a single unit, produced only when every member is missing.
   secretBundles = [ "x509" ];
 
   # Ordered classification rules, first match wins. Patterns are full-string
@@ -320,39 +323,46 @@ rec {
   ];
 
   # Generator id for one sops key, or `null` when no rule matches it.
-  classifySecret =
-    key:
-    let
-      rule = findFirst (r: builtins.match r.pattern key != null) null secretRules;
-    in
-    if rule == null then null else rule.gen;
+  classifySecret = key: (matchRule secretRules key).gen or null;
 
   # Generation plan of the sops keys a fleet declares, sorted and deduplicated
   # for a stable shell output:
-  # - `generate`: `{ gen; keys; }` units, all bundle keys in a single one;
+  # - `generate`: `{ gen; keys; }` units, one per bundle rule;
   # - `manual`: keys DNF must never invent;
   # - `unknown`: keys no rule matches yet.
-  mkSecretPlan =
-    keys:
+  mkSecretPlan = mkSecretPlanWith secretRules;
+
+  # `mkSecretPlan` against an explicit rule list (unit-test seam).
+  mkSecretPlanWith =
+    rules: keys:
     let
-      classified = map (key: {
-        inherit key;
-        gen = classifySecret key;
-      }) (sort (a: b: a < b) (unique keys));
+      classified = map (
+        key:
+        let
+          rule = matchRule rules key;
+        in
+        {
+          inherit key;
+          gen = rule.gen or null;
+          pattern = rule.pattern or null;
+        }
+      ) (sort (a: b: a < b) (unique keys));
       known = filter (c: c.gen != null && c.gen != "external") classified;
-      single = filter (c: !(elem c.gen secretBundles)) known;
-      grouped = mapAttrsToList (gen: cs: {
-        inherit gen;
+      isBundle = c: elem c.gen secretBundles;
+
+      # Grouped by rule: two certificate pairs never share one unit.
+      bundles = mapAttrsToList (_: cs: {
+        inherit (head cs) gen;
         keys = map (c: c.key) cs;
-      }) (groupBy (c: c.gen) (filter (c: elem c.gen secretBundles) known));
+      }) (groupBy (c: c.pattern) (filter isBundle known));
     in
     {
       generate =
         map (c: {
           inherit (c) gen;
           keys = [ c.key ];
-        }) single
-        ++ grouped;
+        }) (filter (c: !isBundle c) known)
+        ++ bundles;
       manual = map (c: c.key) (filter (c: c.gen == "external") classified);
       unknown = map (c: c.key) (filter (c: c.gen == null) classified);
     };

@@ -112,6 +112,7 @@ in
     secretRules
     classifySecret
     mkSecretPlan
+    mkSecretPlanWith
     ;
   inherit (uplinks)
     primaryMetric
