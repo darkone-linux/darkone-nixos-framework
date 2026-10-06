@@ -36,23 +36,15 @@ rec {
 
   # Generator ids the shell side knows how to run. Kept as data so a typo in a
   # rule below is caught by the unit tests instead of at install time.
-  #
-  # - `hex16` / `hex32` : `openssl rand -hex <n>`
-  # - `b64`             : `openssl rand -base64 24` (account-style passwords)
-  # - `bcrypt`          : a `b64` password + its bcrypt hash (see below)
-  # - `b64url32`        : 32 URL-safe base64 bytes (oauth2-proxy cookie key)
-  # - `s3-key-id`       : `GK` + 12 hex bytes (Garage access-key format)
-  # - `rsa4096`         : PKCS#8 RSA private key
-  # - `x509`            : self-signed certificate + its key (see `secretBundles`)
   secretGenerators = [
-    "b64"
-    "b64url32"
-    "bcrypt"
-    "hex16"
-    "hex32"
-    "rsa4096"
-    "s3-key-id"
-    "x509"
+    "b64" # `openssl rand -base64 24` (account-style passwords)
+    "b64url32" # 32 URL-safe base64 bytes (oauth2-proxy cookie key)
+    "bcrypt" # a `b64` password + its bcrypt hash (see below)
+    "hex16" # `openssl rand -hex 16`
+    "hex32" # `openssl rand -hex 32`
+    "rsa4096" # PKCS#8 RSA private key
+    "s3-key-id" # `GK` + 12 hex bytes (Garage access-key format)
+    "x509" # self-signed certificate + its key (see `secretBundles`)
   ];
 
   # Generators emitting SEVERAL sops entries at once: a certificate and its
@@ -335,16 +327,11 @@ rec {
     in
     if rule == null then null else rule.gen;
 
-  # Turn the sops keys a fleet declares into a generation plan:
-  #
-  # - `generate`: one unit per value to create, `{ gen, keys }`. A bundle
-  #   generator yields a single unit holding all of its keys;
-  # - `manual`  : keys DNF must never invent;
-  # - `unknown` : keys matching no rule — a module declares a secret the
-  #   registry has not been taught about yet.
-  #
-  # Sorted and deduplicated: the plan is consumed by a shell script whose
-  # output must not depend on evaluation order.
+  # Generation plan of the sops keys a fleet declares, sorted and deduplicated
+  # for a stable shell output:
+  # - `generate`: `{ gen; keys; }` units, all bundle keys in a single one;
+  # - `manual`: keys DNF must never invent;
+  # - `unknown`: keys no rule matches yet.
   mkSecretPlan =
     keys:
     let

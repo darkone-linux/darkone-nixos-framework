@@ -15,12 +15,18 @@
 #   but only one may be declared per host — enforced by `mkHostProfileServicesAssertions`.
 # :::
 
-{ lib }: {
-  # Build a plain attrset activating `darkone.service.*` options for a profile.
-  #
-  # Returns `{ darkone.service.<module> = { <opt> = true; ... }; ... }`.
-  # Only emits `true` — never assigns `false`, so module defaults apply and
-  # downstream `lib.mkForce` overrides remain valid.
+{ lib }:
+let
+
+  # `triggers` of a `config/modules.nix` entry for one host profile.
+  profileTriggers =
+    profileName: moduleConfig: moduleConfig.activation.profiles.${profileName}.triggers or { };
+in
+{
+
+  # `{ darkone.service.<module>.<opt> = true; }` for every option the profile
+  # triggers on `host`. Never assigns `false`: module defaults still apply and
+  # downstream `lib.mkForce` overrides stay valid.
   triggerProfileServices =
     {
       profileName,
@@ -29,12 +35,14 @@
     }:
     let
       hostServices = host.services or { };
-      mkHigherDefault = lib.mkOverride 200; # default 1000, higherDefault 200, normal 100, force 50
+
+      # Above `mkDefault` (1000), below a plain definition (100).
+      mkHigherDefault = lib.mkOverride 200;
 
       activateModule =
         moduleName: moduleConfig:
         let
-          triggers = ((moduleConfig.activation or { }).profiles.${profileName} or { }).triggers or { };
+          triggers = profileTriggers profileName moduleConfig;
           alwaysOpts = triggers.always or [ ];
           keyOpts = lib.flatten (
             lib.mapAttrsToList (key: opts: lib.optionals (builtins.hasAttr key hostServices) opts) (
@@ -50,11 +58,8 @@
     in
     lib.foldl' lib.recursiveUpdate { } (lib.mapAttrsToList activateModule modules);
 
-  # Build NixOS assertions ensuring no host declares two `host.services` keys
-  # that both activate the same module in the given profile.
-  #
-  # Example: `restic` and `backuped` both activate the `restic` module —
-  # declaring both in `host.services` is an error.
+  # Assertions: no host declares two `host.services` keys activating the same
+  # module in the profile (e.g. both `restic` and `backuped`).
   mkHostProfileServicesAssertions =
     {
       profileName,
@@ -68,8 +73,7 @@
       lib.mapAttrsToList (
         moduleName: moduleConfig:
         let
-          triggers = ((moduleConfig.activation or { }).profiles.${profileName} or { }).triggers or { };
-          keys = builtins.attrNames (triggers.keys or { });
+          keys = builtins.attrNames ((profileTriggers profileName moduleConfig).keys or { });
           matchingKeys = builtins.filter (key: builtins.hasAttr key hostServices) keys;
         in
 

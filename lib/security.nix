@@ -1,4 +1,4 @@
-# Helpers for the security modules (ANSSI rules).
+# DNF — helpers for the security modules (ANSSI rules).
 
 { lib }:
 let
@@ -12,14 +12,9 @@ in
 {
   inherit levelMapping;
 
-  # Activation predicate for an ANSSI rule.
-  #
-  # A rule is active iff:
-  #   - the security module is enabled;
-  #   - current level >= rule severity;
-  #   - the category is compatible (base = universal);
-  #   - none of the rule tags is in `excludes`;
-  #   - no explicit exception exists for this identifier.
+  # An ANSSI rule is active iff the module is enabled, the level reaches the
+  # rule severity, the category matches (`base` = universal), no rule tag is
+  # in `excludes` and no exception names the rule.
   mkIsActive =
     cfg: ruleId: severity: category: tags:
     cfg.enable
@@ -28,14 +23,9 @@ in
     && lib.all (tag: !(lib.elem tag cfg.excludes)) tags
     && !(lib.hasAttr ruleId cfg.exceptions);
 
-  # ANSSI systemd hardening baseline (R63), reused by R52/R55 too.
-  #
-  # Returns a `serviceConfig` attrset to merge into a unit. Covers
-  # ProtectSystem/ProtectHome confinement, RuntimeDirectoryMode=0750 (R52),
-  # PrivateTmp (R55), a `@system-service` syscall filter and an empty
-  # capability set. `MemoryDenyWriteExecute` is the only W^X knob that breaks
-  # JIT runtimes (Java, V8, .NET, LuaJIT, Wasm); `needsJit = true` (or the
-  # `needs-jit` exclude tag, resolved by the caller) drops it.
+  # `serviceConfig` hardening baseline (R63, with R52 runtime dir and R55
+  # PrivateTmp). `needsJit` drops `MemoryDenyWriteExecute`, the one knob that
+  # breaks JIT runtimes (Java, V8, .NET, LuaJIT, Wasm).
   mkHardenedServiceConfig =
     {
       needsJit ? false,

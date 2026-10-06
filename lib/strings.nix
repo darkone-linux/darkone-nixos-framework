@@ -1,6 +1,10 @@
-# Strings manipulations
+# DNF — string helpers
+#
+# Pure helpers for text and Caddyfile fragments.
 
 { lib }: rec {
+
+  # `"wiki"` -> `"Wiki"`.
   ucFirst =
     str:
     lib.concatStrings [
@@ -8,6 +12,8 @@
       (lib.substring 1 (-1) str)
     ];
 
+  # Runs of blank lines collapsed to one, then trimmed: tidies Caddyfile
+  # fragments whose optional sections interpolate to nothing.
   cleanString =
     s:
     let
@@ -28,17 +34,10 @@
     in
     if parts == null then null else builtins.head parts;
 
-  # Caddyfile fragment producing the baseline DNF security headers, a
-  # gzip directive and (optionally) a `request_body` upload-size cap.
-  # Extra service-specific headers can be appended via `extraHeaders`.
+  # Caddyfile fragment: baseline DNF security headers (+ `extraHeaders`), gzip
+  # and, with `maxUploadSize` (e.g. `"4GB"`), a `request_body` size cap.
   #
-  # Usage:
-  #   proxy.extraConfig = dnfLib.mkCaddySecurityHeaders {
-  #     maxUploadSize = "4GB";
-  #     extraHeaders = ''
-  #       X-Content-Type-Options "nosniff"
-  #     '';
-  #   };
+  #   proxy.extraConfig = dnfLib.mkCaddySecurityHeaders { maxUploadSize = "4GB"; };
   mkCaddySecurityHeaders =
     {
       maxUploadSize ? null,

@@ -51,6 +51,7 @@ let
     getHostArch
     getHostBoard
     mkNodeArgs
+    rpiBoards
     rpiBoardModules
     ;
 
@@ -65,46 +66,37 @@ let
     inherit workDir;
   };
 
-  # Temporary overlay: injects `pkgs.geneweb` from nixpkgs PR #522751. Drop it
-  # together with the `nixpkgs-geneweb` input (cf. flake.nix). Applied through
-  # `nixpkgs.overlays` in `mkNode` rather than in `nixpkgsFor`: `nixosSystem`
-  # rebuilds its own `pkgs`, so only an overlay passed as a module reaches the
-  # `pkgs` the modules actually see.
+  # Temporary: `pkgs.geneweb` from nixpkgs PR #522751. Drop it together with
+  # the `nixpkgs-geneweb` input (cf. flake.nix).
   genewebOverlay = import ./overlays/geneweb.nix { inherit nixpkgs-geneweb; };
 
-  # Compat overlay: forces `__structuredAttrs = false` on `gimp` (build broken
-  # otherwise). Drop it once upstream makes `gimp` `__structuredAttrs`-clean.
+  # Temporary: `__structuredAttrs = false` on `gimp`, whose build breaks
+  # otherwise. Drop once upstream makes it `__structuredAttrs`-clean.
   gimpOverlay = import ./overlays/gimp.nix;
 
-  # logseq overlay: official AppImage instead of the broken electron-forge
-  # build (nixpkgs#535206). Drop once upstream fixes the source build.
+  # Temporary: logseq official AppImage, the electron-forge build is broken
+  # (nixpkgs#535206). Drop once upstream fixes the source build.
   logseqOverlay = import ./overlays/logseq.nix;
 
-  # outline overlay: corrected `yarn-fix.patch` + hashes for 1.10.1 (nixpkgs
-  # source fetch fails). Inert on other versions; drop once nixpkgs is fixed.
+  # Temporary: outline 1.10.1 `yarn-fix.patch` + hashes (nixpkgs source fetch
+  # fails). Inert on other versions; drop once nixpkgs is fixed.
   outlineOverlay = import ./overlays/outline.nix;
 
-  # Talon overlay: `pkgs.talon` from nix-community/talon-nix (x86_64 only,
-  # attribute absent elsewhere). Consumed by UMI (multimodal input) host profiles.
+  # `pkgs.talon` from nix-community/talon-nix, x86_64 only (absent elsewhere),
+  # for UMI (multimodal input) host profiles.
   talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
 
-  # OpenCode overlay: pins `pkgs.opencode`/`pkgs.opencode-desktop` to 1.18.29
-  # (1.18.30 crashes on every prompt, upstream regression). Drop it once a
-  # fixed release lands in `nixos-unstable`.
+  # Temporary: `pkgs.opencode`/`pkgs.opencode-desktop` pinned to 1.18.29, as
+  # 1.18.30 crashes on every prompt. Drop once a fix lands in `nixos-unstable`.
   opencodeOverlay = import ./overlays/opencode.nix { inherit nixpkgs-opencode; };
 
-  # DNF-only packages (`pkgs/`), absent from nixpkgs. Permanent until each one
-  # is upstreamed — unrelated to the temporary patch overlays above.
+  # DNF-only packages (`pkgs/`), absent from nixpkgs: permanent until each one
+  # is upstreamed.
   dnfPackagesOverlay = import ../pkgs/overlay.nix;
 
-  # `pkgs.dnf-generator` for modules running `just generate` unattended
-  # (`admin/fleet-update.nix`). The input only builds on x86_64-linux (cf.
-  # `flake.nix` packages output); the attribute is simply absent elsewhere,
-  # same pattern as `overlays/talon.nix`. Consumers must guard their usage
-  # (`pkgs.dnf-generator or null`). Curried on `system` (not read from
-  # `final`): forcing `final.stdenv` from inside an overlay of the node's own
-  # nixpkgs instance (test-driver nodes set `pkgs.pkgsReadOnly = false`) is
-  # self-referential and triggers infinite recursion.
+  # `pkgs.dnf-generator` for `admin/fleet-update.nix`, x86_64 only: absent
+  # elsewhere, hence `pkgs.dnf-generator or null` on the consumer side. Curried
+  # on `system`: reading `final.stdenv` recurses on test-driver nodes.
   dnfGeneratorOverlay =
     system: _final: _prev:
     nixpkgs.lib.optionalAttrs (inputs.dnf-generator.packages ? ${system}) {
@@ -218,11 +210,8 @@ let
         # inert while `services.geneweb.enable = false`.
         "${nixpkgs-geneweb}/nixos/modules/services/web-apps/geneweb.nix"
 
-        # `dnfPackagesOverlay` (`pkgs/`) and `dnfGeneratorOverlay` are permanent;
-        # the others are temporary, dropped with their upstream imports/inputs —
-        # geneweb (nixpkgs PR #522751), gimp (`__structuredAttrs`), logseq
-        # (AppImage), outline (1.10.1 patch/hashes), talon (x86_64 only),
-        # opencode (pinned to 1.18.29, 1.18.30 crashes).
+        # Overlays go through a module: `nixosSystem` rebuilds its own `pkgs`,
+        # which `nixpkgsFor` never reaches. Each one is documented above.
         {
           nixpkgs.overlays = [
             dnfPackagesOverlay
@@ -438,12 +427,6 @@ let
   # nixos-raspberrypi wrapper (no colmena here), which applies the RPi overlays
   # and injects the `nixos-raspberrypi` specialArg. The `sd-image` module yields
   # `config.system.build.sdImage`; `workDir` forwards the consumer admin pubkey.
-  rpiBoards = [
-    "raspberry-pi-5"
-    "raspberry-pi-4"
-    "raspberry-pi-3"
-    "raspberry-pi-02"
-  ];
   sdImageNixosConfigurations = builtins.listToAttrs (
     map (board: {
       name = "sd-image-${board}";
@@ -480,15 +463,9 @@ in
   nixosConfigurations =
     isoNixosConfigurations // sdImageNixosConfigurations // consumerNixosConfigurations;
 
-  # Internal-secrets generation plan consumed by `just configure-admin-host`
-  # (`just/scripts/generate-secrets.sh`).
-  #
-  # The authority for *which* secrets the fleet needs is each host's own
-  # `sops.secrets`, so a service enabled anywhere brings its entries along with
-  # no second registry to maintain. `key` (not the attribute name) is what
-  # addresses the YAML: aliases such as `oidc-secret-internal-service` collapse
-  # onto the single source entry they point at. ISO/SD-image variants are left
-  # out: they carry no consumer secret.
+  # Plan of `just configure-admin-host` (`just/scripts/generate-secrets.sh`).
+  # Each host's `sops.secrets` is the authority on which secrets exist; `key`
+  # addresses the YAML, so aliases collapse onto their source entry.
   secretsPlan = dnfLibFor.x86_64-linux.mkSecretPlan (
     nixpkgs.lib.concatMap (
       node: map (secret: secret.key) (nixpkgs.lib.attrValues node.config.sops.secrets)

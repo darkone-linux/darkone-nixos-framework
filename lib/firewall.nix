@@ -14,38 +14,25 @@ let
 in
 rec {
 
-  # Path inside `networking.firewall` selecting the internal interface to
-  # which a service should be exposed. Returns `[]` for hosts that have no
-  # internal interface (eg. external clients without VPN).
-  #
-  # Usage:
-  #   networking.firewall = lib.setAttrByPath
-  #     (dnfLib.getInternalInterfaceFwPath host zone)
-  #     { allowedTCPPorts = [ port ]; };
+  # `networking.firewall` path of the internal interface of `host`: the LAN on
+  # a gateway, the tailnet on a VPN client, `[ ]` (root) otherwise.
   getInternalInterfaceFwPath =
     host: zone:
-    if (isGateway host zone) then
+    if isGateway host zone then
       [
         "interfaces"
         constants.lanInterface
       ]
+    else if isVpnClient host then
+      [
+        "interfaces"
+        constants.vpnInterface
+      ]
     else
-      (
-        if (isVpnClient host) then
-          [
-            "interfaces"
-            constants.vpnInterface
-          ]
-        else
-          [ ]
-      );
+      [ ];
 
-  # Firewall fragment opening `ports` on the internal interface of `host`
-  # in `zone`. The port list is only effective on non-gateway hosts: on a
-  # gateway, traffic flows through the reverse proxy so the service port
-  # stays closed on the internal interface.
-  #
-  # Returns a complete `networking.firewall` fragment ready to assign:
+  # `networking.firewall` fragment opening `ports` on that interface. Left
+  # closed on a gateway: there the reverse proxy fronts the service.
   #
   #   networking.firewall = dnfLib.mkInternalFirewall host zone [ port ];
   mkInternalFirewall =

@@ -1,9 +1,8 @@
 # DNF — internal Nix library (`dnfLib`)
 #
-# Public entry point of the helpers shared across DNF NixOS modules and
-# home-manager modules. Imported once per system architecture by `flake.nix`
-# (`mkDnfLib`) and injected into modules via `specialArgs.dnfLib` /
-# `extraSpecialArgs.dnfLib`.
+# Public entry point of the helpers shared by DNF NixOS and home-manager
+# modules. Instantiated once per system by `lib/mk-configuration.nix`
+# (`dnfLibFor`), injected as `specialArgs.dnfLib` / `extraSpecialArgs.dnfLib`.
 
 { lib }:
 
@@ -51,6 +50,7 @@ in
     getHostArch
     getHostBoard
     mkNodeArgs
+    rpiBoards
     rpiBoardModules
     ;
   inherit (paths) resolveProfile resolveNixosProfile;

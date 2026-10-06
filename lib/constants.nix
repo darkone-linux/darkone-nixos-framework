@@ -10,9 +10,9 @@ let
   roamingDomain = "dnf.internal";
 in
 {
-  # Caddy storage directory (TLS certificates, ACME state).
-  # Synced between hosts by the tailscale subnet gateway, see
-  # `service/tailscale.nix`.
+
+  # Caddy storage (TLS certificates, ACME state), synced from the HCS to the
+  # zone gateways (cf. `service/tailscale.nix`).
   caddyStorage = "/var/lib/caddy/storage";
 
   # Zone-neutral DNS namespace: every zone's DNS answers the same names with

@@ -57,11 +57,6 @@ rec {
   # Several wifi links may share one radio: wpa_supplicant picks among them,
   # the interface keeps the metric of its preferred link. `standby`: radio
   # held off by the monitor while a preferred link is healthy.
-  #
-  # Usage:
-  #   mkUplinks { wanInterface = "eno0"; backupLinks = { phone = { type = "wifi"; interface = "wlp4s0"; priority = 10; }; }; }
-  #   => [ { interface = "eno0"; role = "primary"; metric = 100; standby = false; ... }
-  #        { interface = "wlp4s0"; role = "backup"; metric = 300; standby = true; links = [ "phone" ]; ... } ]
   mkUplinks =
     { wanInterface, backupLinks }:
     let

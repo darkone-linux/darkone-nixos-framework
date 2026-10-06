@@ -1,19 +1,14 @@
 # DNF — homepage section rendering
 #
-# Turns resolved service entries into homepage dashboard sections, with a
-# colour-coded marker classifying each as public/private and local/remote
-# relative to the consuming host's zone. Pure and side-effect free.
+# Turns resolved service entries into homepage dashboard sections. Pure and
+# side-effect free.
 
 { lib, constants }: {
 
-  # Build the homepage section entries for a list of services. Classifies
-  # each entry as public/private and local/remote relative to the current
-  # zone, prefixing the description with a colour-coded marker.
-  #
-  # `currentZoneName` is the zone the consuming host sits in (typically
-  # `zone.name` in the caller's scope). Each `srv` must expose
-  # `params.{title,description,zone,host,global,href,icon}` and a
-  # `displayOnHomepage` flag.
+  # Homepage entries of `services`, descriptions suffixed with `(zone:host)`
+  # and a marker: global 🟢 (in the global zone) or 🟡, private 🔵 (in
+  # `currentZoneName`) or 🟠. Each `srv` carries `displayOnHomepage` and
+  # `params.{title,description,zone,host,global,href,icon}`.
   mkHomepageSection =
     currentZoneName: services:
     map (
@@ -29,8 +24,7 @@
       {
         "${srv.params.title}" = lib.mkIf srv.displayOnHomepage {
           description = srv.params.description + mention + " " + pubPriv;
-          inherit (srv.params) href;
-          inherit (srv.params) icon;
+          inherit (srv.params) href icon;
         };
       }
     ) services;

@@ -11,112 +11,55 @@
   topology,
 }:
 let
-  inherit (lib) hasAttr hasAttrByPath;
+  inherit (lib) hasAttrByPath;
 in
 rec {
 
-  # Resolve effective service parameters by merging, in order:
-  # 1. fields explicitly set on the network service entry,
-  # 2. defaults declared by the service module,
-  # 3. derived values (FQDN, href, IP) computed from the host topology.
-  #
-  # Empty strings in defaults are treated as missing so the derived values
-  # take over (eg. `domain` falls back to the service name).
-  #
-  # Used as a building block by `extractServiceParams`.
+  # Effective parameters of `service` hosted on `serviceHost`. Each field comes
+  # from the network entry, else the module `defaults` (empty string = unset),
+  # else a value derived from the name and the host topology.
   buildServiceParams =
     serviceHost: network: service: defaults:
     let
       inherit (service) name;
       ucName = strings.ucFirst name;
-      domain =
-        if hasAttr "domain" service then
-          service.domain
-        else if (hasAttr "domain" defaults) && defaults.domain != "" then
-          defaults.domain
-        else
-          name;
-      title =
-        if hasAttr "title" service then
-          service.title
-        else if (hasAttr "title" defaults) && defaults.title != "" then
-          defaults.title
-        else
-          ucName;
-      description =
-        if hasAttr "description" service then
-          service.description
-        else if (hasAttr "description" defaults) && defaults.description != "" then
-          defaults.description
-        else
-          "${ucName} local service";
-      icon =
-        "sh-"
-        + (
-          if hasAttr "icon" service then
-            service.icon
-          else if (hasAttr "icon" defaults) && defaults.icon != "" then
-            defaults.icon
-          else
-            name
-        );
-      global =
-        if hasAttr "global" service then
-          service.global
-        else if hasAttr "global" defaults then
-          defaults.global
-        else
-          false;
-      noRobots =
-        if hasAttr "noRobots" service then
-          service.noRobots
-        else if hasAttr "noRobots" defaults then
-          defaults.noRobots
-        else
-          true;
-      zone = if hasAttr "zone" service then service.zone else serviceHost.zone;
-      host = if hasAttr "host" service then service.host else serviceHost.hostname;
+
+      # String field: an empty module default falls through to `fallback`.
+      pick =
+        key: fallback:
+        service.${key} or (if (defaults.${key} or "") != "" then defaults.${key} else fallback);
+
+      domain = pick "domain" name;
+      global = service.global or defaults.global or false;
       fqdn =
         if global then "${domain}.${serviceHost.networkDomain}" else "${domain}.${serviceHost.zoneDomain}";
-      href = (if network.coordination.enable then "https://" else "http://") + fqdn;
 
-      # IP resolution cascade:
-      # 1. value explicitly set on the service or its defaults,
-      # 2. on the HCS itself, services answer on loopback (127.0.0.1),
-      # 3. external host registered in our tailnet -> reach via vpnIp,
-      # 4. plain host in a local zone -> reach via host.ip.
-      ip =
-        if hasAttr "ip" service then
-          service.ip
-        else if (hasAttr "ip" defaults) && defaults.ip != "" then
-          defaults.ip
-        else if
-          (hasAttrByPath [ "coordination" "hostname" ] network)
-          && (serviceHost.hostname == network.coordination.hostname)
-        then
+      # On the HCS services answer on loopback; elsewhere the tailnet IP wins.
+      isOnHcs =
+        hasAttrByPath [ "coordination" "hostname" ] network
+        && serviceHost.hostname == network.coordination.hostname;
+      topologyIp =
+        if isOnHcs then
           "127.0.0.1"
-        else if (hasAttr "vpnIp" serviceHost) && serviceHost.vpnIp != "" then
+        else if topology.isVpnClient serviceHost then
           serviceHost.vpnIp
         else
           serviceHost.ip;
     in
     {
-      inherit domain;
-      inherit title;
-      inherit description;
-      inherit icon;
-      inherit global;
-      inherit noRobots;
-      inherit zone;
-      inherit host;
-      inherit fqdn;
-      inherit href;
-      inherit ip;
+      inherit domain global fqdn;
+      title = pick "title" ucName;
+      description = pick "description" "${ucName} local service";
+      icon = "sh-" + pick "icon" name;
+      noRobots = service.noRobots or defaults.noRobots or true;
+      zone = service.zone or serviceHost.zone;
+      host = service.host or serviceHost.hostname;
+      href = (if network.coordination.enable then "https://" else "http://") + fqdn;
+      ip = pick "ip" topologyIp;
     };
 
-  # Look up a service entry matching the (host, zone) pair and call
-  # `buildServiceParams` on it. When no entry is found, an empty attrset is
-  # passed so all values fall back on `defaults` and topology.
+  # `buildServiceParams` on the network entry of `serviceName` on this host;
+  # without one, every field falls back on `defaults` and the topology.
   extractServiceParams =
     serviceHost: network: serviceName: defaults:
     let
@@ -126,16 +69,9 @@ rec {
     in
     buildServiceParams serviceHost network overloadParams defaults;
 
-  # Resolve the public URL of a service deployed anywhere on the network.
-  #
-  # Generalises what `oidc.idmHref` did for Kanidm only: find the service in
-  # `network.services`, resolve its host in the topology, and build the
-  # effective `href`. `preferZone` disambiguates multi-zone deployments — the
-  # caller gets the instance of its own zone when there is one, the first
-  # declared otherwise.
-  #
-  # Returns `null` when the service is not deployed, so callers can
-  # short-circuit (same convention as the other lookups).
+  # Public URL of service `name` wherever it is deployed, `null` when it is
+  # not. `preferZone` picks the caller's own instance on a multi-zone
+  # deployment, else the first declared one.
   serviceHref =
     {
       name,
@@ -157,9 +93,8 @@ rec {
       in
       (buildServiceParams (topology.findHost svc.host svc.zone hosts) network svc defaults).href;
 
-  # Activation fragment systematically repeated inside `lib.mkIf cfg.enable`
-  # blocks of every DNF service module. Returns the attrset that should be
-  # assigned to `darkone.system.services`.
+  # `darkone.system.services` fragment every service module sets under
+  # `lib.mkIf cfg.enable`.
   enableBlock = name: {
     enable = true;
     service.${name}.enable = true;

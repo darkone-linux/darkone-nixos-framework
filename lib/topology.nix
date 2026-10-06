@@ -50,15 +50,13 @@ rec {
     && network.coordination.enable
     && network.coordination.hostname == host.hostname;
 
-  # Resolve the preferred IP of a host: tailnet IP when registered, plain
-  # `ip` otherwise, falling back to loopback when neither is known. Mirrors
-  # the cascade used internally by `buildServiceParams` so consumer modules
-  # do not have to re-implement it.
+  # Tailnet IP when registered, else `ip`, else loopback: the address another
+  # zone reaches the host on.
   preferredIp =
     host:
-    if (hasAttr "vpnIp" host) && host.vpnIp != "" then
+    if isVpnClient host then
       host.vpnIp
-    else if (hasAttr "ip" host) && host.ip != "" then
+    else if (host.ip or "") != "" then
       host.ip
     else
       "127.0.0.1";
@@ -88,16 +86,9 @@ rec {
       isServer = server != null && host.hostname == server;
     };
 
-  # Resolve the NFS topology seen from `host`: who serves the zone, and is this
-  # host the server or one of its clients?
-  #
-  # Single source of truth for what used to be three hand-copied variants that
-  # had drifted apart — one crashed on a null lookup, one used a `""` sentinel,
-  # one omitted the zone check on the `nfs-client` feature.
-  #
-  # A client must carry the `nfs-client` feature AND point it at the server's
-  # own zone; cross-zone clients are not wired yet (see modules/service/nfs.nix).
-  # `count` is exposed so callers can assert the single-server invariant.
+  # NFS topology seen from `host`: the zone server, and whether this host is it
+  # or one of its clients. A client carries the `nfs-client` feature pointing
+  # at the server's own zone: cross-zone clients are not wired yet.
   resolveNfs =
     {
       host,
@@ -106,21 +97,23 @@ rec {
       services,
     }:
     let
-      matches = builtins.filter (s: s.name == "nfs" && s.zone == zone.name) services;
-      count = builtins.length matches;
-      server = if matches == [ ] then null else (builtins.head matches).host;
-      serverHost = if server == null then { } else findFirst (h: h.hostname == server) { } hosts;
-      hasServer = count == 1;
-      isServer = server != null && host.hostname == server;
+      nfs = resolveZoneService {
+        name = "nfs";
+        inherit
+          host
+          hosts
+          zone
+          services
+          ;
+      };
 
       # Client predicate, applied to any host of the fleet.
       isClientHost =
         h:
-        hasServer
-        && h.hostname != server
+        nfs.hasServer
+        && h.hostname != nfs.server
         && hasAttr "nfs-client" (h.features or { })
-        && h.features.nfs-client == (serverHost.zone or null);
-      isClient = isClientHost host;
+        && h.features.nfs-client == (nfs.serverHost.zone or null);
 
       # `exports(5)` client list: a zone prefix there shares every home with
       # whatever obtains a LAN address, Wi-Fi guest included. Sorted for a
@@ -130,13 +123,13 @@ rec {
       );
     in
     {
-      inherit
+      inherit (nfs)
         count
         server
         hasServer
         isServer
-        isClient
-        clientIps
         ;
+      inherit clientIps;
+      isClient = isClientHost host;
     };
 }

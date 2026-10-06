@@ -7,19 +7,11 @@
 
 { lib }: rec {
 
-  # Caddyfile fragment answering the two matrix discovery documents.
+  # Caddyfile fragment answering both matrix discovery documents.
+  # `rtcFociUrl`: MatrixRTC focus (MSC4143) announced to Element Call. `null`
+  # omits the key: an empty list reads as "configured but unusable".
   #
-  # `rtcFociUrl` announces a MatrixRTC backend (MSC4143) to Element Call, which
-  # every recent Element reads from here when the homeserver does not serve
-  # `/org.matrix.msc4143/rtc/transports`. `null` omits the key entirely: a
-  # deployment without LiveKit must advertise no focus at all, never an empty
-  # list, which clients would read as "configured but unusable".
-  #
-  # Usage:
-  #   mkMatrixWellKnown {
-  #     domain = "example.org";
-  #     rtcFociUrl = "https://matrix.example.org/livekit/jwt";
-  #   }
+  #   mkMatrixWellKnown { domain = "example.org"; rtcFociUrl = null; }
   mkMatrixWellKnown =
     {
       domain,

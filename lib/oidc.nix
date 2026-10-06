@@ -10,29 +10,16 @@ let
   inherit (lib) hasInfix;
   inherit (serviceParams) serviceHref;
 
-  # Prefix `path` with `href` unless it is already an absolute URI (eg.
-  # mobile-app schemes such as `app.immich:///oauth-callback`). Private
-  # helper consumed by `mkOauth2Clients`.
+  # `path` prefixed with `href`, unless already an absolute URI (mobile-app
+  # schemes such as `app.immich:///oauth-callback`).
   fullUrl = href: path: if hasInfix "://" path then path else "${href}${path}";
 in
 rec {
 
-  # Canonical Kanidm OAuth2 client identifier for a service instance.
-  #
-  # Given the service name (and an optional `clientName` override) plus the
-  # resolved `params` (from `buildServiceParams`), return the unique client
-  # name used for both Kanidm provisioning and the consumer-side `clientId`.
-  #
-  # Naming rule:
-  #   1. an explicit `clientName` always wins (used to preserve historical
-  #      identifiers like "matrix-synapse" or "open-webui"),
-  #   2. when the public sub-domain matches the service name, the client is
-  #      named after the service (eg. `mealie`, `forgejo`),
-  #   3. otherwise the sub-domain disambiguates (eg. `outline-notes`).
-  #
-  # This keeps the secrets registry (`oidc-secret-${clientId}`) and the
-  # Kanidm OpenID issuer URL stable per (service, sub-domain) tuple, which
-  # is also the natural unit of unicity in `network.services`.
+  # Kanidm OAuth2 client id of a service instance, stable per (service,
+  # sub-domain): an explicit `clientName` (historical ids such as
+  # `matrix-synapse`), else the service name when the sub-domain matches it,
+  # else `<name>-<domain>` (e.g. `outline-notes`).
   oauth2ClientName =
     {
       name,
@@ -46,13 +33,8 @@ rec {
     else
       "${name}-${params.domain}";
 
-  # Resolve the public URL of the Kanidm (idm) instance reachable from the
-  # current network (eg. `https://idm.example.com`). Thin alias over
-  # `serviceParams.serviceHref`, kept because the OIDC wiring reads better
-  # with a named entry point.
-  #
-  # Returns `null` when no `idm` service is registered, so callers can
-  # short-circuit OIDC wiring on hosts where Kanidm is not deployed.
+  # Public Kanidm URL (e.g. `https://idm.example.com`), `null` when no `idm`
+  # service is deployed.
   idmHref =
     network: hosts:
     serviceHref {
@@ -60,15 +42,8 @@ rec {
       inherit network hosts;
     };
 
-  # Bundle the three values systematically derived together when wiring a
-  # service to Kanidm OIDC: the Kanidm client identifier, the SOPS secret
-  # name and the public Kanidm URL. Returns `{ clientId, secret, idmUrl }`
-  # with `idmUrl = null` when Kanidm is not deployed on this network.
-  #
-  # Equivalent to writing by hand:
-  #   clientId = dnfLib.oauth2ClientName { name = …; } params;
-  #   secret   = "oidc-secret-${clientId}";
-  #   idmUrl   = dnfLib.idmHref network hosts;
+  # `{ clientId; secret; idmUrl; }` wiring a service to Kanidm OIDC: client
+  # id, its sops secret name, Kanidm URL (`null` when Kanidm is absent).
   mkOidcContext =
     {
       name,
@@ -86,32 +61,12 @@ rec {
       idmUrl = idmHref network hosts;
     };
 
-  # Group "raw" OAuth2 pairs by `clientId` and produce one provisioning
-  # entry per logical client. Multi-instance services (eg. `monitoring`
-  # deployed on several zones) share the same Kanidm client but contribute
-  # distinct redirect URIs; this helper concatenates and deduplicates them.
-  #
-  # Input: a list of raw pairs in the shape
-  #   { clientId; tpl; params; secret; }
-  # where `tpl` must expose `redirectPaths` and `landingPath`, and `params`
-  # must expose `href`. Typically built by expanding `network.services`
-  # against the registered OAuth2 templates (see `idm.nix`).
-  #
-  # Output: a list of merged clients
-  #   { clientId; tpl; secret; originUrls; originLanding; instances; }
-  # with:
-  #   - `originUrls`   : union of `${href}${path}` across all instances,
-  #                      passing absolute URIs through unchanged,
-  #   - `originLanding`: landing of the FIRST instance, because Kanidm's
-  #                      `originLanding` is a single string (the portal
-  #                      cannot offer several "landing" URLs for one app),
-  #   - `instances`    : the raw pairs that fed this client, useful for
-  #                      assertions and diagnostics.
-  #
-  # `tpl` and `secret` are taken from the first instance: all instances of
-  # the same `clientId` share the same Kanidm template (the option is keyed
-  # by service name in `idm.nix`) and the same secret name (derived from
-  # `clientId`), so the choice is invariant.
+  # One Kanidm client per `clientId` out of `{ clientId; tpl; params; secret; }`
+  # pairs (cf. `idm.nix`): instances of a multi-zone service share it.
+  # - `originUrls`: every instance's redirect URIs, deduplicated;
+  # - `originLanding`, `tpl`, `secret`: from the first instance (Kanidm takes
+  #   a single landing URL; template and secret derive from the client id);
+  # - `instances`: the input pairs, for assertions.
   mkOauth2Clients =
     rawPairs:
     let
@@ -133,9 +88,7 @@ rec {
       }
     ) groups;
 
-  # Kanidm OAuth2/OIDC endpoint URLs for a given client. Centralises the
-  # protocol-level routes so consumer modules don't hard-code them (and so
-  # a Kanidm route change is fixed in one place).
+  # Kanidm OAuth2/OIDC endpoint URLs of a client, in one place.
   mkKanidmEndpoints = idmUrl: clientId: {
     authUrl = "${idmUrl}/ui/oauth2";
     tokenUrl = "${idmUrl}/oauth2/token";
