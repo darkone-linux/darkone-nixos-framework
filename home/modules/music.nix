@@ -4,7 +4,7 @@
 # rosegarden), `enableCreator` (decibels, hydrogen), `enableScore`
 # (musescore, muse-sounds-manager), `enableFun` (mixxx, mousai),
 # `enableCli` (mpg123, cmus, lilypond), `enableEasy` (gnome-music vs.
-# audacious), `enableMpd` (MPD daemon, ncmpcpp, mpd-mpris), and
+# audacious, GNOME only), `enableMpd` (MPD daemon, ncmpcpp, mpd-mpris), and
 # `enableDev` (lilypond).
 #
 # :::note[NFS-aware music library]
@@ -29,6 +29,7 @@
 
 let
   cfg = config.darkone.home.music;
+  graphic = osConfig.darkone.graphic.gnome.enable;
   hasNfs = osConfig.darkone.service.nfs.enable;
   isNfsClient =
     (dnfLib.resolveNfs {
@@ -96,8 +97,8 @@ in
       (lib.mkIf cfg.enableScore musescore)
       #(lib.mkIf cfg.enableScore frescobaldi) # FAIL
       (lib.mkIf cfg.enableEasy gnome-music)
-      (lib.mkIf cfg.enableMpd gnomeExtensions.mpris-label)
-      (lib.mkIf (!cfg.enableEasy) audacious)
+      (lib.mkIf (graphic && cfg.enableMpd) gnomeExtensions.mpris-label)
+      (lib.mkIf (graphic && !cfg.enableEasy) audacious)
       lame
       soundfont-fluid
       timidity

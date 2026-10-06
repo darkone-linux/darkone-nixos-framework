@@ -9,11 +9,13 @@
 }:
 let
   cfg = config.darkone.home.games;
+  graphic = osConfig.darkone.graphic.gnome.enable;
 
   # Conditions
   isBabyOrChild = cfg.enableBaby || cfg.enableChild;
   isChildOrTeen = cfg.enableChild || cfg.enableTeenager;
   isNotBaby = !cfg.enableBaby;
+  gnomeGames = graphic && isNotBaby;
   g3d = cfg.enable3D && isChildOrTeen;
   cli = isNotBaby && cfg.enableCli;
   moreCli = cfg.enableMore && cli;
@@ -62,11 +64,11 @@ in
       (lib.mkIf isChildOrTeen kdePackages.picmi) # Logical game
       (lib.mkIf isChildOrTeen leocad) # Virt lego
       (lib.mkIf isChildOrTeen gnome-2048)
-      (lib.mkIf isNotBaby gnome-chess)
-      (lib.mkIf isNotBaby gnome-mahjongg)
-      (lib.mkIf isNotBaby gnome-mines)
-      (lib.mkIf isNotBaby gnuchess) # Chess engine for gnome-chess
-      (lib.mkIf isNotBaby stockfish) # Chess engine for gnome-chess
+      (lib.mkIf gnomeGames gnome-chess)
+      (lib.mkIf gnomeGames gnome-mahjongg)
+      (lib.mkIf gnomeGames gnome-mines)
+      (lib.mkIf gnomeGames gnuchess) # Chess engine for gnome-chess
+      (lib.mkIf gnomeGames stockfish) # Chess engine for gnome-chess
       (lib.mkIf moreCli chess-tui)
       (lib.mkIf moreCli crawl) # role-playing roguelike game
       (lib.mkIf moreCli nethack) # Rogue-like game
