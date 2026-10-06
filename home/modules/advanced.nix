@@ -519,6 +519,10 @@ in
 
         # A running instance would ignore `--working-directory` (Nautilus script).
         gtk-single-instance = false;
+
+        # `ssh` wrapper: installs `xterm-ghostty` on the remote host (`tic`),
+        # else falls back to `xterm-256color`. Unlisted features keep defaults.
+        shell-integration-features = "ssh-env,ssh-terminfo";
       };
     };
 
@@ -621,7 +625,9 @@ in
     # Structural AST diff tool used on demand via git difftool / aliases
     programs.difftastic = lib.mkIf cfg.enableEssentials { enable = lib.mkDefault true; };
 
-    # Remote hosts lack the xterm-ghostty terminfo
+    # Remote hosts may lack the local terminfo (tmux-256color, xterm-ghostty).
+    # Ghostty's `ssh` wrapper bypasses it: its `-o SetEnv` comes first, and
+    # ssh keeps the first `SetEnv` only.
     programs.ssh = lib.mkIf cfg.enableEssentials {
       enable = lib.mkDefault true;
       enableDefaultConfig = false;
