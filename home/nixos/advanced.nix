@@ -5,8 +5,8 @@
   lib,
   config,
   ...
-}:
-{
-  shell = lib.mkIf config.programs.zsh.enable pkgs.zsh;
-}
-// import ./normal.nix { inherit pkgs lib config; }
+}@args:
+lib.mkMerge [
+  (import ./normal.nix args)
+  { shell = lib.mkIf config.programs.zsh.enable pkgs.zsh; }
+]

@@ -70,21 +70,26 @@ let
             shell = "${pkgs.shadow}/bin/nologin";
           }
         else
-          base
-          // lib.optionalAttrs hasSops {
-            hashedPasswordFile = config.sops.secrets."user/${login}/password-hash".path;
-          }
-          // lib.optionalAttrs (builtins.pathExists authorizedKeysFile) {
-            openssh.authorizedKeys.keyFiles = [ authorizedKeysFile ];
-          }
-          // import userNixosProfiles.${login} {
-            inherit
-              pkgs
-              lib
-              config
-              login
-              ;
-          };
+
+          # `mkMerge`, not `//`: a profile adding `extraGroups` extends the list
+          # instead of silently replacing it.
+          lib.mkMerge [
+            base
+            (lib.optionalAttrs hasSops {
+              hashedPasswordFile = config.sops.secrets."user/${login}/password-hash".path;
+            })
+            (lib.optionalAttrs (builtins.pathExists authorizedKeysFile) {
+              openssh.authorizedKeys.keyFiles = [ authorizedKeysFile ];
+            })
+            (import userNixosProfiles.${login} {
+              inherit
+                pkgs
+                lib
+                config
+                login
+                ;
+            })
+          ];
     };
   cfg = config.darkone.user.build;
 

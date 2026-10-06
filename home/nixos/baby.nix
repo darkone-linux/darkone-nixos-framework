@@ -1,3 +1,3 @@
 # Babies profile
 
-{ pkgs, ... }: import ./minimal.nix { inherit pkgs; }
+args: import ./minimal.nix args
