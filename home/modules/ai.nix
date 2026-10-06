@@ -233,9 +233,16 @@ let
 
       if [ -f "$settings" ] && [ ! -L "$settings" ]; then
 
-        # Writable file already present: merge, socle wins on conflicts.
-        ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$settings" ${socle} > "$settings.hm-tmp"
-        ${pkgs.coreutils}/bin/mv -f "$settings.hm-tmp" "$settings"
+        # Writable file already present: merge, socle wins on conflicts. An
+        # unparsable one is set aside, it must not fail the whole switch.
+        if ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$settings" ${socle} > "$settings.hm-tmp"; then
+          ${pkgs.coreutils}/bin/mv -f "$settings.hm-tmp" "$settings"
+        else
+          echo "${name}: invalid $settings, moved to $settings.invalid" >&2
+          ${pkgs.coreutils}/bin/rm -f "$settings.hm-tmp"
+          ${pkgs.coreutils}/bin/mv -f "$settings" "$settings.invalid"
+          ${pkgs.coreutils}/bin/install -m600 ${socle} "$settings"
+        fi
       else
 
         # First seed, or replacing a leftover read-only store symlink.
