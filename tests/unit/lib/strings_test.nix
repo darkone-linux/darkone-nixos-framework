@@ -45,6 +45,22 @@
     expected = "GB";
   };
 
+  # The regex is the option type of `darkone.system.i18n.locale`.
+  testLocaleRegex = {
+    expr = map (l: builtins.match dnfLib.localeRegex l != null) [
+      "fr_FR.UTF-8"
+      "fr_FR"
+      "FR_fr.UTF-8"
+      "fr_FR.UTF-8 "
+    ];
+    expected = [
+      true
+      false
+      false
+      false
+    ];
+  };
+
   # Malformed inputs yield null rather than crashing.
   testLocaleCountryNoEncoding = {
     expr = dnfLib.extractCountryFromLocale "fr_FR";

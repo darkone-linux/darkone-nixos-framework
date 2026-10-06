@@ -1,10 +1,9 @@
 # Location and lang configuration.
 #
 # :::note
-# By default, the configuration of this module adapts to the global configuration usr/config.yaml.
-# The locale must follow the canonical `xx_YY.UTF-8` shape (eg. `fr_FR.UTF-8`)
-# so the language and country codes can be safely derived for the console
-# keymap, XKB layout, and Nextcloud phone region defaults.
+# Defaults follow the zone of the host (`etc/config.yaml`). The locale must have
+# the canonical `xx_YY.UTF-8` shape (e.g. `fr_FR.UTF-8`): the console keymap,
+# XKB layout and Nextcloud phone region derive from it.
 # :::
 
 {
@@ -17,16 +16,14 @@
 let
   cfg = config.darkone.system.i18n;
 
-  # The option type below rejects malformed values, so the locale always
-  # matches `xx_YY.UTF-8` here and the country code is never null.
-  localeRegex = "^([a-z]{2})_([A-Z]{2})\\.UTF-8$";
+  # Never null: the option type only accepts `dnfLib.localeRegex`.
   countryCode = dnfLib.extractCountryFromLocale cfg.locale;
 in
 {
   options = {
     darkone.system.i18n.enable = lib.mkEnableOption "Enable i18n with network zone configuration by default";
     darkone.system.i18n.locale = lib.mkOption {
-      type = lib.types.strMatching localeRegex;
+      type = lib.types.strMatching dnfLib.localeRegex;
       default = zone.locale;
       example = "fr_FR.UTF-8";
       description = "Network locale, must match the `xx_YY.UTF-8` shape.";
@@ -39,24 +36,12 @@ in
     };
   };
 
-  # Useful man & nix documentation
+  # Locale, time zone and console keymap of the zone.
   config = lib.mkIf cfg.enable {
 
-    # Configure console keymap.
-    # The country code is used as the keymap name (eg. `FR` -> `fr`), which
-    # matches the kbd convention for the locales DNF supports.
-    console = {
-      keyMap = lib.toLower countryCode;
-      #useXkbConfig = true;
-    };
-
-    # Cf. config gnome
-    #services.xserver.xkb = {
-    #  layout = config.console.keyMap;
-    #  model = "pc104"; # TODO: auto
-    #  variant = "oss"; # TODO: auto
-    #  options = "terminate:ctrl_alt_bksp"
-    #};
+    # Country code as keymap name (`FR` -> `fr`): the kbd convention for the
+    # locales DNF supports. The X11 layout follows it (`graphic/gnome.nix`).
+    console.keyMap = lib.toLower countryCode;
 
     # Fix gnome apps deadkeys for French keyboard (êâë...)
     i18n.inputMethod = {

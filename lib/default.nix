@@ -41,6 +41,7 @@ in
     cleanString
     mkCaddySecurityHeaders
     extractCountryFromLocale
+    localeRegex
     ;
   inherit (dateTime) shiftHour;
   inherit (networking) extractReversePrefix;
