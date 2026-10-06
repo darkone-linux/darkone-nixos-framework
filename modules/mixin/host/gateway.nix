@@ -88,8 +88,8 @@ let
     inherit (cfg) backupLinks;
   };
 
-  # Same collector dir as `service/monitoring.nix`; written only if present.
-  textfileDir = "/var/lib/node-exporter-textfile";
+  # node_exporter textfile collector; written only if present.
+  textfileDir = dnfLib.constants.textfileCollectorDir;
 
   coreutils = "${pkgs.coreutils}/bin";
   ip = "${pkgs.iproute2}/bin/ip";

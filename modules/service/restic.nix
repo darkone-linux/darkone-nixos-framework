@@ -268,12 +268,10 @@ let
   };
   params = dnfLib.extractServiceParams host network "restic" defaultParams;
 
-  # Backup freshness metrics for Prometheus, in the node_exporter textfile
-  # collector dir (same dir as monitoring.nix's maintenance flag): per-job
-  # success stamp (mkResticMetric) plus the declared-jobs list (resticDeclared).
-  # Monitored nodes only, nowhere else would scrape them. The lib
-  # `mkResticRuleGroups` turns a stale stamp into ResticBackupStale/Critical.
-  textfileDir = "/var/lib/node-exporter-textfile";
+  # Backup freshness metrics in the textfile collector: per-job success stamp
+  # (mkResticMetric) plus the declared-jobs list (resticDeclared). Monitored
+  # nodes only; `mkResticRuleGroups` turns a stale stamp into an alert.
+  textfileDir = dnfLib.constants.textfileCollectorDir;
   isNode = host.features ? "monitoring-node";
 
   # Scheme + authority of a `rest:` repository ("http://host:port"), null for a

@@ -188,8 +188,7 @@ let
     }
   );
 
-  # node_exporter textfile collector dir (same value as monitoring.nix).
-  textfileDir = "/var/lib/node-exporter-textfile";
+  textfileDir = dnfLib.constants.textfileCollectorDir;
 
   # Checks on the reduced node list; `$mode` selects metrics or journal lines.
   # Label values are DNS names and logins: anything else is flattened to `_`.

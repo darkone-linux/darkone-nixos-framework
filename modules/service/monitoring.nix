@@ -59,7 +59,7 @@ let
   # Rebuild silence: a monitored node drops `dnf_maintenance 1` into the
   # node_exporter textfile collector dir while applying its config; Prometheus
   # picks it up and Alertmanager inhibits that node's alerts. Purely local.
-  textfileDir = "/var/lib/node-exporter-textfile";
+  textfileDir = dnfLib.constants.textfileCollectorDir;
   maintenanceScript = pkgs.writeShellApplication {
     name = "dnf-maintenance";
     runtimeInputs = [ pkgs.coreutils ];

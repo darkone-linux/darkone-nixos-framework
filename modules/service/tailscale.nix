@@ -122,9 +122,8 @@ let
   selfHealCooldownSec = 600;
   selfHealStateDir = "/run/tailscale-selfheal";
 
-  # node_exporter textfile collector dir (same value as monitoring.nix /
-  # restic.nix). Metric write is best-effort: only supervised nodes have it.
-  textfileDir = "/var/lib/node-exporter-textfile";
+  # Metric write is best-effort: only supervised nodes have the collector dir.
+  textfileDir = dnfLib.constants.textfileCollectorDir;
 
   # Auto-pause (roaming client). On a home zone LAN, --accept-dns hijacks
   # resolv.conf (kills local dnsmasq/AGH) and --accept-routes collides with the

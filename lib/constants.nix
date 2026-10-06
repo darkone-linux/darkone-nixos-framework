@@ -42,6 +42,10 @@ in
   # Network interface used by the tailscale client.
   vpnInterface = "tailscale0";
 
+  # node_exporter textfile collector: modules drop their `*.prom` metrics there
+  # (maintenance flag, restic, tailscale, headscale, uplinks).
+  textfileCollectorDir = "/var/lib/node-exporter-textfile";
+
   # Public anycast resolvers answering ICMP: "is Internet reachable" witnesses
   # for `ZoneInternetDown` and the gateway backup-link probe. IP literals, so
   # a probe never depends on the DNS path it is judging.

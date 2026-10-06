@@ -22,6 +22,11 @@
     expected = "tailscale0";
   };
 
+  testTextfileCollectorDir = {
+    expr = dnfLib.constants.textfileCollectorDir;
+    expected = "/var/lib/node-exporter-textfile";
+  };
+
   testRoamingDomain = {
     expr = dnfLib.constants.roamingDomain;
     expected = "dnf.internal";
