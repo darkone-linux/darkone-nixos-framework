@@ -1,9 +1,12 @@
-# Tailscale client service for HCS.
+# Tailscale client of the DNF tailnet (headscale on the HCS).
 #
-# :::note
-# A tailscale client to connect an external host to HCS.
-# Do not use it to connect a gateway for a tailnet subnet.
-# :::
+# Joins the HCS, zone gateways (`isGateway`: zone subnet advertised, routes
+# accepted, own resolver kept) and roaming hosts.
+#
+# Sub-modules (`tailscale/`):
+# - `cert-sync.nix`: zone gateways pull the HCS Caddy certificates;
+# - `selfheal.nix`: watchdog restarting a disconnected tailscaled;
+# - `autopause.nix`: roaming clients pause tailscale on a zone LAN.
 #
 # :::note[Enrollment]
 # No shared key. `just tailnet-enroll <host>`, also run by `just configure`,
@@ -50,146 +53,26 @@ let
     "--snat-subnet-routes=false"
   ];
   hcsFqdn = "${coord.domain}.${network.domain}";
-  hcsInternalFqdn = network.zones.${dnfLib.constants.globalZone}.gateway.vpn.ipv4;
 
-  # Control-plane bootstrap. Gateways route the whole network domain to the
-  # tailnet DNS server, so the headscale FQDN resolves *through the VPN it is
-  # used to establish*; today it only works because the resolver falls back to
-  # public upstreams once the split-DNS server times out. Worse on a gateway
-  # boot: tailscaled waits on a resolver that is itself waiting on the tailnet
-  # (AdGuard reverse-resolves its tailnet address through MagicDNS before
-  # binding :53). Pinning the public IP — declared in config.yaml, same source
-  # as everything else — cuts the loop: tailscaled is statically linked against
-  # Go's own resolver, which reads the hosts file before any DNS, so the
-  # control plane stays reachable even with the local resolver down.
+  # Control-plane bootstrap: on a gateway the headscale FQDN resolves through
+  # the very VPN it establishes, and boot deadlocks (AdGuard waits on MagicDNS
+  # before binding :53). Its public IP from config.yaml goes in /etc/hosts,
+  # which tailscaled's Go resolver reads before any DNS.
   hcsHost = lib.findFirst (h: h.hostname == coord.hostname) null hosts;
   bootstrapHcs =
     hasHeadscale && !(dnfLib.isHcs host zone network) && hcsHost != null && (hcsHost.ip or "") != "";
   inherit (dnfLib.constants) caddyStorage;
 
-  # Staging dir for the cert pull, provided as a systemd StateDirectory. NOT in
-  # /tmp: a fixed path in a 1777 dir let a local user pre-create it as a symlink
-  # and turn the unit's `chown -R` into an arbitrary root chown.
-  caddyStorSyncName = "caddy-cert-sync";
-  caddyStorTmp = "/var/lib/${caddyStorSyncName}";
-
-  # Private key of the `nix` user, used for the pull. The unit runs as root, so
-  # ssh cannot find it by itself (HOME=/root). Same path as admin/nix.nix.
-  nixSshKey = "${config.users.users.nix.home}/.ssh/id_ed25519";
-
-  # Cert-sync resilience tunables. A gateway cold-boot waits on its WAN uplink
-  # (and on the ISP box behind it), then on tailscaled's exponential login
-  # backoff: measured at ~2min40 on a real power-cut reboot, i.e. well past the
-  # timer's 2min OnBootSec. The gate below absorbs that, the retries absorb the
-  # blips that happen once the tailnet is up.
-  tailnetWaitSec = 300;
-  tailnetPollSec = 5;
-  certSyncAttempts = 3;
-  certSyncRetrySec = 20;
-
-  # Gate on the tailnet being *usable*, not merely on tailscaled having
-  # started: `after = tailscaled.service` only proves the daemon is up, and the
-  # pull then fires into a dead control plane and leaves the oneshot `failed`
-  # until the next tick. Same healthy predicate as the self-heal watchdog.
-  waitForTailnet = pkgs.writeShellScript "wait-for-tailnet" ''
-    set -u
-
-    deadline=$(( $(${pkgs.coreutils}/bin/date +%s) + ${toString tailnetWaitSec} ))
-    while : ;do
-      if status=$(${tsBin} status --json 2>/dev/null); then
-        backend=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.BackendState // "unknown"')
-        online=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.Self.Online // false')
-        if [ "$backend" = "Running" ] && [ "$online" = "true" ]; then
-          exit 0
-        fi
-      fi
-
-      # Bounded on purpose: a gateway with no tailnet after this long is a real
-      # incident, and failing here is the only signal that says so.
-      if [ "$(${pkgs.coreutils}/bin/date +%s)" -ge "$deadline" ]; then
-        echo "wait-for-tailnet: still down after ${toString tailnetWaitSec}s" >&2
-        exit 1
-      fi
-      ${pkgs.coreutils}/bin/sleep ${toString tailnetPollSec}
-    done
-  '';
-
-  # Self-heal watchdog tunables. 3 failed ticks at 60s ≈ 3 min of sustained
-  # disconnection before acting (rides out WAN blips); one restart per 10 min
-  # max, so a deeper fault does not turn into a restart loop.
+  # Self-heal watchdog (`tailscale/selfheal.nix`).
   selfHealEnable = hasHeadscale && cfg.selfHeal.enable;
-  selfHealFailThreshold = 3;
-  selfHealCooldownSec = 600;
   selfHealStateDir = "/run/tailscale-selfheal";
 
-  # Metric write is best-effort: only supervised nodes have the collector dir.
-  textfileDir = dnfLib.constants.textfileCollectorDir;
-
-  # Auto-pause (roaming client). On a home zone LAN, --accept-dns hijacks
-  # resolv.conf (kills local dnsmasq/AGH) and --accept-routes collides with the
-  # directly-connected zone subnet. A NM dispatcher pauses tailscale there and
-  # resumes it elsewhere; a shared state file lets the self-heal watchdog stand
-  # down while paused.
+  # Auto-pause state (`tailscale/autopause.nix`), also read by autoconnect and
+  # by the self-heal watchdog, which stand down while paused.
   autoPauseEnable = cfg.autoPauseOnLan.enable;
   autoPauseStateDir = "/run/tailscale-autopause";
   autoPauseStateFile = "${autoPauseStateDir}/state";
   tsBin = "${config.services.tailscale.package}/bin/tailscale";
-
-  # DNF zones are all /16; match on the two-octet ipPrefix. The external
-  # global/HCS zone has no LAN prefix, so it is filtered out.
-  zoneLanPrefixes = lib.pipe network.zones [
-    (lib.filterAttrs (name: _: name != dnfLib.constants.globalZone))
-    (lib.mapAttrsToList (_: z: z.ipPrefix))
-  ];
-
-  # Shared decision, invoked from both the NM dispatcher (roaming) and a boot
-  # oneshot (already in a zone at startup). Idempotent against the *real* backend
-  # state rather than a stored transition, so it is safe on every event and
-  # closes the boot race where tailscaled-autoconnect brings the VPN up before
-  # any dispatcher event fires.
-  autoPauseScript = pkgs.writeShellScript "tailscale-autopause" ''
-    set -u
-
-    state="${autoPauseStateFile}"
-    ts="${config.services.tailscale.package}/bin/tailscale"
-
-    # IPv4s currently held on physical interfaces (exclude tailscale0 + lo).
-    addrs=$(${pkgs.iproute2}/bin/ip -o -4 addr show 2>/dev/null \
-      | ${pkgs.gawk}/bin/awk '$2 != "lo" && $2 != "tailscale0" { print $4 }')
-
-    # Home iff one of them sits in a known DNF zone /16 (two-octet prefix).
-    desired=away
-    for prefix in ${lib.concatStringsSep " " zoneLanPrefixes}; do
-      if echo "$addrs" | ${pkgs.gnugrep}/bin/grep -q "^$prefix\."; then
-        desired=home
-        break
-      fi
-    done
-
-    # Record intent first so the self-heal watchdog stands down without racing.
-    echo "$desired" > "$state"
-
-    # unknown while tailscaled is not up yet (early boot): the boot oneshot,
-    # ordered after autoconnect, re-runs and enforces once the backend exists.
-    backend=unknown
-    if s=$($ts status --json 2>/dev/null); then
-      backend=$(echo "$s" | ${pkgs.jq}/bin/jq -r '.BackendState // "unknown"')
-    fi
-
-    if [ "$desired" = home ]; then
-      if [ "$backend" != Stopped ] && [ "$backend" != unknown ]; then
-        ${pkgs.util-linux}/bin/logger -t tailscale-autopause "on DNF zone LAN, pausing tailscale"
-        $ts down
-      fi
-    else
-      if [ "$backend" = Stopped ]; then
-        ${pkgs.util-linux}/bin/logger -t tailscale-autopause "off DNF zone LAN, resuming tailscale"
-
-        # Re-run autoconnect to reapply the exact configured flags (+ --reset).
-        ${pkgs.systemd}/bin/systemctl restart tailscaled-autoconnect.service
-      fi
-    fi
-  '';
 
   # Single-use key dropped by `dnf-tailnet-join`, consumed by autoconnect. tmpfs:
   # never on persistent storage, gone at reboot.
@@ -247,6 +130,25 @@ in
         zone LAN, resume it elsewhere. Non-gateway NetworkManager clients only.
       '';
     };
+
+    # Values shared with the `tailscale/` sub-modules.
+    darkone.service.tailscale.shared = lib.mkOption {
+      type = lib.types.raw;
+      internal = true;
+      readOnly = true;
+      default = {
+        inherit
+          tsBin
+          isHcsSubnetGateway
+          selfHealEnable
+          selfHealStateDir
+          autoPauseEnable
+          autoPauseStateFile
+          ;
+      };
+      defaultText = "computed";
+      description = "Tailscale values shared with the `tailscale/` sub-modules.";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -296,24 +198,17 @@ in
       # rule. Peers behind a strict NAT reach it without hole punching.
       openFirewall = dnfLib.isHcs host zone network;
 
-      # To use in conjonction with tailscale up --advertise-exit-node
-      # https://search.nixos.org/options?channel=unstable&show=services.tailscale.useRoutingFeatures&query=services.tailscale
-      # server -> enable IP forwarding.
-      # client -> reverse path filtering will be set to loose instead of strict.
-      # both -> client + server
+      # `server`: IP forwarding (exit node, subnet routes); `client`: loose
+      # reverse path filtering; `both`: the two.
       useRoutingFeatures = if (cfg.isExitNode || cfg.isGateway) then "both" else "client";
 
       # Keeps the upstream autoconnect unit, whose script is replaced below;
       # filled by `dnf-tailnet-join` only.
       authKeyFile = enrollKeyFile;
 
-      # Register zone network addresses and connect to server
-      # TODO: make these parameters set at tailscaled startup,
-      #       for now must manually use "set" to apply settings.
-      # Boolean flags MUST be written `--flag=value`: Go's flag parser treats a
-      # space-separated `--accept-dns false` as flag + positional, stops parsing
-      # there and aborts with "too many non-flag arguments" — the whole `up`
-      # fails and the node never registers.
+      # Applied by `up` only; a running node reconciles `reconcileFlags`. Boolean
+      # flags MUST read `--flag=value`: Go stops at `--accept-dns false`, and
+      # `up` aborts with "too many non-flag arguments".
       extraUpFlags = [
         "--login-server"
         "https://${hcsFqdn}"
@@ -333,13 +228,10 @@ in
       ];
     };
 
-    # Upstream autoconnect is fragile: Type=notify, endless poll loop, `up`
-    # without --timeout. Whenever the backend cannot reach Running within the
-    # 90s unit timeout (headscale unreachable, backend pinned in NoState,
-    # autopause `down`), the unit fails → monitoring alert + deploy abort.
-    # Replaced by a bounded oneshot that never fails: reaching Running is the
-    # self-heal watchdog's job, not the boot/deploy critical path.
-    # NOTE: services.tailscale.authKeyParameters is not supported here.
+    # Upstream autoconnect (Type=notify, endless poll, `up` without timeout)
+    # fails the unit, and the deploy, whenever Running is out of reach. Bounded
+    # oneshot that never fails instead: the self-heal watchdog converges.
+    # `services.tailscale.authKeyParameters` is not supported here.
     systemd.services.tailscaled-autoconnect = lib.mkIf hasHeadscale {
       serviceConfig = {
         Type = lib.mkForce "oneshot";
@@ -446,51 +338,18 @@ in
     # Networking
     #--------------------------------------------------------------------------
 
-    # Network permissions
+    # Subnet gateway: tailnet trusted, loose reverse path, WireGuard on the WAN.
     networking.firewall = lib.mkIf isHcsSubnetGateway {
       trustedInterfaces = [ "tailscale0" ];
       checkReversePath = "loose"; # subnet routing
       interfaces.${wanInterface}.allowedUDPPorts = [ config.services.tailscale.port ];
     };
 
-    # Roaming transitions: NM dispatcher re-evaluates on every network event.
-    networking.networkmanager.dispatcherScripts = lib.mkIf autoPauseEnable [
-      {
-        source = autoPauseScript;
-        type = "basic";
-      }
-    ];
-
-    # Boot in a zone: enforce once tailscaled-autoconnect ran and the LAN has an
-    # IP, otherwise the autoconnect `up` leaves the VPN active on the home LAN.
-    systemd.services.tailscale-autopause = lib.mkIf autoPauseEnable {
-      description = "Pause tailscale at boot while on a home zone LAN";
-      after = [
-        "tailscaled-autoconnect.service"
-        "network-online.target"
-      ];
-      wants = [ "network-online.target" ];
-      wantedBy = [ "multi-user.target" ];
-      serviceConfig = {
-        Type = "oneshot";
-        ExecStart = autoPauseScript;
-      };
-    };
-
-    # Dispatcher-based; NetworkManager must own the interfaces.
-    assertions = lib.optionals autoPauseEnable [
-      {
-        assertion = config.networking.networkmanager.enable;
-        message = "darkone.service.tailscale.autoPauseOnLan requires networking.networkmanager.enable.";
-      }
-    ];
-
     #--------------------------------------------------------------------------
-    # Certificat sync
+    # Packages and state dirs
     #--------------------------------------------------------------------------
-    # TODO: feedback on sync health status.
 
-    # We need rsync; `dnf-tailnet-join` is the enrollment entry point (above).
+    # Cert sync tooling (`tailscale/cert-sync.nix`), enrollment entry point.
     environment.systemPackages = [
       pkgs.rsync
       pkgs.caddy
@@ -503,191 +362,5 @@ in
       lib.optionals isHcsSubnetGateway [ "d ${caddyStorage} 0750 caddy caddy -" ]
       ++ lib.optionals selfHealEnable [ "d ${selfHealStateDir} 0755 root root -" ]
       ++ lib.optionals autoPauseEnable [ "d ${autoPauseStateDir} 0755 root root -" ];
-
-    # TLS certificates (caddy storage) sync service
-    systemd.services.sync-caddy-certs = lib.mkIf isHcsSubnetGateway {
-      description = "Sync Caddy certificates from VPS via Tailscale";
-
-      # `tailscaled-autoconnect` is the oneshot that runs `tailscale up`; the
-      # ordering is best-effort (systemd ignores an absent unit) and is not
-      # enough on its own, hence the ExecStartPre gate.
-      after = [
-        "network-online.target"
-        "tailscaled.service"
-        "tailscaled-autoconnect.service"
-      ];
-      wants = [
-        "network-online.target"
-        "tailscaled.service"
-      ];
-      serviceConfig = {
-        Type = "oneshot";
-
-        # The gate plus every retry must fit inside the start timeout, or
-        # systemd kills the unit and marks it failed — the exact state the
-        # retries exist to avoid.
-        TimeoutStartSec = tailnetWaitSec + 600;
-        ExecStartPre = waitForTailnet;
-
-        # Runs as root, on purpose: the former `User = "nix"` needed four sudo
-        # calls, and sudo is unusable from a unit as soon as ANSSI R39 sets
-        # `requiretty` (no TTY) — they failed silently on every hardened host.
-        StateDirectory = caddyStorSyncName;
-        StateDirectoryMode = "0700";
-        ExecStart = pkgs.writeShellScript "sync-hcs-caddy-certs" ''
-
-          # Without this, every step below can fail while the oneshot still
-          # exits 0: certs stop syncing until they expire, with no alert.
-          set -euo pipefail
-
-          # Pull the HCS storage. The remote side still elevates to caddy: the
-          # ACME files are 0600 caddy:caddy, unreadable by nix.
-          #
-          # Retried: the tailnet can be up yet the path to the HCS not settled
-          # (DERP relay still negotiating), and a single blip used to leave the
-          # unit failed for a full timer period. ConnectTimeout keeps a hung
-          # handshake bounded, --timeout=30 covers the transfer itself.
-          attempt=1
-          while : ;do
-            if ${pkgs.rsync}/bin/rsync \
-              -avz \
-              --delete \
-              --timeout=30 \
-              -e "${pkgs.openssh}/bin/ssh -i ${nixSshKey} -o IdentitiesOnly=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
-              --rsync-path="sudo -u caddy rsync" \
-              nix@${hcsInternalFqdn}:${caddyStorage}/ \
-              ${caddyStorTmp}/ ;then
-              break
-            fi
-            if [ "$attempt" -ge ${toString certSyncAttempts} ]; then
-              echo "sync-caddy-certs: pull failed after $attempt attempts" >&2
-              exit 1
-            fi
-            attempt=$(( attempt + 1 ))
-            ${pkgs.coreutils}/bin/sleep ${toString certSyncRetrySec}
-          done
-
-          # Never publish an empty staging dir: the --delete below would wipe
-          # the live certificates and the ACME account key.
-          if [ -z "$(${pkgs.findutils}/bin/find ${caddyStorTmp} -type f -print -quit)" ]; then
-            echo "sync-caddy-certs: empty staging dir, refusing to publish" >&2
-            exit 1
-          fi
-
-          # Publish to caddy's own storage.
-          ${pkgs.rsync}/bin/rsync \
-            -a \
-            --delete \
-            ${caddyStorTmp}/ \
-            ${caddyStorage}/
-          ${pkgs.coreutils}/bin/chown -R caddy:caddy ${caddyStorage}
-        '';
-      };
-    };
-
-    # TLS certificates (caddy storage) sync timer
-    systemd.timers.sync-caddy-certs = lib.mkIf isHcsSubnetGateway {
-      wantedBy = [ "timers.target" ];
-      timerConfig = {
-        OnBootSec = "2min";
-        OnUnitActiveSec = "10min";
-        Persistent = true;
-      };
-    };
-
-    #--------------------------------------------------------------------------
-    # Self-heal watchdog
-    #--------------------------------------------------------------------------
-    # Real incident: a gateway's tailscaled silently dropped its headscale
-    # control connection, cutting subnet access until a manual restart. Detect
-    # that state locally and restart tailscaled (its autoconnect oneshot re-runs
-    # and reconnects the node).
-
-    systemd.services.tailscale-selfheal = lib.mkIf selfHealEnable {
-      description = "Restart tailscaled when it loses the headscale control connection";
-      after = [ "tailscaled.service" ];
-      serviceConfig = {
-        Type = "oneshot";
-        ExecStart = pkgs.writeShellScript "tailscale-selfheal" ''
-          set -u
-          ${lib.optionalString autoPauseEnable ''
-
-            # Intentionally paused on a home LAN (autopause) → stand down, metric
-            # included: a value frozen by the pause keeps TailscaleUnhealthy firing.
-            if [ "$(${pkgs.coreutils}/bin/cat ${autoPauseStateFile} 2>/dev/null || echo away)" = "home" ]; then
-              ${pkgs.coreutils}/bin/rm -f "${textfileDir}/tailscale.prom"
-              exit 0
-            fi
-          ''}
-          fails="${selfHealStateDir}/fails"
-          last="${selfHealStateDir}/last-restart"
-          restarts="${selfHealStateDir}/restarts"
-
-          # Healthy iff the backend runs and control reports us online. Health
-          # warnings are deliberately NOT a restart trigger: most are static
-          # config notes (exit-node SNAT, SSH ACLs) a restart can never clear, so
-          # gating on them pinned the node unhealthy and looped restarts forever.
-          # The count is still exported (warn-only) for dashboard visibility.
-          healthy=0
-          warnings=0
-          backend=unknown
-          if status=$(${config.services.tailscale.package}/bin/tailscale status --json 2>/dev/null); then
-            backend=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.BackendState // "unknown"')
-            warnings=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.Health | length')
-            online=$(echo "$status" | ${pkgs.jq}/bin/jq -r '.Self.Online // false')
-            if [ "$backend" = "Running" ] && [ "$online" = "true" ]; then
-              healthy=1
-            fi
-          fi
-
-          if [ "$healthy" = "1" ]; then
-            echo 0 > "$fails"
-
-          # Not enrolled: a restart never brings a registration back, only
-          # `just tailnet-enroll` does. TailscaleUnhealthy still reports it.
-          elif [ "$backend" = "NeedsLogin" ]; then
-            echo 0 > "$fails"
-          else
-            n=$(( $(${pkgs.coreutils}/bin/cat "$fails" 2>/dev/null || echo 0) + 1 ))
-            echo "$n" > "$fails"
-            now=$(${pkgs.coreutils}/bin/date +%s)
-            lastRestart=$(${pkgs.coreutils}/bin/cat "$last" 2>/dev/null || echo 0)
-
-            # Act only on sustained loss, at most once per cooldown window.
-            if [ "$n" -ge ${toString selfHealFailThreshold} ] && [ "$(( now - lastRestart ))" -ge ${toString selfHealCooldownSec} ]; then
-              ${pkgs.util-linux}/bin/logger -t tailscale-selfheal "headscale disconnect ($n ticks), restarting tailscaled"
-              ${pkgs.systemd}/bin/systemctl restart tailscaled.service tailscaled-autoconnect.service
-              echo "$now" > "$last"
-              echo 0 > "$fails"
-              echo "$(( $(${pkgs.coreutils}/bin/cat "$restarts" 2>/dev/null || echo 0) + 1 ))" > "$restarts"
-            fi
-          fi
-
-          # Best-effort node_exporter metric (only where the collector dir exists).
-          if [ -d "${textfileDir}" ]; then
-            count=$(${pkgs.coreutils}/bin/cat "$restarts" 2>/dev/null || echo 0)
-            tmp=$(${pkgs.coreutils}/bin/mktemp "${textfileDir}/.tailscale.XXXXXX")
-            {
-              echo "dnf_tailscale_healthy $healthy"
-              echo "dnf_tailscale_health_warnings $warnings"
-              echo "dnf_tailscale_selfheal_restarts_total $count"
-            } > "$tmp"
-
-            # mktemp creates 0600; node_exporter runs as a non-root user and must
-            # read it, so widen before the atomic rename.
-            ${pkgs.coreutils}/bin/chmod 0644 "$tmp"
-            ${pkgs.coreutils}/bin/mv -f "$tmp" "${textfileDir}/tailscale.prom"
-          fi
-        '';
-      };
-    };
-
-    systemd.timers.tailscale-selfheal = lib.mkIf selfHealEnable {
-      wantedBy = [ "timers.target" ];
-      timerConfig = {
-        OnBootSec = "2min";
-        OnUnitActiveSec = "60s";
-      };
-    };
   };
 }

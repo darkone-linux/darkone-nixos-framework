@@ -742,11 +742,9 @@ rec {
       }
     ];
 
-  # Tailnet self-heal health, from the tailscale watchdog (tailscale.nix) via the
-  # node_exporter textfile collector. The watchdog already restarts a tailscaled
-  # that lost its headscale control connection; these rules surface the cases it
-  # cannot fix alone. Absent metric (node without the watchdog) -> no series ->
-  # no alert, like the restic/smartctl groups.
+  # Tailnet self-heal health, from the `tailscale/selfheal.nix` watchdog: these
+  # rules surface what a tailscaled restart cannot fix. No watchdog, no metric,
+  # no alert.
   mkTailscaleRuleGroups =
     { zoneName }:
     mkGroup "tailscale" zoneName [

@@ -81,6 +81,9 @@
     ./service/searx.nix
     ./service/stk.nix
     ./service/tailscale.nix
+    ./service/tailscale/autopause.nix
+    ./service/tailscale/cert-sync.nix
+    ./service/tailscale/selfheal.nix
     ./service/turn.nix
     ./service/vaultwarden.nix
     ./system/core.nix

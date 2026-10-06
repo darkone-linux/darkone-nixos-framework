@@ -12,7 +12,7 @@ in
 {
 
   # Caddy storage (TLS certificates, ACME state), synced from the HCS to the
-  # zone gateways (cf. `service/tailscale.nix`).
+  # zone gateways (cf. `service/tailscale/cert-sync.nix`).
   caddyStorage = "/var/lib/caddy/storage";
 
   # Zone-neutral DNS namespace: every zone's DNS answers the same names with
