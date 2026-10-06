@@ -8,6 +8,10 @@
 let
   inherit (lib)
     hasPrefix
+    head
+    last
+    mapAttrs
+    mapAttrsToList
     mkDefault
     mkEnableOption
     mkIf
@@ -17,6 +21,50 @@ let
     types
     ;
   cfg = config.darkone.system.srv-dirs;
+
+  # Directory option -> [ parent option, default sub-directory ].
+  layout = {
+    nfs = [
+      "root"
+      "nfs"
+    ];
+    homes = [
+      "nfs"
+      "homes"
+    ];
+    common = [
+      "nfs"
+      "common"
+    ];
+    stkTracks = [
+      "nfs"
+      "stk-tracks"
+    ];
+    medias = [
+      "root"
+      "medias"
+    ];
+    music = [
+      "medias"
+      "music"
+    ];
+    videos = [
+      "medias"
+      "videos"
+    ];
+    incoming = [
+      "medias"
+      "incoming"
+    ];
+    incomingMusic = [
+      "incoming"
+      "music"
+    ];
+    incomingVideos = [
+      "incoming"
+      "videos"
+    ];
+  };
 in
 {
   options = {
@@ -78,73 +126,25 @@ in
 
   config = mkMerge [
     {
-      # Default values (here to avoid infinite loop)
-      darkone.system.srv-dirs.nfs = mkDefault "${cfg.root}/nfs";
-      darkone.system.srv-dirs.homes = mkDefault "${cfg.nfs}/homes";
-      darkone.system.srv-dirs.common = mkDefault "${cfg.nfs}/common";
-      darkone.system.srv-dirs.stkTracks = mkDefault "${cfg.nfs}/stk-tracks";
-      darkone.system.srv-dirs.medias = mkDefault "${cfg.root}/medias";
-      darkone.system.srv-dirs.music = mkDefault "${cfg.medias}/music";
-      darkone.system.srv-dirs.videos = mkDefault "${cfg.medias}/videos";
-      darkone.system.srv-dirs.incoming = mkDefault "${cfg.medias}/incoming";
-      darkone.system.srv-dirs.incomingMusic = mkDefault "${cfg.incoming}/music";
-      darkone.system.srv-dirs.incomingVideos = mkDefault "${cfg.incoming}/videos";
 
-      # Assertions for path prefixes
-      assertions = [
-        {
-          assertion = cfg.enable || !cfg.enableNfs;
-          message = "Missing enable with enableNfs";
-        }
-        {
-          assertion = cfg.enable || !cfg.enableMedias;
-          message = "Missing enable with enableMedias";
-        }
-        {
-          assertion = cfg.enable || !cfg.enableStk;
-          message = "Missing enable with enableStk";
-        }
-        {
-          assertion = hasPrefix cfg.root cfg.nfs;
-          message = "Root dir isn't nfs dir prefix";
-        }
-        {
-          assertion = hasPrefix cfg.nfs cfg.homes;
-          message = "Nfs dir isn't homes dir prefix";
-        }
-        {
-          assertion = hasPrefix cfg.nfs cfg.common;
-          message = "Nfs dir isn't common dir prefix";
-        }
-        {
-          assertion = hasPrefix cfg.nfs cfg.stkTracks;
-          message = "Nfs dir isn't stkTracks dir prefix";
-        }
-        {
-          assertion = hasPrefix cfg.root cfg.medias;
-          message = "Root dir isn't medias dir prefix";
-        }
-        {
-          assertion = hasPrefix cfg.medias cfg.music;
-          message = "Medias dir isn't music dir prefix";
-        }
-        {
-          assertion = hasPrefix cfg.medias cfg.videos;
-          message = "Medias dir isn't videos dir prefix";
-        }
-        {
-          assertion = hasPrefix cfg.medias cfg.incoming;
-          message = "Medias dir isn't incoming dir prefix";
-        }
-        {
-          assertion = hasPrefix cfg.incoming cfg.incomingMusic;
-          message = "Incoming dir isn't incomingMusic dir prefix";
-        }
-        {
-          assertion = hasPrefix cfg.incoming cfg.incomingVideos;
-          message = "Incoming dir isn't incomingVideos dir prefix";
-        }
-      ];
+      # Defaults set here, not in the options: they read one another.
+      darkone.system.srv-dirs = mapAttrs (_: l: mkDefault "${cfg.${head l}}/${last l}") layout;
+
+      assertions =
+        map
+          (opt: {
+            assertion = cfg.enable || !cfg.${opt};
+            message = "darkone.system.srv-dirs: `${opt}` requires `enable`";
+          })
+          [
+            "enableNfs"
+            "enableMedias"
+            "enableStk"
+          ]
+        ++ mapAttrsToList (dir: l: {
+          assertion = hasPrefix cfg.${head l} cfg.${dir};
+          message = "darkone.system.srv-dirs: `${dir}` must live under `${head l}`";
+        }) layout;
     }
 
     # Configuration when any path is enabled
@@ -153,9 +153,8 @@ in
       # Some paths need common-files user / group
       darkone.system.core.enableCommonFilesUser = cfg.enableNfs || cfg.enableMedias;
 
-      # Directories creation
-      # -> common-files user is used by the user and its deamons
-      # -> common-files group is used by several services to access the same files
+      # `common-files`: user of the owner and its daemons, group of the
+      # services sharing the same files.
       systemd.tmpfiles.rules = [
         "d ${cfg.root} 0755 root root -"
       ]
