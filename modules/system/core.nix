@@ -11,6 +11,7 @@
 # - nightly store optimisation, weekly GC with 30 d retention (keep-last-N via
 #   `gcKeepGenerations` on disk-constrained hosts);
 # - the firewall and key-only SSH;
+# - Ghostty's `xterm-ghostty` terminfo, so every host accepts the terminal;
 # - the suspend policy (`disableSuspend` for servers);
 # - polkit rules letting `wheel` halt/reboot;
 # - a shared `common-files` group/user for cross-service media folders.
@@ -276,6 +277,10 @@ in
       # from `users.users.<login>.openssh.authorizedKeys` only.
       authorizedKeysInHomedir = false;
     };
+
+    # `xterm-ghostty` terminfo system-wide: root (`su -`, `run0`) and ssh
+    # sessions opened from Ghostty miss the user's home-manager profile.
+    environment.systemPackages = [ pkgs.ghostty.terminfo ];
 
     # SOPS DNF module
     darkone.system.sops.enable = cfg.enableSops;
