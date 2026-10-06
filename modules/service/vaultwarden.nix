@@ -128,10 +128,9 @@ in
           # for non-technical users) takes over after a delay.
           EMERGENCY_ACCESS_ALLOWED = true;
           EMAIL_CHANGE_ALLOWED = false;
-          #LOG_LEVEL = "info";
 
-          # Impossible de valider des comptes avec des emails
-          #SIGNUPS_DOMAINS_WHITELIST = network.domain;
+          # Debugging: LOG_LEVEL = "info". No `SIGNUPS_DOMAINS_WHITELIST`:
+          # accounts could not be validated by email.
 
           #----------------------------------------------------------------------------------------
           # SSO

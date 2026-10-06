@@ -77,19 +77,11 @@ in
       # Resolver readiness gate
       #------------------------------------------------------------------------
 
-      # AdGuardHome owns :53 (resolv.conf points at 127.0.0.1) but its unit is
-      # Type=simple: systemd marks it active as soon as the process forks,
-      # ~20s before the DNS proxy actually binds. On a gateway that gap is
-      # structural, not incidental: at startup ADH reverse-resolves its own
-      # tailnet address through MagicDNS (100.100.100.100), unreachable until
-      # tailscaled is up, and tailscaled needs a working resolver to reach the
-      # control plane. The upstream timeout breaks the loop, but every unit
-      # resolving a name meanwhile races a deaf socket and fails hard (nfs
-      # mounts, OIDC provisioning...).
-      #
-      # `nss-lookup.target` is the systemd contract for "names resolve here":
-      # gate it on a resolver that answers, so consumers only need the usual
-      # `after = [ "nss-lookup.target" ]`.
+      # AdGuardHome owns :53, but its Type=simple unit is active ~20s before
+      # the DNS proxy binds (it first reverse-resolves its tailnet address via
+      # MagicDNS, down until tailscaled is up): name lookups meanwhile fail
+      # hard. `nss-lookup.target` waits for a resolver that answers, so
+      # consumers just need `after = [ "nss-lookup.target" ]`.
       systemd.services.dns-ready = {
         description = "Wait for the local DNS resolver to answer";
         after = [
@@ -272,6 +264,7 @@ in
                 "https://adguardteam.github.io/HostlistsRegistry/assets/filter_11.txt"
                 "https://adguardteam.github.io/HostlistsRegistry/assets/filter_59.txt"
               ];
+
           # user_rules = [
           #   "! Youtube kids"
           #   "@@||youtubekids.com^"

@@ -457,14 +457,8 @@ in
       # Whiteboard app provisioning
       #------------------------------------------------------------------------
 
-      # `config:app:set` is an upsert, so this is idempotent. Both values were
-      # left as TODO comments until now, which meant the app could never reach
-      # its backend.
-      #
-      # The JWT transits through argv for the duration of the call. Acceptable:
-      # the unit runs as `nextcloud`, and anything able to read its
-      # /proc/<pid>/cmdline already reads the same value straight out of
-      # Nextcloud's own config.
+      # `config:app:set` is an upsert: idempotent. The JWT transits through argv
+      # for the call, readable only by what already reads Nextcloud's config.
       systemd.services.nextcloud-whiteboard-setup = lib.mkIf hasWhiteboard {
         after = [ "nextcloud-setup.service" ];
         requires = [ "nextcloud-setup.service" ];

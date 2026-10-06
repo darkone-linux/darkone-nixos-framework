@@ -310,12 +310,10 @@ in
 
     #--------------------------------------------------------------------------
     # Grafana Alloy client (on each host running Caddy)
-    #
-    # Promtail has reached end of life, its official successor
-    # `grafana-alloy` plays the same role: tail Caddy files + JSON parsing
-    # + push to Loki. River configuration is placed at
-    # `/etc/alloy/config.alloy` (default path for `services.alloy`).
     #--------------------------------------------------------------------------
+
+    # Alloy, Promtail's successor: tails the Caddy JSON logs, pushes them to
+    # Loki. Configured in `/etc/alloy/config.alloy` (`services.alloy` default).
 
     (lib.mkIf cfg.isClient {
 
@@ -402,13 +400,9 @@ in
         Group = lib.mkForce "caddy";
         SupplementaryGroups = lib.mkForce [ "systemd-journal" ];
 
-        # `ExecStartPre` (`+` prefix => executed as root, regardless of `User=`)
-        # ensures `/var/lib/alloy` and its contents (notably `data-alloy/`
-        # created by Alloy itself) belong to `caddy:caddy` on every start.
-        # Without this, on a new host or one migrated from the old DynamicUser,
-        # we get `mkdir data-alloy/remotecfg: permission denied` because
-        # systemd's StateDirectory does not chown recursively and tmpfiles only
-        # runs at boot (not on switch).
+        # Root (`+`) chown on every start: StateDirectory does not chown
+        # recursively and tmpfiles runs at boot only, so a new host (or one off
+        # the old DynamicUser) failed with `mkdir data-alloy/remotecfg`.
         ExecStartPre = [ "+${pkgs.coreutils}/bin/chown -R caddy:caddy /var/lib/alloy" ];
 
         # Same rationale as Loki: on SIGTERM Alloy drains its pending batches

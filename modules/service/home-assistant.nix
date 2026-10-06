@@ -21,8 +21,6 @@ in
     services.home-assistant = {
       enable = true;
       extraComponents = [
-        #"esphome"
-        #"met"
         "sun"
         "met"
         "supervisord"

@@ -104,12 +104,9 @@ let
   hcsIp = hcsHost.vpnIp or "";
   dnsTarget = "${gwIp}:53";
 
-  # Gateways of the other zones, reached over the tailnet. Each zone's
-  # Prometheus runs *on* its own gateway and scrapes only its own nodes, so a
-  # gateway that dies takes its own observer down with it: nothing would ever
-  # report a whole site going dark. Probing the peers crosses that blind spot,
-  # and every remaining zone is a witness — losing one observer never leaves
-  # the outage unseen. The global zone is skipped: it is already `hcsIp`.
+  # Gateways of the other zones, over the tailnet: a dead gateway takes its own
+  # Prometheus down, so only its peers can witness a whole site going dark.
+  # The global zone is skipped: it is already `hcsIp`.
   peerGateways =
     lib.mapAttrsToList
       (n: z: {
@@ -160,6 +157,7 @@ let
         reach = "wan";
       };
     })
+
     # A peer site is reached across the WAN like HCS, hence `reach = "wan"`:
     # a local internet outage must raise ZoneInternetDown alone, not one alert
     # per peer. `for` is generous — a gateway reboot or a switch must not page.
@@ -199,6 +197,7 @@ let
       job = "blackbox-internet";
       severity = "critical";
       "for" = "2m";
+
       # `max`, not `min`: probe_success is 1/0, so max == 0 means every target
       # is down. `min == 0` would fire on the first dead target.
       expr = ''max by (job) (probe_success{job="blackbox-internet"}) == 0'';
@@ -532,6 +531,7 @@ in
             # child route wins. Silenced alerts must therefore be matched before
             # the severity routes, or they would notify anyway.
             routes =
+
               # Maintenance alerts are swallowed: they exist only to drive
               # inhibition, never to notify.
               lib.optional alerting.silenceOnRebuild {
@@ -552,6 +552,7 @@ in
           };
 
           inhibit_rules =
+
             # A firing critical mutes the matching warning for the same target.
             [
               {
@@ -563,6 +564,7 @@ in
                 ];
               }
             ]
+
             # A node under maintenance mutes all of its own alerts.
             ++ lib.optional alerting.silenceOnRebuild {
               source_matchers = [ ''alertname="MaintenanceMode"'' ];

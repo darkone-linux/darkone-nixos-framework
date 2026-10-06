@@ -155,14 +155,9 @@ in
       # Sops
       #--------------------------------------------------------------------------
 
-      # Grafana secrets (internal key) + alias for kanidm-owned OIDC secret.
-      # The SOPS admin only adds `oidc-secret-monitoring` (encrypted for
-      # kanidm via the idm.nix pattern). This alias makes it readable by grafana.
-      #
-      # `optionalAttrs cfg.enable` (not `mkIf` on the value) because the key
-      # `"${secret}-service"` depends on `params` via `clientId`; and `params`
-      # is only resolvable on the host that runs the monitoring service. On a
-      # plain monitoring-node, `optionalAttrs` short-circuits the key construction.
+      # Grafana internal key + readable alias of the kanidm-owned OIDC secret.
+      # `optionalAttrs`, not `mkIf`: the `"${secret}-service"` key itself needs
+      # `params`, only resolvable where monitoring runs, not on a plain node.
       sops.secrets = lib.optionalAttrs cfg.enable {
         grafana-secret-key = {
           mode = "0400";
@@ -292,13 +287,10 @@ in
             news_feed_enabled = false;
           };
 
-          # SSO Kanidm (OIDC). Any authenticated Kanidm user gets Viewer
-          # access; if the `groups` claim contains `admins` (short name or
-          # SPN), they are promoted to GrafanaAdmin. Strict restriction to
-          # the admins group (`allowed_groups`) is disabled until we confirm
-          # the exact claim format on the Kanidm side — see the TODO below,
-          # possibly via `darkone.service.idm.oauth2.monitoring.extra`
-          # (custom claimMaps / scopeMaps).
+          # Kanidm SSO: any user is Viewer, promoted GrafanaAdmin when `groups`
+          # holds `admins` (short name or SPN). `allowed_groups` stays off until
+          # the claim format is confirmed (TODO below, maybe via
+          # `darkone.service.idm.oauth2.monitoring.extra`).
           auth.disable_login_form = true;
           "auth.anonymous".enabled = false;
           "auth.generic_oauth" = {

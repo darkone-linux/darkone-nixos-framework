@@ -70,27 +70,13 @@ let
   cachePort = dnfConfig.network.ports.nixCache;
   harmoniaPort = dnfConfig.network.ports.harmonia;
 
-  # Substituter priorities (lower wins). Nix orders substituters by the
-  # `Priority` each one advertises in its `nix-cache-info`, NOT by their order in
-  # `substituters`, and the advertised values collide here: every harmonia says
-  # 30, while this proxy relays `cache.nixos.org` verbatim and therefore says 40
-  # — exactly what the direct `cache.nixos.org` entry (R59 allowlist plus the
-  # nixpkgs default) says too. Ties fall back on list order, which the manual
-  # does not guarantee. Pinning the priority in the store URL (`?priority=`)
-  # overrides the advertised value and makes the intended order explicit:
-  #
-  # - 20: the zone's own harmonia (LAN, holds what the zone built);
-  # - 35: this proxy (LAN, mutualised mirror of the public cache) — must beat
-  #   the direct upstream, otherwise the zone never pools its downloads;
-  # - 40: `cache.nixos.org` direct, kept as the fallback when the gateway is down;
-  # - 45: a `global` harmonia, reached cross-zone over the tailnet. Last resort
-  #   on purpose: harmonia serves a whole `/nix/store`, so a well-stocked host
-  #   would otherwise capture traffic the public cache should answer — over a
-  #   WAN link that is typically far slower. At 45 it is only ever consulted for
-  #   paths `cache.nixos.org` does not have, ie. that host's own builds.
-  inZonePriority = 20;
-  proxyPriority = 35;
-  globalPriority = 45;
+  # Substituter priorities (lower wins), pinned in the store URL: Nix orders by
+  # the advertised `nix-cache-info` value, which collides here (harmonia 30,
+  # this proxy and `cache.nixos.org` both 40). The direct `cache.nixos.org`
+  # keeps its 40: the fallback when the gateway is down.
+  inZonePriority = 20; # zone harmonia (LAN): what the zone built
+  proxyPriority = 35; # beats the direct upstream, so the zone pools downloads
+  globalPriority = 45; # cross-zone harmonia: only for paths upstream lacks
 
   # Store URL carrying an explicit priority (see above).
   cacheUrl =
@@ -99,16 +85,9 @@ let
   harmoniaUrl = priority: cacheUrl priority harmoniaPort;
   proxyUrl = cacheUrl proxyPriority cachePort;
 
-  # Harmonia substituters in scope for this zone: same-zone instances (LAN,
-  # highest priority) first, then any global harmonia (reached cross-zone over
-  # the tailnet). Other zones' non-global harmonia are never used. These are
-  # direct client substituters — Nix itself handles the 404 fall-through and the
-  # signature checks across substituters.
-  #
-  # A harmonia host skips its *own* instance: harmonia serves this very
-  # `/nix/store`, so it can only ever hold paths already present locally. Keeping
-  # it would spend one HTTP round-trip per query to be told what the local store
-  # already answered.
+  # Harmonia substituters in scope: same-zone instances first, then any global
+  # one (cross-zone, tailnet); Nix handles 404 fall-through and signatures. A
+  # harmonia host skips its own instance: it serves this very `/nix/store`.
   harmoniaInZone = lib.filter (
     s: s.name == "harmonia" && s.zone == zone.name && s.host != host.hostname
   ) network.services;
@@ -226,17 +205,11 @@ in
             }
           ];
           locations."/" = {
-            # Upstream as an nginx variable (not a literal host): this defers the
-            # `cache.nixos.org` DNS lookup to request time instead of nginx
-            # startup. Without it, an nginx (re)start during activation — when
-            # networkd is briefly regenerating /etc/resolv.conf, e.g. after any
-            # gateway network change — fails hard with
-            # `[emerg] host not found in upstream "cache.nixos.org"` (activation
-            # code 4, unit stuck `degraded` on start-limit-hit). With the
-            # variable + `resolver` below the service always starts; the name is
-            # resolved (and re-resolved every `valid=`) when traffic arrives.
-            # `$request_uri` carries the original request path — mandatory once
-            # proxy_pass holds a variable.
+
+            # Upstream as an nginx variable: `cache.nixos.org` resolves per
+            # request (every `valid=`), not at startup, where a resolv.conf being
+            # rewritten failed nginx hard ("host not found in upstream"). A
+            # variable `proxy_pass` needs `$request_uri` to carry the path.
             proxyPass = "https://$nix_cache_upstream$request_uri";
 
             # NixOS appends its recommended proxy headers *after* extraConfig,

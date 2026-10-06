@@ -114,13 +114,11 @@ assert
       # SERVER
       #--------------------------------------------------------------------------
 
-      # No `no_root_squash` on the homes: that single word turns "read another
-      # user's files" into "drop a key in a wheel member's authorized_keys".
-      # No `insecure` either — every client is a Linux kernel mount, which binds
-      # under 1024.
+      # No `no_root_squash` on the homes: it turns "read another user's files"
+      # into "drop a key in a wheel member's authorized_keys". No `insecure`:
+      # Linux kernel mounts bind under 1024.
       #
-      # TODO: see if all_squash can work by tweaking idmapd config:
-      # https://search.nixos.org/options?channel=unstable&show=services.nfs.idmapd.settings&query=idmapd
+      # TODO: all_squash through an idmapd config (`services.nfs.idmapd.settings`)?
       services.nfs.server = lib.mkIf isServer {
         enable = true;
         exports = lib.optionalString (clientIps != [ ]) ''
@@ -205,10 +203,6 @@ assert
         reloadIfChanged = lib.mkForce false;
         restartIfChanged = true;
       };
-      # "mnt-nfs-homes.automount" = {
-      #   reloadIfChanged = lib.mkForce false;
-      #   restartIfChanged = true;
-      # };
 
       # Start after network
       systemd.services.nfs-client = lib.mkIf isClient {

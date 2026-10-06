@@ -126,13 +126,7 @@ in
               weight = 97;
             };
 
-            # Blacklisted or unresponsive...
-            # "google ${zone.lang}" = {
-            #   engine = "google";
-            #   language = zone.lang;
-            #   weight = 100;
-            #   disable = true;
-            # };
+            # No Google engine: blacklisted or unresponsive.
             "qwant" = {
               disabled = true;
               weight = 100;

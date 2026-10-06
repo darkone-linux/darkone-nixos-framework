@@ -110,6 +110,7 @@ let
     # REST credential (username + password), unused for local repositories.
     environmentFile = config.sops.templates."restic-rest-env".path;
     timerConfig.Persistent = false;
+
     # Cloud sync replicas: the server-side original is backed up already, and
     # restic never dedups across repositories. Legacy folders only — client 34
     # dropped SyncRunFileLog, and the `.sync_<hash>.db` it still writes is out

@@ -216,10 +216,8 @@ in
                   cpu = true;
                   memory = true;
                   uptime = true;
-                  #cputemp = true;
-                  #network = true;
-                  #disk = "/";
-                  #network = zone.gateway.wan.interface;
+
+                  # Also available: `cputemp`, `disk`, `network`.
                 };
               }
               {

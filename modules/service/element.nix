@@ -38,13 +38,10 @@ let
         on_welcome_page = true;
         on_login_page = true;
       };
-      # No `oidc_static_clients` / `oidc_metadata` override: both assumed
-      # Kanidm was the OIDC issuer, which it never is for a matrix client.
-      # With MAS the issuer is `matrix.<domain>`, and forcing `client_uri` to
-      # the IDM host made MAS reject Element's dynamic registration ("invalid
-      # redirect_uri": a native app's custom scheme must reverse-DNS-match its
-      # client_uri, `io.element.desktop` vs `idm.<domain>`). Element then fell
-      # back to the legacy browser SSO flow. Its own defaults register fine.
+
+      # No `oidc_static_clients`/`oidc_metadata` override: MAS (`matrix.<domain>`)
+      # is the issuer, and a `client_uri` on the IDM host made it reject
+      # Element's dynamic registration. Its own defaults register fine.
       jitsi.preferred_domain = if hasJitsi then jitsiDomain else "meet.jit.si";
 
       # Element X only talks to a MAS-backed homeserver, which every DNF

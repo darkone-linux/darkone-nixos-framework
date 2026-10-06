@@ -100,13 +100,9 @@ in
       # Secrets
       #------------------------------------------------------------------------
 
-      # OIDC client secret + S3 credentials (local only) injected via the
-      # same template to load a single EnvironmentFile on the systemd side.
-      # The template is root-owned: systemd reads `EnvironmentFile=` before
-      # privilege drop, so the dynamic user (DynamicUser=true upstream)
-      # does not need direct access.
-      # For remote S3 backends, the module does not attempt to inject
-      # credentials (provide via override in `usr/`).
+      # OIDC client secret + local S3 credentials in one root-owned template:
+      # systemd reads `EnvironmentFile=` before dropping to the dynamic user.
+      # Remote S3 backends: credentials come from an override in `usr/`.
       sops.secrets = {
         ${secret} = { };
       }
@@ -133,15 +129,9 @@ in
       # docs Services
       #------------------------------------------------------------------------
 
-      # Nginx LaSuite Docs virtualhost
-      # Caddy reverse proxy -> LaSuite Docs Nginx virtualhost -> LaSuite Docs service
-      #
-      # The upstream `services.lasuite-docs` module declares the vhost
-      # `${cfg.domain}` without `listen`; without an override, nginx binds 0.0.0.0:80
-      # and conflicts with Caddy. We explicitly override the `listen` of the
-      # docs vhost only, without touching the global `defaultListen` (which would
-      # remain at `0.0.0.0:80` for any other vhost — to be fixed per module if
-      # another nginx service is added later on the same host).
+      # Caddy -> LaSuite Docs nginx vhost -> LaSuite Docs. Upstream declares the
+      # vhost without `listen`, so nginx would bind 0.0.0.0:80 against Caddy:
+      # this vhost's `listen` only is overridden, not the global `defaultListen`.
       services.nginx = {
         recommendedProxySettings = true;
 
@@ -165,14 +155,10 @@ in
             }
           ];
 
-          # Each Django/backend-facing location below disables the
-          # upstream `recommendedProxySettings = true` (set by the
-          # lasuite-docs module) and re-declares the full set of proxy
-          # headers manually. The reason: nginx does not deduplicate
-          # `proxy_set_header` by name — appending an override after
-          # the recommended-headers include would send two
-          # `X-Forwarded-Proto` headers and Django would pick the wrong
-          # one, looping on a 301 to HTTPS (`ERR_TOO_MANY_REDIRECTS`).
+          # Django-facing locations drop the module's `recommendedProxySettings`
+          # and restate every proxy header: nginx does not deduplicate
+          # `proxy_set_header`, and two `X-Forwarded-Proto` loop Django on a
+          # 301 to HTTPS (`ERR_TOO_MANY_REDIRECTS`).
           locations =
             let
               proxyHeaders = ''

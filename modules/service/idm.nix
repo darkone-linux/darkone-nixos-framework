@@ -49,20 +49,12 @@ let
   #--------------------------------------------------------------------------
   # Multi-zone read-only replication (automatic, derived from declared services)
   #--------------------------------------------------------------------------
-  #
-  # No manual flag: the mode is inferred from where `idm` is declared (see
-  # `network.services`) and from the coordination topology. Three scenarios:
-  #   1. idm on the HCS only        -> single instance, no replication.
-  #   2. idm on a gateway, no HCS   -> standalone autonomous instance in the zone.
-  #   3. idm on the HCS *and* >=1 local-zone gateway -> replication engaged:
-  #      the HCS is the supplier (WriteReplica) and each idm gateway a consumer.
-  #
-  # In scenario 3 the bootstrap is a real two-step deploy:
-  #   - step 1 (`just apply`): HCS and gateways both emit their `[replication]`
-  #     identity block, so every node generates its certificate at once. The
-  #     gateways stay functional WriteReplicaNoUI until their HCS cert is synced.
-  #   - step 2 (`just idm-sync-certs` + `just apply`): partner sub-blocks appear
-  #     and each gateway flips to ReadOnlyReplica (pull from the HCS).
+
+  # idm on the HCS only, or on a gateway without HCS: one instance. On the HCS
+  # and >= 1 zone gateway: the HCS supplies (WriteReplica), gateways consume.
+  # Two-step bootstrap: `just apply` generates every certificate (gateways stay
+  # WriteReplicaNoUI), then `just idm-sync-certs` + `just apply` adds the
+  # partners and flips the gateways to ReadOnlyReplica.
 
   # A coordinated local-zone gateway is a read-only replica candidate.
   isZoneReplica =
@@ -253,14 +245,10 @@ in
   options = {
     darkone.service.idm.enable = mkEnableOption "Enable local SSO with Kanidm";
 
-    # OAuth2 client registry. Each service module that supports OIDC contributes
-    # a template here unconditionally; when the idm module is enabled, kanidm
-    # iterates `network.services` and provisions one client per (template,
-    # instance) pair (see the expansion in the `config` block below).
-    #
-    # Service modules declare path templates only (no scheme/host); idm.nix
-    # prefixes them with the resolved `params.href` of each service instance
-    # to eliminate hardcoded subdomains.
+    # OAuth2 client registry: every OIDC-capable service module contributes a
+    # template, unconditionally. Kanidm provisions one client per (template,
+    # instance of `network.services`), prefixing the template paths with each
+    # instance's resolved `params.href`.
     darkone.service.idm.oauth2 = mkOption {
       default = { };
       description = ''
@@ -625,16 +613,11 @@ in
           #----------------------------------------------------------------------
           # OAuth2 provisioning
           #----------------------------------------------------------------------
-          #
-          # Each entry below comes from a `darkone.service.idm.oauth2.<name>`
-          # template contributed by a service module, expanded against the
-          # matching `network.services` instances and merged by `clientId`.
-          # See the `rawPairs` / `oauth2Clients` let-bindings above and the
-          # OAuth2 template in `service/forgejo.nix` for the canonical
-          # example. Multi-instance services (eg. `monitoring` per zone)
-          # produce a single Kanidm client whose `originUrl` lists every
-          # zone's redirect URI.
-          # -> https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
+
+          # `darkone.service.idm.oauth2.<name>` templates expanded against
+          # `network.services`, merged by `clientId` (`rawPairs`/`oauth2Clients`
+          # above; canonical template: `service/forgejo.nix`). A multi-zone
+          # service gets one client listing every zone's redirect URI.
 
           systems.oauth2 =
             listToAttrs (
@@ -680,8 +663,6 @@ in
             displayName = u.name;
             legalName = u.name;
             mailAddresses = [ u.email ];
-            #enableUnix = false; # Does not exists
-            #gidNumber = 100;    # Does not exists
             groups = [ "posix" ];
           }) users;
         };

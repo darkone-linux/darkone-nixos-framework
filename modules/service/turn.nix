@@ -222,8 +222,7 @@ in
 
       networking.firewall = {
         allowedUDPPorts = [
-          srv.listening-port # 3478
-          # srv.tls-listening-port # 5349
+          srv.listening-port # 3478, no TLS over UDP
         ];
         allowedTCPPorts = [
           srv.listening-port # 3478
