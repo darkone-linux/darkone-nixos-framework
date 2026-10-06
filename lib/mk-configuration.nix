@@ -340,7 +340,9 @@ let
         # Consumer-side home overlay + per-user customizations
         (workDir + "/usr/home")
         (workDir + "/usr/users/${login}")
-        (import (resolveProfile users.${login}.profile))
+
+        # By path, not `import`: module errors then name the profile file.
+        (resolveProfile users.${login}.profile)
       ];
       home = {
         username = login;
