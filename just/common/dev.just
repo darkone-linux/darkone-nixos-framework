@@ -64,11 +64,14 @@ _gen-default dir:
 	else
 		just _log "{{dir}} ➜ default.nix..." "GENERATOR"
 		cd {{dir}}
+
+		# C collation: a locale ignoring punctuation sorts `x/a.nix` before
+		# `x.nix`, and the import order then differs between machines.
 		{
 			echo "# DO NOT EDIT, this is a generated file."
 			echo
 			echo "{ imports = ["
-			find . -name "*.nix" | sort | grep -v default.nix || true
+			find . -name "*.nix" | LC_ALL=C sort | grep -v default.nix || true
 			echo "];}"
 		} > default.nix
 		nixfmt -sv default.nix
