@@ -689,7 +689,6 @@ in
 
       # Vim plugins
       plugins = with pkgs.vimPlugins; [
-        LazyVim
         coc-fzf
         coc-git
         coc-html
@@ -706,9 +705,9 @@ in
         gruvbox
         lightline-gruvbox-vim
         lightline-vim
-        mini-completion
         nerdtree
         nerdtree-git-plugin
+        vim-fugitive
         vim-gitgutter
         vim-just
         vim-lastplace
@@ -723,7 +722,7 @@ in
       extraConfig = ''
         set mouse=a
 
-        " Set utf8 as standard encoding and en_US as the standard language
+        " UTF-8 encoding
         set encoding=utf8
 
         " Use Unix as the standard file type
@@ -739,16 +738,11 @@ in
         set shiftwidth=2
         set tabstop=2
         set shiftround                  "Round spaces to nearest shiftwidth multiple
-        set nojoinspaces                "Don't convert spaces to tabs
+        set nojoinspaces                "One space after a period when joining lines
 
         set ai "Auto indent
         set si "Smart indent
         set wrap "Wrap lines
-
-        " Visual mode pressing * or # searches for the current selection
-        " Super useful! From an idea by Michael Naumann
-        vnoremap <silent> * :call VisualSelection('f')<CR>
-        vnoremap <silent> # :call VisualSelection('b')<CR>
 
         " Always show the status line
         set laststatus=2
@@ -803,7 +797,6 @@ in
         autocmd VimEnter * if argc() == 0 && !exists('s:std_in') | NERDTree | endif
 
         " Start NERDTree when Vim starts with a directory argument.
-        autocmd StdinReadPre * let s:std_in=1
         autocmd VimEnter * if argc() == 1 && isdirectory(argv()[0]) && !exists('s:std_in') |
             \ execute 'NERDTree' argv()[0] | wincmd p | enew | execute 'cd '.argv()[0] | endif
 
@@ -851,7 +844,7 @@ in
           return !col || getline('.')[col - 1]  =~# '\s'
         endfunction
 
-        " Formatting du code
+        " Format the selection (CoC)
         xmap <leader>f  <Plug>(coc-format-selected)
         nmap <leader>f  <Plug>(coc-format-selected)
       '';
