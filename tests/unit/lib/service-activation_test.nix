@@ -52,9 +52,9 @@ let
     host = mockHost;
     modules = mockModules;
   };
-
 in
 {
+
   # triggers.keys: matching key → option activated via mkOverride 200.
   testKeyPresentActivates = {
     expr = minimalResult.darkone.service.forgejo.enable.content;

@@ -25,20 +25,8 @@ let
   vlans = import ./vlans.nix { inherit lib; };
   selected = if hosts == null then ws.hostNames else hosts;
 
-  # Partition `mkNodeArgs` output into shared vs per-node. Every node in a
-  # workspace shares the same workspace inventory (hosts, network, users, ...),
-  # the same nixpkgs/dnfLib instances, and the same workDir — only `host`
-  # (and its derived `zone`) actually vary.
-  sharedKeys = [
-    "dnfConfig"
-    "hosts"
-    "network"
-    "users"
-    "userNixosProfiles"
-    "workDir"
-    "pkgs-stable"
-    "dnfLib"
-  ];
+  # Only `host` and its `zone` vary between the nodes of a workspace: every
+  # other `mkNodeArgs` key is shared, whatever the assembler adds later.
   perNodeKeys = [
     "host"
     "zone"
@@ -46,7 +34,7 @@ let
 
   # Any node yields the shared subset; pick the first by alphabetical name.
   refSpecialArgs = (ws.nodeOf (builtins.head ws.hostNames)).specialArgs;
-  sharedSpecialArgs = lib.getAttrs sharedKeys refSpecialArgs;
+  sharedSpecialArgs = removeAttrs refSpecialArgs perNodeKeys;
 in
 pkgs.testers.runNixOSTest {
   inherit name testScript;
@@ -75,13 +63,8 @@ pkgs.testers.runNixOSTest {
         # nodes. `_module.args` is safe here because no top-level config eval
         # closes over `host`/`zone` before the module merge resolves them.
         { _module.args = lib.getAttrs perNodeKeys nodeDef.specialArgs; }
+        ./vm-sizing.nix
       ];
-
-      virtualisation = {
-        memorySize = 2048;
-        cores = 2;
-        diskSize = 4096;
-      };
     }
   );
 }

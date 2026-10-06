@@ -69,16 +69,10 @@ pkgs.testers.runNixOSTest {
         nodeDef.modules
         ++ [
           ./test-tuning.nix
+          ./vm-sizing.nix
           testModule
         ]
         ++ lib.optional lan lanModule;
-
-      # VM sizing lives here (qemu-vm-only options); test-tuning stays generic.
-      virtualisation = {
-        memorySize = 2048;
-        cores = 2;
-        diskSize = 4096;
-      };
     };
   };
 }

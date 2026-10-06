@@ -121,6 +121,135 @@ in
     };
   };
 
+  # ----- buildServiceParams: derived fallbacks -----
+  testBuildServiceParamsDerivedFallbacks = {
+    expr =
+      let
+        p = dnfLib.buildServiceParams mockHost mockNetworkPlain { name = "wiki"; } { };
+      in
+      {
+        inherit (p)
+          description
+          noRobots
+          zone
+          host
+          ;
+      };
+    expected = {
+      description = "Wiki local service";
+      noRobots = true;
+      zone = "lan";
+      host = "testhost";
+    };
+  };
+
+  # ----- buildServiceParams: empty module defaults count as unset -----
+  testBuildServiceParamsEmptyDefaults = {
+    expr =
+      let
+        p = dnfLib.buildServiceParams mockHost mockNetworkPlain { name = "wiki"; } {
+          domain = "";
+          title = "";
+          icon = "";
+          ip = "";
+        };
+      in
+      {
+        inherit (p)
+          domain
+          title
+          icon
+          ip
+          ;
+      };
+    expected = {
+      domain = "wiki";
+      title = "Wiki";
+      icon = "sh-wiki";
+      ip = "192.168.1.10";
+    };
+  };
+
+  # ----- buildServiceParams: the network entry wins over module defaults -----
+  testBuildServiceParamsEntryWins = {
+    expr =
+      let
+        p =
+          dnfLib.buildServiceParams mockHost mockNetworkPlain
+            {
+              name = "wiki";
+              domain = "kb";
+              icon = "bookstack";
+              global = false;
+              noRobots = false;
+              zone = "dmz";
+              host = "otherhost";
+            }
+            {
+              domain = "knowledge";
+              icon = "wikijs";
+              global = true;
+              noRobots = true;
+            };
+      in
+      {
+        inherit (p)
+          domain
+          icon
+          global
+          noRobots
+          zone
+          host
+          fqdn
+          ;
+      };
+    expected = {
+      domain = "kb";
+      icon = "sh-bookstack";
+      global = false;
+      noRobots = false;
+      zone = "dmz";
+      host = "otherhost";
+      fqdn = "kb.lan.example.com";
+    };
+  };
+
+  # ----- buildServiceParams: boolean module defaults apply, even `false` -----
+  testBuildServiceParamsBooleanDefaults = {
+    expr =
+      let
+        p = dnfLib.buildServiceParams hcsHost mockNetworkHcs { name = "site"; } {
+          global = true;
+          noRobots = false;
+        };
+      in
+      {
+        inherit (p) global noRobots fqdn;
+      };
+    expected = {
+      global = true;
+      noRobots = false;
+      fqdn = "site.example.com";
+    };
+  };
+
+  # ----- buildServiceParams: an explicit IP beats the topology -----
+  testBuildServiceParamsExplicitIp = {
+    expr = {
+      fromDefaults =
+        (dnfLib.buildServiceParams hcsHost mockNetworkHcs { name = "auth"; } { ip = "10.0.0.5"; }).ip;
+      fromEntry =
+        (dnfLib.buildServiceParams hcsHost mockNetworkHcs {
+          name = "auth";
+          ip = "10.0.0.6";
+        } { ip = "10.0.0.5"; }).ip;
+    };
+    expected = {
+      fromDefaults = "10.0.0.5";
+      fromEntry = "10.0.0.6";
+    };
+  };
+
   # ----- buildServiceParams: global service uses networkDomain -----
   testBuildServiceParamsGlobalFqdn = {
     expr =

@@ -20,41 +20,78 @@ let
     services = { };
   };
 
+  # Rules of the first group of a rule document, and one of them by index.
+  rulesOf = doc: (builtins.head doc.groups).rules;
+  ruleAt = n: doc: builtins.elemAt (rulesOf doc) n;
+
+  # Full zone document for `nodes`, without network service.
+  zoneDoc =
+    nodes:
+    dnfLib.mkAlertRuleGroups {
+      inherit nodes;
+      services = [ ];
+      nodeExporterPort = 9100;
+      zoneName = "ag";
+    };
+
+  # Node rules of `node` scraped from zone `ag`.
+  nodeDoc =
+    node:
+    dnfLib.mkNodeRuleGroups {
+      nodes = [ node ];
+      services = [ ];
+      nodeExporterPort = 9100;
+      zoneName = "ag";
+    };
+
+  # A same-zone server, with the given declared services.
+  serverA = services: {
+    hostname = "a";
+    profile = "server";
+    ip = "10.0.0.9";
+    zone = "ag";
+    features = { };
+    inherit services;
+  };
+
   # Rules emitted for a single same-zone node, in order: nodeDown, systemdFailed,
   # then the per-service rules (none here: no declared service).
   nodeRules =
     ignoredUnits:
-    (builtins.head
-      (dnfLib.mkNodeRuleGroups {
-        nodes = [
-          {
-            hostname = "a";
-            profile = "server";
-            ip = "10.0.0.9";
-            zone = "ag";
-            features = { };
-            services = { };
-          }
-        ];
+    rulesOf (
+      dnfLib.mkNodeRuleGroups {
+        nodes = [ (serverA { }) ];
         services = [ ];
         nodeExporterPort = 9100;
         zoneName = "ag";
         inherit ignoredUnits;
-      }).groups
-    ).rules;
+      }
+    );
 
   # One zone-wide resource rule, picked by alert name.
   resourceRule =
     thresholds: alert:
     builtins.head (
-      builtins.filter (r: r.alert == alert)
-        (builtins.head
-          (dnfLib.mkResourceRuleGroups {
+      builtins.filter (r: r.alert == alert) (
+        rulesOf (
+          dnfLib.mkResourceRuleGroups {
             inherit thresholds;
             zoneName = "ag";
-          }).groups
-        ).rules
+          }
+        )
+      )
     );
+
+  # HTTP rules of a single endpoint.
+  httpDoc = dnfLib.mkHttpRuleGroups {
+    zoneName = "ag";
+    probes = [
+      {
+        name = "git";
+        instance = "https://git.ag";
+      }
+    ];
+  };
 
   # Shared filesystem selector: the node's own real mounts only (no pseudo
   # filesystem, no remote share).
@@ -162,84 +199,52 @@ in
   testRuleGroupsCount = {
     expr =
       builtins.length
-        (dnfLib.mkAlertRuleGroups {
-          nodes = [
-            critServer
-            laptopDisabled
-          ];
-          services = [ ];
-          nodeExporterPort = 9100;
-          zoneName = "ag";
-        }).groups;
+        (zoneDoc [
+          critServer
+          laptopDisabled
+        ]).groups;
     expected = 7;
   };
   testNodeGroupName = {
     expr =
-      (builtins.elemAt
-        (dnfLib.mkAlertRuleGroups {
-          nodes = [
-            critServer
-            laptopDisabled
-          ];
-          services = [ ];
-          nodeExporterPort = 9100;
-          zoneName = "ag";
-        }).groups
-        0
+      (builtins.head
+        (zoneDoc [
+          critServer
+          laptopDisabled
+        ]).groups
       ).name;
     expected = "dnf-nodes-ag";
   };
   testWatchedNodeRulesCount = {
-    expr =
-      builtins.length
-        (builtins.elemAt
-          (dnfLib.mkAlertRuleGroups {
-            nodes = [
-              critServer
-              laptopDisabled
-            ];
-            services = [ ];
-            nodeExporterPort = 9100;
-            zoneName = "ag";
-          }).groups
-          0
-        ).rules;
+    expr = builtins.length (
+      rulesOf (zoneDoc [
+        critServer
+        laptopDisabled
+      ])
+    );
     expected = 2;
   };
   testNodeDownExpr = {
-    expr =
-      (builtins.head
-        (builtins.elemAt
-          (dnfLib.mkAlertRuleGroups {
-            nodes = [ critServer ];
-            services = [ ];
-            nodeExporterPort = 9100;
-            zoneName = "ag";
-          }).groups
-          0
-        ).rules
-      ).expr;
+    expr = (ruleAt 0 (zoneDoc [ critServer ])).expr;
     expected = ''up{job="node",instance="10.0.0.1:9100"} == 0'';
   };
 
   # ----- mkNetworkRuleGroups -----
   testNetworkProbeExpr = {
     expr =
-      (builtins.head
-        (builtins.head
-          (dnfLib.mkNetworkRuleGroups {
-            zoneName = "ag";
-            probes = [
-              {
-                name = "gateway ag";
-                instance = "100.64.0.1";
-                job = "blackbox-icmp";
-                severity = "critical";
-              }
-            ];
-          }).groups
-        ).rules
-      ).expr;
+      (ruleAt 0 (
+        dnfLib.mkNetworkRuleGroups {
+          zoneName = "ag";
+          probes = [
+            {
+              name = "gateway ag";
+              instance = "100.64.0.1";
+              job = "blackbox-icmp";
+              severity = "critical";
+            }
+          ];
+        }
+      )).expr;
     expected = ''probe_success{job="blackbox-icmp",instance="100.64.0.1"} == 0'';
   };
   testNetworkEmptyProbes = {
@@ -253,9 +258,7 @@ in
 
   # ----- mkMaintenanceRuleGroups -----
   testMaintenanceExpr = {
-    expr =
-      (builtins.head (builtins.head (dnfLib.mkMaintenanceRuleGroups { zoneName = "ag"; }).groups).rules)
-      .expr;
+    expr = (ruleAt 0 (dnfLib.mkMaintenanceRuleGroups { zoneName = "ag"; })).expr;
     expected = "dnf_maintenance == 1";
   };
 
@@ -349,49 +352,19 @@ in
   # A same-zone host is `local`; a cross-zone host (reached over the WAN) is
   # `wan`, which lets ZoneInternetDown inhibit its false down-alert.
   testReachLocal = {
-    expr =
-      (builtins.head
-        (builtins.head
-          (dnfLib.mkNodeRuleGroups {
-            nodes = [
-              {
-                hostname = "a";
-                profile = "server";
-                ip = "10.0.0.9";
-                zone = "ag";
-                features = { };
-                services = { };
-              }
-            ];
-            services = [ ];
-            nodeExporterPort = 9100;
-            zoneName = "ag";
-          }).groups
-        ).rules
-      ).labels.reach;
+    expr = (ruleAt 0 (nodeDoc (serverA { }))).labels.reach;
     expected = "local";
   };
   testReachWan = {
     expr =
-      (builtins.head
-        (builtins.head
-          (dnfLib.mkNodeRuleGroups {
-            nodes = [
-              {
-                hostname = "hcs";
-                profile = "hcs";
-                ip = "1.2.3.4";
-                zone = "www";
-                features = { };
-                services = { };
-              }
-            ];
-            services = [ ];
-            nodeExporterPort = 9100;
-            zoneName = "ag";
-          }).groups
-        ).rules
-      ).labels.reach;
+      (ruleAt 0 (nodeDoc {
+        hostname = "hcs";
+        profile = "hcs";
+        ip = "1.2.3.4";
+        zone = "www";
+        features = { };
+        services = { };
+      })).labels.reach;
     expected = "wan";
   };
 
@@ -440,26 +413,12 @@ in
   testServiceDownUnitLabels = {
     expr = map (r: r.labels.unit) (
       builtins.filter (r: (r.alert or "") == "ServiceDown") (
-        (builtins.head
-          (dnfLib.mkNodeRuleGroups {
-            nodes = [
-              {
-                hostname = "a";
-                profile = "server";
-                ip = "10.0.0.9";
-                zone = "ag";
-                features = { };
-                services = {
-                  forgejo = { };
-                  headscale = { };
-                };
-              }
-            ];
-            services = [ ];
-            nodeExporterPort = 9100;
-            zoneName = "ag";
-          }).groups
-        ).rules
+        rulesOf (
+          nodeDoc (serverA {
+            forgejo = { };
+            headscale = { };
+          })
+        )
       )
     );
     expected = [
@@ -471,77 +430,48 @@ in
   # ----- mkNetworkRuleGroups (zone label + custom expr) -----
   testNetworkZoneLabel = {
     expr =
-      (builtins.head
-        (builtins.head
-          (dnfLib.mkNetworkRuleGroups {
-            zoneName = "ag";
-            probes = [
-              {
-                name = "gw";
-                instance = "100.64.0.1";
-                job = "blackbox-icmp";
-                severity = "critical";
-              }
-            ];
-          }).groups
-        ).rules
-      ).labels.zone;
+      (ruleAt 0 (
+        dnfLib.mkNetworkRuleGroups {
+          zoneName = "ag";
+          probes = [
+            {
+              name = "gw";
+              instance = "100.64.0.1";
+              job = "blackbox-icmp";
+              severity = "critical";
+            }
+          ];
+        }
+      )).labels.zone;
     expected = "ag";
   };
   testNetworkInternetExpr = {
     expr =
-      (builtins.head
-        (builtins.head
-          (dnfLib.mkNetworkRuleGroups {
-            zoneName = "ag";
-            probes = [
-              {
-                alert = "ZoneInternetDown";
-                name = "internet ag";
-                job = "blackbox-internet";
-                severity = "critical";
-                expr = ''min by (job) (probe_success{job="blackbox-internet"}) == 0'';
-              }
-            ];
-          }).groups
-        ).rules
-      ).expr;
+      (ruleAt 0 (
+        dnfLib.mkNetworkRuleGroups {
+          zoneName = "ag";
+          probes = [
+            {
+              alert = "ZoneInternetDown";
+              name = "internet ag";
+              job = "blackbox-internet";
+              severity = "critical";
+              expr = ''min by (job) (probe_success{job="blackbox-internet"}) == 0'';
+            }
+          ];
+        }
+      )).expr;
     expected = ''min by (job) (probe_success{job="blackbox-internet"}) == 0'';
   };
 
   # ----- mkHttpRuleGroups -----
   # Three rules per endpoint: liveness + two cert-expiry thresholds.
   testHttpRuleCount = {
-    expr =
-      builtins.length
-        (builtins.head
-          (dnfLib.mkHttpRuleGroups {
-            zoneName = "ag";
-            probes = [
-              {
-                name = "git";
-                instance = "https://git.ag";
-              }
-            ];
-          }).groups
-        ).rules;
+    expr = builtins.length (rulesOf httpDoc);
     expected = 3;
   };
   testHttpEndpointExpr = {
-    expr =
-      (builtins.head
-        (builtins.head
-          (dnfLib.mkHttpRuleGroups {
-            zoneName = "ag";
-            probes = [
-              {
-                name = "git";
-                instance = "https://git.ag";
-              }
-            ];
-          }).groups
-        ).rules
-      ).expr;
+    expr = (ruleAt 0 httpDoc).expr;
     expected = ''probe_success{job="blackbox-http",instance="https://git.ag"} == 0'';
   };
 
@@ -550,44 +480,35 @@ in
   # masked by a sibling. `host` too: an aggregation drops every ungrouped label.
   # `or` the declared stamp: a job that never succeeds still ages.
   testResticStaleExpr = {
-    expr =
-      (builtins.head (builtins.head (dnfLib.mkResticRuleGroups { zoneName = "ag"; }).groups).rules).expr;
+    expr = (ruleAt 0 (dnfLib.mkResticRuleGroups { zoneName = "ag"; })).expr;
     expected = "time() - (max by (instance, backup, host) (dnf_restic_last_success_timestamp) or max by (instance, backup, host) (dnf_restic_declared_timestamp)) > 129600";
   };
   testResticCriticalExpr = {
-    expr =
-      (builtins.elemAt (builtins.head (dnfLib.mkResticRuleGroups { zoneName = "ag"; }).groups).rules 1)
-      .expr;
+    expr = (ruleAt 1 (dnfLib.mkResticRuleGroups { zoneName = "ag"; })).expr;
     expected = "time() - (max by (instance, backup, host) (dnf_restic_last_success_timestamp) or max by (instance, backup, host) (dnf_restic_declared_timestamp)) > 604800";
   };
 
   # ----- mkSmartctlRuleGroups -----
   testSmartctlFailingExpr = {
-    expr =
-      (builtins.head (builtins.head (dnfLib.mkSmartctlRuleGroups { zoneName = "ag"; }).groups).rules)
-      .expr;
+    expr = (ruleAt 0 (dnfLib.mkSmartctlRuleGroups { zoneName = "ag"; })).expr;
     expected = "smartctl_device_smart_status == 0";
   };
 
   # ----- mkPostfixRuleGroups -----
   testPostfixUpExpr = {
-    expr =
-      (builtins.head (builtins.head (dnfLib.mkPostfixRuleGroups { zoneName = "ag"; }).groups).rules).expr;
+    expr = (ruleAt 0 (dnfLib.mkPostfixRuleGroups { zoneName = "ag"; })).expr;
     expected = "postfix_up == 0";
   };
 
   # ----- mkSynapseRuleGroups -----
   testSynapseRestartExpr = {
-    expr =
-      (builtins.head (builtins.head (dnfLib.mkSynapseRuleGroups { zoneName = "ag"; }).groups).rules).expr;
+    expr = (ruleAt 0 (dnfLib.mkSynapseRuleGroups { zoneName = "ag"; })).expr;
     expected = ''changes(process_start_time_seconds{job="synapse"}[30m]) > 2'';
   };
 
   # ----- mkTailscaleRuleGroups -----
   testTailscaleFlappingExpr = {
-    expr =
-      (builtins.head (builtins.head (dnfLib.mkTailscaleRuleGroups { zoneName = "ag"; }).groups).rules)
-      .expr;
+    expr = (ruleAt 0 (dnfLib.mkTailscaleRuleGroups { zoneName = "ag"; })).expr;
     expected = "increase(dnf_tailscale_selfheal_restarts_total[1h]) > 3";
   };
   testTailscaleGroupName = {
@@ -603,7 +524,7 @@ in
   testUplinkOnBackupRule = {
     expr =
       let
-        rule = builtins.head (builtins.head (dnfLib.mkUplinkRuleGroups { zoneName = "ag"; }).groups).rules;
+        rule = ruleAt 0 (dnfLib.mkUplinkRuleGroups { zoneName = "ag"; });
       in
       {
         inherit (rule) alert expr;
@@ -622,9 +543,7 @@ in
     expected = "dnf-headscale-ag";
   };
   testHeadscaleAlertNames = {
-    expr =
-      map (r: r.alert)
-        (builtins.head (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; }).groups).rules;
+    expr = map (r: r.alert) (rulesOf (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; }));
     expected = [
       "HeadscaleNodeDrift"
       "HeadscaleUnexpectedNode"
@@ -637,30 +556,17 @@ in
 
   # One alert covers the three per-node checks: the regex must name them all.
   testHeadscaleDriftExpr = {
-    expr =
-      (builtins.head (builtins.head (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; }).groups).rules)
-      .expr;
+    expr = (ruleAt 0 (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; })).expr;
     expected = ''max by (instance, host, node) ({__name__=~"dnf_headscale_node_(missing|tag_mismatch|ip_drift)"}) == 1'';
   };
   testHeadscaleExpiringExpr = {
-    expr =
-      (builtins.elemAt (builtins.head (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; }).groups).rules 4)
-      .expr;
+    expr = (ruleAt 4 (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; })).expr;
     expected = "dnf_headscale_node_expiry_timestamp_seconds - time() < 604800";
   };
 
   # Metric-driven like restic and tailscale: always part of the zone document.
   testRuleGroupsIncludeHeadscale = {
-    expr =
-      (builtins.elemAt
-        (dnfLib.mkAlertRuleGroups {
-          nodes = [ critServer ];
-          services = [ ];
-          nodeExporterPort = 9100;
-          zoneName = "ag";
-        }).groups
-        5
-      ).name;
+    expr = (builtins.elemAt (zoneDoc [ critServer ]).groups 5).name;
     expected = "dnf-headscale-ag";
   };
 
@@ -676,22 +582,12 @@ in
   # `host` from the scrape target. The instance therefore has to travel in the
   # description, which is the only annotation the bot renders.
   testResourceDescriptionCarriesInstance = {
-    expr =
-      (builtins.head
-        (builtins.head
-          (dnfLib.mkResourceRuleGroups {
-            zoneName = "ag";
-            thresholds = { };
-          }).groups
-        ).rules
-      ).annotations.description;
+    expr = (resourceRule { } "DiskSpaceLow").annotations.description;
     expected = "{{ $labels.device }} below 15% free on {{ $labels.instance }}. ${mountsSentence}";
   };
 
   testSynapseErrorRateGroupsHost = {
-    expr =
-      (builtins.elemAt (builtins.head (dnfLib.mkSynapseRuleGroups { zoneName = "ag"; }).groups).rules 1)
-      .expr;
+    expr = (ruleAt 1 (dnfLib.mkSynapseRuleGroups { zoneName = "ag"; })).expr;
     expected = ''sum by (instance, host) (rate(synapse_http_server_responses_total{job="synapse",code=~"5.."}[15m])) / sum by (instance, host) (rate(synapse_http_server_responses_total{job="synapse"}[15m])) > 0.05'';
   };
 

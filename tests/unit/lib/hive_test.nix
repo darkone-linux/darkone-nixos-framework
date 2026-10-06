@@ -33,6 +33,7 @@ let
   };
 in
 {
+
   # parseArch — compact `cpu[:board]` field
   testParseArchDefault = {
     expr = dnfLib.parseArch null;
@@ -137,6 +138,17 @@ in
     expected = "raspberry-pi-5";
   };
 
+  # rpiBoards — one SD image per board known to parseArch
+  testRpiBoards = {
+    expr = dnfLib.rpiBoards;
+    expected = [
+      "raspberry-pi-02"
+      "raspberry-pi-3"
+      "raspberry-pi-4"
+      "raspberry-pi-5"
+    ];
+  };
+
   # rpiBoardModules — selection + order (overlays, cache, board base)
   testRpiBoardModules = {
     expr = dnfLib.rpiBoardModules mockRpi "raspberry-pi-5";
@@ -186,6 +198,7 @@ in
       pkgs-stable = "mock-pkgs";
     };
   };
+
   # extraArgs overrides base attrs (last-wins merge)
   testMkNodeArgsExtraOverridesNetwork = {
     expr =

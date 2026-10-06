@@ -191,6 +191,15 @@ in
     expected = "127.0.0.1";
   };
 
+  # Empty strings, as the generator may emit, count as unknown.
+  testPreferredIpEmptyStrings = {
+    expr = dnfLib.preferredIp {
+      vpnIp = "";
+      ip = "";
+    };
+    expected = "127.0.0.1";
+  };
+
   # ----- resolveNfs -----
   testResolveNfsServer = {
     expr = dnfLib.resolveNfs {
@@ -220,7 +229,7 @@ in
   };
 
   # The feature must point at the server's own zone: cross-zone clients are not
-  # wired yet, and one of the former copies silently accepted them.
+  # wired yet.
   testResolveNfsClientWrongZone = {
     expr =
       (dnfLib.resolveNfs {
@@ -258,8 +267,7 @@ in
     expected = false;
   };
 
-  # No `nfs` service in the zone: used to abort with `attempt to select
-  # attribute 'host' on null` instead of degrading.
+  # No `nfs` service in the zone: degrades instead of aborting on a null lookup.
   testResolveNfsNoServer = {
     expr = dnfLib.resolveNfs {
       host = nfsClientHost;

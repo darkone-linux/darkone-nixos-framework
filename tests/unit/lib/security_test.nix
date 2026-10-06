@@ -2,7 +2,8 @@
 # Run with: nix-unit --flake .#libTests
 { dnfLib }:
 let
-  # base cfg: module enabled, minimal level, base category, no exclusions or exceptions
+
+  # Module enabled, minimal level, base category, no exclusion or exception.
   baseCfg = {
     enable = true;
     level = "minimal";
@@ -13,13 +14,14 @@ let
   isActive = dnfLib.mkIsActive;
 in
 {
+
   # Disabled module → never active
   testDisabledModule = {
     expr = isActive (baseCfg // { enable = false; }) "R1" "minimal" "base" [ ];
     expected = false;
   };
 
-  # Niveau suffisant
+  # Level reached
   testLevelExactMatch = {
     expr = isActive baseCfg "R1" "minimal" "base" [ ];
     expected = true;
@@ -29,7 +31,7 @@ in
     expected = true;
   };
 
-  # Niveau insuffisant → inactif
+  # Level too low → inactive
   testLevelTooLow = {
     expr = isActive baseCfg "R1" "intermediary" "base" [ ];
     expected = false;
@@ -51,19 +53,19 @@ in
     expected = false;
   };
 
-  # Tag dans excludes → inactif
+  # Excluded tag → inactive
   testExcludedTag = {
     expr = isActive (baseCfg // { excludes = [ "no-auditd" ]; }) "R1" "minimal" "base" [ "no-auditd" ];
     expected = false;
   };
 
-  # Tag non exclu → actif
+  # Tag not excluded → active
   testNonExcludedTag = {
     expr = isActive (baseCfg // { excludes = [ "other-tag" ]; }) "R1" "minimal" "base" [ "no-auditd" ];
     expected = true;
   };
 
-  # Exception explicite → inactif
+  # Explicit exception → inactive
   testException = {
     expr = isActive (
       baseCfg
@@ -76,7 +78,7 @@ in
     expected = false;
   };
 
-  # Pas d'exception pour cet id → actif
+  # Exception for another rule → active
   testNoExceptionForId = {
     expr = isActive (
       baseCfg
@@ -89,7 +91,7 @@ in
     expected = true;
   };
 
-  # levelMapping : ordre correct
+  # levelMapping: levels in increasing order
   testLevelMappingOrder = {
     expr =
       dnfLib.levelMapping."minimal" < dnfLib.levelMapping."intermediary"

@@ -3,117 +3,99 @@
 { dnfLib }:
 let
   inherit (dnfLib) constants;
+
+  # Description of the single entry rendered for a service of `zone`, seen
+  # from the `lan` zone.
+  describe =
+    {
+      zone,
+      global,
+      host ? "somehost",
+    }:
+    let
+      srv = {
+        displayOnHomepage = true;
+        params = {
+          title = "Svc";
+          description = "Desc";
+          href = "https://svc.example.com";
+          icon = "sh-svc";
+          inherit zone global host;
+        };
+      };
+    in
+    (builtins.head (dnfLib.mkHomepageSection "lan" [ srv ])).Svc.content.description;
+  hasMarker = marker: description: builtins.match ".*${marker}.*" description != null;
 in
 {
 
   # ----- mkHomepageSection -----
-  # Global service in the www zone → green
+
+  # Global service in the global zone → green
   testMkHomepageSectionPublicGlobal = {
-    expr =
-      let
-        srv = {
-          displayOnHomepage = true;
-          params = {
-            title = "Site";
-            description = "Public";
-            href = "https://site.example.com";
-            icon = "sh-site";
-            global = true;
-            zone = constants.globalZone;
-            host = "hcshost";
-          };
-        };
-        out = builtins.head (dnfLib.mkHomepageSection "lan" [ srv ]);
-      in
-      builtins.match ".*🟢.*" out.Site.content.description != null;
+    expr = hasMarker "🟢" (describe {
+      zone = constants.globalZone;
+      global = true;
+    });
     expected = true;
   };
 
-  # Global service outside www zone → yellow
+  # Global service outside the global zone → yellow
   testMkHomepageSectionPublicNonGlobal = {
-    expr =
-      let
-        srv = {
-          displayOnHomepage = true;
-          params = {
-            title = "Site";
-            description = "Public";
-            href = "https://site.example.com";
-            icon = "sh-site";
-            global = true;
-            zone = "dmz";
-            host = "host";
-          };
-        };
-        out = builtins.head (dnfLib.mkHomepageSection "lan" [ srv ]);
-      in
-      builtins.match ".*🟡.*" out.Site.content.description != null;
+    expr = hasMarker "🟡" (describe {
+      zone = "dmz";
+      global = true;
+    });
     expected = true;
   };
 
-  # Local private service → blue
+  # Private service of the current zone → blue
   testMkHomepageSectionPrivateLocal = {
-    expr =
-      let
-        srv = {
-          displayOnHomepage = true;
-          params = {
-            title = "Wiki";
-            description = "Internal";
-            href = "http://wiki.lan";
-            icon = "sh-wiki";
-            global = false;
-            zone = "lan";
-            host = "testhost";
-          };
-        };
-        out = builtins.head (dnfLib.mkHomepageSection "lan" [ srv ]);
-      in
-      builtins.match ".*🔵.*" out.Wiki.content.description != null;
+    expr = hasMarker "🔵" (describe {
+      zone = "lan";
+      global = false;
+    });
     expected = true;
   };
 
-  # Remote private service → orange
+  # Private service of another zone → orange
   testMkHomepageSectionPrivateRemote = {
-    expr =
-      let
-        srv = {
-          displayOnHomepage = true;
-          params = {
-            title = "Wiki";
-            description = "Internal";
-            href = "http://wiki.dmz";
-            icon = "sh-wiki";
-            global = false;
-            zone = "dmz";
-            host = "otherhost";
-          };
-        };
-        out = builtins.head (dnfLib.mkHomepageSection "lan" [ srv ]);
-      in
-      builtins.match ".*🟠.*" out.Wiki.content.description != null;
+    expr = hasMarker "🟠" (describe {
+      zone = "dmz";
+      global = false;
+    });
     expected = true;
   };
 
-  # "(zone:host)" mention injected
+  # Full description: text, `(zone:host)` mention, marker
   testMkHomepageSectionMention = {
+    expr = describe {
+      zone = "lan";
+      global = false;
+      host = "testhost";
+    };
+    expected = "Desc (lan:testhost) 🔵";
+  };
+
+  # `displayOnHomepage = false` keeps the entry, disabled by `mkIf`
+  testMkHomepageSectionHidden = {
     expr =
-      let
-        srv = {
-          displayOnHomepage = true;
-          params = {
-            title = "Svc";
-            description = "Desc";
-            href = "x";
-            icon = "y";
-            global = false;
-            zone = "lan";
-            host = "testhost";
-          };
-        };
-        out = builtins.head (dnfLib.mkHomepageSection "lan" [ srv ]);
-      in
-      builtins.match ".*\\(lan:testhost\\).*" out.Svc.content.description != null;
-    expected = true;
+      (builtins.head (
+        dnfLib.mkHomepageSection "lan" [
+          {
+            displayOnHomepage = false;
+            params = {
+              title = "Svc";
+              description = "Desc";
+              href = "x";
+              icon = "y";
+              zone = "lan";
+              global = false;
+              host = "h";
+            };
+          }
+        ]
+      )).Svc.condition;
+    expected = false;
   };
 }

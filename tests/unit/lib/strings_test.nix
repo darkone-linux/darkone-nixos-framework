@@ -22,7 +22,14 @@
     expected = "no consecutive newlines here";
   };
 
+  # A single blank line survives; surrounding whitespace is trimmed.
+  testCleanKeepsOneBlankLineAndTrims = {
+    expr = dnfLib.cleanString "\n  a\n\nb\n\n\n\n\nc  \n";
+    expected = "a\n\nb\n\nc";
+  };
+
   # ----- extractCountryFromLocale -----
+
   testLocaleCountryFr = {
     expr = dnfLib.extractCountryFromLocale "fr_FR.UTF-8";
     expected = "FR";
@@ -49,7 +56,8 @@
   };
 
   # ----- mkCaddySecurityHeaders -----
-  # Sans upload size : pas de bloc `request_body`
+
+  # No upload size: no `request_body` block
   testCaddyHeadersNoUpload = {
     expr =
       let
