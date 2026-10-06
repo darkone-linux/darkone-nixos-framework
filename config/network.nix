@@ -56,6 +56,9 @@
     # Garage inter-node RPC. modules/service/garage.nix
     garageRpc = 3901;
 
+    # oauth2-proxy forward auth (loopback). modules/system/services/oauth2-proxy.nix
+    oauth2Proxy = 4180;
+
     # Docs nginx (S3-backed static site). modules/service/docs.nix
     docs = 4445;
 

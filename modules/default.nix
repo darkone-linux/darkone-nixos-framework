@@ -84,7 +84,9 @@
     ./system/i18n.nix
     ./system/luks.nix
     ./system/security.nix
+    ./system/services/caddy.nix
     ./system/services.nix
+    ./system/services/oauth2-proxy.nix
     ./system/sops.nix
     ./system/srv-dirs.nix
     ./system/testing.nix
