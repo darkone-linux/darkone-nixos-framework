@@ -757,6 +757,8 @@ in
     systemd.user.services.element-desktop = mkIf (hasMatrixClient && cfg.enableElementAutoStart) {
       Unit = {
         Description = "Element Desktop (autostart)";
+        After = [ "graphical-session.target" ];
+        PartOf = [ "graphical-session.target" ];
       };
       Install = {
         WantedBy = [ "graphical-session.target" ];
@@ -771,6 +773,8 @@ in
     systemd.user.services.fractal = mkIf (hasMatrix && cfg.enableFractalAutoStart) {
       Unit = {
         Description = "Fractal (autostart)";
+        After = [ "graphical-session.target" ];
+        PartOf = [ "graphical-session.target" ];
       };
       Install = {
         WantedBy = [ "graphical-session.target" ];
