@@ -158,7 +158,7 @@ in
       MANROFFOPT = lib.mkIf config.programs.bat.enable "-c";
       EDITOR = "vim";
       VISUAL = "vim";
-      TERMINAL = lib.optionalString hasGhostty "ghostty";
+      TERMINAL = lib.mkIf hasGhostty "ghostty";
       TERM = "xterm-256color"; # Avoid "can't find terminal definition for xterm-ghostty"
 
       # ssh-add and `ssh-keygen -Y sign` (git SSH signing) read the variable
@@ -166,11 +166,8 @@ in
       SSH_AUTH_SOCK = lib.mkIf cfg.enableVaultwardenSsh rbwSocket;
     };
 
-    # Personal binaries in PATH (~/.local/bin already global, cf. minimal profile).
-    home.sessionPath = [
-      "$HOME/.local/bin"
-      "$HOME/bin"
-    ];
+    # Personal binaries in PATH (~/.local/bin: minimal profile)
+    home.sessionPath = [ "$HOME/bin" ];
 
     #============================================================================
     # PACKAGES
