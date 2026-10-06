@@ -3,7 +3,7 @@
 # Builds the tailnet policy (groups, tagOwners, hosts, autoApprovers, acls)
 # and the expected node set `headscale-audit` checks the live tailnet against,
 # from the generated hosts, users and zones. Pure and side-effect free:
-# `service/headscale.nix` serializes both.
+# `service/headscale.nix` and `service/headscale/audit.nix` serialize them.
 
 { lib, topology }:
 let

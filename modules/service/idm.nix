@@ -428,7 +428,7 @@ in
 
       # Consumers (zone gateways) initiate the pull connection towards the HCS,
       # so only the supplier needs the replication port reachable, and only over
-      # the tailnet. Merges with the port 53 rule set by headscale.nix.
+      # the tailnet. Merges with the port 53 rule set by `headscale/dns.nix`.
       networking.firewall.interfaces.${config.services.tailscale.interfaceName}.allowedTCPPorts = mkIf (
         replEnabled && isHcs
       ) [ replPort ];

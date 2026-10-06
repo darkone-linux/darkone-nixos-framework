@@ -11,15 +11,11 @@
 #   `zone-*` groups). SSH from admin stations and `policy.adminDevices`.
 # - Personal devices log in through Kanidm (OIDC), for members of the Kanidm
 #   `tailnet` group; their keys expire after `nodeExpiry`.
-# - `headscale-audit` (every 15 min) compares the live nodes with the declared
-#   topology: metrics for the `dnf-headscale-<zone>` alerts, details in its
-#   journal. It never tags nor deletes.
-# - `dnf-tailnet-enroll` backs `just tailnet-enroll`: single-use keys tagged
-#   from the declared topology, declared name and tags on the enrolled node.
-# - Unbound view `tailnet-machines`: tagged nodes (HCS aside) get the zone LAN
-#   address of the global services a zone serves (`git.<domain>` on a gateway),
-#   everyone else the public one. `unbound-tailnet-view` lists their tailnet
-#   IPs from headscale, declared nowhere.
+#
+# Sub-modules (`headscale/`):
+# - `dns.nix`: unbound, the tailnet pivot DNS, and its `tailnet-machines` view;
+# - `audit.nix`: `headscale-audit`, live nodes against the declared topology;
+# - `enroll.nix`: `dnf-tailnet-enroll`, behind `just tailnet-enroll`.
 #
 # ```nix
 # darkone.service.headscale.policy.adminDevices.phone-alice = "100.64.0.9";
@@ -45,7 +41,6 @@
   host,
   hosts,
   users,
-  zone,
   ...
 }:
 let
@@ -90,61 +85,6 @@ let
   };
   policyFile = (pkgs.formats.json { }).generate "headscale-policy.json" policy;
 
-  # Unbound view of the tagged nodes, the ones the policy lets into the zone
-  # subnets. Without it a global service served from a zone resolves to the
-  # public wildcard, the HCS, which only proxies HTTPS (git over ssh breaks).
-  # The HCS keeps its own resolution: its tag stays out.
-  machinesView = "tailnet-machines";
-  machinesViewDir = "/run/unbound-tailnet-view";
-  machineTags = lib.subtractLists (dnfLib.tailnetNodeTags { inherit host network; }) (
-    builtins.attrNames policy.tagOwners
-  );
-
-  # `<name>.<domain>` records of the zones that point into a zone subnet: the
-  # answers any zone LAN gives (generated `host-record` entries).
-  localZones = lib.filter dnfLib.inLocalZone (lib.attrValues network.zones);
-  inZoneSubnet = ip: lib.any (zone: lib.hasPrefix "${zone.ipPrefix}." ip) localZones;
-  isGlobalName = name: builtins.match "[^.]+\\.${lib.escapeRegex network.domain}" name != null;
-  zoneGlobals = lib.unique (
-    lib.concatMap (
-      zone:
-      lib.concatMap (
-        record:
-        let
-          fields = lib.splitString "," record;
-          ip = lib.last fields;
-        in
-        lib.optionals (inZoneSubnet ip) (
-          map (name: "\"${name}. IN A ${ip}\"") (lib.filter isGlobalName (lib.init fields))
-        )
-      ) (zone.extraDnsmasqSettings.host-record or [ ])
-    ) localZones
-  );
-
-  # Rewritten on change only, checked before unbound reloads: a bad file must
-  # never take the tailnet DNS down. headscale unreachable: last list kept.
-  viewScript = pkgs.writeShellScript "unbound-tailnet-view" ''
-    set -euo pipefail
-    hs() { ${srv.package}/bin/headscale --config /etc/headscale/config.yaml "$@" </dev/null; }
-    file=${machinesViewDir}/nodes.conf
-    new=$(hs nodes list -o json | ${pkgs.jq}/bin/jq -r --argjson tags '${builtins.toJSON machineTags}' '
-      [.[] | select(any((.tags // [])[]; IN($tags[])))
-        | .ip_addresses[]? | select(test("^[0-9.]+$"))]
-      | unique[] | "access-control-view: \(.)/32 ${machinesView}"')
-    old=$(${pkgs.coreutils}/bin/cat "$file" 2>/dev/null || true)
-    [ "$new" != "$old" ] || exit 0
-
-    printf '%s\n' "$new" > "$file.tmp"
-    ${pkgs.coreutils}/bin/mv -f "$file.tmp" "$file"
-    if ! ${config.services.unbound.package}/bin/unbound-checkconf /etc/unbound/unbound.conf >/dev/null; then
-      printf '%s\n' "$old" > "$file"
-      echo "unbound-checkconf refused the new list, previous one restored" >&2
-      exit 1
-    fi
-    ${pkgs.systemd}/bin/systemctl reload unbound.service
-    echo "view ${machinesView}: $(${pkgs.gnugrep}/bin/grep -c . "$file" || true) node(s)"
-  '';
-
   # Throwaway offline instance: a rejected policy fails the build instead of
   # the running server. Users are unknown here, tags, groups and aliases are
   # still checked.
@@ -158,7 +98,7 @@ let
         noise:
           private_key_path: $TMPDIR/noise.key
         prefixes:
-          v4: 100.64.0.0/10
+          v4: ${dnfLib.constants.tailnetIpv4Cidr}
           v6: fd7a:115c:a1e0::/48
         derp:
           server:
@@ -188,189 +128,6 @@ let
     }
   );
 
-  textfileDir = dnfLib.constants.textfileCollectorDir;
-
-  # Checks on the reduced node list; `$mode` selects metrics or journal lines.
-  # Label values are DNS names and logins: anything else is flattened to `_`.
-  auditJq = pkgs.writeText "headscale-audit.jq" ''
-    def lv: tostring | gsub("[^A-Za-z0-9_.@-]"; "_");
-    def flag(b): if b then 1 else 0 end;
-
-    $spec[0] as $s
-    | . as $nodes
-    | ($nodes | map(select(.tags != []))) as $tagged
-    | ($nodes | map(select(.tags == []))) as $personal
-    | [
-        ($s.nodes[] as $e
-          | ($nodes | map(select(.name == $e.name)) | first) as $n
-          | {
-              node: $e.name,
-              missing: ($n == null and $e.required),
-              tag_mismatch: ($n != null and $n.tags != $e.tags),
-              ip_drift: ($n != null and $e.ipv4 != null and $n.ipv4 != $e.ipv4)
-            }),
-        ($s.adminDevices | to_entries[]
-          | .value as $ip
-          | {
-              node: .key,
-              missing: false,
-              tag_mismatch: false,
-              ip_drift: ($personal | map(select(.ipv4 == $ip)) | length == 0)
-            })
-      ] as $checks
-    | (
-        [$tagged[] | select((.name | IN($s.nodes[].name)) | not)]
-        + [$personal[] | select((.user | IN($s.users[])) | not)]
-      ) as $unexpected
-    | if $mode == "metrics" then
-        ($checks[]
-          | "dnf_headscale_node_missing{node=\"\(.node | lv)\"} \(flag(.missing))",
-            "dnf_headscale_node_tag_mismatch{node=\"\(.node | lv)\"} \(flag(.tag_mismatch))",
-            "dnf_headscale_node_ip_drift{node=\"\(.node | lv)\"} \(flag(.ip_drift))"),
-        ($unexpected[]
-          | "dnf_headscale_unexpected_node{node=\"\(.name | lv)\",user=\"\(.user | lv)\"} 1"),
-        ($personal[] | select(.expiry != null)
-          | "dnf_headscale_node_expiry_timestamp_seconds{node=\"\(.name | lv)\",user=\"\(.user | lv)\"} \(.expiry)")
-      else
-        ($checks[] | select(.missing) | "missing: \(.node)"),
-        ($checks[] | select(.tag_mismatch) | "tag mismatch: \(.node)"),
-        ($checks[] | select(.ip_drift) | "ip drift: \(.node)"),
-        ($unexpected[] | "unexpected: \(.name) (user \(.user))")
-      end
-  '';
-
-  auditScript = pkgs.writeShellScript "headscale-audit" ''
-    set -euo pipefail
-    hs() { ${srv.package}/bin/headscale --config /etc/headscale/config.yaml "$@" </dev/null; }
-    jq=${pkgs.jq}/bin/jq
-
-    # Reduce at once: the raw list carries pre-auth keys in clear, never printed.
-    nodes=$(hs nodes list -o json | $jq -c '[.[] | {
-      name: .given_name,
-      user: .user.name,
-      tags: ((.tags // []) | sort),
-      ipv4: ([.ip_addresses[]? | select(test("^[0-9.]+$"))] | first),
-      expiry: (.expiry.seconds // null)
-    }]')
-    audit() { $jq -r --slurpfile spec ${auditSpec} --arg mode "$1" -f ${auditJq} <<<"$nodes"; }
-    audit findings
-
-    policy=1
-    if ! hs policy check -f /etc/headscale/policy.hujson >/dev/null 2>&1; then
-      echo "policy: fails headscale policy check"
-      policy=0
-    elif [ "$(hs policy get | $jq -S -c .)" != "$($jq -S -c . /etc/headscale/policy.hujson)" ]; then
-      echo "policy: served policy differs from /etc/headscale/policy.hujson"
-      policy=0
-    fi
-    ${lib.optionalString (idmUrl != null) ''
-
-      # headscale never retries OIDC: a fallback warning in this run's journal holds.
-      oidc=1
-      run=$(${pkgs.systemd}/bin/systemctl show -p InvocationID --value headscale.service)
-      hits=$(${pkgs.systemd}/bin/journalctl -q -o cat _SYSTEMD_INVOCATION_ID="$run" \
-        | ${pkgs.gnugrep}/bin/grep -c 'falling back to CLI based authentication' || true)
-      if [ "$hits" != 0 ]; then
-        echo "oidc: fell back to CLI registration at startup"
-        oidc=0
-      fi
-    ''}
-
-    # Best-effort metrics: only supervised hosts have the collector dir.
-    [ -d ${textfileDir} ] || exit 0
-    tmp=$(${pkgs.coreutils}/bin/mktemp ${textfileDir}/.headscale.XXXXXX)
-    trap '${pkgs.coreutils}/bin/rm -f "$tmp"' EXIT
-    {
-      audit metrics
-      echo "dnf_headscale_policy_valid $policy"
-      ${lib.optionalString (idmUrl != null) ''echo "dnf_headscale_oidc_available $oidc"''}
-      echo "dnf_headscale_audit_last_success_timestamp_seconds $(${pkgs.coreutils}/bin/date +%s)"
-    } > "$tmp"
-
-    # mktemp creates 0600; node_exporter reads as a non-root user.
-    ${pkgs.coreutils}/bin/chmod 0644 "$tmp"
-    ${pkgs.coreutils}/bin/mv -f "$tmp" ${textfileDir}/headscale.prom
-  '';
-
-  # Root side of `just tailnet-enroll`, reached through sudo. Tags and names
-  # come from the declared topology only, never from the caller.
-  enrollCmd = "dnf-tailnet-enroll";
-  enrollBin = "/run/current-system/sw/bin/${enrollCmd}";
-  enrollScript = pkgs.writeShellScriptBin enrollCmd ''
-    set -euo pipefail
-    hs() { ${srv.package}/bin/headscale --config /etc/headscale/config.yaml "$@" </dev/null; }
-    jq=${pkgs.jq}/bin/jq
-    die() {
-      echo "${enrollCmd}: $*" >&2
-      exit 1
-    }
-    usage="usage: ${enrollCmd} status <host> [nodeKey] | key <host> | adopt <host> <nodeKey>"
-
-    cmd=''${1:-}
-    host=''${2:-}
-    nodeKey=''${3:-}
-    [[ $host =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "$usage"
-    declared=$($jq -c --arg h "$host" 'first(.nodes[] | select(.name == $h) | {tags, ipv4}) // null' ${auditSpec})
-
-    # Reduced at once: the raw list carries pre-auth keys in clear.
-    nodes() {
-      hs nodes list -o json | $jq -c '[.[] | {
-        id,
-        name: .given_name,
-        tags: ((.tags // []) | sort),
-        ipv4: ([.ip_addresses[]? | select(test("^[0-9.]+$"))] | first),
-        online: (.online // false),
-        nodeKey: .node_key
-      }]'
-    }
-    byKey() { $jq -c --arg k "$nodeKey" 'first(.[] | select($k != "" and .nodeKey == $k)) // null'; }
-
-    case "$cmd" in
-
-      # Declared identity, and the node holding the host's current node key.
-      status)
-        $jq -n -c --argjson d "$declared" --argjson n "$(nodes | byKey)" \
-          '{declared: $d, node: (if $n == null then null else $n | del(.nodeKey) end)}'
-        ;;
-
-      # Single-use and short-lived: worthless once the host has registered.
-      key)
-        [ "$declared" != null ] || die "$host: no declared tailnet identity"
-        tags=$($jq -r '.tags | join(",")' <<<"$declared")
-        hs preauthkeys create --tags "$tags" --expiration 10m -o json | $jq -er '.key'
-        ;;
-
-      # Declared tags and name on the host's node. One declared host is one
-      # machine: an offline homonym is the registration a reinstall left.
-      adopt)
-        [ "$declared" != null ] || die "$host: no declared tailnet identity"
-        list=$(nodes)
-        node=$(byKey <<<"$list")
-        [ "$node" != null ] || die "$host: no node holds key $nodeKey"
-        id=$($jq -r .id <<<"$node")
-        want=$($jq -c .tags <<<"$declared")
-        if [ "$($jq -c .tags <<<"$node")" != "$want" ]; then
-          hs nodes tag -i "$id" --tags "$($jq -r 'join(",")' <<<"$want")" >/dev/null
-          echo "node $id: tags set to $want" >&2
-        fi
-        if [ "$($jq -r .name <<<"$node")" != "$host" ]; then
-          for stale in $($jq -r --arg h "$host" --argjson id "$id" \
-            '.[] | select(.name == $h and .id != $id) | "\(.id):\(.online)"' <<<"$list"); do
-            [ "''${stale#*:}" = false ] || die "node ''${stale%:*} named $host is online, not deleting it"
-            hs nodes delete -i "''${stale%:*}" --force >/dev/null
-            echo "node ''${stale%:*}: stale registration of $host deleted" >&2
-          done
-          hs nodes rename -i "$id" "$host" >/dev/null
-          echo "node $id: renamed to $host" >&2
-        fi
-        nodes | $jq -c --argjson id "$id" 'first(.[] | select(.id == $id)) | del(.nodeKey)'
-
-        # Its tailnet IP joins the unbound view now, not at the next timer run.
-        ${pkgs.systemd}/bin/systemctl start --no-block unbound-tailnet-view.service || true
-        ;;
-      *) die "$usage" ;;
-    esac
-  '';
 in
 {
   options = {
@@ -424,6 +181,23 @@ in
         description = "ACL rules appended after the generated ones.";
       };
     };
+
+    # Values shared with the `headscale/` sub-modules.
+    darkone.service.headscale.shared = lib.mkOption {
+      type = lib.types.raw;
+      internal = true;
+      readOnly = true;
+      default = {
+        inherit
+          policy
+          auditSpec
+          idmUrl
+          hcsTailnetIpv4
+          ;
+      };
+      defaultText = "computed";
+      description = "Headscale values shared with the `headscale/` sub-modules.";
+    };
   };
 
   config = lib.mkMerge [
@@ -464,72 +238,10 @@ in
       # Darkone service: enable
       darkone.system.services = dnfLib.enableBlock "headscale";
 
-      #------------------------------------------------------------------------
-      # Unbound (pivot DNS)
-      #------------------------------------------------------------------------
-
-      # Unbound is required by headscale
+      # Unbound, the tailnet pivot DNS (`headscale/dns.nix`), is required
       systemd.services.headscale = {
         wants = [ "unbound.service" ];
         after = [ "unbound.service" ];
-      };
-
-      services.unbound = {
-        enable = true;
-        settings = {
-          server = {
-            interface = [
-              "127.0.0.1"
-              hcsTailnetIpv4
-            ];
-            access-control = [
-              "127.0.0.1 allow"
-              "100.64.0.0/10 allow"
-            ];
-            inherit (zone.unbound) local-data;
-
-            # `access-control-view` lines of `unbound-tailnet-view`; none yet: no match.
-            include = "\"${machinesViewDir}/*.conf\"";
-            harden-glue = true;
-            harden-dnssec-stripped = true;
-            use-caps-for-id = false;
-            prefetch = true;
-            edns-buffer-size = 1232;
-            hide-identity = true;
-            hide-version = true;
-          };
-          forward-zone =
-            lib.mapAttrsToList
-              (_: z: {
-                name = "${z.domain}.";
-                forward-addr = [ "${z.gateway.vpn.ipv4}" ];
-              })
-              (
-                lib.filterAttrs (n: z: (lib.hasAttrByPath [ "gateway" "vpn" "ipv4" ] z) && n != "www") network.zones
-              )
-            ++ [
-              {
-                name = ".";
-                forward-addr = [
-                  "9.9.9.9#dns.quad9.net"
-                  "149.112.112.112#dns.quad9.net"
-                ];
-                forward-tls-upstream = true; # Protected DNS
-              }
-            ];
-
-          # Syntax error
-          # local-zone = "\"tailnet.internal.\" static";
-
-          # `view-first`: any other name resolves as for everyone.
-          view = [
-            {
-              name = machinesView;
-              view-first = true;
-              local-data = zoneGlobals;
-            }
-          ];
-        };
       };
 
       #------------------------------------------------------------------------
@@ -549,10 +261,7 @@ in
             # MagicDNS enabled (default)
             magic_dns = true;
 
-            # Base domain for MagicDNS
-            # -> Use an internal domain here to prevent names from
-            #    leaking to the internet / external DNS. A name like vpn.mydomain.tld
-            #    is not a good idea!
+            # `.internal` domain: tailnet names never leak to public DNS.
             base_domain = tailnetDomain;
 
             # Force headscale DNS config over node local DNS
@@ -560,47 +269,18 @@ in
 
             nameservers = {
 
-              # No global resolver: roaming clients keep the DNS of the network
-              # they are plugged into (box/café) for public names. Forcing global
-              # through HCS unbound tunneled *all* DNS over the VPN, so any flaky
-              # data-path (DERP-only, UDP-blocked) surfaced tailscale's "can't
-              # reach the configured DNS servers" and broke resolution entirely.
+              # No global resolver: a roaming client keeps its local network DNS
+              # for public names. Forced through the VPN, any flaky data path
+              # (DERP only, UDP blocked) broke resolution entirely.
               global = [ ];
 
-              # Split-DNS: only internal names reach HCS unbound (100.100.100.100
-              # stub → hcsTailnetIpv4), which then pivots to each zone gateway.
+              # Split DNS: internal names only reach HCS unbound, which pivots to
+              # each zone gateway (cf. `headscale/dns.nix`).
               split.${network.domain} = [ hcsTailnetIpv4 ];
-
-              # Each zone suffix gets its own DNS server...
-              # { "zone.domain.tld" = [ "100.64.x.x" ]; (...) };
-              # NOTE: Headscale split-DNS only tells clients which DNS to query
-              #        for which zone, it does not resolve or chain DNS itself.
-              #        Unbound now serves as the pivot DNS server for zones.
-              #        The previous split delegates main domain DNS handling to Unbound.
-              # split = lib.concatMapAttrs (_: z: { "${z.domain}" = [ "${z.gateway.vpn.ipv4}" ]; }) (
-              #   lib.filterAttrs (_: z: lib.hasAttrByPath [ "gateway" "vpn" "ipv4" ] z) network.zones
-              # );
             };
 
-            # Search domains
-            # -> No search through headscale for now.
-            # zone1.domain.tld, zone2.domain.tld, etc.
-            # With MagicDNS enabled, your tailnet base_domain is always the first search domain.
-            # search_domains = [
-            #   srv.settings.dns.base_domain
-            # ]
-            # ++ lib.attrsets.mapAttrsToList (_: z: z.domain) hcsClientZones;
-            #search_domains = lib.attrsets.mapAttrsToList (_: z: z.domain) hcsClientZones;
+            # Tailnet names only, no zone search domain.
             search_domains = [ tailnetDomain ];
-
-            # See if we should put global services here (DOES NOT WORK - NO EFFECT)
-            # To use for global services?
-            # https://github.com/juanfont/headscale/blob/9c4c017eac2e81908d2ae7d8d777e143a13a1772/config-example.yaml#L312
-            # extra_records = lib.attrsets.mapAttrsToList (_: z: {
-            #   name = "${z.gateway.hostname}.${z.domain}";
-            #   type = "A";
-            #   value = "100.64.${z.ipPrefix}";
-            # }) hcsClientZones;
           }; # dns
         };
       };
@@ -612,7 +292,7 @@ in
       # https://headscale.net/stable/setup/requirements/#ports-in-use
       networking.firewall = {
 
-        # Open HTTP on all interfaces if not the gateway
+        # Public: ACME challenge, tailnet clients + DERP, optional gRPC
         allowedTCPPorts = [
           80 # Caddy, let's encrypt
           443 # Tailscale clients, DERP server
@@ -622,17 +302,6 @@ in
         allowedUDPPorts = [
           3478 # STUN, DERP server
         ];
-
-        # Unbound (pivot DNS) must be reachable by tailnet nodes on the VPN IP.
-        # With the nftables backend, the NixOS firewall and tailscale live in
-        # separate base chains on the same input hook: tailscale's accept rule
-        # no longer short-circuits the nixos-fw drop policy, so port 53 must be
-        # opened explicitly on the tailscale interface. Unbound already limits
-        # queries via access-control (100.64.0.0/10).
-        interfaces.${config.services.tailscale.interfaceName} = {
-          allowedTCPPorts = [ 53 ];
-          allowedUDPPorts = [ 53 ];
-        };
       };
     })
 
@@ -702,7 +371,7 @@ in
 
           # `after`/`wants` only mean kanidm.service's start job finished, not
           # that the OIDC discovery endpoint answers through Caddy yet (same
-          # gap as oauth2-proxy, see services.nix). Best-effort, never blocks:
+          # gap as `system/services/oauth2-proxy.nix`). Best-effort, never blocks:
           # starts with CLI fallback if the issuer stays unreachable.
           ExecStartPre = pkgs.writeShellScript "headscale-wait-oidc" ''
             url="${oidc.openidConfigUrl}"
@@ -716,94 +385,6 @@ in
           '';
         };
       };
-    })
-
-    #------------------------------------------------------------------------
-    # Tailnet audit
-    #------------------------------------------------------------------------
-
-    (lib.mkIf cfg.enable {
-
-      # Read-only: reports drift as metrics and journal lines, fixes nothing.
-      # Root keeps its capabilities: the gRPC socket is `headscale`-group only.
-      systemd.services.headscale-audit = {
-        description = "Compare headscale nodes with the declared tailnet";
-        after = [ "headscale.service" ];
-        serviceConfig = {
-          Type = "oneshot";
-          ExecStart = auditScript;
-          ProtectSystem = "strict";
-          ReadWritePaths = [ "-${textfileDir}" ];
-          ProtectHome = true;
-          PrivateTmp = true;
-          NoNewPrivileges = true;
-        };
-      };
-
-      systemd.timers.headscale-audit = {
-        wantedBy = [ "timers.target" ];
-        timerConfig = {
-          OnBootSec = "5min";
-          OnUnitActiveSec = "15min";
-        };
-      };
-
-      # Root: the gRPC socket is `headscale`-group only, and unbound reloads.
-      # The list outlives each run (and unbound restarts), not a reboot.
-      systemd.services.unbound-tailnet-view = {
-        description = "Tailnet IPs of the tagged nodes for the unbound view";
-        after = [
-          "headscale.service"
-          "unbound.service"
-        ];
-        serviceConfig = {
-          Type = "oneshot";
-          ExecStart = viewScript;
-          RuntimeDirectory = baseNameOf machinesViewDir;
-          RuntimeDirectoryPreserve = true;
-          ProtectSystem = "strict";
-          ProtectHome = true;
-          PrivateTmp = true;
-          NoNewPrivileges = true;
-        };
-      };
-
-      # IPs only change on enrollment, which triggers a run: this is a fallback.
-      systemd.timers.unbound-tailnet-view = {
-        wantedBy = [ "timers.target" ];
-        timerConfig = {
-          OnBootSec = "1min";
-          OnUnitActiveSec = "5min";
-        };
-      };
-    })
-
-    #------------------------------------------------------------------------
-    # Tailnet enrollment
-    #------------------------------------------------------------------------
-
-    (lib.mkIf cfg.enable {
-      environment.systemPackages = [ enrollScript ];
-
-      # For the deploy user. NOLOG_OUTPUT: the minted key is printed, kept out
-      # of the R39 I/O logs.
-      security.sudo.extraRules = [
-        {
-          users = [ "nix" ];
-          runAs = "root";
-          commands = [
-            {
-              command = enrollBin;
-              options = [
-                "NOPASSWD"
-                "NOLOG_INPUT"
-                "NOLOG_OUTPUT"
-              ];
-            }
-          ];
-        }
-      ];
-      darkone.security.sudo.allowedRootRules = [ enrollBin ];
     })
   ];
 }

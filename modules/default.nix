@@ -51,6 +51,9 @@
     ./service/geneweb.nix
     ./service/harmonia.nix
     ./service/headscale.nix
+    ./service/headscale/audit.nix
+    ./service/headscale/dns.nix
+    ./service/headscale/enroll.nix
     ./service/home-assistant.nix
     ./service/homepage.nix
     ./service/idm.nix

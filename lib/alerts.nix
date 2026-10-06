@@ -799,7 +799,7 @@ rec {
       }
     ];
 
-  # Tailnet drift, from `headscale-audit` (service/headscale.nix) via the
+  # Tailnet drift, from `headscale-audit` (service/headscale/audit.nix) via the
   # node_exporter textfile collector of the coordination server. Absent metric
   # (no headscale) -> no series -> no alert. Details in the unit's journal.
   mkHeadscaleRuleGroups =
