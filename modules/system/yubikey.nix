@@ -103,19 +103,8 @@ let
     ) registry
   );
 
-  # LUKS volume names, discovered from the host disko layout. Reading
-  # `config.disko` (and not `config.boot.initrd.luks.devices`) avoids the
-  # infinite recursion of mapping an option over itself.
-  luksNames = lib.concatLists (
-    lib.mapAttrsToList (
-      _: disk:
-      lib.concatLists (
-        lib.mapAttrsToList (_: part: lib.optional ((part.content.type or "") == "luks") part.content.name) (
-          disk.content.partitions or { }
-        )
-      )
-    ) (lib.attrByPath [ "disko" "devices" "disk" ] { } config)
-  );
+  # LUKS volumes of the host disko layout (detected by `system/luks.nix`).
+  luksNames = config.darkone.system.luks.volumes;
 
   luksActive = cfg.luks.enable && luksNames != [ ] && luksKeys != [ ];
 
@@ -204,13 +193,9 @@ in
           pkgs.yubikey-personalization
         ];
 
-        # libfido2 ships 70-u2f.rules, whose 101 rules each end with
-        # `TAG+="uaccess", GROUP="plugdev"`. `plugdev` is a Debian convention
-        # NixOS never creates, so udev logs one "Failed to resolve group" warning
-        # per rule on every reload. Purely cosmetic — access is actually granted
-        # by the uaccess tag, which makes logind set an ACL for the active local
-        # session; the group is only the legacy fallback for non-systemd
-        # distributions. Declaring it empty just silences the noise.
+        # libfido2's 70-u2f.rules name `GROUP="plugdev"`, a Debian group NixOS
+        # never creates: one udev warning per rule on each reload. Access comes
+        # from the `uaccess` tag anyway; an empty group silences the noise.
         users.groups.plugdev = { };
       }
 
@@ -228,41 +213,12 @@ in
           "hid_generic"
         ];
 
-        # `fido2-device=auto` is deliberately NOT put in the crypttab entry,
-        # and the token attempt is not dropped either. Both extremes are wrong:
-        #
-        # - with the option, a token plugged in and left untouched makes
-        #   systemd-cryptsetup exit 1 instead of falling back to the
-        #   passphrase — no prompt, on the console or over ssh, and the boot
-        #   dies in the initrd (measured on systemd 261:
-        #   `FIDO_ERR_OPERATION_DENIED` after ~29s of unanswered user presence).
-        #   A power cut on a headless host with a key left in its port was
-        #   enough to strand it;
-        # - without it, the token is tried only if a FIDO2 device is
-        #   *already* enumerated when the unit runs — nothing waits for one.
-        #   At cold boot `systemd-cryptsetup@` starts ~1.2s before `hidraw0`
-        #   exists, so the key is never seen and the enrolled keyslots unlock
-        #   nothing. Measured both ways: no FIDO2 line at all on a cold boot,
-        #   but "Asking FIDO2 token for authentication" when the same unit
-        #   runs 30s in, on a key plugged all along.
-        #
-        # What `fido2-device=` really buys is the *wait* (`token-timeout=`).
-        # So the attempt lives in a unit of its own, ordered `Before=` the real
-        # `systemd-cryptsetup@` one and only `Wants=`-linked to it: it is
-        # allowed to fail, and its failure changes nothing. Three cases, all
-        # ending on an unlock or a prompt:
-        #
-        # - key touched: volume open, the real unit logs "Volume data already
-        #   active" and succeeds;
-        # - key plugged, never touched: libfido2 gives up after ~30s, this unit
-        #   fails, the real unit prompts for the passphrase;
-        # - no key: `token-timeout` elapses (~6s measured) and this unit puts
-        #   up the passphrase prompt itself — one prompt, `NotAfter=0`, served
-        #   in parallel by the tty1 agent and by `just enter` over ssh. The
-        #   real unit then finds the volume open.
-        #
-        # A key is a convenience. It must never become the only way in — which
-        # is what the "No lockout by design" note above promises.
+        # FIDO2 attempt in a unit of its own, `Before=` the real
+        # `systemd-cryptsetup@` and allowed to fail. In crypttab,
+        # `fido2-device=auto` makes an untouched key exit 1 with no passphrase
+        # fallback (systemd 261: the boot dies in the initrd); without it no
+        # token is awaited, and `hidraw0` shows up ~1.2s too late. Touched: open;
+        # untouched (~30s) or absent (`token-timeout`, ~6s): passphrase prompt.
         boot.initrd.systemd.services = lib.listToAttrs (
           map (name: {
             name = "yubikey-luks-unlock-${name}";
@@ -315,20 +271,14 @@ in
                   # the real unit's business, whoever opened it.
                   RemainAfterExit = true;
 
-                  # `infinity`, like `systemd-cryptsetup@.service` upstream.
-                  # Past the token attempt this unit is the one holding the
-                  # passphrase prompt (see the third case above), and a prompt
-                  # cut short mid-typing is worse than no bound at all: the
-                  # FIDO2 leg is already bounded by libfido2 (~30s, measured)
-                  # and by `token-timeout` when no key shows up.
+                  # `infinity`, like upstream `systemd-cryptsetup@`: past the
+                  # token attempt this unit holds the passphrase prompt, and a
+                  # prompt cut mid-typing is worse than no bound at all.
                   TimeoutSec = "infinity";
 
-                  # `-`: an untouched or absent key is the expected outcome,
-                  # not an incident. Without it the failure survives
-                  # switch-root as a `not-found failed` ghost in stage 2,
-                  # where the unit no longer exists — enough to spoil the
-                  # `systemctl --failed` health check on every such boot. The
-                  # journal keeps the FIDO2 detail either way.
+                  # `-`: an untouched or absent key is expected, not an
+                  # incident. A failure would survive switch-root as a
+                  # `not-found failed` ghost spoiling `systemctl --failed`.
                   ExecStart = "-/bin/systemd-cryptsetup attach ${name} ${dev.device} - ${opts}";
                 };
               };
@@ -351,15 +301,10 @@ in
           };
 
         # Idempotent sync of the LUKS2 headers with the declared credentials:
-        # adds missing (keyslot + systemd-fido2 token), prunes revoked ones.
-        # Only credentials recorded in the local ledger are ever pruned, so
-        # out-of-band enrollments (manual systemd-cryptenroll) survive; the
-        # passphrase keyslot is never touched. Any failure is logged and
-        # skipped: this unit must never block a deployment or a boot.
-        #
-        # An enrollment is two operations (keyslot, then token) and being
-        # interrupted between them strands the keyslot, so the unit rolls its
-        # own back on the way out and adopts any it finds on the next run.
+        # adds missing ones (keyslot + `systemd-fido2` token), prunes revoked
+        # ones from its own ledger only; passphrase keyslots never touched.
+        # Failures are logged and skipped, never blocking a deploy or a boot.
+        # A keyslot stranded before its token is rolled back, or adopted later.
         systemd.services.yubikey-luks-enroll = {
           description = "Sync FIDO2 credentials into LUKS headers";
           wantedBy = [ "multi-user.target" ];

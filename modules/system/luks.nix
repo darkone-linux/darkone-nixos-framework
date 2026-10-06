@@ -141,20 +141,11 @@ let
   ) 0 registry;
   projectedSlots = credCount + 2;
 
-  # Non-interactive counterpart of `systemd-tty-ask-password-agent`, which only
-  # talks to a terminal and cannot be driven by a script. `just unlock <host>`
-  # pipes the passphrase into this over the initrd sshd.
-  #
-  # It answers the prompt; it cannot say whether the passphrase was accepted —
-  # systemd simply asks again on a refusal, and nothing reports that back here.
-  # `just unlock` therefore confirms the unlock from the admin host, by watching
-  # the machine leave its initrd.
-  #
-  # `#!/bin/sh` on purpose: the initrd has its own /bin (built from
-  # `boot.initrd.systemd.initrdBin`) and make-initrd-ng resolves ELF
-  # dependencies only — a store-path shebang would point at a bash that was
-  # never copied in. Everything below is POSIX shell, no sed or grep exists
-  # there either.
+  # Non-interactive `systemd-tty-ask-password-agent`: `just unlock <host>` pipes
+  # the passphrase in over the initrd sshd, then watches the host leave the
+  # initrd (a refused passphrase is just asked again, unreported here).
+  # `#!/bin/sh`, POSIX only: make-initrd-ng copies ELF dependencies, not the
+  # bash a store-path shebang needs, nor sed or grep.
   initrdUnlock = pkgs.writeTextFile {
     name = "dnf-unlock";
     executable = true;
