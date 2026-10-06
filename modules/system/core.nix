@@ -5,14 +5,15 @@
 # It is required for the proper functioning of every NixOS computer on the local network.
 # :::
 #
-# Sets up the systemd-boot loader, the LTS kernel (or latest mainline via
-# `enableLatestKernel`), JetBrains Mono Nerd
-# Font (with `kmscon` for the TTY), nightly Nix store optimisation and
-# weekly garbage collection (30 d retention, or keep-last-N via
-# `gcKeepGenerations` on disk-constrained hosts), the firewall, suspend
-# policy (servers can fully disable it via `disableSuspend`), polkit
-# rules letting `wheel` halt/reboot, and a shared `common-files`
-# group/user for cross-service media folders.
+# Sets up:
+# - systemd-boot and the LTS kernel (latest mainline via `enableLatestKernel`);
+# - JetBrains Mono Nerd Font, with `kmscon` for the TTY;
+# - nightly store optimisation, weekly GC with 30 d retention (keep-last-N via
+#   `gcKeepGenerations` on disk-constrained hosts);
+# - the firewall and key-only SSH;
+# - the suspend policy (`disableSuspend` for servers);
+# - polkit rules letting `wheel` halt/reboot;
+# - a shared `common-files` group/user for cross-service media folders.
 #
 # :::note[Mixin entry point]
 # Activates the host's profile mixin (`darkone.host.${host.profile}.enable`)
@@ -134,9 +135,8 @@ in
       })
 
       {
-        # Align with the 26.11 default. We don't use ZFS; setting this only
-        # silences the upstream warning and has no effect unless the zfs
-        # module is later activated.
+
+        # 26.11 default, set to silence the upstream warning: no ZFS here.
         zfs.forceImportRoot = false;
       }
     ];
@@ -170,23 +170,16 @@ in
     # Users are not mutable from sops installation (use config.yaml + just)
     users.mutableUsers = false;
 
-    # The specific user "nix" is declared in config.yaml and have this key on each host
-    # Skipped in standalone test mode where the consumer workspace does not exist.
+    # Deploy key of the `nix` user (declared in config.yaml), on every host.
+    # Skipped in standalone test mode: there is no consumer workspace.
     users.users.nix.openssh.authorizedKeys.keyFiles = lib.mkIf (!config.darkone.test.standalone) [
       (workDir + "/usr/secrets/nix.pub")
     ];
 
-    # Deploy account: never pin fleet host keys.
-    #
-    # Reinstalling a node re-keys it, and the new key then reads as a MITM
-    # attack: every deploy aborts on REMOTE HOST IDENTIFICATION HAS CHANGED
-    # until the stale entry is purged by hand, on each admin host — for an
-    # event that is routine here, not hostile. Recording nothing removes the
-    # failure mode instead of chasing its symptoms.
-    #
-    # Scoped to `nix@` (colmena's targetUser, and every `sudo -u nix ssh` of
-    # the Justfile): human sessions keep full host key verification.
-    # `extraConfig` is emitted before the generated `Host *`, so it wins.
+    # Deploy account never pins fleet host keys: a reinstalled node is re-keyed,
+    # and REMOTE HOST IDENTIFICATION HAS CHANGED would abort every deploy.
+    # Scoped to `nix@` (colmena, `sudo -u nix ssh`): human sessions keep full
+    # verification. Emitted before the generated `Host *`, so it wins.
     programs.ssh.extraConfig = ''
       Match user nix
         StrictHostKeyChecking no
@@ -236,8 +229,8 @@ in
       "@wheel"
     ];
 
-    # Nerd fond for gnome terminal and default monospace
-    fonts.packages = with pkgs; [ nerd-fonts.jetbrains-mono ];
+    # Nerd font for gnome terminal and default monospace
+    fonts.packages = [ pkgs.nerd-fonts.jetbrains-mono ];
     fonts.fontconfig.enable = true;
 
     # Nerd font for TTY
@@ -256,12 +249,9 @@ in
       };
     };
 
-    # Upstream pins restartIfChanged = false on the kmsconvt@ template, so a
-    # switch never restarts running consoles: they keep exec'ing the login
-    # helper of the generation they were started with. Once the GC collects
-    # that generation, every respawn fails with ENOENT — and kmscon retries
-    # without backoff, burning a core in a fork/exec loop (~400/s).
-    # Cost of forcing it: an active TTY session is killed on each switch.
+    # Upstream `restartIfChanged = false`: a console outliving its generation
+    # respawns a GC'd login helper, ENOENT in a fork/exec loop (~400/s) that
+    # burns a core. Cost: an active TTY session is killed on each switch.
     systemd.services."kmsconvt@" = lib.mkIf cfg.enableKmscon { restartIfChanged = lib.mkForce true; };
 
     # To manage nodes, openssh must be activated
@@ -287,15 +277,6 @@ in
       authorizedKeysInHomedir = false;
     };
 
-    # Write installed packages in /etc/installed-packages
-    # environment.etc."installed-packages".text =
-    #   let
-    #     packages = builtins.map (p: "${p.name}") config.environment.systemPackages;
-    #     sortedUnique = builtins.sort builtins.lessThan (pkgs.lib.lists.unique packages);
-    #     formatted = builtins.concatStringsSep "\n" sortedUnique;
-    #   in
-    #   formatted;
-
     # SOPS DNF module
     darkone.system.sops.enable = cfg.enableSops;
 
@@ -317,8 +298,7 @@ in
       interval = "daily";
     };
 
-    # Enable the nginx Nix binary-cache proxy -> server and clients are
-    # automatically found by the service.
+    # Nix binary cache: server and clients find each other through the topology.
     darkone.service.nix-cache.enable = true;
 
     # Enable flatpak
@@ -381,8 +361,5 @@ in
       description = "User / Group for several services common files";
     };
     users.users.nix.extraGroups = lib.mkIf cfg.enableCommonFilesUser [ "common-files" ];
-
-    # TMP : On retarde le switch vers broker pour le moment...
-    #services.dbus.implementation = "dbus";
   };
 }
