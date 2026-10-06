@@ -60,6 +60,9 @@
     ./service/loki.nix
     ./service/matrix-admin.nix
     ./service/matrix.nix
+    ./service/matrix/bridges.nix
+    ./service/matrix/mas.nix
+    ./service/matrix/rtc.nix
     ./service/mealie.nix
     ./service/minio.nix
     ./service/monitoring.nix

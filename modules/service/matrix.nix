@@ -1,23 +1,9 @@
-# DNF matrix (synapse) server with mautrix bridges.
+# DNF matrix (synapse) homeserver.
 #
-# Bridges (whatsapp, signal, telegram, messenger, discord) are usable by every
-# local account: each user links its own remote account by talking to the
-# bridge bot (`@whatsappbot`, `@signalbot`, ... then `login`); sessions are
-# isolated per user. The declared `network.matrix.admins` administrate the
-# bridges and the server (cf. "Administrators" below).
-#
-# Double puppeting uses the official appservice method
-# (https://docs.mau.fi/bridges/general/double-puppeting.html): a shared
-# `doublepuppet` appservice token lets bridges send remote-originated messages
-# as the user's real matrix account. Required sops secrets:
-# `mautrix-doublepuppet-as-token` and `mautrix-doublepuppet-hs-token`
-# (`openssl rand -hex 32` each).
-#
-# Every bridge's appservice as/hs tokens are sops-provided rather than
-# auto-generated: the registration file becomes a pure function of the
-# secrets, so resetting a bridge's state dir never invalidates the
-# registration synapse has loaded (which would otherwise require a registration
-# wipe + synapse restart and produce "as_token was not accepted" errors).
+# Sub-modules (`matrix/`):
+# - `mas.nix`: authentication, delegated to Matrix Authentication Service;
+# - `bridges.nix`: mautrix bridges, usable by every local account;
+# - `rtc.nix`: MatrixRTC backend (LiveKit) for Element Call.
 #
 # #### Federation
 #
@@ -44,46 +30,9 @@
 # Friends and declared users draw from the same localpart namespace, and a
 # matrix id is never freed (unique in MAS's `users`, deactivation keeps it).
 # Declaring a user whose localpart a friend already took fails their first SSO
-# login: `on_conflict` stays on `fail` below, since anything else hands the
+# login: MAS `on_conflict` stays on `fail`, since anything else hands the
 # existing account to whoever registers a matching name upstream. Merge
 # procedure in the admin guide (`operate/matrix.mdx`).
-# :::
-#
-# #### Authentication (MAS)
-#
-# All authentication is delegated to Matrix Authentication Service, always:
-# Element X, QR login and the `/account` self-service portal only exist there,
-# and synapse's own auth is deprecated upstream (MSC3861). Kanidm stays the
-# identity source: MAS is the OIDC client instead of synapse, and synapse only
-# asks MAS to introspect tokens. Served on the same vhost:
-# MAS owns the root + compat auth endpoints, synapse keeps `/_matrix/*` and
-# `/_synapse/*`; client discovery is automatic (synapse serves
-# `auth_metadata` itself), so no well-known change.
-#
-# Required sops secrets, all created by `just configure-admin-host`:
-# `mas-encryption-secret`, `mas-synapse-secret` and `mas-rsa-private-key`.
-#
-# `dnf-mas` (root) wraps `mas-cli` for host-side administration: registration
-# tokens, `promote-admin`, `register-user`, `syn2mas`. MAS runs with
-# `DynamicUser` and reads its secrets from systemd credentials, which do not
-# exist outside the running unit; the wrapper rebuilds an equivalent
-# credentials directory from the sops files, so it works whether the service
-# is up or down (syn2mas needs it down).
-#
-# `mas-cli` only acts, never lists: enable the `matrix-admin` service for the
-# read side (accounts, devices, sessions), it speaks both admin APIs.
-#
-# :::danger[Immutable once started]
-# `mas-encryption-secret` and the Kanidm provider ULID must never change
-# after MAS's first start (encrypted DB data / upstream account links).
-# :::
-#
-# :::danger[Migrating a pre-MAS instance]
-# A homeserver that predates MAS needs the `syn2mas` migration (accounts,
-# passwords, sessions, external ids) or nobody logs in again. Deploy first,
-# then, with both services stopped: `sudo dnf-mas syn2mas check`,
-# `... migrate --dry-run`, `... migrate`. Procedure in
-# `.specs/matrix-authentication-service.md`.
 # :::
 #
 # #### Administrators
@@ -102,52 +51,6 @@
 # `list-admin-users`, drop them with `demote-admin`.
 # :::
 
-# #### Audio/video calls
-#
-# Two stacks coexist, because no single one covers every client:
-#
-# - Legacy 1:1 WebRTC, negotiated over synapse and relayed by coturn
-#   (`darkone.service.turn`). The only thing Element Classic speaks.
-# - MatrixRTC (`matrixRtc.enable`): a LiveKit SFU plus its authorization
-#   service, for group calls and for Element Call. Element X speaks *only*
-#   this one and reports "call is not supported"
-#   (`MISSING_MATRIX_RTC_TRANSPORT`) without it; Element Web/Desktop embed
-#   Element Call too and gain group calls from it.
-#
-# Both are served from the matrix vhost, next to synapse and MAS: the SFU
-# websocket on `/livekit/sfu`, the JWT service on `/livekit/jwt`. Clients
-# discover it from `matrix_rtc.transports` (synapse, MSC4143) and, as a
-# fallback for older ones, from `rtc_foci` in the well-known.
-#
-# Required sops secret: `livekit-secret` (`just configure-admin-host`),
-# shared by the SFU and the JWT service.
-#
-# :::caution[Media ports must reach the host]
-# Media does not go through the reverse proxy. The UDP range and the TCP
-# fallback are opened on the public interface, so a NATed host needs them
-# forwarded, and `rtc.use_external_ip` set (untested here: the HCS holds its
-# public address directly).
-# :::
-#
-# :::caution[Echo cancellation is not a server-side setting]
-# `services.livekit.settings` is freeform: unknown keys reach the config
-# file silently. LiveKit's `audio` section only tunes active speaker
-# detection and RED redundancy; `echo_cancellation`, `noise_suppression`
-# and `channels` do not exist there. They are `getUserMedia` constraints,
-# owned by the client.
-#
-# No SFU setting can fix an echoing participant:
-#
-# - LiveKit forwards Opus without ever decoding it.
-# - AEC needs the local speaker reference, which never leaves the device.
-# - Element Call encrypts media end to end, so the SFU cannot read it.
-#
-# The remedy is device-side: a headset, or Element Call's own audio
-# processing toggles. Beware the diagnosis trap: a handset whose hardware
-# AEC advertises itself but does nothing echoes for everyone *else*, never
-# for its own user.
-# :::
-
 # TODO: Synapse Admin -> https://wiki.nixos.org/wiki/Matrix#Synapse_Admin_with_Caddy
 
 {
@@ -157,13 +60,11 @@
   config,
   network,
   host,
-  hosts,
   zone,
   pkgs,
   ...
 }:
 let
-  inherit network;
   cfg = config.darkone.service.matrix;
   srv = config.services.matrix-synapse;
 
@@ -176,126 +77,18 @@ let
     };
 
   synapsePort = dnfConfig.network.ports.matrix;
-  telegramPort = dnfConfig.network.ports.matrixTelegram;
-  discordPort = dnfConfig.network.ports.matrixDiscord;
   masPort = dnfConfig.network.ports.matrixAuth;
   livekitPort = dnfConfig.network.ports.livekit;
   livekitJwtPort = dnfConfig.network.ports.livekitJwt;
 
-  # MatrixRTC paths on the matrix vhost. Element Call appends `/get_token` to
-  # the first and livekit-client appends `/rtc` to the second, so both are
-  # served stripped of their prefix (`handle_path`).
+  # MatrixRTC authorization service, stripped of its prefix (`handle_path`):
+  # Element Call appends `/get_token` to the announced url.
   livekitJwtUrl = "${params.href}/livekit/jwt";
-  livekitSfuUrl = "wss://${params.fqdn}/livekit/sfu";
-
-  # Names the shared secret inside livekit's keyfile. Only ever compared
-  # between the two daemons, never exposed to a client.
-  livekitApiKey = "dnf-matrixrtc";
 
   # Stable ULID naming the Kanidm provider inside MAS. Kanidm redirect URIs
   # and every upstream account link embed it: changing it orphans all linked
-  # accounts (cf. header).
+  # accounts (cf. `matrix/mas.nix`).
   masKanidmUlid = "01JDNF0000000000000KAN1DM0";
-
-  # Sops files are root-owned and MAS runs with DynamicUser: LoadCredential
-  # bridges the gap. Absolute form of systemd's %d, usable in MAS settings.
-  masCreds = "/run/credentials/matrix-authentication-service.service";
-
-  # Secret name -> sops path, shared by the unit credentials and the CLI
-  # wrapper so both expose the very same file names under their creds dir.
-  masCredFiles = {
-    encryption = config.sops.secrets.mas-encryption-secret.path;
-    rsa-key = config.sops.secrets.mas-rsa-private-key.path;
-    synapse-secret = config.sops.secrets.mas-synapse-secret.path;
-    oidc-client-secret = config.sops.secrets.${secret}.path;
-  };
-
-  # The unit config lives in a RuntimeDirectory that disappears with the
-  # service, and its credentials are unreadable outside it: regenerate an
-  # equivalent file so `mas-cli` keeps working while MAS is stopped (which
-  # syn2mas requires). Built from the evaluated option, module defaults
-  # (database uri, trusted proxies...) included.
-  masCliConfig = (pkgs.formats.yaml { }).generate "mas-cli-config.yaml" (
-    config.services.matrix-authentication-service.settings
-  );
-
-  # syn2mas refuses to map the `oidc-kanidm` external ids unless synapse still
-  # declares that provider, which delegated mode precisely removes. Hand the
-  # legacy block back as an extra synapse config: read for provider ids only,
-  # so the client secret is never used.
-  syn2masOidcConfig = (pkgs.formats.yaml { }).generate "syn2mas-oidc.yaml" {
-    oidc_providers = [
-      {
-        idp_id = "kanidm";
-        idp_name = "IDM";
-        issuer = oidc.issuerUrl;
-        client_id = clientId;
-        client_secret = "unused-by-syn2mas";
-        scopes = [
-          "openid"
-          "profile"
-        ];
-        user_mapping_provider.config = {
-          localpart_template = "{{ user.preferred_username.split('@')[0] | lower }}";
-          display_name_template = "{{ user.displayname }}";
-        };
-      }
-    ];
-  };
-
-  # Postgres only accepts peer auth here, and syn2mas needs both the MAS and
-  # the synapse database at once: `postgres` is the single local identity that
-  # reaches both. Root reads the sops files, hands them over, then drops to it.
-  masCliUser = "postgres";
-  masCliScript = pkgs.writeShellApplication {
-    name = "dnf-mas";
-    runtimeInputs = [
-      pkgs.coreutils
-      pkgs.gnused
-      pkgs.util-linux
-      config.services.matrix-authentication-service.package
-    ];
-    text = ''
-      if [ "$(id -u)" != 0 ] ;then
-        echo "dnf-mas: must run as root (reads the sops secrets)." >&2
-        exit 1
-      fi
-
-      # mas-cli looks for a .env in its cwd; a caller's $HOME is unreadable
-      # once we drop to ${masCliUser} and only yields a warning.
-      cd /
-
-      # Private creds dir mirroring the unit's, wiped on exit.
-      creds="$(mktemp -d /run/dnf-mas.XXXXXX)"
-      trap 'rm -rf "$creds"' EXIT
-      chown ${masCliUser} "$creds"
-      ${lib.concatStringsSep "\n" (
-        lib.mapAttrsToList (
-          name: path: ''install -o ${masCliUser} -m 0400 ${path} "$creds/${name}"''
-        ) masCredFiles
-      )}
-      sed 's|${masCreds}|'"$creds"'|g' ${masCliConfig} > "$creds/config.yaml"
-      chown ${masCliUser} "$creds/config.yaml"
-
-      # syn2mas needs synapse's own config plus the legacy provider block, and
-      # its database uri would carry the `matrix-synapse` role that peer auth
-      # denies us: inject all three so the operator works them out never.
-      if [ "''${1:-}" = "syn2mas" ] && [[ "$*" != *--synapse-config* ]] ;then
-        shift
-        set -- syn2mas \
-          --synapse-config "${srv.configFile}" \
-          --synapse-config "${syn2masOidcConfig}" \
-          --synapse-database-uri "postgresql:///${srv.settings.database.args.database}?host=/run/postgresql" \
-          "$@"
-      fi
-
-      # Not `exec`: that would replace the shell and drop the EXIT trap,
-      # leaving the decrypted secrets behind in /run after every run.
-      status=0
-      runuser -u ${masCliUser} -- mas-cli --config "$creds/config.yaml" "$@" || status=$?
-      exit "$status"
-    '';
-  };
 
   # Native Prometheus metrics, exposed only where a zone Prometheus scrapes
   # this host. Bound to the scrapeable IP (like the node exporter), not the
@@ -327,136 +120,16 @@ let
     fi
   '';
 
-  # Mautrix settings shared by every bridge
-  mautrixCommonSettings = {
-    homeserver = {
-      address = "http://localhost:${toString synapsePort}";
-      domain = config.services.matrix-synapse.settings.server_name;
-      verify_ssl = false;
-    };
-  };
-
   # Declared matrix administrators (local parts), single source for bridge
   # administration and for the MAS admin scopes (cf. header).
   matrixAdmins = network.matrix.admins or [ ];
-
-  # Every local account may use a bridge with its own remote account; declared
-  # admins get bridge administration. The user level differs per bridge
-  # generation: bridgev2/go expect "user", legacy telegram needs "full" to
-  # allow own-account login.
-  mkBridgePermissions =
-    userLevel:
-    {
-      "${network.domain}" = userLevel;
-    }
-    // lib.genAttrs (map (a: "@${a}:${network.domain}") matrixAdmins) (_: "admin");
-
-  # Official appservice double puppeting: one shared as_token for all bridges,
-  # substituted by envsubst from each bridge's environmentFile.
-  doublePuppetSecret = "as_token:$MAUTRIX_DOUBLEPUPPET_AS_TOKEN";
-
-  # Settings shared by the bridgev2 bridges (meta, whatsapp, signal). The legacy
-  # telegram (python) and discord (go) bridges use a different schema and keep
-  # their own blocks. Single point of truth for the encryption policy, which
-  # otherwise had to be edited bridge by bridge.
-  bridgev2Settings = {
-    bridge.permissions = mkBridgePermissions "user";
-    double_puppet.secrets."${network.domain}" = doublePuppetSecret;
-    encryption = {
-      allow = true;
-      default = true;
-      pickle_key = "$ENCRYPTION_PICKLE_KEY";
-      require = false;
-
-      # Mandatory with delegated auth; synapse forces it on every appservice
-      msc4190 = true;
-    };
-  };
-
-  # sops plumbing shared by every mautrix bridge: the appservice token secrets,
-  # the optional encryption pickle key, and the env template the unit reads.
-  # Only the namespace and the unit/user name differ, so this used to be five
-  # near-identical copies — duplicated deprecation TODO included.
-  #
-  # `name` is both the sops namespace (`mautrix-<name>-*`) and the env prefix
-  # (`MAUTRIX_<NAME>_*`). `unit`/`owner` default to `mautrix-<name>`; meta
-  # overrides them because its unit carries the instance name.
-  mkBridgeSops =
-    {
-      name,
-      unit ? "mautrix-${name}",
-      owner ? unit,
-      withPickleKey ? true,
-      extraSecrets ? [ ],
-    }:
-    let
-      envPrefix = "MAUTRIX_${lib.toUpper name}";
-
-      # Secret suffix -> env var read by the bridge. The two appservice tokens
-      # and the pickle key have names the bridges impose; anything else follows
-      # the plain `<PREFIX>_<SUFFIX>` convention.
-      envFor =
-        suffix:
-        {
-          "as-token" = "${envPrefix}_APPSERVICE_AS_TOKEN";
-          "hs-token" = "${envPrefix}_APPSERVICE_HS_TOKEN";
-          "encryption-pickle-key" = "ENCRYPTION_PICKLE_KEY";
-        }
-        .${suffix} or "${envPrefix}_${lib.toUpper (lib.replaceStrings [ "-" ] [ "_" ] suffix)}";
-
-      suffixes =
-        extraSecrets
-        ++ [
-          "as-token"
-          "hs-token"
-        ]
-        ++ lib.optional withPickleKey "encryption-pickle-key";
-
-      secretName = suffix: "mautrix-${name}-${suffix}";
-    in
-    {
-      sops.secrets = lib.genAttrs (map secretName suffixes) (_: { });
-
-      sops.templates."mautrix-${name}-env" = {
-        content =
-          lib.concatMapStrings (
-            suffix: "${envFor suffix}=${config.sops.placeholder.${secretName suffix}}\n"
-          ) suffixes
-          + "MAUTRIX_DOUBLEPUPPET_AS_TOKEN=${config.sops.placeholder.mautrix-doublepuppet-as-token}\n";
-        mode = "0400";
-        inherit owner;
-
-        # TODO: WARN: restarting or reloading systemd units from the activation script is deprecated and will be removed in NixOS 26.11.
-        restartUnits = [ "${unit}.service" ];
-      };
-    };
 
   defaultParams = {
     icon = "element";
   };
   params = dnfLib.extractServiceParams host network "matrix" defaultParams;
-
-  inherit
-    (dnfLib.mkOidcContext {
-      name = "matrix";
-      inherit params network hosts;
-    })
-    clientId
-    secret
-    idmUrl
-    ;
-  oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
 in
 {
-  imports = [
-
-    # Auth is delegated to MAS unconditionally: a leftover `false` would have
-    # silently kept a homeserver on deprecated synapse auth.
-    (lib.mkRemovedOptionModule [ "darkone" "service" "matrix" "mas" "enable" ]
-      "MAS is always enabled. A pre-MAS homeserver must run the syn2mas migration (cf. dnf/modules/service/matrix.nix header)."
-    )
-  ];
-
   options = {
     darkone.service.matrix = {
       enable = lib.mkEnableOption "Enable matrix (synapse) service";
@@ -473,7 +146,7 @@ in
         };
       };
 
-      # MatrixRTC backend (cf. header). Default off: it binds a public UDP
+      # MatrixRTC backend (`matrix/rtc.nix`). Default off: it binds a public UDP
       # range and a TCP fallback, which only a host reachable from the outside
       # can honour.
       matrixRtc.enable = lib.mkEnableOption "Enable the MatrixRTC backend (LiveKit SFU) for Element Call group calls.";
@@ -510,6 +183,23 @@ in
           description = "Mautrix Discord bridge (login by QR code, experimental).";
         };
       };
+
+      # Values shared with the `matrix/` sub-modules.
+      shared = lib.mkOption {
+        type = lib.types.raw;
+        internal = true;
+        readOnly = true;
+        default = {
+          inherit
+            params
+            masKanidmUlid
+            livekitJwtUrl
+            matrixAdmins
+            ;
+        };
+        defaultText = "computed";
+        description = "Matrix values shared with the `matrix/` sub-modules.";
+      };
     };
   };
 
@@ -520,12 +210,13 @@ in
     #------------------------------------------------------------------------
 
     {
+
       # Kanidm OAuth2 client template
       darkone.service.idm.oauth2.matrix = {
         displayName = "Matrix Synapse";
         imageFile = ./../../assets/app-icons/synapse.svg;
 
-        # MAS is the OIDC client, never synapse (cf. header).
+        # MAS is the OIDC client, never synapse (cf. `matrix/mas.nix`).
         redirectPaths = [ "/upstream/callback/${masKanidmUlid}" ];
         landingPath = "/";
         preferShortUsername = true;
@@ -601,37 +292,11 @@ in
       # Sops
       #------------------------------------------------------------------------
 
-      # Kanidm client secret: read by MAS as a credential, never by synapse.
-      sops.secrets.${secret} = { };
-
       # Coturn secret
       sops.secrets.turn-secret-matrix = lib.mkIf hasTurn {
         mode = "0400";
         owner = "matrix-synapse";
         key = "turn-secret";
-      };
-
-      # Double puppeting appservice: a single shared as_token allows every
-      # bridge to impersonate local users (official docs.mau.fi method). The
-      # hs_token is required by synapse but never used.
-      sops.secrets.mautrix-doublepuppet-as-token = { };
-      sops.secrets.mautrix-doublepuppet-hs-token = { };
-      sops.templates.doublepuppet-registration = {
-        content = ''
-          id: doublepuppet
-          url:
-          as_token: ${config.sops.placeholder.mautrix-doublepuppet-as-token}
-          hs_token: ${config.sops.placeholder.mautrix-doublepuppet-hs-token}
-          sender_localpart: doublepuppet
-          rate_limited: false
-          namespaces:
-            users:
-              - regex: '@.*:${network.domain}'
-                exclusive: false
-        '';
-        mode = "0400";
-        owner = "matrix-synapse";
-        restartUnits = [ "matrix-synapse.service" ];
       };
 
       #------------------------------------------------------------------------
@@ -657,27 +322,20 @@ in
       # PostgreSQL backup (all databases by default)
       services.postgresqlBackup.enable = true;
 
-      # Used by mautrix bridges for conversions; olm is required by legacy
-      # bridges and is flagged insecure upstream.
-      environment.systemPackages = [ pkgs.ffmpeg_7 ];
-      nixpkgs.config.permittedInsecurePackages = [ "olm-3.2.16" ];
-
       #------------------------------------------------------------------------
       # Synapse Server
       #------------------------------------------------------------------------
 
-      # TODO: voir si c'est utile pour admin : https://element-hq.github.io/synapse/latest/manhole.html
+      # TODO: manhole for admin debugging? https://element-hq.github.io/synapse/latest/manhole.html
 
       services.matrix-synapse = {
         enable = true;
         configureRedisLocally = true;
-        #extraConfigFiles = lib.optional hasTurn config.sops.templates."synapse-extra-config.yml".path;
 
         # https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html
         settings = {
 
           # General settings
-          #server_name = params.fqdn;
           server_name = network.domain;
           public_baseurl = params.href + "/";
 
@@ -712,14 +370,8 @@ in
           # https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#room_list_publication_rules
           room_list_publication_rules = [ { action = "allow"; } ];
 
-          # Federation restrictions
-          #federation_domain_whitelist = []; # Whitelist of allowed servers (default: all)
-          #federation_whitelist_endpoint_enabled = true; # Expose this list (default: false)
-
-          # Keep default values: do not allow synapse to make outbound requests
-          # to private networks -> https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#ip_range_blacklist
-          #ip_range_blacklist
-          #ip_range_whitelist
+          # Federation scope: `federationSettings`, below. `ip_range_blacklist`
+          # keeps its default: no outbound request to private networks.
 
           # Listeners. The metrics listener is appended last so the proxy's
           # `listeners[0]` reference keeps pointing at the HTTP listener.
@@ -733,8 +385,8 @@ in
               resources = [
                 {
                   names = [
-                    "client" # Client (element, ...), implique [ media, static ]
-                    "federation" # Connexions serveur-serveur, implique [ media, keys, openid ]
+                    "client" # Clients (element, ...), implies media and static
+                    "federation" # Server to server, implies media, keys and openid
                   ];
                   compress = true;
                 }
@@ -750,21 +402,20 @@ in
           };
 
           # TODO: https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#email
-          #email = { };
 
           # Homeserver specific settings
           admin_contact = "admin@${network.domain}";
           hs_disabled = false; # Server disable flag...
           hs_disabled_message = "Maintenance...";
-          #limit_remote_rooms # TODO if perf. problems
           max_avatar_size = "1M";
-          #retention # Message retention policy if needed (default false)
+
+          # Left at their defaults, to tune if needed: `limit_remote_rooms`
+          # (performance), `retention` (messages), `media_retention`.
 
           # Media store
           max_upload_size = "100M";
           max_image_pixels = "50M";
           dynamic_thumbnails = false; # Resize based on clients, see if useful...
-          #media_retention # https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html#media_retention
 
           # Rooms
           encryption_enabled_by_default_for_room_type = "all";
@@ -778,15 +429,11 @@ in
 
           enable_metrics = isNode;
 
-          # Registration belongs to MAS (`account.*` below); synapse refuses
-          # any auth config once delegated.
+          # Registration belongs to MAS (`account.*` in `matrix/mas.nix`):
+          # synapse refuses any auth config once delegated.
           enable_registration = false;
           suppress_key_server_warning = true;
           auto_join_rooms = [ ]; # TODO
-
-          # Double puppeting appservice for the mautrix bridges (the bridges'
-          # own registrations are appended by their nixpkgs modules)
-          app_service_config_files = [ config.sops.templates.doublepuppet-registration.path ];
 
           # DB
           database.args = {
@@ -804,11 +451,8 @@ in
             "turn:turn.${network.domain}:${toString coturn.listening-port}?transport=udp"
             "turn:turn.${network.domain}:${toString coturn.listening-port}?transport=tcp"
 
-            # Secure TURN (TLS, TCP)
+            # Secure TURN: TLS runs over TCP only
             "turns:turn.${network.domain}:${toString coturn.tls-listening-port}?transport=tcp"
-
-            # UDP does not really exist, keep only TCP for TLS
-            # "turns:turn.${network.domain}:${toString coturn.tls-listening-port}?transport=udp"
           ];
           turn_shared_secret_path = lib.mkIf hasTurn config.sops.secrets.turn-secret-matrix.path;
           turn_user_lifetime = lib.mkIf hasTurn "24h";
@@ -823,528 +467,5 @@ in
     # we complete it here to add/omit `federation_domain_whitelist` cleanly
     # (open federation requires the key to be absent, not an empty list).
     (lib.mkIf cfg.enable { services.matrix-synapse.settings = federationSettings; })
-
-    #------------------------------------------------------------------------
-    # Matrix Authentication Service (next-gen auth, cf. header)
-    #------------------------------------------------------------------------
-
-    (lib.mkIf cfg.enable {
-
-      # Immutable after first start (cf. header)
-      sops.secrets.mas-encryption-secret.restartUnits = [ "matrix-authentication-service.service" ];
-
-      # OIDC token signing keys (PEM)
-      sops.secrets.mas-rsa-private-key.restartUnits = [ "matrix-authentication-service.service" ];
-
-      # Shared MAS <-> synapse secret: synapse reads the file directly
-      # (`secret_path`), MAS gets it as a root-read credential.
-      sops.secrets.mas-synapse-secret = {
-        mode = "0400";
-        owner = "matrix-synapse";
-        restartUnits = [
-          "matrix-authentication-service.service"
-          "matrix-synapse.service"
-        ];
-      };
-
-      services.matrix-authentication-service = {
-        enable = true;
-        createDatabase = true;
-
-        # Sops files are root-only and the unit runs with DynamicUser; the
-        # module's own option is used rather than a hand-written
-        # `serviceConfig.LoadCredential`, which would collide with it.
-        credentials = masCredFiles;
-
-        settings = {
-          http.public_base = params.href + "/";
-          http.listeners = [
-            {
-              name = "web";
-              resources = [
-                { name = "discovery"; }
-                { name = "human"; }
-                { name = "oauth"; }
-                { name = "compat"; }
-                { name = "graphql"; }
-
-                # `/api/admin/*`, gated by the `urn:mas:admin` scope: what the
-                # `matrix-admin` UI reads. Absent, its login still succeeds and
-                # every MAS panel (sessions, tokens, emails) then fails.
-                { name = "adminapi"; }
-                { name = "assets"; }
-                { name = "health"; }
-              ];
-              binds = [
-                {
-                  host = params.ip;
-                  port = masPort;
-                }
-              ];
-            }
-          ];
-
-          # Token introspection + user provisioning against synapse, over
-          # loopback (both live on the same host, like the Caddy routes).
-          matrix = {
-            kind = "synapse";
-            homeserver = srv.settings.server_name;
-            endpoint = "http://localhost:${toString synapsePort}";
-            secret_file = "${masCreds}/synapse-secret";
-          };
-
-          secrets = {
-            encryption_file = "${masCreds}/encryption";
-            keys = [
-              {
-                kid = "dnf-rsa";
-                key_file = "${masCreds}/rsa-key";
-              }
-            ];
-          };
-
-          # bcrypt v1 mirrors the synapse hashes imported by syn2mas
-          # (upgraded to argon2id on next login); harmless on a fresh
-          # install where no v1 hash ever exists.
-          passwords = {
-            enabled = true;
-            schemes = [
-              {
-                version = 1;
-                algorithm = "bcrypt";
-                unicode_normalization = true;
-              }
-              {
-                version = 2;
-                algorithm = "argon2id";
-              }
-            ];
-          };
-
-          # friendRegistration parity: token-gated local password accounts.
-          # No email requirement: the stack has no user-facing SMTP.
-          account = {
-            password_registration_enabled = cfg.friendRegistration.enable;
-            password_registration_token_required = cfg.friendRegistration.enable;
-            password_registration_email_required = false;
-          };
-
-          # Declarative server administration: the bundled policy turns these
-          # local parts into `urn:mas:admin` + `urn:synapse:admin:*`, so no
-          # `promote-admin` and no database write (cf. header).
-          policy.data.admin_users = matrixAdmins;
-
-          upstream_oauth2.providers = [
-            {
-              id = masKanidmUlid;
-              human_name = "IDM";
-              issuer = oidc.issuerUrl;
-              client_id = clientId;
-              client_secret_file = "${masCreds}/oidc-client-secret";
-              scope = "openid profile";
-              token_endpoint_auth_method = "client_secret_basic";
-
-              # Kanidm signs id_tokens with ES256 and advertises nothing else
-              # (RS256 would need its legacy crypto mode). MAS defaults to
-              # RS256 and rejects the callback with "wrong signature alg",
-              # which breaks every fresh SSO login.
-              id_token_signed_response_alg = "ES256";
-
-              # syn2mas maps the synapse-era external ids through this key
-              # (synapse `idp_id = "kanidm"` -> `oidc-kanidm`)
-              synapse_idp_id = "oidc-kanidm";
-              claims_imports = {
-
-                # Must yield the same localparts as the legacy synapse
-                # `localpart_template` (account continuity across migration)
-                localpart = {
-                  action = "require";
-                  template = "{{ user.preferred_username | split('@') | first | lower }}";
-                };
-                displayname = {
-                  action = "suggest";
-                  template = "{{ user.name }}";
-                };
-              };
-            }
-          ];
-        };
-      };
-
-      # Host-side administration (registration tokens, admin, syn2mas)
-      environment.systemPackages = [ masCliScript ];
-
-      # Synapse in delegated mode: every auth decision goes through MAS
-      services.matrix-synapse.settings.matrix_authentication_service = {
-        enabled = true;
-        endpoint = "http://localhost:${toString masPort}/";
-        secret_path = config.sops.secrets.mas-synapse-secret.path;
-      };
-
-      # MAS notifies `READY=1` once its listeners are bound (sd-notify): with
-      # `Type=notify`, synapse's `after` waits for a listening MAS, even
-      # through slow migrations after an upgrade.
-      systemd.services.matrix-authentication-service.serviceConfig.Type = "notify";
-
-      # Delegated auth needs MAS up before synapse serves clients. `wants`, not
-      # `requires`: a MAS restart must not take synapse down with it.
-      systemd.services.matrix-synapse = {
-        after = [ "matrix-authentication-service.service" ];
-        wants = [ "matrix-authentication-service.service" ];
-      };
-
-      # Upstream default orders MAS after synapse (appservice boilerplate), the
-      # reverse of the above: an ordering cycle. MAS never calls synapse at
-      # startup (lazy homeserver connection), so the default is dropped.
-      services.matrix-authentication-service.serviceDependencies = [ ];
-
-      # QR-code login ("link a new device", required by Element X). MSC4108
-      # adds synapse's rendezvous channel, which pairs with the device
-      # authorization grant MAS already exposes; without it clients report
-      # "your account provider does not support QR code sign-in". Synapse
-      # refuses the flag unless auth is delegated, hence this block.
-      services.matrix-synapse.settings.experimental_features.msc4108_enabled = true;
-    })
-
-    #------------------------------------------------------------------------
-    # MatrixRTC backend: LiveKit SFU + authorization service (cf. header)
-    #------------------------------------------------------------------------
-
-    (lib.mkIf (cfg.enable && cfg.matrixRtc.enable) {
-
-      # One shared secret for both daemons: the SFU validates the JWTs the
-      # authorization service signs with it. LiveKit wants a `<key>: <secret>`
-      # map, hence the template rather than a bare sops secret.
-      sops.secrets.livekit-secret = { };
-      sops.templates.livekit-keyfile = {
-        content = "${livekitApiKey}: ${config.sops.placeholder.livekit-secret}";
-        restartUnits = [
-          "livekit.service"
-          "lk-jwt-service.service"
-        ];
-      };
-
-      services.livekit = {
-        enable = true;
-        keyFile = config.sops.templates.livekit-keyfile.path;
-
-        # Would publish the SFU's HTTP port, which only caddy may reach; the
-        # media ports it does not cover are opened below.
-        openFirewall = false;
-
-        settings = {
-          port = livekitPort;
-          rtc = {
-
-            # Media ports, one per participant. Deliberately clear of both
-            # coturn's relay range and the kernel ephemeral range
-            # (cf. config/network.nix).
-            port_range_start = dnfConfig.network.ports.livekitRtcUdpStart;
-            port_range_end = dnfConfig.network.ports.livekitRtcUdpEnd;
-            tcp_port = dnfConfig.network.ports.livekitRtcTcp;
-
-            # The host holds its public address directly, so candidates need no
-            # STUN discovery. Behind NAT this must become true (cf. header).
-            use_external_ip = false;
-
-            # The tailnet address is a candidate no remote client can use:
-            # advertising it only costs every call an ICE timeout.
-            ips.excludes = [ "100.64.0.0/10" ];
-          };
-
-          # Rooms are created by the authorization service, which alone knows
-          # whether the matrix user may open one. Left on (the default), any
-          # JWT-less join would conjure a room.
-          room.auto_create = false;
-        };
-      };
-
-      services.lk-jwt-service = {
-        enable = true;
-        port = livekitJwtPort;
-        keyFile = config.sops.templates.livekit-keyfile.path;
-
-        # Handed to clients as-is, so it must be the public websocket url and
-        # not the loopback the SFU actually binds.
-        livekitUrl = livekitSfuUrl;
-      };
-
-      # Who may have a livekit room created for them. The service defaults to
-      # `*`: any federated server could then spend our SFU's resources. Remote
-      # users keep joining rooms a local user opened.
-      systemd.services.lk-jwt-service.environment.LIVEKIT_FULL_ACCESS_HOMESERVERS =
-        srv.settings.server_name;
-
-      # Media never goes through the reverse proxy: clients reach these
-      # directly. TCP is the fallback for networks that drop UDP.
-      networking.firewall = {
-        allowedTCPPorts = [ dnfConfig.network.ports.livekitRtcTcp ];
-        allowedUDPPortRanges = [
-          {
-            from = dnfConfig.network.ports.livekitRtcUdpStart;
-            to = dnfConfig.network.ports.livekitRtcUdpEnd;
-          }
-        ];
-      };
-
-      # Transport discovery (MSC4143). Recent clients read it here first and
-      # only fall back to the well-known, which is filled in too.
-      services.matrix-synapse.settings = {
-        experimental_features.msc4143_enabled = true;
-        matrix_rtc.transports = [
-          {
-            type = "livekit";
-            livekit_service_url = livekitJwtUrl;
-          }
-        ];
-      };
-    })
-
-    #------------------------------------------------------------------------
-    # Mautrix bridge: Facebook Messenger (bridgev2)
-    #------------------------------------------------------------------------
-
-    (lib.mkIf (cfg.enable && cfg.bridges.messenger.enable) (
-      lib.mkMerge [
-        (mkBridgeSops {
-          name = "meta";
-          unit = "mautrix-meta-messenger";
-        })
-        {
-
-          services.mautrix-meta.instances.messenger = {
-            enable = true;
-            environmentFile = config.sops.templates.mautrix-meta-env.path;
-            settings = mautrixCommonSettings // {
-              network.mode = "messenger";
-              network.chat_sync_max_age = "168h"; # only sync active conversations from the last 7 days
-              inherit (bridgev2Settings) bridge double_puppet;
-
-              # The nixpkgs mautrix-meta defaults are stricter than the other
-              # bridges: `require = true` makes the bot ignore unencrypted rooms
-              # and `cross-signed-tofu` silently drops messages from unverified
-              # sessions — the bot never answers. Align on whatsapp/signal
-              # (mautrix upstream defaults). Changing pickle_key from the module
-              # default requires a bridge state reset (/var/lib/mautrix-meta-*).
-              encryption = bridgev2Settings.encryption // {
-                verification_levels = {
-                  receive = "unverified";
-                  send = "unverified";
-                  share = "cross-signed-tofu";
-                };
-
-                # Aggressive key deletion is only sensible with enforced
-                # verification; back to mautrix defaults like the other bridges.
-                delete_keys = {
-                  dont_store_outbound = false;
-                  ratchet_on_decrypt = false;
-                  delete_fully_used_on_decrypt = false;
-                  delete_prev_on_new_session = false;
-                  delete_on_device_delete = false;
-                  periodically_delete_expired = false;
-                  delete_outdated_inbound = false;
-                };
-              };
-              appservice = {
-                id = "messenger";
-
-                # Deterministic registration tokens (cf. file header)
-                as_token = "$MAUTRIX_META_APPSERVICE_AS_TOKEN";
-                hs_token = "$MAUTRIX_META_APPSERVICE_HS_TOKEN";
-                bot = {
-                  username = "messengerbot";
-                  displayname = "Messenger bridge bot";
-                  avatar = "mxc://maunium.net/ygtkteZsXnGJLJHRchUwYWak";
-                };
-              };
-            };
-          };
-        }
-      ]
-    ))
-
-    #------------------------------------------------------------------------
-    # Mautrix bridge: WhatsApp (bridgev2)
-    #------------------------------------------------------------------------
-
-    (lib.mkIf (cfg.enable && cfg.bridges.whatsapp.enable) (
-      lib.mkMerge [
-        (mkBridgeSops { name = "whatsapp"; })
-        {
-
-          services.mautrix-whatsapp = {
-            enable = true;
-            environmentFile = config.sops.templates.mautrix-whatsapp-env.path;
-            settings = lib.mkMerge [
-              mautrixCommonSettings
-              bridgev2Settings
-              {
-
-                # Deterministic registration tokens (cf. file header)
-                appservice = {
-                  as_token = "$MAUTRIX_WHATSAPP_APPSERVICE_AS_TOKEN";
-                  hs_token = "$MAUTRIX_WHATSAPP_APPSERVICE_HS_TOKEN";
-                };
-
-                # Do not bridge WhatsApp statuses: the default (true) keeps
-                # re-inviting every user to a "WhatsApp Status Broadcast" room.
-                network.enable_status_broadcast = false;
-              }
-            ];
-          };
-        }
-      ]
-    ))
-
-    #------------------------------------------------------------------------
-    # Mautrix bridge: Signal (bridgev2)
-    #------------------------------------------------------------------------
-
-    (lib.mkIf (cfg.enable && cfg.bridges.signal.enable) (
-      lib.mkMerge [
-        (mkBridgeSops { name = "signal"; })
-        {
-
-          services.mautrix-signal = {
-            enable = true;
-            environmentFile = config.sops.templates.mautrix-signal-env.path;
-            settings = lib.mkMerge [
-              mautrixCommonSettings
-              bridgev2Settings
-              {
-
-                # Deterministic registration tokens (cf. file header)
-                appservice = {
-                  as_token = "$MAUTRIX_SIGNAL_APPSERVICE_AS_TOKEN";
-                  hs_token = "$MAUTRIX_SIGNAL_APPSERVICE_HS_TOKEN";
-                };
-              }
-            ];
-          };
-        }
-      ]
-    ))
-
-    #------------------------------------------------------------------------
-    # Mautrix bridge: Telegram (legacy python bridge)
-    #------------------------------------------------------------------------
-
-    (lib.mkIf (cfg.enable && cfg.bridges.telegram.enable) (
-      lib.mkMerge [
-
-        # No pickle key: the legacy bridge keeps its olm state in its own DB.
-        # API credentials -> https://my.telegram.org/
-        (mkBridgeSops {
-          name = "telegram";
-          withPickleKey = false;
-          extraSecrets = [
-            "api-id"
-            "api-hash"
-          ];
-        })
-        {
-
-          services.mautrix-telegram = {
-            enable = true;
-            environmentFile = config.sops.templates.mautrix-telegram-env.path;
-            settings = lib.mkMerge [
-              mautrixCommonSettings
-              {
-                telegram = {
-                  api_id = "$MAUTRIX_TELEGRAM_API_ID";
-                  api_hash = "$MAUTRIX_TELEGRAM_API_HASH";
-                  bot_token = "disabled";
-                };
-                appservice = {
-                  id = "telegram";
-                  address = "http://localhost:${toString telegramPort}"; # 8080 by default already in use
-                  port = telegramPort;
-                  as_token = "$MAUTRIX_TELEGRAM_APPSERVICE_AS_TOKEN";
-                  hs_token = "$MAUTRIX_TELEGRAM_APPSERVICE_HS_TOKEN";
-                };
-                bridge = {
-
-                  # Legacy levels: "full" (not "user") is required so that local
-                  # accounts can log into their own telegram account.
-                  permissions = mkBridgePermissions "full";
-                  login_shared_secret_map."${network.domain}" = doublePuppetSecret;
-                  encryption = {
-                    allow = true;
-                    default = true;
-                    msc4190 = true;
-                    require = false;
-                  };
-                };
-              }
-            ];
-          };
-        }
-      ]
-    ))
-
-    #------------------------------------------------------------------------
-    # Mautrix bridge: Discord (legacy go bridge, optional)
-    #------------------------------------------------------------------------
-
-    (lib.mkIf (cfg.enable && cfg.bridges.discord.enable) (
-      lib.mkMerge [
-
-        # No pickle key: the legacy bridge keeps its olm state in its own DB.
-        (mkBridgeSops {
-          name = "discord";
-          withPickleKey = false;
-        })
-        {
-
-          services.mautrix-discord = {
-            enable = true;
-            environmentFile = config.sops.templates.mautrix-discord-env.path;
-            settings = {
-              homeserver = mautrixCommonSettings.homeserver;
-
-              # Deterministic registration tokens (cf. file header). The module's
-              # appservice option is a non-merging attrs: setting the tokens
-              # replaces its default wholesale, so the upstream values must be
-              # restated here.
-              appservice = {
-                address = "http://localhost:${toString discordPort}";
-                hostname = "0.0.0.0";
-                port = discordPort;
-                database = {
-                  type = "sqlite3";
-                  uri = "file:/var/lib/mautrix-discord/mautrix-discord.db?_txlock=immediate";
-                  max_open_conns = 20;
-                  max_idle_conns = 2;
-                  max_conn_idle_time = null;
-                  max_conn_lifetime = null;
-                };
-                id = "discord";
-                bot = {
-                  username = "discordbot";
-                  displayname = "Discord bridge bot";
-                  avatar = "mxc://maunium.net/nIdEykemnwdisvHbpxflpDlC";
-                };
-                ephemeral_events = true;
-                async_transactions = false;
-                as_token = "$MAUTRIX_DISCORD_APPSERVICE_AS_TOKEN";
-                hs_token = "$MAUTRIX_DISCORD_APPSERVICE_HS_TOKEN";
-              };
-
-              # Intentionally partial: missing keys (templates, command prefix...)
-              # are filled at startup by the bridge's embedded config upgrader.
-              bridge = {
-                permissions = mkBridgePermissions "user" // {
-                  "*" = "relay";
-                };
-                login_shared_secret_map."${network.domain}" = doublePuppetSecret;
-
-                # Mandatory with delegated auth (cf. header)
-                encryption.msc4190 = true;
-              };
-            };
-          };
-        }
-      ]
-    ))
   ];
 }
