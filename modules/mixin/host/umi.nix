@@ -194,6 +194,10 @@ in
       pkgs.onboard
       pkgs.warpinator
       pkgs.xed-editor
+
+      # Its Bibata themes collide in system-path with `bibata-cursors`
+      # (gnome.nix), the GNOME cursor source; its other themes go unused.
+      pkgs.mint-cursor-themes
     ];
     environment.gnome.excludePackages = [ pkgs.seahorse ];
 
