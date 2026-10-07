@@ -107,6 +107,7 @@ in
     darkone.graphic.gnome.enable = mkEnableOption "Pre-configured gnome WM";
     darkone.graphic.gnome.enableDashToDock = mkEnableOption "Dash to dock plugin";
     darkone.graphic.gnome.enableLightDM = mkEnableOption "Enable LightDM instead of GDM";
+    darkone.graphic.gnome.enableGdmSelector = mkEnableOption "GDM user list instead of a typed login";
     darkone.graphic.gnome.enableCaffeine = mkEnableOption "Disable auto-suspend";
     darkone.graphic.gnome.enableGsConnect = mkEnableOption "Communication with devices";
     darkone.graphic.gnome.enableOnlineServices = mkEnableOption "Online Accounts, CalDAV, CardDAV...";
@@ -546,7 +547,7 @@ in
             lockAll = true; # prevents overriding
             settings = {
               "org/gnome/login-screen" = {
-                disable-user-list = true;
+                disable-user-list = !cfg.enableGdmSelector;
                 banner-message-enable = true;
                 banner-message-text = host.name;
               };
