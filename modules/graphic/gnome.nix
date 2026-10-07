@@ -205,6 +205,12 @@ in
       };
     };
 
+    # AccountsService, source of the greeter user list, ignores `Exclude` above:
+    # `SystemAccount=true` hides the maintenance account (greeter, Settings).
+    systemd.tmpfiles.rules = [
+      "f+ /var/lib/AccountsService/users/nix 0600 root root - [User]\\nSystemAccount=true\\n"
+    ];
+
     # Keep the active graphical session alive across rebuilds: restarting the
     # display-manager unit tears down the running Wayland/X session and logs the
     # user out on every `switch`/`test`. A display-manager change applies on the
