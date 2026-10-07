@@ -119,7 +119,7 @@ passwd user hash='':
 # (old Kanidm/Vaultwarden passkeys must be removed by hand). Requires exactly
 # ONE plugged key: with several, each capture could target a different device.
 #
-# YubiKey enrollment: ONE physical enrollment per (user, key), fleet-wide.
+# YubiKey enrollment per (user, key), fleet-wide. Action: enroll,revoke
 [group('secrets')]
 yubikey user key='main' action='enroll':
 	#!/usr/bin/env bash

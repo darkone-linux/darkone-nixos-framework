@@ -195,17 +195,9 @@ in
     services.displayManager.gdm = mkIf (!cfg.enableLightDM) {
       enable = true;
       autoSuspend = config.darkone.system.core.enableAutoSuspend;
-      settings = {
-        greeter = {
-
-          # https://help.gnome.org/admin/gdm/stable/configuration.html.en#greetersection
-          IncludeAll = false;
-          Exclude = "nix,bin,root,daemon,adm,lp,sync,shutdown,halt,mail,news,uucp,operator,nobody,nobody4,noaccess,postgres,pvm,nfsnobody,pcap";
-        };
-      };
     };
 
-    # AccountsService, source of the greeter user list, ignores `Exclude` above:
+    # The greeter user list comes from AccountsService, GDM filters nothing:
     # `SystemAccount=true` hides the maintenance account (greeter, Settings).
     systemd.tmpfiles.rules = [
       "f+ /var/lib/AccountsService/users/nix 0600 root root - [User]\\nSystemAccount=true\\n"
