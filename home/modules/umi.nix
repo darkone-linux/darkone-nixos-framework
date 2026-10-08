@@ -28,6 +28,13 @@
 # each Talon start: gaze only by default, an unsteady head drags the cursor.
 # :::
 #
+# :::tip[Gaze places, head refines]
+# With `enableHeadControl`, `headSpeed` below 1 dampens ample head movements
+# (`head_bezier.vmax` scaled, lever to be validated on a Tobii 5). Live tuning
+# from Talon's REPL, lost on restart: `actions.user.umi_head_speed(0.3)`,
+# `actions.user.umi_filter_speed(2, 4)`, `print(actions.user.umi_tuning())`.
+# :::
+#
 # :::tip[Community scripts]
 # Set `communityScripts` to a fetched github:talonhub/community tree to get
 # full voice and gaze mouse control (zoom mouse, pop click) declaratively.
@@ -132,6 +139,10 @@ let
     GAZE_SPEED = ${pyNumber cfg.gazeFilterSpeed}
     CURSOR_SPEED = ${pyNumber cfg.cursorFilterSpeed}
 
+    # Head Control sensitivity, None keeps Talon's own: below 1, full cursor
+    # gain needs a faster head. All three speeds: REPL actions override them.
+    HEAD_SPEED = ${pyNumber cfg.headSpeed}
+
     # Eye Tracking menu modes, by toggle action
     MODES = {
         "control_gaze_toggle": ${pyBool cfg.enableGazeControl},
@@ -153,6 +164,10 @@ let
     gaze_applied = None
     tracker_seen = None
     filters_missing = False
+    head_missing = False
+
+    # Talon's own head curve span, captured before the first change
+    head_vmax = None
 
     # Talon 1.0 runs cron jobs on several threads, without a GIL (3.14t)
     lock = threading.RLock()
@@ -216,30 +231,85 @@ let
             set_dwell(present)
 
 
-    # Private Control Mouse internals, no public setting: per-eye gaze filters
-    # and the cursor filter. Linux Talon stops at 1.0, they will not move; 0.4
-    # lacks them (logged once).
+    def control_mouse():
+        plugin = sys.modules.get("talon.plugins.eye_mouse_2")
+        return getattr(plugin, "control_mouse", None)
+
+
+    # Scaled from Talon's own span, never from the last value: no compounding
+    # at each pass, a speed of 1 restores Talon's curve
+    def tune_head(mouse) -> None:
+        global head_vmax, head_missing
+        if HEAD_SPEED is None and head_vmax is None:
+            return
+        curve = getattr(mouse, "head_bezier", None)
+        try:
+            if head_vmax is None:
+                head_vmax = float(curve.vmax)
+            curve.vmax = head_vmax / (HEAD_SPEED or 1.0)
+        except (AttributeError, TypeError):
+            if not head_missing:
+                head_missing = True
+                print("DNF UMI: Control Mouse head curve not found, Talon default kept")
+
+
+    # Private Control Mouse internals, no public setting: per-eye gaze filters,
+    # cursor filter, head curve. Linux Talon stops at 1.0, they will not move;
+    # 0.4 lacks them (logged once).
     def tune_filters() -> None:
         global filters_missing
-        if GAZE_SPEED is None and CURSOR_SPEED is None:
-            return
-        plugin = sys.modules.get("talon.plugins.eye_mouse_2")
-        mouse = getattr(plugin, "control_mouse", None)
-        cursor = getattr(mouse, "target_vff", None)
-        states = getattr(mouse, "states", None)
-        if cursor is None or states is None:
-            if not filters_missing:
-                filters_missing = True
-                print("DNF UMI: Control Mouse filters not found, Talon defaults kept")
-            return
-        if CURSOR_SPEED is not None:
-            cursor.coeff = float(CURSOR_SPEED)
-        if GAZE_SPEED is not None:
-            for state in list(states.values()):
-                gaze = getattr(state, "tobii_filter", None)
-                for eye in (getattr(gaze, "left_vff", None), getattr(gaze, "right_vff", None)):
-                    if eye is not None:
-                        eye.coeff = float(GAZE_SPEED)
+        with lock:
+            mouse = control_mouse()
+            tune_head(mouse)
+            if GAZE_SPEED is None and CURSOR_SPEED is None:
+                return
+            cursor = getattr(mouse, "target_vff", None)
+            states = getattr(mouse, "states", None)
+            if cursor is None or states is None:
+                if not filters_missing:
+                    filters_missing = True
+                    print("DNF UMI: Control Mouse filters not found, Talon defaults kept")
+                return
+            if CURSOR_SPEED is not None:
+                cursor.coeff = float(CURSOR_SPEED)
+            if GAZE_SPEED is not None:
+                for state in list(states.values()):
+                    gaze = getattr(state, "tobii_filter", None)
+                    for eye in (getattr(gaze, "left_vff", None), getattr(gaze, "right_vff", None)):
+                        if eye is not None:
+                            eye.coeff = float(GAZE_SPEED)
+
+
+    # Fields of a Talon object, cut: some hold whole histories
+    def show(value) -> str:
+        text = repr(getattr(value, "__dict__", None) or value)
+        return text if len(text) <= 300 else text[:300] + "..."
+
+
+    # Every head-related member is listed: the curve is a guess, the others
+    # are the next levers to try
+    def tuning_report() -> str:
+        lines = [
+            f"DNF speeds: gaze={GAZE_SPEED} cursor={CURSOR_SPEED} head={HEAD_SPEED}",
+            f"Talon head vmax: {head_vmax}",
+        ]
+        mouse = control_mouse()
+        if mouse is None:
+            return "\n".join(lines + ["Control Mouse not found"])
+        lines.append(f"target_vff: {show(getattr(mouse, 'target_vff', None))}")
+        for state in list((getattr(mouse, "states", None) or {}).values()):
+            gaze = getattr(state, "tobii_filter", None)
+            for side in ("left_vff", "right_vff"):
+                lines.append(f"tobii_filter.{side}: {show(getattr(gaze, side, None))}")
+        for name in dir(mouse):
+            if "head" in name and not name.startswith("__"):
+                lines.append(f"{name}: {show(getattr(mouse, name, None))}")
+        last = getattr(mouse, "last_state", None)
+        lines.append(
+            f"last_state: head_active={getattr(last, 'head_active', None)}"
+            f" offset_mm={getattr(last, 'offset_mm', None)}"
+        )
+        return "\n".join(lines)
 
 
     # Any USB change; Talon's own attach handler sets the tracker up first
@@ -281,6 +351,26 @@ let
             with open(STATE_FILE, "w") as state:
                 state.write("on" if on else "off")
             apply_gaze()
+
+        def umi_filter_speed(gaze: float, cursor: float):
+            """Set DNF UMI gaze and cursor filter speeds until Talon restarts (Talon's own: 1, 2)"""
+            global GAZE_SPEED, CURSOR_SPEED
+            if gaze <= 0 or cursor <= 0:
+                raise ValueError("speeds must be positive")
+            GAZE_SPEED, CURSOR_SPEED = float(gaze), float(cursor)
+            tune_filters()
+
+        def umi_head_speed(speed: float):
+            """Set DNF UMI head control sensitivity until Talon restarts (Talon's own: 1)"""
+            global HEAD_SPEED
+            if speed <= 0:
+                raise ValueError("speed must be positive")
+            HEAD_SPEED = float(speed)
+            tune_filters()
+
+        def umi_tuning() -> str:
+            """DNF UMI eye tracking tuning: applied speeds and Talon's internal values"""
+            return tuning_report()
 
 
     app.register("ready", on_ready)
@@ -466,6 +556,16 @@ in
           Talon Control Mouse cursor filter coefficient, with
           `enableTrackerAuto`: higher reacts faster, overshoots more. `null`
           keeps Talon's own (2.0).
+        '';
+      };
+      headSpeed = lib.mkOption {
+        type = lib.types.nullOr lib.types.numbers.positive;
+        default = null;
+        example = 0.3;
+        description = ''
+          Talon Head Control sensitivity, with `enableTrackerAuto` and
+          `enableHeadControl`: below 1 the head moves the cursor less (ample,
+          poorly controlled movements). `null` keeps Talon's own (1).
         '';
       };
       enableGazeControl = lib.mkOption {
