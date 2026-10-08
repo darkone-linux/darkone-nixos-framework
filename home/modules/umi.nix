@@ -20,6 +20,13 @@
 # dark with gaze control.
 # :::
 #
+# :::note[Application grid (UMI host)]
+# `enableRofiMenu`: the first panel launcher opens a full-screen rofi grid,
+# pages of `rofiGridResolution` tiles turned by edge-high buttons, one click
+# launches, settings panels left out. `hiddenApps` hides entries from the grid
+# and the Cinnamon menu alike. rofi grabs the pointer: panel out of reach.
+# :::
+#
 # :::note[Gaze-only pointing (Talon 1.0)]
 # Talon's filters freeze the cursor ~2 mm short of the gaze: the script raises
 # them (`gazeFilterSpeed`, `cursorFilterSpeed`, measured on a Tobii 5). Eye
@@ -385,6 +392,136 @@ let
     : > "$dir/calibrate"
   '';
 
+  # Application grid: rofi is X11-only here (GNOME Wayland lacks layer shell)
+  rofiMenu = cfg.enableRofiMenu && umiHost;
+  gridLauncher = "dnf-umi-grid.desktop";
+
+  # The theme has no translation mechanism: its one label follows the host locale
+  closeLabel = if lib.hasPrefix "fr" osConfig.i18n.defaultLocale then "Fermer" else "Close";
+
+  # Tuned on a 1600×900 screen: 96 px icons, `@theme` drops rofi's default
+  # theme, so every drawn property is set here.
+  rofiTheme =
+    let
+      inherit (config.lib.formats.rasi) mkLiteral;
+      px = n: mkLiteral "${toString n}px";
+      centered = mkLiteral "0.5";
+    in
+    {
+      "*" = {
+        font = "Sans 15";
+        background-color = mkLiteral "transparent";
+        text-color = mkLiteral "#eeeeee";
+      };
+      window = {
+        fullscreen = true;
+        background-color = mkLiteral "rgba(18, 18, 24, 0.94)";
+        padding = px 24;
+      };
+      mainbox = {
+        orientation = mkLiteral "horizontal";
+        spacing = px 16;
+
+        # Quoted names: a bare one may parse as a keyword (`center`, a position)
+        children = [
+          "button-prev"
+          "grid"
+          "button-next"
+        ];
+      };
+
+      # Edge-high page buttons, the widest gaze targets of the grid
+      "button-prev, button-next" = {
+        expand = false;
+        width = px 150;
+        font = "Sans Bold 64";
+        horizontal-align = centered;
+        vertical-align = centered;
+        border-radius = px 24;
+        background-color = mkLiteral "rgba(255, 255, 255, 0.07)";
+      };
+      button-prev = {
+        content = "◀";
+        action = "kb-page-prev";
+      };
+      button-next = {
+        content = "▶";
+        action = "kb-page-next";
+      };
+      grid = {
+        orientation = mkLiteral "vertical";
+        spacing = px 16;
+        children = [
+          "topbar"
+          "listview"
+        ];
+      };
+      topbar = {
+        orientation = mkLiteral "horizontal";
+        expand = false;
+        children = [ "button-close" ];
+      };
+      button-close = {
+        content = "✕  ${closeLabel}";
+        action = "kb-cancel";
+        expand = false;
+        padding = mkLiteral "18px 36px";
+        border-radius = px 16;
+        background-color = mkLiteral "rgba(255, 90, 90, 0.30)";
+      };
+      listview = {
+        columns = cfg.rofiGridResolution.columns;
+        lines = cfg.rofiGridResolution.rows;
+        fixed-height = true;
+        fixed-columns = true;
+        scrollbar = false;
+        cycle = false;
+        flow = mkLiteral "horizontal";
+        spacing = px 16;
+        border = 0;
+      };
+      element = {
+        orientation = mkLiteral "vertical";
+        padding = px 14;
+        spacing = px 8;
+        border-radius = px 20;
+      };
+      "element normal.normal, element alternate.normal" = {
+        background-color = mkLiteral "rgba(255, 255, 255, 0.05)";
+        text-color = mkLiteral "#eeeeee";
+      };
+      "element selected.normal" = {
+        background-color = mkLiteral "rgba(79, 195, 247, 0.40)";
+        text-color = mkLiteral "#ffffff";
+      };
+      "element-text, element-icon" = {
+        background-color = mkLiteral "transparent";
+        text-color = mkLiteral "inherit";
+      };
+      element-icon = {
+        size = px 96;
+        horizontal-align = centered;
+      };
+      element-text = {
+        horizontal-align = centered;
+        vertical-align = centered;
+      };
+    };
+
+  # Full copies with `NoDisplay` forced: a bare stub would also shadow the
+  # entry for launches by id and file associations.
+  hiddenAppEntries = pkgs.runCommand "umi-hidden-apps" { } ''
+    mkdir -p $out
+    for id in ${lib.escapeShellArgs cfg.hiddenApps} ; do
+      for dir in ${osConfig.system.path}/share/applications ${config.home.path}/share/applications ; do
+        if [ -e "$dir/$id" ] ; then
+          sed -e '/^NoDisplay=/d' -e '/^\[Desktop Entry\]/a NoDisplay=true' "$dir/$id" > "$out/$id"
+          break
+        fi
+      done
+    done
+  '';
+
   # Big cursor and text for gaze precision (~15-30 px). AT-SPI on from the
   # first login: Onboard's word prediction asks for it in a popup otherwise.
   interfaceSettings = {
@@ -422,12 +559,13 @@ let
       };
     }
 
-    # Launchers move to their own applet, set apart from the open windows
+    # Launchers move to their own applet, set apart from the open windows; the
+    # application grid comes first
     {
       uuid = "panel-launchers@cinnamon.org";
       id = 15;
       values = {
-        launcherList = cfg.panelLaunchers;
+        launcherList = lib.optional rofiMenu gridLauncher ++ cfg.panelLaunchers;
         allow-dragging = false;
       };
     }
@@ -643,6 +781,57 @@ in
           starts the eye tracker calibration.
         '';
       };
+      enableRofiMenu = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Full-screen application grid (rofi), UMI host only: pages of big
+          tiles turned by edge buttons, one click launches, settings panels
+          left out. Opened by the first panel launcher (with `enablePanel`).
+        '';
+      };
+      rofiGridResolution = lib.mkOption {
+        type = lib.types.submodule {
+          options = {
+            columns = lib.mkOption {
+              type = lib.types.ints.between 1 12;
+              default = 6;
+              description = "Tiles per row.";
+            };
+            rows = lib.mkOption {
+              type = lib.types.ints.between 1 8;
+              default = 4;
+              description = "Tile rows per page.";
+            };
+          };
+        };
+        default = { };
+        example = {
+          columns = 4;
+          rows = 3;
+        };
+        description = ''
+          Application grid page, in tiles, with `enableRofiMenu`. The default
+          6 × 4 fits 96 px icons on a 1600×900 screen; fewer tiles grow wider.
+        '';
+      };
+      hiddenApps = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+
+        # Terminals (no keyboard), duplicates of Nemo and Onboard, admin manual
+        default = [
+          "xterm.desktop"
+          "org.gnome.Terminal.desktop"
+          "org.gnome.Console.desktop"
+          "org.gnome.Nautilus.desktop"
+          "cinnamon-onscreen-keyboard.desktop"
+          "nixos-manual.desktop"
+        ];
+        description = ''
+          Applications hidden from the grid and the Cinnamon menu (desktop file
+          ids), UMI host only. Launches by id and file associations still work.
+        '';
+      };
     };
   };
 
@@ -813,6 +1002,57 @@ in
       Exec=cinnamon-settings extensions
       NoDisplay=true
     '';
+
+    # Hidden entries (cf. `hiddenAppEntries`), UMI host only: GNOME elsewhere
+    # would lose them too, Nautilus being its only file manager.
+    home.file.".local/share/applications" = lib.mkIf (umiHost && cfg.hiddenApps != [ ]) {
+      source = hiddenAppEntries;
+      recursive = true;
+    };
+
+    # Application grid, its config read by any `rofi -show drun`
+    programs.rofi = lib.mkIf rofiMenu {
+      enable = true;
+      theme = rofiTheme;
+      settings = {
+        modes = "drun";
+        show-icons = true;
+        drun-display-format = "{name}";
+
+        # Installed by the desktop profile, the fullest colour app icon set
+        icon-theme = "Papirus";
+
+        # Settings panels stay in the Cinnamon menu, out of the gaze grid
+        drun-exclude-categories = "Settings";
+
+        # Whole pages, never a scrolled row
+        scroll-method = 0;
+
+        # Hover selects, one primary click (a dwell click) launches
+        hover-select = true;
+        me-select-entry = "";
+        me-accept-entry = "MousePrimary";
+
+        # A stray dwell beside the grid must not close it
+        click-to-exit = false;
+      };
+    };
+
+    # Grid button, in Cinnamon's custom launcher folder: a launcher with no
+    # entry of its own in the menu or the grid.
+    home.file.".local/share/cinnamon/panel-launchers/${gridLauncher}" =
+      lib.mkIf (rofiMenu && cfg.enablePanel)
+        {
+          text = ''
+            [Desktop Entry]
+            Type=Application
+            Name=Applications
+            Comment=All applications, in pages of big tiles
+            Comment[fr]=Toutes les applications, en pages de grandes tuiles
+            Exec=${config.programs.rofi.finalPackage}/bin/rofi -show drun
+            Icon=app-launcher
+          '';
+        };
 
     # DNF panel layout, its applets loaded from XDG_DATA_HOME
     home.file.".local/share/cinnamon/applets/umi-mouse@darkone-linux" = lib.mkIf cfg.enablePanel {
