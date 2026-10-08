@@ -509,13 +509,14 @@ let
     };
 
   # Full copies with `NoDisplay` forced: a bare stub would also shadow the
-  # entry for launches by id and file associations.
+  # entry for launches by id and file associations. Leading blanks allowed,
+  # as GKeyFile does: talon-nix indents its whole entry.
   hiddenAppEntries = pkgs.runCommand "umi-hidden-apps" { } ''
     mkdir -p $out
     for id in ${lib.escapeShellArgs cfg.hiddenApps} ; do
       for dir in ${osConfig.system.path}/share/applications ${config.home.path}/share/applications ; do
         if [ -e "$dir/$id" ] ; then
-          sed -e '/^NoDisplay=/d' -e '/^\[Desktop Entry\]/a NoDisplay=true' "$dir/$id" > "$out/$id"
+          sed -e '/^[[:blank:]]*NoDisplay=/d' -e '/^[[:blank:]]*\[Desktop Entry\]/a NoDisplay=true' "$dir/$id" > "$out/$id"
           break
         fi
       done

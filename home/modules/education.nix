@@ -13,6 +13,11 @@ let
   # Audiences sharing a package
   babyOrChild = cfg.enableBaby || cfg.enableChild;
   childOrStudent = cfg.enableChild || cfg.enableStudent;
+
+  # Matched by name, as `environment.gnome.excludePackages`. List entries are
+  # `mkIf` wrappers, the package in their `content`.
+  excluded = map lib.getName cfg.excludePackages;
+  notExcluded = entry: !lib.elem (lib.getName (entry.content or entry)) excluded;
 in
 {
   options = {
@@ -59,41 +64,50 @@ in
       default = true;
       description = "Computing tools and apps (klavaro, etc.)";
     };
+    darkone.home.education.excludePackages = lib.mkOption {
+      type = lib.types.listOf lib.types.package;
+      default = [ ];
+      example = lib.literalExpression "[ pkgs.klavaro ]";
+      description = "Software of the enabled themes not to install, matched by name.";
+    };
   };
 
   config = lib.mkIf cfg.enable {
 
     # Packages
-    home.packages = with pkgs; [
-      #(lib.mkIf (cfg.enableMisc && childOrStudent) wike) # Wikipedia reader, too heavy
-      (lib.mkIf (cfg.enableComputer && childOrStudent) kdePackages.kturtle) # logo
-      (lib.mkIf (cfg.enableComputer && childOrStudent) klavaro)
-      (lib.mkIf (cfg.enableLang && childOrStudent) kdePackages.parley) # vocabulary
-      (lib.mkIf (cfg.enableLang && childOrStudent) verbiste)
-      (lib.mkIf (cfg.enableLang && childOrStudent) gnome-characters)
-      (lib.mkIf (cfg.enableMath && childOrStudent) geogebra) # math (note: geogebra6 -> build fail, current is 5)
-      (lib.mkIf (cfg.enableMath && childOrStudent) kdePackages.kmplot) # math
-      (lib.mkIf (cfg.enableMath && cfg.enableStudent) gnome-graphs)
-      (lib.mkIf (cfg.enableMath && cfg.enableStudent) kdePackages.cantor) # math
-      (lib.mkIf (cfg.enableMath && cfg.enableStudent) kdePackages.kalgebra) # math
-      (lib.mkIf (cfg.enableMath && cfg.enableStudent) kdePackages.kbruch) # fractions
-      (lib.mkIf (cfg.enableMath && cfg.enableStudent) labplot) # data visualization
-      (lib.mkIf (cfg.enableMath && cfg.enableStudent) maxima) # math
-      (lib.mkIf (cfg.enableMath && cfg.enableStudent) octaveFull) # math
-      (lib.mkIf (cfg.enableMath && cfg.enableStudent) scilab-bin) # math
-      (lib.mkIf (cfg.enableMisc && babyOrChild) gcompris)
-      (lib.mkIf (cfg.enableMisc && cfg.enableChild) kdePackages.blinken) # memory training
-      (lib.mkIf (cfg.enableMisc && cfg.enableStudent) anki) # training cards
-      (lib.mkIf (cfg.enableDraw && babyOrChild) tuxpaint)
-      (lib.mkIf (cfg.enableMusic && childOrStudent) solfege)
-      (lib.mkIf (cfg.enableScience && childOrStudent) atomix) # Atom puzzle
-      (lib.mkIf (cfg.enableScience && childOrStudent) gnome-maps)
-      (lib.mkIf (cfg.enableScience && childOrStudent) kdePackages.kalzium) # periodic elements
-      (lib.mkIf (cfg.enableScience && childOrStudent) kdePackages.kgeography) # geography
-      (lib.mkIf (cfg.enableScience && childOrStudent) avogadro2) # molecules
-      (lib.mkIf (cfg.enableDraw && childOrStudent) pencil2d)
-      (lib.mkIf (cfg.enableDraw && childOrStudent) synfigstudio)
-      (lib.mkIf (cfg.enableDraw && childOrStudent) ffmpeg) # Synfig dependency
-    ];
+    home.packages = lib.filter notExcluded (
+      with pkgs;
+      [
+        #(lib.mkIf (cfg.enableMisc && childOrStudent) wike) # Wikipedia reader, too heavy
+        (lib.mkIf (cfg.enableComputer && childOrStudent) kdePackages.kturtle) # logo
+        (lib.mkIf (cfg.enableComputer && childOrStudent) klavaro)
+        (lib.mkIf (cfg.enableLang && childOrStudent) kdePackages.parley) # vocabulary
+        (lib.mkIf (cfg.enableLang && childOrStudent) verbiste)
+        (lib.mkIf (cfg.enableLang && childOrStudent) gnome-characters)
+        (lib.mkIf (cfg.enableMath && childOrStudent) geogebra) # math (note: geogebra6 -> build fail, current is 5)
+        (lib.mkIf (cfg.enableMath && childOrStudent) kdePackages.kmplot) # math
+        (lib.mkIf (cfg.enableMath && cfg.enableStudent) gnome-graphs)
+        (lib.mkIf (cfg.enableMath && cfg.enableStudent) kdePackages.cantor) # math
+        (lib.mkIf (cfg.enableMath && cfg.enableStudent) kdePackages.kalgebra) # math
+        (lib.mkIf (cfg.enableMath && cfg.enableStudent) kdePackages.kbruch) # fractions
+        (lib.mkIf (cfg.enableMath && cfg.enableStudent) labplot) # data visualization
+        (lib.mkIf (cfg.enableMath && cfg.enableStudent) maxima) # math
+        (lib.mkIf (cfg.enableMath && cfg.enableStudent) octaveFull) # math
+        (lib.mkIf (cfg.enableMath && cfg.enableStudent) scilab-bin) # math
+        (lib.mkIf (cfg.enableMisc && babyOrChild) gcompris)
+        (lib.mkIf (cfg.enableMisc && cfg.enableChild) kdePackages.blinken) # memory training
+        (lib.mkIf (cfg.enableMisc && cfg.enableStudent) anki) # training cards
+        (lib.mkIf (cfg.enableDraw && babyOrChild) tuxpaint)
+        (lib.mkIf (cfg.enableMusic && childOrStudent) solfege)
+        (lib.mkIf (cfg.enableScience && childOrStudent) atomix) # Atom puzzle
+        (lib.mkIf (cfg.enableScience && childOrStudent) gnome-maps)
+        (lib.mkIf (cfg.enableScience && childOrStudent) kdePackages.kalzium) # periodic elements
+        (lib.mkIf (cfg.enableScience && childOrStudent) kdePackages.kgeography) # geography
+        (lib.mkIf (cfg.enableScience && childOrStudent) avogadro2) # molecules
+        (lib.mkIf (cfg.enableDraw && childOrStudent) pencil2d)
+        (lib.mkIf (cfg.enableDraw && childOrStudent) synfigstudio)
+        (lib.mkIf (cfg.enableDraw && childOrStudent) ffmpeg) # Synfig dependency
+      ]
+    );
   };
 }

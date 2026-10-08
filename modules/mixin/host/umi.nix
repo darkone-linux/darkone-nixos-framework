@@ -8,8 +8,8 @@
 #
 # :::note[Extends desktop]
 # Inherits the full desktop profile (GNOME, multimedia, office) and adds the
-# UMI prerequisites: a Cinnamon X11 session for UMI users, auto-login,
-# uinput event injection and Tobii udev rules.
+# UMI prerequisites: a Cinnamon X11 session for UMI users (dark mode by
+# default), auto-login, uinput event injection and Tobii udev rules.
 # :::
 #
 # :::tip[X11 / Wayland coexistence]
@@ -113,6 +113,16 @@ in
 
     # X11 desktop for the UMI sessions, launched by GDM alongside GNOME
     services.xserver.desktopManager.cinnamon.enable = true;
+
+    # Dark mode of the Mint-Y style, as Cinnamon's Themes page writes it (panel
+    # already dark): user-overridable defaults, GNOME sessions are dark too.
+    services.xserver.desktopManager.cinnamon.extraGSettingsOverrides = ''
+      [org.cinnamon.desktop.interface]
+      gtk-theme='Mint-Y-Dark-Aqua'
+
+      [org.x.apps.portal]
+      color-scheme='prefer-dark'
+    '';
 
     # Both desktops set this variable globally (nixpkgs). GNOME's wins: GNOME
     # sessions and the GDM greeter read it, and Cinnamon's Mint defaults would

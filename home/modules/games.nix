@@ -27,6 +27,11 @@ let
   hasStkShare = stk && (isStkServer || stkCfg.enableClient);
   stkTracks =
     if isStkServer then osConfig.darkone.system.srv-dirs.stkTracks else "/mnt/nfs/stk-tracks";
+
+  # Matched by name, as `environment.gnome.excludePackages`. List entries are
+  # `mkIf` wrappers, the package in their `content`.
+  excluded = map lib.getName cfg.excludePackages;
+  notExcluded = entry: !lib.elem (lib.getName (entry.content or entry)) excluded;
 in
 {
   options = {
@@ -38,6 +43,12 @@ in
     darkone.home.games.enableCli = lib.mkEnableOption "Cli Games";
     darkone.home.games.enableStk = lib.mkEnableOption "SuperTuxKart (only)";
     darkone.home.games.enableMore = lib.mkEnableOption "More (secondary) games in each categories";
+    darkone.home.games.excludePackages = lib.mkOption {
+      type = lib.types.listOf lib.types.package;
+      default = [ ];
+      example = lib.literalExpression "[ pkgs.gnome-2048 ]";
+      description = "Games of the enabled categories not to install, matched by name.";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -47,34 +58,37 @@ in
     #--------------------------------------------------------------------------
 
     # NOTE banned games: bsdgames, 2048 terminal, ltris, lenmus, chessx, kanagram, pingus
-    home.packages = with pkgs; [
-      (lib.mkIf cli sssnake)
-      (lib.mkIf cli tetris)
-      (lib.mkIf g3d veloren) # Minecraft like
-      (lib.mkIf isBabyOrChild kdePackages.ktuberling) # Constructor game
-      (lib.mkIf isBabyOrChild li-ri) # train game
-      (lib.mkIf isBabyOrChild tuxpaint)
-      (lib.mkIf isChildOrTeen atomix) # Atom puzzle
-      (lib.mkIf isChildOrTeen chess-clock)
-      (lib.mkIf isChildOrTeen cuyo) # Tetris like
-      (lib.mkIf isChildOrTeen gnome-solanum) # Pomodoro timer
-      (lib.mkIf isChildOrTeen gnome-sudoku)
-      (lib.mkIf isChildOrTeen kdePackages.kbounce) # Bal game
-      (lib.mkIf isChildOrTeen kdePackages.kpat) # Solitaire games
-      (lib.mkIf isChildOrTeen kdePackages.picmi) # Logical game
-      (lib.mkIf isChildOrTeen leocad) # Virt lego
-      (lib.mkIf isChildOrTeen gnome-2048)
-      (lib.mkIf gnomeGames gnome-chess)
-      (lib.mkIf gnomeGames gnome-mahjongg)
-      (lib.mkIf gnomeGames gnome-mines)
-      (lib.mkIf gnomeGames gnuchess) # Chess engine for gnome-chess
-      (lib.mkIf gnomeGames stockfish) # Chess engine for gnome-chess
-      (lib.mkIf moreCli chess-tui)
-      (lib.mkIf moreCli crawl) # role-playing roguelike game
-      (lib.mkIf moreCli nethack) # Rogue-like game
-      (lib.mkIf moreCli solitaire-tui)
-      (lib.mkIf stk supertuxkart)
-    ];
+    home.packages = lib.filter notExcluded (
+      with pkgs;
+      [
+        (lib.mkIf cli sssnake)
+        (lib.mkIf cli tetris)
+        (lib.mkIf g3d veloren) # Minecraft like
+        (lib.mkIf isBabyOrChild kdePackages.ktuberling) # Constructor game
+        (lib.mkIf isBabyOrChild li-ri) # train game
+        (lib.mkIf isBabyOrChild tuxpaint)
+        (lib.mkIf isChildOrTeen atomix) # Atom puzzle
+        (lib.mkIf isChildOrTeen chess-clock)
+        (lib.mkIf isChildOrTeen cuyo) # Tetris like
+        (lib.mkIf isChildOrTeen gnome-solanum) # Pomodoro timer
+        (lib.mkIf isChildOrTeen gnome-sudoku)
+        (lib.mkIf isChildOrTeen kdePackages.kbounce) # Bal game
+        (lib.mkIf isChildOrTeen kdePackages.kpat) # Solitaire games
+        (lib.mkIf isChildOrTeen kdePackages.picmi) # Logical game
+        (lib.mkIf isChildOrTeen leocad) # Virt lego
+        (lib.mkIf isChildOrTeen gnome-2048)
+        (lib.mkIf gnomeGames gnome-chess)
+        (lib.mkIf gnomeGames gnome-mahjongg)
+        (lib.mkIf gnomeGames gnome-mines)
+        (lib.mkIf gnomeGames gnuchess) # Chess engine for gnome-chess
+        (lib.mkIf gnomeGames stockfish) # Chess engine for gnome-chess
+        (lib.mkIf moreCli chess-tui)
+        (lib.mkIf moreCli crawl) # role-playing roguelike game
+        (lib.mkIf moreCli nethack) # Rogue-like game
+        (lib.mkIf moreCli solitaire-tui)
+        (lib.mkIf stk supertuxkart)
+      ]
+    );
 
     #--------------------------------------------------------------------------
     # STK
