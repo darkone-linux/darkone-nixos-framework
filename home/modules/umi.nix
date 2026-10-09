@@ -10,7 +10,8 @@
 #   (`panelHeight`, `textScaling`). DNF panel (`enablePanel`): launchers | open
 #   windows, then hover click types, pause zone, gaze switch (applet
 #   `umi-mouse`), accessibility menu, Onboard toggle. Menu favorites
-#   (`menuFavorites`) open with the eye tracker calibration.
+#   (`menuFavorites`) open with the eye tracker calibration. Application
+#   windows open maximized, panel in reach (`enableMaximize`).
 # - **Any other host**: GNOME Wayland with its native accessibility: on-screen
 #   keyboard, big pointer and text. Talon and Onboard, X11-only, stay off.
 #
@@ -586,6 +587,9 @@ let
   # DNF applets: hover click controls, keyboard toggle
   appletsDir = ./../../assets/cinnamon/applets;
 
+  # DNF extension: application windows open maximized
+  maximizeExtension = "umi-maximize@darkone-linux";
+
   # Panel applets, left to right, with pinned instance ids: Cinnamon numbers
   # its stock list from 0 (existing applet settings survive), additions from 15.
   applet = uuid: id: { inherit uuid id; };
@@ -743,6 +747,15 @@ in
           hover click controls (click types, pause zone), accessibility menu,
           keyboard toggle; no Bluetooth icon nor corner bar. Rewritten at
           every activation.
+        '';
+      };
+      enableMaximize = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Application windows open maximized (Cinnamon extension), the panel
+          stays in reach. Dialogs, Onboard and fixed-size windows keep their
+          size.
         '';
       };
       panelLaunchers = lib.mkOption {
@@ -916,6 +929,9 @@ in
       # Menu favorites; taller panel, icons fit to it (0 = best fit for color icons)
       "org/cinnamon" = {
         favorite-apps = cfg.menuFavorites;
+
+        # Always written: a left-out key keeps a disabled extension enabled
+        enabled-extensions = lib.optional cfg.enableMaximize maximizeExtension;
         enabled-applets = lib.mkIf cfg.enablePanel enabledApplets;
         next-applet-id = lib.mkIf cfg.enablePanel nextAppletId;
         panels-height = [ "1:${toString cfg.panelHeight}" ];
@@ -1073,6 +1089,11 @@ in
     };
     home.file.".local/share/cinnamon/applets/umi-keyboard@darkone-linux" = lib.mkIf cfg.enablePanel {
       source = appletsDir + "/umi-keyboard@darkone-linux";
+    };
+
+    # Maximized windows, enabled through `enabled-extensions` (dconf above)
+    home.file.".local/share/cinnamon/extensions/${maximizeExtension}" = lib.mkIf cfg.enableMaximize {
+      source = ./../../assets/cinnamon/extensions + "/${maximizeExtension}";
     };
 
     # Stock panel only (`enablePanel` off): its pins name `firefox.desktop`,

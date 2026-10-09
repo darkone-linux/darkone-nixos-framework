@@ -1,0 +1,6 @@
+{
+  "uuid": "umi-maximize@darkone-linux",
+  "name": "UMI maximized windows",
+  "description": "Opens every application window maximized (DNF UMI profile)",
+  "cinnamon-version": ["6.6"]
+}
