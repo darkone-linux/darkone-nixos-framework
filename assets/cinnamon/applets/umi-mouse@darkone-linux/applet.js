@@ -2,6 +2,8 @@
 //
 // - Click type: `org.cinnamon hoverclick-action`, as Cinnamon's floating
 //   window does; that window stays closed while this applet is loaded.
+// - Single click once: one left click, then hover click pauses as from the
+//   pause zone; resuming brings the repeated single click back.
 // - Pause zone: a click switches hover click off (`dwell-click-enabled`);
 //   resting the pointer on it for RESUME_MS, or a click, switches it back on.
 // - Gaze button: switches Talon's gaze mouse control off, the eyes then move
@@ -25,7 +27,8 @@ const LEAVE_GRACE_MS = 400;
 // The second click of a dwell double click lands right after the first
 const DEBOUNCE_MS = 1000;
 
-const CLICK_TYPES = ["single", "double", "drag", "secondary"];
+// "once": a single click, applet-side, not a `hoverclick-action` value
+const CLICK_TYPES = ["single", "once", "double", "drag", "secondary"];
 
 // Gaze switch shared with the Talon user script (dnf-umi/tracker.py): "off"
 // pauses gaze control. Runtime dir: back on at every boot.
@@ -39,6 +42,8 @@ class UmiMouseApplet extends Applet.Applet {
         this._iconDir = `${metadata.path}/icons`;
         this._mouse = new Gio.Settings({ schema_id: "org.cinnamon.desktop.a11y.mouse" });
         this._paused = false;
+        this._once = false;
+        this._onceId = 0;
         this._armed = true;
         this._resuming = false;
         this._lastChange = 0;
@@ -84,10 +89,13 @@ class UmiMouseApplet extends Applet.Applet {
         GLib.mkdir_with_parents(GAZE_DIR, 0o700);
         this._gazeMonitor = Gio.File.new_for_path(GAZE_FILE).monitor_file(Gio.FileMonitorFlags.NONE, null);
 
+        const seat = Clutter.get_default_backend().get_default_seat();
         this._signals = [
             [global.settings, global.settings.connect("changed::hoverclick-action", () => this._sync())],
             [this._mouse, this._mouse.connect("changed::dwell-click-enabled", () => this._onDwellChanged())],
             [this._gazeMonitor, this._gazeMonitor.connect("changed", () => this._syncGaze())],
+            [seat, seat.connect("ptr-a11y-timeout-stopped", (_seat, _device, type, clicked) =>
+                this._onDwellStopped(type, clicked))],
         ];
         this._holdFloatingWindow(true);
         this._sync();
@@ -104,6 +112,8 @@ class UmiMouseApplet extends Applet.Applet {
 
     on_applet_removed_from_panel() {
         this._cancelResume();
+        if (this._onceId)
+            GLib.source_remove(this._onceId);
         for (const [object, id] of this._signals)
             object.disconnect(id);
         this._gazeMonitor.cancel();
@@ -161,8 +171,25 @@ class UmiMouseApplet extends Applet.Applet {
     }
 
     _setClickType(type) {
-        if (!this._paused)
-            global.settings.set_string("hoverclick-action", type);
+        if (this._paused)
+            return;
+        this._once = type === "once";
+        global.settings.set_string("hoverclick-action", this._once ? "single" : type);
+        this._sync();
+    }
+
+    // Emitted before the click itself: the dwell that selected "once" has
+    // already stopped, the next completed one is the single click. Pause on
+    // idle, once the click is out.
+    _onDwellStopped(type, clicked) {
+        if (!this._once || !clicked || type !== Clutter.PointerA11yTimeoutType.DWELL || this._onceId)
+            return;
+        this._onceId = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._onceId = 0;
+            if (this._once && !this._paused)
+                this._pause();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _onZoneActivated() {
@@ -193,10 +220,13 @@ class UmiMouseApplet extends Applet.Applet {
         this._sync();
     }
 
-    // Any outside switch-on ends the pause; a switch-off while paused keeps it
+    // Any outside switch-on ends the pause; a switch-off while paused keeps it.
+    // Any switch-off ends "once": a resume is back to repeated clicks.
     _onDwellChanged() {
         if (this._mouse.get_boolean("dwell-click-enabled"))
             this._paused = false;
+        else
+            this._once = false;
         this._sync();
     }
 
@@ -283,7 +313,13 @@ class UmiMouseApplet extends Applet.Applet {
 
     _sync() {
         const enabled = this._mouse.get_boolean("dwell-click-enabled");
-        const current = global.settings.get_string("hoverclick-action");
+        let current = global.settings.get_string("hoverclick-action");
+
+        // A type chosen elsewhere (voice, settings) ends "once"
+        if (this._once && current !== "single")
+            this._once = false;
+        if (this._once)
+            current = "once";
 
         this.actor.visible = enabled || this._paused;
         if (!this._paused)
