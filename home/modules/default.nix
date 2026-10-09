@@ -13,6 +13,7 @@
     ./music.nix
     ./office.nix
     ./office/browsers.nix
+    ./office/cartable-fantastique.nix
     ./office/matrix.nix
     ./office/nextcloud.nix
     ./office/pandoc.nix

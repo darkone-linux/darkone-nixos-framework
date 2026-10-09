@@ -6,6 +6,8 @@
 # - `browsers.nix`: Firefox ESR (LibreWolf, Chromium) with shared policies:
 #   zone homepage and locale, tracking protection, Bitwarden pinned when the
 #   network runs Vaultwarden.
+# - `cartable-fantastique.nix`: Cartable Fantastique toolbar in LibreOffice
+#   (`cartableFantastique`, default for the `child` profile).
 # - `matrix.nix`: Element Desktop as soon as the network runs Matrix,
 #   pre-configured (Kanidm SSO); Fractal with `enableCommunication`.
 # - `nextcloud.nix`: desktop client bound to the network instance, and
@@ -119,6 +121,37 @@ in
       default = "fr-moderne";
       example = "en-us";
       description = "[Hunspell dictionary](https://mynixos.com/nixpkgs/packages/hunspellDicts)";
+    };
+
+    # LibreOffice extension (cf. office/cartable-fantastique.nix)
+    darkone.home.office.cartableFantastique = mkOption {
+      type = types.nullOr (
+        types.enum [
+          "primaire"
+          "college"
+          "adaptateur"
+        ]
+      );
+      default = null;
+      example = "primaire";
+      description = ''
+        Edition of the [Cartable Fantastique](https://www.cartablefantastique.fr/outils-pour-compenser/le-plug-in-libre-office/)
+        toolbar installed in LibreOffice, for pupils with dyspraxia or other DYS
+        disorders. `null` installs nothing.
+
+        - `primaire`: Lire, Écrire, Mathématiques and Tableau bars.
+        - `college`: adds languages, chemistry, electricity, equation editor.
+        - `adaptateur`: adds tools for the adult adapting school material.
+
+        Installed per account, in its LibreOffice profile, at Home Manager
+        activation. Needs `enableOffice`. Text-to-speech goes through
+        `spd-say` (speech-dispatcher, on by default on NixOS desktops).
+
+        :::caution[No automatic removal]
+        Back to `null`, the extension stays: remove it from *Tools → Extension
+        Manager*.
+        :::
+      '';
     };
 
     # Matrix desktop clients auto-start (cf. office/matrix.nix)

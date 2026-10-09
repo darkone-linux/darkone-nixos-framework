@@ -27,6 +27,7 @@ in
       enableOffice = lib.mkDefault graphic;
       enableLibreWolf = lib.mkDefault graphic;
       enableEssentials = lib.mkDefault graphic;
+      cartableFantastique = lib.mkDefault "primaire";
     };
     imagery = {
       enable = lib.mkDefault graphic;
