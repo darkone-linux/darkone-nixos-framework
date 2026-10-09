@@ -280,6 +280,11 @@ in
                   # incident. A failure would survive switch-root as a
                   # `not-found failed` ghost spoiling `systemctl --failed`.
                   ExecStart = "-/bin/systemd-cryptsetup attach ${name} ${dev.device} - ${opts}";
+
+                  # As upstream `systemd-cryptsetup@`: under `private`, the
+                  # cached passphrase lands in root's keyring unpossessed, its
+                  # 150 s expiry refused — kept in kernel memory until shutdown.
+                  KeyringMode = "shared";
                 };
               };
           }) unlockable
