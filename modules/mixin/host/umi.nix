@@ -85,6 +85,9 @@ let
   # missing, as on Mint). csd mirrors Cinnamon's dwell key to GNOME's, Onboard
   # then starts mousetweaks: cf. the "No mousetweaks" note in the header.
   onboard = pkgs.onboard.override { mousetweaks = pkgs.emptyDirectory; };
+
+  # PAM stacks of a GDM autologin, kept password-free for the keyring
+  autoLoginGdm = cfg.autoLoginUser != null && config.services.displayManager.gdm.enable;
 in
 {
   options = {
@@ -173,12 +176,29 @@ in
       }
     ];
 
-    # Consequence for the GNOME keyring: the session receives no password, so
-    # nothing unlocks it by itself. On an encrypted host the boot passphrase
-    # takes that role (systemd-cryptsetup caches it in root's kernel keyring,
-    # `pam_gdm` — already in the gdm-autologin stack — hands it to
-    # pam_gnome_keyring); elsewhere `darkone.home.umi` seeds a passwordless
-    # keyring. Both modes are documented in that home module's header.
+    # The autologin user's keyring has no password (`darkone.home.umi`), and
+    # gnome-keyring re-encrypts a plain keyring with any password that unlocked
+    # it: `pam_gdm` (boot passphrase) and the keyring auth line go.
+    security.pam.services.gdm-autologin.rules.auth = lib.mkIf autoLoginGdm {
+      gdm.enable = lib.mkForce false;
+      gnome_keyring.enable = lib.mkForce false;
+    };
+
+    # Same for a password login of that user (`login`, substacked by
+    # gdm-password): its keyring auth line is skipped, the session line still
+    # starts the daemon (`auto_start`).
+    security.pam.services.login.rules.auth.umi-keyring-skip = lib.mkIf autoLoginGdm {
+      enable = config.security.pam.services.login.enableGnomeKeyring;
+      control = "[success=1 default=ignore]";
+      modulePath = "${config.security.pam.package}/lib/security/pam_succeed_if.so";
+      order = config.security.pam.services.login.rules.auth.gnome_keyring.order - 5;
+      settings.quiet = true;
+      args = lib.mkAfter [
+        "user"
+        "="
+        cfg.autoLoginUser
+      ];
+    };
 
     # `su` hands over the X cookie (pam_xauth, NixOS default): a CLI run as
     # another user then pops its keyring prompts on the UMI display, and a gcr

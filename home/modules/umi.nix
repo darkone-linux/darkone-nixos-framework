@@ -59,28 +59,18 @@
 # own lock fully disabled.
 # :::
 #
-# :::caution[Login keyring: autologin user only, two modes decided by the host]
-# An autologin session types no password, so PAM has nothing to hand to
-# gnome-keyring and every secret-using app pops a gcr prompt the UMI user
-# cannot answer. A password login unlocks the keyring as usual and is left
-# alone. For the autologin user, the fix depends on the host:
+# :::caution[Login keyring of the autologin user: no password, on every host]
+# An autologin session types no password: a keyring sealed with one pops a gcr
+# prompt the UMI user cannot answer. Its login keyring is seeded with an empty
+# password (plain ini, unlocked without prompt); a sealed one is deleted at
+# each activation, `user.keystore` included, and its secrets are lost.
 #
-# - **Unencrypted host**: the login keyring is seeded with an empty password,
-#   which gnome-keyring stores in plain text and unlocks on its own (it tries
-#   an empty password before prompting). Any pre-existing password-protected
-#   keyring is deleted — its passphrase is untypable here, so it can only
-#   produce the prompt forever. Autologin already grants the whole session to
-#   whoever boots the machine, so this costs no real confidentiality.
-# - **Encrypted host** (`darkone.system.luks.volumes` non-empty): nothing is
-#   seeded. The passphrase typed at boot is cached in the kernel keyring and
-#   handed to gnome-keyring by `pam_gdm`, so the keyring stays encrypted with
-#   it. This is the only mode that protects the secrets at rest.
-#
-# Gotcha, encrypted hosts only: rotating the LUKS passphrase (sops value
-# changed, `luks-passphrase-sync`) leaves the keyring on the old one — GNOME
-# then reports "The password you use to log in to your computer no longer
-# matches that of your login keyring". Delete
-# `~/.local/share/keyrings/login.keyring` and log in again.
+# - At rest, LUKS protects it; autologin already hands the session to whoever
+#   boots the machine.
+# - The UMI host keeps every password away from gnome-keyring for this user:
+#   a plain keyring unlocked with a password is re-encrypted with it at the
+#   next write (`pam_gdm` and the boot passphrase included).
+# - Other users, and every password login elsewhere: untouched.
 # :::
 {
   lib,
@@ -639,10 +629,6 @@ let
   '';
   defaultKeyringName = pkgs.writeText "default-keyring" "login";
 
-  # An encrypted host feeds the boot passphrase to gnome-keyring through
-  # pam_gdm; seeding a passwordless keyring there would throw that away.
-  hostHasLuks = (osConfig.darkone.system.luks.volumes or [ ]) != [ ];
-
   # A password login hands its password to gnome-keyring: seeding there would
   # swap an encrypted keyring for a plain one (UMI user on a non-UMI host).
   autoLogin = osConfig.services.displayManager.autoLogin;
@@ -1135,10 +1121,10 @@ in
       ) spicesSettings}
     '';
 
-    # Passwordless login keyring, for the autologin user of an unencrypted host
-    # only (cf. the header): gnome-keyring tries an empty password before
-    # prompting, and stores such a keyring as plain ini, not an encrypted blob.
-    home.activation.umiLoginKeyring = lib.mkIf (isAutoLoginUser && !hostHasLuks) (
+    # Passwordless login keyring, for the autologin user only (cf. the header):
+    # gnome-keyring tries an empty password before prompting, and stores such a
+    # keyring as plain ini, not an encrypted blob.
+    home.activation.umiLoginKeyring = lib.mkIf isAutoLoginUser (
       lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         keyringDir="$HOME/.local/share/keyrings"
         run ${pkgs.coreutils}/bin/mkdir -p -m 700 "$keyringDir"
