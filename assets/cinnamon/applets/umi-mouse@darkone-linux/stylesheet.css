@@ -54,3 +54,14 @@
 .menu-favorites-button {
     padding: 12px;
 }
+
+/* Mint-Y pads the launchers 7px left, a gap meant for the stock panel (no
+   separator). Launchers padded as the theme's applet boxes: even spacing. */
+.panel-launchers {
+    padding-left: 0;
+}
+
+.panel-launchers .launcher {
+    padding-left: 5px;
+    padding-right: 5px;
+}

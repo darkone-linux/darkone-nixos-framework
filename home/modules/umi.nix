@@ -614,7 +614,6 @@ let
       (applet "sound@cinnamon.org" 11)
       (applet "power@cinnamon.org" 12)
       (applet "calendar@cinnamon.org" 13)
-      (applet "cornerbar@cinnamon.org" 14)
     ];
   };
   enabledApplets = lib.concatLists (
@@ -742,7 +741,8 @@ in
         description = ''
           Cinnamon panel managed by DNF: launchers and open windows set apart,
           hover click controls (click types, pause zone), accessibility menu,
-          keyboard toggle. Rewritten at every activation.
+          keyboard toggle; no Bluetooth icon nor corner bar. Rewritten at
+          every activation.
         '';
       };
       panelLaunchers = lib.mkOption {
@@ -890,6 +890,18 @@ in
       OnlyShowIn=X-Cinnamon;
       X-GNOME-Autostart-enabled=true
     '';
+
+    # Bluetooth icon of blueman-applet (nixpkgs Cinnamon default) left out of
+    # the DNF panel: `Hidden=true` masks the system autostart entry for this
+    # user. Pairing stays in the menu, Bluetooth Manager.
+    xdg.configFile."autostart/blueman.desktop" = lib.mkIf cfg.enablePanel {
+      text = ''
+        [Desktop Entry]
+        Type=Application
+        Name=Blueman Applet
+        Hidden=true
+      '';
+    };
 
     dconf.settings = {
 
