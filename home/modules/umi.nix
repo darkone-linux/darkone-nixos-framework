@@ -87,7 +87,10 @@ let
   dwellSettings = {
     dwell-click-enabled = cfg.enableDwell;
     dwell-time = cfg.dwellTime;
-    dwell-threshold = 15;
+
+    # Top of Cinnamon's motion threshold slider (1-30 px): gaze jitter must
+    # not restart the timer
+    dwell-threshold = 30;
     secondary-click-enabled = cfg.enableDwell;
   };
 
@@ -663,7 +666,9 @@ in
       '';
       dwellTime = lib.mkOption {
         type = lib.types.float;
-        default = 1.2;
+
+        # Middle of Cinnamon's delay slider (0.2-3 s)
+        default = 1.6;
         description = "Dwell click delay in seconds.";
       };
       enableTrackerAuto = lib.mkOption {
