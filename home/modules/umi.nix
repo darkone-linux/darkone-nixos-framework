@@ -383,6 +383,14 @@ let
     : > "$dir/calibrate"
   '';
 
+  # Talon 1.0's tray (ksni) freezes its D-Bus link for good if the SNI watcher
+  # appears in its first seconds: no icon, no Talon menu. xapp-sn-watcher shows
+  # up ~2 s into the session: wait for it, 30 s at most (voice and gaze first).
+  talonStart = pkgs.writeShellScript "dnf-umi-talon-start" ''
+    ${lib.getExe' pkgs.glib "gdbus"} wait --session --timeout 30 org.kde.StatusNotifierWatcher
+    exec talon
+  '';
+
   # Application grid: rofi is X11-only here (GNOME Wayland lacks layer shell)
   rofiMenu = cfg.enableRofiMenu && umiHost;
   gridLauncher = "dnf-umi-grid.desktop";
@@ -641,7 +649,7 @@ in
       enableTalonAutostart = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        description = "Start Talon on session login (talon must be in PATH).";
+        description = "Start Talon on session login, once the panel tray is up (talon must be in PATH).";
       };
       communityScripts = lib.mkOption {
         type = lib.types.nullOr lib.types.package;
@@ -872,7 +880,7 @@ in
         [Desktop Entry]
         Type=Application
         Name=Talon
-        Exec=talon
+        Exec=${talonStart}
         OnlyShowIn=X-Cinnamon;
         X-GNOME-Autostart-enabled=true
       '';
