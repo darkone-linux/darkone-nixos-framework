@@ -171,7 +171,7 @@ idm-fix-replica supplier consumers:
 # access. `hash`: ready session password hash (advanced, cf. `just passwd`).
 # Re-run = reset: an access already set is kept unless confirmed (y/N).
 #
-# Invite a user or reset their access (Linux, Kanidm, Vaultwarden)
+# Invite a user or reset access (Linux, Kanidm, Vault), mode: normal, advanced
 [group('identities')]
 invite login mode='normal' hash='':
 	#!/usr/bin/env bash
@@ -318,6 +318,7 @@ invite login mode='normal' hash='':
 			s_bw="Installez Bitwarden (navigateur, smartphone) : à la connexion, choisissez « auto-hébergé » et saisissez l'adresse du coffre-fort."
 			s_urgent="Conseillé : dans le coffre, Paramètres > Accès d'urgence, désignez un contact de confiance."
 			todo="À faire (administrateur) :"
+			t_email="Email : créer une boite ou une redirection pour $email"
 			t_coll="Coffre : créer la collection $login dans l'organisation"
 			t_linux="Session Linux : ranger le mot de passe dans la collection"
 			t_link="Identité : définir mot de passe et TOTP, les ranger dans la collection, lien valable jusqu'au"
@@ -340,6 +341,7 @@ invite login mode='normal' hash='':
 			s_bw="Install Bitwarden (browser, smartphone): at login, choose \"self-hosted\" and enter the vault address."
 			s_urgent="Advised: in the vault, Settings > Emergency access, name a trusted contact."
 			todo="To do (administrator):"
+			t_email="Email: create a box or a redirection for $email"
 			t_coll="Vault: create the collection $login in the organization"
 			t_linux="Linux session: store the password in the collection"
 			t_link="Identity: set password and TOTP, store them in the collection, link valid until"
@@ -387,7 +389,10 @@ invite login mode='normal' hash='':
 	# Normal: what only the admin can do, in the vault web UI.
 	if [ "$mode" = normal ] ;then
 		just _log "$todo" "INVITE"
-		[ "$vaultstate" != absent ] || just _log "- $t_coll" "INVITE"
+		if [ "$vaultstate" = absent ] ;then
+			just _log "- $t_coll" "INVITE"
+			just _log "- $t_email" "INVITE"
+		fi
 		[ "$passwd" = no ] || just _log "- $t_linux" "INVITE"
 		[ -z "$link" ] || just _log "- $t_link $expiry$sep$link" "INVITE"
 		if [ "$vaultstate" = absent ] ;then
