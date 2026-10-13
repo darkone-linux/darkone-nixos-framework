@@ -46,6 +46,10 @@ in
   # (maintenance flag, restic, tailscale, headscale, uplinks).
   textfileCollectorDir = "/var/lib/node-exporter-textfile";
 
+  # Same collector, on tmpfs: metrics that must stay writable when the disk
+  # holding /var/lib fails (`monitoring/fs-readonly.nix`).
+  textfileRuntimeDir = "/run/node-exporter-textfile";
+
   # Public anycast resolvers answering ICMP: "is Internet reachable" witnesses
   # for `ZoneInternetDown` and the gateway backup-link probe. IP literals, so
   # a probe never depends on the DNS path it is judging.

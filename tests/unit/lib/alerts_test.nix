@@ -102,6 +102,9 @@ let
   # `host`/`job` deliberately in it (the Matrix bot titles on `host`).
   perDev = op: v: "${op} by (instance, job, host, device, fstype) (${v})";
 
+  # Node-side metric behind `FilesystemReadOnly` (service/monitoring/fs-readonly.nix).
+  forcedRo = "dnf_filesystem_forced_readonly";
+
   # Trailing sentence of every filesystem description: PromQL cannot
   # concatenate label values, so the mounts are resolved by the annotation
   # template while the alert is active.
@@ -636,8 +639,14 @@ in
   # `FilesystemReadOnly` excludes those fstypes on top of the shared selector.
   testFilesystemReadOnlyExcludesByDesignFstypes = {
     expr = (resourceRule { } "FilesystemReadOnly").expr;
-    expected =
-      perDev "max" ''node_filesystem_readonly{${fsSel},fstype!~"iso9660|udf|erofs"}'' + " == 1";
+    expected = perDev "max" ''${forcedRo}{${fsSel},fstype!~"iso9660|udf|erofs"}'' + " == 1";
+  };
+
+  # The mount list comes from the same metric: only the affected mounts, binds
+  # node_exporter cannot statfs included.
+  testFilesystemReadOnlyDescriptionNamesAffectedMounts = {
+    expr = (resourceRule { } "FilesystemReadOnly").annotations.description;
+    expected = "{{ $labels.device }} switched to read-only on {{ $labels.instance }} (I/O errors?). Mounts: {{ range $i, $m := sortByLabel \"mountpoint\" (query (printf \"${forcedRo}{instance=%q,device=%q}\" $labels.instance $labels.device)) }}{{ if $i }}, {{ end }}{{ $m.Labels.mountpoint }}{{ end }}.";
   };
 
   # Remote mounts leave every filesystem rule, not just the read-only one: their
@@ -664,13 +673,13 @@ in
   # fstype matcher behind.
   testFilesystemReadOnlyEmptyExclusion = {
     expr = (resourceRule { readOnlyByDesignFstypes = [ ]; } "FilesystemReadOnly").expr;
-    expected = perDev "max" "node_filesystem_readonly{${fsSel}}" + " == 1";
+    expected = perDev "max" "${forcedRo}{${fsSel}}" + " == 1";
   };
 
   # Overrides replace the default list (attrset merge), they do not append to it.
   testFilesystemReadOnlyCustomExclusion = {
     expr = (resourceRule { readOnlyByDesignFstypes = [ "vfat" ]; } "FilesystemReadOnly").expr;
-    expected = perDev "max" ''node_filesystem_readonly{${fsSel},fstype!~"vfat"}'' + " == 1";
+    expected = perDev "max" ''${forcedRo}{${fsSel},fstype!~"vfat"}'' + " == 1";
   };
 
   # ----- mkResourceRuleGroups (one alert per partition) -----

@@ -9,6 +9,11 @@
 # - Only one monitoring host per zone is accepted.
 # - A tag "monitoring-node:[zone]" attaches a node to that zone's Prometheus.
 # :::
+#
+# Read-only watch (`monitoring/fs-readonly.nix`): every node exports
+# `dnf_filesystem_forced_readonly`, its `rw` mounts whose filesystem the kernel
+# turned read-only, behind `FilesystemReadOnly`. Intended `ro` mounts and binds
+# never appear; the file lives on tmpfs, so it outlives the failing disk.
 
 {
   lib,

@@ -37,10 +37,14 @@ let
   # the Go template engine Prometheus applies to annotations fans the aggregated
   # series back out via `query`. Costs one instant query per active alert per
   # evaluation, none while the rule is silent.
-  deviceMounts = ''{{ range $i, $m := sortByLabel "mountpoint" (query (printf "node_filesystem_size_bytes{instance=%q,device=%q}" $labels.instance $labels.device)) }}{{ if $i }}, {{ end }}{{ $m.Labels.mountpoint }}{{ end }}'';
+  deviceMounts =
+    metric:
+    ''{{ range $i, $m := sortByLabel "mountpoint" (query (printf "${metric}{instance=%q,device=%q}" $labels.instance $labels.device)) }}{{ if $i }}, {{ end }}{{ $m.Labels.mountpoint }}{{ end }}'';
 
-  # Appended to every filesystem description, hence the leading space.
-  mountsSentence = " Mounts: ${deviceMounts}.";
+  # Appended to every filesystem description, hence the leading space. Every
+  # sized mount by default; `FilesystemReadOnly` names only the affected ones.
+  mountsSentenceOf = metric: " Mounts: ${deviceMounts metric}.";
+  mountsSentence = mountsSentenceOf "node_filesystem_size_bytes";
 
   # Profiles considered critical by default when no explicit `alert-*` feature
   # overrides the node class. A down gateway/HCS/server escalates; a laptop or
@@ -80,11 +84,10 @@ let
       "9p"
     ];
 
-    # Filesystem types whose read-only state is a mount option, not a failure:
-    # optical/image media. `FilesystemReadOnly` skips them — nothing on the node
-    # could ever clear the condition. Network shares exported `ro` are already
-    # out via `remoteFstypes`. Entries are regex alternatives (PromQL label
-    # matchers are fully anchored).
+    # Filesystem types read-only by nature: optical/image media, whose driver
+    # may set the superblock `ro` under an `rw` mount (erofs always does).
+    # `FilesystemReadOnly` skips them — nothing on the node could ever clear the
+    # condition. Entries are regex alternatives (PromQL matchers are anchored).
     readOnlyByDesignFstypes = [
       "iso9660"
       "udf"
@@ -334,10 +337,9 @@ rec {
         concatStringsSep "|" (pseudoFstypes ++ t.remoteFstypes)
       }",mountpoint!~"/(boot|nix/store).*"'';
 
-      # `node_filesystem_readonly` cannot tell a fault from an intent: a mount
-      # made `ro` on purpose reports exactly like a disk the kernel remounted
-      # after I/O errors. Only the fstype separates them, hence this extra
-      # exclusion layered on `fsSelector` for that single rule.
+      # Image/optical fstypes show the fault signature by design (cf.
+      # `readOnlyByDesignFstypes`), hence this extra exclusion layered on
+      # `fsSelector` for that single rule.
       roSelector =
         fsSelector
         + optionalString (
@@ -355,6 +357,11 @@ rec {
       # `min`/`max` are no-ops on the identical values sibling mounts report;
       # they pick the alarming side should the two ever diverge.
       perDevice = op: v: "${op} by (${byDevice}) (${v})";
+
+      # Exported by every node (`service/monitoring/fs-readonly.nix`):
+      # per-mount `rw` over superblock `ro`, two flags `node_filesystem_readonly`
+      # merges into one.
+      forcedReadonly = "dnf_filesystem_forced_readonly";
 
       diskFreeRatio = "node_filesystem_avail_bytes{${fsSelector}} / node_filesystem_size_bytes{${fsSelector}}";
       diskFreeExpr = pct: "${perDevice "min" "100 * ${diskFreeRatio}"} < ${toString pct}";
@@ -449,16 +456,16 @@ rec {
       }
       {
 
-        # A filesystem remounted read-only is almost always I/O errors or
-        # corruption: page immediately. Mounts that are read-only by
-        # design never reach here (cf. `roSelector`).
+        # An `rw` mount whose filesystem the kernel turned read-only: I/O
+        # errors or corruption, page immediately. Intended `ro` mounts and
+        # binds never match (cf. `service/monitoring/fs-readonly.nix`).
         alert = "FilesystemReadOnly";
-        expr = "${perDevice "max" "node_filesystem_readonly{${roSelector}}"} == 1";
+        expr = "${perDevice "max" "${forcedReadonly}{${roSelector}}"} == 1";
         "for" = "5m";
         labels.severity = "critical";
         annotations = {
           summary = "Read-only filesystem on {{ $labels.instance }}";
-          description = "${devLabel} is mounted read-only on ${instLabel} (I/O errors?).${mountsSentence}";
+          description = "${devLabel} switched to read-only on ${instLabel} (I/O errors?).${mountsSentenceOf forcedReadonly}";
         };
       }
       {

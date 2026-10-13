@@ -27,6 +27,11 @@
     expected = "/var/lib/node-exporter-textfile";
   };
 
+  testTextfileRuntimeDir = {
+    expr = dnfLib.constants.textfileRuntimeDir;
+    expected = "/run/node-exporter-textfile";
+  };
+
   testRoamingDomain = {
     expr = dnfLib.constants.roamingDomain;
     expected = "dnf.internal";

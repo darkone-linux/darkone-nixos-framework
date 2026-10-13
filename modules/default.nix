@@ -72,6 +72,7 @@
     ./service/mealie.nix
     ./service/minio.nix
     ./service/monitoring.nix
+    ./service/monitoring/fs-readonly.nix
     ./service/nextcloud.nix
     ./service/nfs.nix
     ./service/nix-cache.nix
