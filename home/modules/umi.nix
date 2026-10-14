@@ -28,6 +28,13 @@
 # and the Cinnamon menu alike. rofi grabs the pointer: panel out of reach.
 # :::
 #
+# :::note[SuperTuxKart with the mouse alone (UMI host)]
+# `enableStkWithMouse`: the game's launcher runs `dnf-stk-mouse`, which turns
+# every physical mouse into STK's default keys while the game window has the
+# focus. Stick forward/back: accelerate/brake, sideways: steer; left click:
+# drift, double click: fire, right click: nitro. Pointer untouched (menus).
+# :::
+#
 # :::note[Gaze places, head refines (Talon 1.0)]
 # Defaults measured on a Tobii 5: Talon's gaze filter (`gazeFilterSpeed`), a
 # faster cursor filter (`cursorFilterSpeed`), head control on with a sensitive
@@ -851,6 +858,11 @@ in
           ids), UMI host only. Launches by id and file associations still work.
         '';
       };
+      enableStkWithMouse = lib.mkEnableOption ''
+        SuperTuxKart driven by the mouse alone, UMI host only: the stick (or
+        mouse moves) accelerates, brakes and steers, left click drifts, double
+        click fires, right click uses nitro. Installs the game, its launcher
+        runs the converter'';
     };
   };
 

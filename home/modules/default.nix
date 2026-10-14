@@ -18,6 +18,7 @@
     ./office/nextcloud.nix
     ./office/pandoc.nix
     ./umi.nix
+    ./umi/stk-mouse.nix
     ./video.nix
   ];
 }
