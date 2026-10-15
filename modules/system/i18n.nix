@@ -5,6 +5,12 @@
 # the canonical `xx_YY.UTF-8` shape (e.g. `fr_FR.UTF-8`): the console keymap,
 # XKB layout and Nextcloud phone region derive from it.
 # :::
+#
+# :::tip[Keyboard of a locale]
+# `dnf/config/locales.json` gives the keyboard of each locale the installer
+# offers (`en_GB.UTF-8`: `uk` on the console, `gb` in XKB). Any other locale
+# takes its country code (`ru_RU.UTF-8`: `ru`).
+# :::
 
 {
   lib,
@@ -16,8 +22,6 @@
 let
   cfg = config.darkone.system.i18n;
 
-  # Never null: the option type only accepts `dnfLib.localeRegex`.
-  countryCode = dnfLib.extractCountryFromLocale cfg.locale;
 in
 {
   options = {
@@ -34,14 +38,28 @@ in
       example = "Europe/Paris";
       description = "Network time zone";
     };
+    darkone.system.i18n.keyboard = lib.mkOption {
+      type = lib.types.raw;
+      readOnly = true;
+      default =
+        if cfg.enable then
+          dnfLib.keyboardFromLocale cfg.locale
+        else
+          {
+            console = config.console.keyMap;
+            xkb = config.console.keyMap;
+            xkbVariant = "";
+          };
+      defaultText = lib.literalExpression "dnfLib.keyboardFromLocale config.darkone.system.i18n.locale";
+      description = "Keyboard of the locale: `console` keymap, `xkb` layout and `xkbVariant`.";
+    };
   };
 
   # Locale, time zone and console keymap of the zone.
   config = lib.mkIf cfg.enable {
 
-    # Country code as keymap name (`FR` -> `fr`): the kbd convention for the
-    # locales DNF supports. The X11 layout follows it (`graphic/gnome.nix`).
-    console.keyMap = lib.toLower countryCode;
+    # The XKB layout follows it (`graphic/gnome.nix`).
+    console.keyMap = cfg.keyboard.console;
 
     # Fix gnome apps deadkeys for French keyboard (êâë...)
     i18n.inputMethod = {

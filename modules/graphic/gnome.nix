@@ -36,6 +36,7 @@ let
     types
     ;
   cfg = config.darkone.graphic.gnome;
+  inherit (config.darkone.system.i18n) keyboard;
   hasInternalCloud =
     (findFirst (s: s.name == "nextcloud" || s.name == "oxicloud") null network.services) != null;
 
@@ -112,9 +113,9 @@ in
     darkone.graphic.gnome.enableGsConnect = mkEnableOption "Communication with devices";
     darkone.graphic.gnome.enableOnlineServices = mkEnableOption "Online Accounts, CalDAV, CardDAV...";
     darkone.graphic.gnome.xkbVariant = mkOption {
-      type = types.str;
-      default = "oss";
-      description = "Keyboard variant. Layout is extracted from console keymap.";
+      type = types.nullOr types.str;
+      default = null;
+      description = "Keyboard variant; null follows the locale (`config/locales.json`), as the layout does.";
     };
     darkone.graphic.gnome.screenBlankDelay = mkOption {
       type = types.ints.unsigned;
@@ -145,8 +146,8 @@ in
       # Configure keymap in X11
       # Type `localectl list-x11-keymap-variants` to list variants
       xkb = {
-        layout = config.console.keyMap;
-        variant = cfg.xkbVariant;
+        layout = keyboard.xkb;
+        variant = if cfg.xkbVariant == null then keyboard.xkbVariant else cfg.xkbVariant;
         model = "pc105";
       };
 

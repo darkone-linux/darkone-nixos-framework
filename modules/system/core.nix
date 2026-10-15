@@ -244,8 +244,8 @@ in
       config = {
         "font-name" = "JetBrainsMono Nerd Font Mono";
         "font-size" = 18;
-        "xkb-layout" = "fr";
-        "xkb-variant" = "oss";
+        "xkb-layout" = config.darkone.system.i18n.keyboard.xkb;
+        "xkb-variant" = config.darkone.system.i18n.keyboard.xkbVariant;
         "xkb-model" = "pc105";
       };
     };

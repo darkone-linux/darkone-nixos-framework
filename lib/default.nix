@@ -9,6 +9,7 @@
 let
   constants = import ./constants.nix;
   strings = import ./strings.nix { inherit lib; };
+  i18n = import ./i18n.nix { inherit lib strings; };
   dateTime = import ./date-time.nix { inherit lib; };
   networking = import ./networking.nix { inherit lib; };
   topology = import ./topology.nix { inherit lib constants; };
@@ -43,6 +44,7 @@ in
     extractCountryFromLocale
     localeRegex
     ;
+  inherit (i18n) keyboardFromLocale supportedLocales;
   inherit (dateTime) shiftHour;
   inherit (networking) extractReversePrefix;
   inherit (security) mkIsActive levelMapping mkHardenedServiceConfig;
