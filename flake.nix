@@ -70,31 +70,17 @@
     # No `nixpkgs.follows`: the flake pins its own nixpkgs (RPi kernel patches).
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
 
-    # Geneweb: tracks nixpkgs PR #522751 (module + `geneweb` package, awaiting
-    # merge). See `lib/overlays/geneweb.nix`.
+    # Geneweb: `geneweb` package of nixpkgs PR #522751, awaiting merge (cf.
+    # `lib/overlays/geneweb.nix`). Fetched only where the package is built; the
+    # module is a copy (`backports/nixos/geneweb.nix`).
     #
-    # Once the PR lands in `nixos-unstable`:
-    #   1. drop this input,
-    #   2. drop `lib/overlays/geneweb.nix` and its use in `lib/mk-configuration.nix`,
-    #   3. drop the upstream module path from `mkNode`'s `modules` list.
-    # The `modules/service/geneweb.nix` wrapper stays unchanged.
+    # Once the PR lands in `nixos-unstable`: drop this input, the overlay and
+    # the backport (cf. `backports/README.md`).
     #
     # No `inputs.nixpkgs.follows`: the full fork tree is needed, otherwise the
     # overlay would rebuild `geneweb` against a nixpkgs missing the OCaml
     # dependencies the PR adds.
     nixpkgs-geneweb.url = "github:darkone-linux/nixpkgs/create-geneweb";
-
-    # OxiCloud: tracks nixpkgs PR #516113 (NixOS module only; the `oxicloud`
-    # package is already in `nixos-unstable`, so no overlay).
-    #
-    # Once the PR lands in `nixos-unstable`:
-    #   1. drop this input,
-    #   2. drop the upstream module path from `mkNode`'s `modules` list.
-    # The `modules/service/oxicloud.nix` wrapper stays unchanged.
-    #
-    # No `inputs.nixpkgs.follows`: the fork tree is sourced as-is
-    # (cf. nixpkgs-geneweb).
-    nixpkgs-oxicloud.url = "github:flashonfire/nixpkgs/oxicloud-service";
 
     # OpenCode: pinned to the last commit before 1.18.29 -> 1.18.30
     # (NixOS/nixpkgs#561612). 1.18.30 crashes on every prompt

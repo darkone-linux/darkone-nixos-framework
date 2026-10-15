@@ -2,8 +2,8 @@
 #
 # :::note[Service currently being validated]
 # DNF wrapper around the nixpkgs module (from [PR #516113](https://github.com/NixOS/nixpkgs/pull/516113)).
-# The `oxicloud` package already ships in nixpkgs; only the module is sourced
-# from the fork (cf. `flake.nix` input `nixpkgs-oxicloud`).
+# The `oxicloud` package already ships in nixpkgs; only the module is copied
+# from the PR (cf. `backports/nixos/oxicloud.nix`).
 # :::
 #
 # :::tip[SSO]

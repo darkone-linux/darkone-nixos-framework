@@ -17,7 +17,6 @@ let
     nixpkgs
     nixpkgs-stable
     nixpkgs-geneweb
-    nixpkgs-oxicloud
     nixpkgs-opencode
     home-manager
     colmena
@@ -205,10 +204,10 @@ let
         # Framework-side NixOS modules
         ../modules
 
-        # Geneweb: upstream module imported from nixpkgs PR #522751 (drop it
-        # once the PR lands in `nixos-unstable`). Parsed unconditionally, but
-        # inert while `services.geneweb.enable = false`.
-        "${nixpkgs-geneweb}/nixos/modules/services/web-apps/geneweb.nix"
+        # GeneWeb: module of nixpkgs PR #522751, copied (cf.
+        # `backports/README.md`). Every host: the wrapper reads its options
+        # everywhere; inert while `services.geneweb.enable = false`.
+        ../backports/nixos/geneweb.nix
 
         # Overlays go through a module: `nixosSystem` rebuilds its own `pkgs`,
         # which `nixpkgsFor` never reaches. Each one is documented above.
@@ -225,11 +224,10 @@ let
           ];
         }
 
-        # OxiCloud: upstream module imported from nixpkgs PR #516113 (drop it
-        # once the PR lands in `nixos-unstable`). Parsed unconditionally, but
-        # inert while `services.oxicloud.enable = false`. No overlay:
-        # `pkgs.oxicloud` already comes from the main `nixpkgs` tree.
-        "${nixpkgs-oxicloud}/nixos/modules/services/web-apps/oxicloud.nix"
+        # OxiCloud: module of nixpkgs PR #516113, copied (cf.
+        # `backports/README.md`). No overlay: `pkgs.oxicloud` already comes
+        # from the main `nixpkgs` tree.
+        ../backports/nixos/oxicloud.nix
 
         # Consumer-side NixOS modules overlay
         (workDir + "/usr/modules")
