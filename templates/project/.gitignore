@@ -1,0 +1,28 @@
+/.*
+!/.gitignore
+!/.ignore
+!/.specs
+!/.github
+/*.md
+!/README.*
+!/TODO.*
+!/CHANGELOG.*
+
+# Framework symlink laid down by `nix run .#init` — no trailing slash: a
+# symlink is not a directory for git, and `just install` runs `git add .`.
+/dnf
+/doc/
+/src/
+/result/
+/target/
+tmp/
+
+# Runtime state (`var/deployments/` of fleet-update, test VM disks, logs): only
+# the generated inventory and the public keys are versioned.
+/var/*
+!/var/generated/
+!/var/security/
+/var/security/**
+!/var/security/**/
+!/var/security/**/*.pub
+!/var/security/**/.gitignore

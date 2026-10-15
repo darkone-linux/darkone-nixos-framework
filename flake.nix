@@ -268,6 +268,37 @@
         };
       });
 
+      #------------------------------------------------------------------------
+      # TEMPLATES
+      #------------------------------------------------------------------------
+      #
+      # New consumer project, pinned on the release that ships it (`just bump`
+      # rewrites its `dnf.url`):
+      #
+      #   nix flake new -t github:darkone-linux/darkone-nixos-framework my-network
+      #
+      # The release train publishes the same tree as dnf-boilerplate: edit it
+      # here, never there.
+
+      templates = {
+        project = {
+          path = ./templates/project;
+          description = "Darkone NixOS project: config.yaml to fill in, usr/ overlay";
+          welcomeText = ''
+            # Darkone NixOS project created
+
+            Next steps, inside the new directory:
+
+            1. `git init && git add -A` (flakes only see tracked files)
+            2. `nix run github:darkone-linux/darkone-nixos-framework#init`
+            3. Follow `README.md` (`README.fr.md` en français)
+
+            Documentation: https://darkone-linux.github.io
+          '';
+        };
+        default = self.templates.project;
+      };
+
       # Unit tests — run with: nix-unit --flake .#libTests
       libTests = import ./tests/unit { inherit (nixpkgs) lib; };
 
