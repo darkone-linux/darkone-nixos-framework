@@ -45,11 +45,13 @@
   nfs = {
     reverseProxy = false;
   };
+  # Laptops inherit `enable` from desktop. No driver bundle by default: it
+  # builds hplip and pulls unfree drivers; `darkone.service.printing.loadAll`
+  # per host.
   printing = {
     reverseProxy = false;
     activation.profiles = {
       desktop.triggers.always = [ "enable" ];
-      laptop.triggers.always = [ "loadAll" ];
     };
   };
   stk = {
