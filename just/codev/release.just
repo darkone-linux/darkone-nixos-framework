@@ -231,6 +231,15 @@ release level="auto":
 		git -C dnf commit -q -m "chore(deps): dnf-generator $genTag"
 	fi
 
+	# Projects reach the schema through their `dnf/` symlink: it must come from
+	# the generator this framework pins. Unconditional, a resumed train owes it.
+	just _log "Regenerating config.schema.json..." "REL"
+	(cd dnf && {{nix}} run .#dnf-generator -- schema) > dnf/config/config.schema.json
+	if ! git -C dnf diff --quiet -- config/config.schema.json; then
+		git -C dnf add config/config.schema.json
+		git -C dnf commit -q -m "chore(schema): regenerate config.schema.json for dnf-generator $genTag"
+	fi
+
 	#---------------------------------------------------------------------------
 	# 3. fleet-update — packaged by the framework, so released before it
 	#---------------------------------------------------------------------------
