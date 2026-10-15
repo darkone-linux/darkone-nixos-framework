@@ -8,7 +8,7 @@
 # just full-install my-host nixos 10.1.3.211 # Install "my-host"
 #
 # -> First host of a new network (generic image only):
-# darkone new --answers answers.yaml # this machine becomes the admin host
+# darkone new # this machine becomes the admin host (--answers: scripted)
 
 {
   config,
@@ -101,7 +101,7 @@ let
     pkgs.yq-go
   ];
   assistantHint = lib.optionalString (installer != null) (
-    "\n" + "printf '\\nFirst host of a new network: darkone new --answers <file>\\n'"
+    "\n" + "printf '\\nFirst host of a new network: darkone new\\n'"
   );
 in
 {
