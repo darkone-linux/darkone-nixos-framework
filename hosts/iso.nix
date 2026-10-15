@@ -6,6 +6,9 @@
 # -> Install with the image:
 # dnf-netinfo # IP + MAC to use, also printed on the console at boot
 # just full-install my-host nixos 10.1.3.211 # Install "my-host"
+#
+# -> First host of a new network (generic image only):
+# darkone new --answers answers.yaml # this machine becomes the admin host
 
 {
   config,
@@ -14,6 +17,7 @@
   lib,
   pkgs,
   workDir ? null,
+  installer ? null,
   ...
 }:
 let
@@ -76,9 +80,29 @@ let
 
       # No trailing blank line: the stock NixOS PS1 opens with its own newline.
       printf '\n- IP: %s%s%s\n- MAC: %s%s%s\n' \
-        "$magenta" "$addr" "$reset" "$magenta" "$mac" "$reset"${keylessHint}
+        "$magenta" "$addr" "$reset" "$magenta" "$mac" "$reset"${keylessHint}${assistantHint}
     '';
   };
+
+  # `darkone new` runs `just install-here` in the project it writes: the
+  # tools of its recipes (generation, keys, sops, disko).
+  assistantPackages = [
+    installer.darkone
+    pkgs.age
+    pkgs.disko
+    pkgs.git
+    pkgs.jq
+    pkgs.just
+    pkgs.mkpasswd
+    pkgs.nixfmt
+    pkgs.openssl
+    pkgs.sops
+    pkgs.ssh-to-age
+    pkgs.yq-go
+  ];
+  assistantHint = lib.optionalString (installer != null) (
+    "\n" + "printf '\\nFirst host of a new network: darkone new --answers <file>\\n'"
+  );
 in
 {
   imports = [ "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix" ];
@@ -133,7 +157,15 @@ in
     environment.systemPackages = [
       pkgs.vim
       netinfo
-    ];
+    ]
+    ++ lib.optionals (installer != null) assistantPackages;
+
+    # Marker of the generic image: the only place `install-here` and
+    # `darkone new` erase a disk.
+    environment.etc.dnf-installer = lib.mkIf (installer != null) {
+      text = "DNF installer image: darkone new erases the disk it installs on.\n";
+    };
+    environment.variables.DNF_SOURCE = lib.mkIf (installer != null) "${installer.source}";
     nix.settings = {
       experimental-features = [
         "nix-command"

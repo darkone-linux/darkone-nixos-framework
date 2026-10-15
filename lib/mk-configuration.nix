@@ -408,6 +408,10 @@ let
         specialArgs = {
           inherit workDir;
           imgFormat = nixpkgs.lib.mkDefault "iso";
+
+          # The assistant installs the first host of a new network: generic
+          # image only, a consumer one installs remotely.
+          installer = null;
           host = {
             hostname = "new-dnf-host";
             name = "New Darkone NixOS Framework";

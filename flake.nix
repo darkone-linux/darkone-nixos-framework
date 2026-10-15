@@ -180,6 +180,17 @@
               # declares `workDir ? null` but the module system bypasses that
               # default and queries `_module.args.workDir`; inject it explicitly.
               workDir = null;
+
+              # `darkone new` and the project template, where the generator
+              # builds (x86_64 only).
+              installer =
+                if inputs.dnf-generator.packages ? ${system} then
+                  {
+                    darkone = inputs.dnf-generator.packages.${system}.default;
+                    source = self;
+                  }
+                else
+                  null;
               host = {
                 hostname = "new-dnf-host";
                 name = "New Darkone NixOS Framework";
