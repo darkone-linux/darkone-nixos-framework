@@ -124,6 +124,13 @@ in
       default = true;
       description = "Enable tools for developer";
     };
+    darkone.home.advanced.enableVscode = lib.mkEnableOption ''
+      VS Code. Opt-in: ~0.3 GiB to download, Zed is the default editor
+    '';
+    darkone.home.advanced.enableSlidev = lib.mkEnableOption ''
+      Slidev presentations (`slidev-cli`, plus its VS Code extension when
+      `enableVscode`). Opt-in: ~0.4 GiB to download
+    '';
     darkone.home.advanced.enableEssentials = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -196,8 +203,8 @@ in
       (lib.mkIf essentialsOrDnfDev wipe)
       (lib.mkIf nixAdminOrDnfDev mkpasswd)
       (lib.mkIf nixAdminOrDnfDev yq-go)
-      (lib.mkIf (graphic && (cfg.enableDeveloper || cfg.enableAdmin)) vscode) # TODO: module
-      (lib.mkIf (graphic && (cfg.enableDeveloper || cfg.enableAdmin)) vscode-extensions.antfu.slidev)
+      (lib.mkIf (graphic && cfg.enableVscode) vscode) # TODO: module
+      (lib.mkIf (graphic && cfg.enableVscode && cfg.enableSlidev) vscode-extensions.antfu.slidev)
       (lib.mkIf (graphic && cfg.enableAdmin) filezilla)
       (lib.mkIf (graphic && cfg.enableAdmin) gparted)
       (lib.mkIf (graphic && cfg.enableNixAdmin) dconf-editor) # GSettings editor
@@ -243,7 +250,7 @@ in
       (lib.mkIf cfg.enableAdmin tcpdump)
       (lib.mkIf cfg.enableAdmin usbutils) # lsusb usb-devices usbhid-dump
       (lib.mkIf cfg.enableAdmin wirelesstools) # ifrename iwconfig iwevent iwgetid iwlist iwpriv iwspy
-      (lib.mkIf cfg.enableDeveloper slidev-cli)
+      (lib.mkIf cfg.enableSlidev slidev-cli)
       (lib.mkIf cfg.enableDnfDeveloper cargo-audit) # generator (rust)
       (lib.mkIf cfg.enableDnfDeveloper clippy) # generator (rust)
       (lib.mkIf cfg.enableDnfDeveloper git)
