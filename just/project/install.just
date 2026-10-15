@@ -413,14 +413,16 @@ install-key host:
 # The machine running this recipe, booted on the DNF installer image, becomes
 # the admin host of the project: disko erases its own disks, the keys land on
 # the target (`bootstrap-keys`), then `nixos-install`. The project follows into
-# /etc/nixos of the new system, owned by `login`. No LUKS layout yet.
+# /etc/nixos of the new system, owned by `login`.
 #
 # `hash`: crypt hash of the `login` password, single-quoted (empty: kept as is).
 # `yes`: `yes` skips the confirmation, already asked by `darkone new`.
+# `luks`: file holding the passphrase of an encrypted layout, typed at each
+# boot; it becomes the shared `luks-passphrase` of the fleet.
 #
 # Install this very machine as the admin host (from the DNF installer)
 [group('install')]
-install-here host login hash='' yes='':
+install-here host login hash='' yes='' luks='':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	root=/mnt
@@ -430,7 +432,11 @@ install-here host login hash='' yes='':
 	# disks of a running system.
 	[ -f /etc/dnf-installer ] || just _fail "Not on the DNF installer image: install-here erases the disks of the machine it runs on."
 	[ -f "$disko" ] || just _fail "No disk layout for '{{host}}': declare disko.profile + disko.devices in etc/config.yaml, then 'just generate'."
-	! grep -q '"luks"' "$disko" || just _fail "{{host}} has an encrypted layout: install-here does not handle LUKS yet."
+	encrypted=false
+	if grep -q '"luks"' "$disko" ;then
+		encrypted=true
+		[ -s "{{luks}}" ] || just _fail "{{host}} has an encrypted layout: pass the file of its passphrase as its luks argument."
+	fi
 	uid=$({{nix}} eval --impure --raw --expr 'toString ((import {{workDir}}/var/generated/users.nix)."{{login}}".uid or "")' 2>/dev/null || true)
 	[ -n "$uid" ] || just _fail "Unknown user '{{login}}' (see etc/config.yaml, then 'just generate')."
 	if [ "{{yes}}" != yes ] ;then
@@ -443,13 +449,19 @@ install-here host login hash='' yes='':
 		just _log "Unmounting the previous attempt..." "INSTALL"
 		sudo umount -R "$root"
 	fi
+
+	# The `passwordFile` of dnf/hosts/disko/luks-*.nix, read by disko to format
+	# and open the volume. In RAM, like everything on the installer.
+	keys=(--root "$root")
+	if $encrypted ;then
+		trap 'sudo rm -f /tmp/dnf-luks.key' EXIT
+		sudo install -m 600 "{{luks}}" /tmp/dnf-luks.key
+		keys+=(--luks "{{host}}" /tmp/dnf-luks.key)
+	fi
 	just _log "Erasing and mounting the disks..." "INSTALL"
 	sudo disko --mode destroy,format,mount --yes-wipe-all-disks --root-mountpoint "$root" "$disko"
-	if [ -n '{{hash}}' ] ;then
-		just bootstrap-keys "$root" "{{login}}" '{{hash}}'
-	else
-		just bootstrap-keys "$root"
-	fi
+	[ -z '{{hash}}' ] || keys+=(--password-hash "{{login}}" '{{hash}}')
+	sudo env "PATH=$PATH" WORKDIR="{{workDir}}" bash {{scriptsDir}}/bootstrap-keys.sh "${keys[@]}"
 
 	just _log "Hardware detection..." "INSTALL"
 	hw="{{workDir}}/usr/machines/{{host}}/hardware"

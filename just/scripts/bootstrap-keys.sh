@@ -3,6 +3,7 @@
 # DNF — keys and sops skeleton of an admin host, without its `nix` account.
 #
 #   bootstrap-keys.sh [--root DIR] [--password-hash LOGIN HASH]...
+#                     [--luks HOST PASSPHRASE_FILE]
 #
 # The first machine of a network is its admin host, and the deploy account only
 # exists once DNF runs there. So root writes everything, under DIR (`/` on the
@@ -21,6 +22,10 @@
 # account of the host, or sops-nix installs none of them. `nix` gets a random,
 # forgotten password: it only ever logs in with its key. `--password-hash`
 # takes a ready crypt hash (`mkpasswd`) for any other account.
+#
+# `--luks`: offline half of `just luks HOST pre` for a disk just formatted with
+# PASSPHRASE_FILE, which becomes the shared `luks-passphrase`; the initrd SSH
+# host key is also staged under DIR (dnf/modules/system/luks.nix).
 
 set -euo pipefail
 
@@ -36,6 +41,8 @@ die() {
 
 root=/
 hashes=()
+luksHost=""
+luksFile=""
 
 # Crypt alphabet only (yescrypt, sha-512, bcrypt): the hash travels inside
 # single-quoted shell words of the recipes.
@@ -52,6 +59,14 @@ while [ $# -gt 0 ]; do
     [[ $2 =~ ^[a-zA-Z][a-zA-Z0-9_-]{1,59}$ ]] || die "invalid login '$2'."
     [[ $3 =~ $hashRe ]] || die "not a crypt hash for $2: expected the output of 'mkpasswd'."
     hashes+=("$2" "$3")
+    shift 3
+    ;;
+  --luks)
+    [ $# -ge 3 ] || die "--luks needs a host and a passphrase file."
+    [[ $2 =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]] || die "invalid host '$2'."
+    [ -s "$3" ] || die "empty or missing LUKS passphrase file '$3'."
+    luksHost="$2"
+    luksFile="$3"
     shift 3
     ;;
   *) die "unknown argument '$1'." ;;
@@ -236,6 +251,65 @@ else
   putSecret harmonia-secret-key "$(cat "$work/harmonia.key")"
   install -m 644 -o "${owner%:*}" -g "${owner#*:}" "$work/harmonia.pub" "$secretsDir/harmonia.pub"
   changed=1
+fi
+
+#------------------------------------------------------------------------------
+# LUKS: secrets, public manifest, initrd host key
+#------------------------------------------------------------------------------
+
+if [ -n "$luksHost" ]; then
+
+  # `$(cat)` drops trailing newlines, as disko does with its `passwordFile`:
+  # the stored value is the keyslot, byte for byte.
+  passphrase="$(cat "$luksFile")"
+  if ! hasSecret luks-passphrase; then
+    log LUKS "Shared LUKS passphrase..."
+    putSecret luks-passphrase "$passphrase"
+    changed=1
+  elif [ "$(yq -r '."luks-passphrase"' "$plain")" != "$passphrase" ]; then
+    die "luks-passphrase in sops is not the passphrase of $luksFile: the disk would not open with it."
+  fi
+
+  # Random, as `just luks` makes it: `just luks $luksHost passwd` sets one.
+  if ! hasSecret "luks/$luksHost/passphrase"; then
+    log LUKS "Random per-host passphrase of $luksHost..."
+    putSecret "luks/$luksHost/passphrase" "$(openssl rand -base64 32)"
+    changed=1
+  fi
+  if ! hasSecret "luks/$luksHost/initrd-key"; then
+    log LUKS "Initrd SSH host key of $luksHost..."
+    ssh-keygen -q -t ed25519 -N "" -C "" -f "$work/initrd-key"
+    putSecret "luks/$luksHost/initrd-key" "$(base64 -w0 <"$work/initrd-key")"
+    putSecret "luks/$luksHost/initrd-key-pub" "$(ssh-keygen -y -f "$work/initrd-key")"
+    changed=1
+  fi
+
+  # The bootloader embeds the key at install: on the disk before `nixos-install`,
+  # or the first boot has no initrd sshd.
+  initrdDir="${root%/}/var/lib/luks-initrd"
+  initrdKey="$initrdDir/ssh_host_ed25519_key"
+  if [ -f "$initrdKey" ]; then
+    [ "$(ssh-keygen -y -f "$initrdKey")" = "$(yq -r ".\"luks\".\"$luksHost\".\"initrd-key-pub\"" "$plain")" ] ||
+      warn "$initrdKey is not the initrd key of sops: 'just luks $luksHost' adopts it once the host is up."
+  else
+    log LUKS "Initrd SSH host key staged under $initrdDir..."
+    newDir "$initrdDir" 700 0:0
+    (umask 077 && yq -r ".\"luks\".\"$luksHost\".\"initrd-key\"" "$plain" | base64 -d >"$initrdKey")
+    ssh-keygen -y -f "$initrdKey" >"$initrdKey.pub"
+    chmod 644 "$initrdKey.pub"
+  fi
+
+  # Public manifest: the module wakes up for a host listed there.
+  manifest="$secretsDir/luks.json"
+  if [ ! -f "$manifest" ]; then
+    echo '{}' >"$manifest"
+    chown "$owner" "$manifest"
+  fi
+  if ! yq -e ".\"$luksHost\"" "$manifest" >/dev/null 2>&1; then
+    yq -i -p=json -o=json ".\"$luksHost\" = {}" "$manifest"
+    chown "$owner" "$manifest"
+    log LUKS "$luksHost declared in usr/secrets/luks.json."
+  fi
 fi
 
 # Re-encrypting refreshes the sops MAC: only when an entry was added, or every

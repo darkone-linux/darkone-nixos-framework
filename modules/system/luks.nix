@@ -17,7 +17,8 @@
 #
 # There is no separate "install passphrase": `just install` formats the volume
 # through `nixos-anywhere --disk-encryption-keys` with the shared passphrase, so
-# the format keyslot *is* the shared keyslot.
+# the format keyslot *is* the shared keyslot. On the first host (`darkone new`,
+# `just install-here`), the passphrase typed in the assistant becomes it.
 #
 # `just luks <host>` provisions a host (idempotent, also called by
 # `just configure`); its `pre` phase runs offline and is called by `just install`
