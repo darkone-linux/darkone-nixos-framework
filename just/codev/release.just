@@ -45,7 +45,8 @@ release level="auto":
 
 	gen=src/generator
 	fu=src/dnf-fleet-update
-	templates=(src/dnf-boilerplate src/dnf-example)
+	boilerplate=src/dnf-boilerplate
+	templates=("$boilerplate" src/dnf-example)
 	fuPkg=dnf/pkgs/fleet-update/package.nix
 	docJust="just --justfile doc/Justfile --working-directory doc"
 
@@ -63,6 +64,38 @@ release level="auto":
 	# The branch and this release's tag only: `--tags` would publish every
 	# local tag (backups, experiments) too.
 	publish() { git -C "$1" push --atomic origin main "refs/tags/$2"; }
+
+	# dnf-boilerplate = `dnf/templates/project/` at the framework tag, plus its
+	# own CHANGELOG.md and flake.lock. A banner under each README title sends
+	# contributors to the framework; `nix flake new` projects carry none.
+	syncBoilerplate() {
+		local repo=$1 tag=$2 url readme note
+		git -C dnf cat-file -e "$tag:templates/project/flake.nix" 2> /dev/null ||
+			just _fail "dnf $tag has no templates/project/ — nothing to sync $repo/ from."
+
+		# Tracked files the template dropped are removed, not left behind.
+		LC_ALL=C comm -23 <(git -C "$repo" ls-files | LC_ALL=C sort) <({
+			printf '%s\n' CHANGELOG.md flake.lock
+			git -C dnf ls-tree -r --name-only "$tag" templates/project | sed 's|^templates/project/||'
+		} | LC_ALL=C sort) | xargs -r -d '\n' git -C "$repo" rm -q --
+		git -C dnf archive "$tag" templates/project | tar -x -C "$repo" --strip-components=2
+
+		url="https://github.com/darkone-linux/darkone-nixos-framework/tree/$tag/templates/project"
+		for readme in README.md README.fr.md; do
+			[ -f "$repo/$readme" ] || continue
+			case "$readme" in
+				README.fr.md) note="Copie publiée de [\`templates/project/\`]($url) du framework, régénérée à chaque release : les modifications se font là-bas." ;;
+				*) note="Published copy of the framework's [\`templates/project/\`]($url), regenerated at each release: changes go there." ;;
+			esac
+			awk -v note="$note" 'NR == 1 { print; print ""; print "> [!NOTE]"; print "> " note; next } { print }' \
+				"$repo/$readme" > "$repo/$readme.tmp"
+			mv "$repo/$readme.tmp" "$repo/$readme"
+		done
+
+		git -C "$repo" add -A
+		git -C "$repo" diff --cached --quiet ||
+			git -C "$repo" commit -q -m "chore(template): sync from dnf $tag"
+	}
 
 	#---------------------------------------------------------------------------
 	# Preflight — cheap failures before the long gates
@@ -132,6 +165,8 @@ release level="auto":
 	for repo in "${templates[@]}"; do
 		if [ "$(lastTag "$repo")" != "v$dnfTarget" ]; then
 			dueTemplates+=("$repo")
+		elif [ "$repo" = "$boilerplate" ] && isDue "$repo"; then
+			just _warn "$repo/ edited since v$dnfTarget — the next sync from dnf/templates/project/ overwrites it."
 		elif isDue "$repo"; then
 			just _warn "$repo/ moved since v$dnfTarget — shipped with the next framework release."
 		fi
@@ -269,11 +304,15 @@ release level="auto":
 	fi
 
 	#---------------------------------------------------------------------------
-	# 6. Consumer templates — only the pin; the committed lock is the point
+	# 6. Consumer templates — the pin and its committed lock; the boilerplate
+	#    is also resynced from the framework's project template
 	#---------------------------------------------------------------------------
 
 	for repo in "${dueTemplates[@]}"; do
 		just _log "Aligning $repo on v$dnfTarget..." "REL"
+		if [ "$repo" = "$boilerplate" ]; then
+			syncBoilerplate "$repo" "v$dnfTarget"
+		fi
 		sed -i "s|^\(    dnf.url = \)\"github:darkone-linux/darkone-nixos-framework[^\"]*\";|\1\"github:darkone-linux/darkone-nixos-framework/v$dnfTarget\";|" "$repo/flake.nix"
 		(cd "$repo" && {{nix}} flake update dnf)
 

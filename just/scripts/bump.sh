@@ -98,7 +98,15 @@ readVersion() {
 
 writeVersion() {
   case "$versionFile" in
-    VERSION) printf '%s\n' "$1" > VERSION ;;
+    VERSION)
+      printf '%s\n' "$1" > VERSION
+
+      # Framework: the project template pins the release that ships it, so
+      # `nix flake new -t` on this tag yields a project locked on this tag.
+      [ ! -f templates/project/flake.nix ] ||
+        sed -i "s|^\(    dnf.url = \)\"github:darkone-linux/darkone-nixos-framework[^\"]*\";|\1\"github:darkone-linux/darkone-nixos-framework/v$1\";|" \
+          templates/project/flake.nix
+      ;;
     Cargo.toml)
       sed -i "/^\[package\]/,/^\[dependencies\]/{s/^version *= *\".*\"/version = \"$1\"/}" Cargo.toml
 
