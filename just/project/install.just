@@ -75,11 +75,21 @@ _nic-drivers target user='nix':
 	[ "${USER:-}" = "nix" ] || ssh=(sudo -i -u nix "${ssh[@]}")
 	printf '%s\n' "$probe" | "${ssh[@]}" "{{user}}@{{target}}" bash -s
 
+# Hypervisor seen from the node, `none` on bare metal. `--vm`: a container
+# shares its host's kernel and firmware, it is not a guest here.
+_virt target user='nix':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	ssh=(ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
+	[ "${USER:-}" = "nix" ] || ssh=(sudo -i -u nix "${ssh[@]}")
+	"${ssh[@]}" "{{user}}@{{target}}" 'systemd-detect-virt --vm || true'
+
 # `user`: `nixos` on the installer image, `nix` on an installed host.
 # Imported by `lib/mk-configuration.nix`; modules shipped only when stage 1
 # has a network (remote LUKS unlock), so a clear host keeps its initrd as is.
+# A virtual machine loads no firmware (`darkone.system.hardware.virtual`).
 #
-# Detect the wired NIC drivers the initrd needs (detected-hardware.nix)
+# Detect the wired NIC drivers the initrd needs, and a virtual machine (detected-hardware.nix)
 [group('install')]
 detect-hw host target='auto' user='nix':
 	#!/usr/bin/env bash
@@ -89,6 +99,12 @@ detect-hw host target='auto' user='nix':
 	out={{workDir}}/usr/machines/{{host}}/hardware/detected-hardware.nix
 	mkdir -p "$(dirname "$out")"
 	mods=$(just _nic-drivers "$t" "{{user}}") || just _fail "Cannot probe {{user}}@$t."
+	virt=$(just _virt "$t" "{{user}}") || just _fail "Cannot probe {{user}}@$t."
+	virtual=false
+	if [ -n "$virt" ] && [ "$virt" != none ] ;then
+		virtual=true
+		just _log "Virtual machine ($virt): no firmware loaded." "HW"
+	fi
 	if [ -z "$mods" ] ;then
 		just _warn "No wired NIC on {{host}}: no stage 1 network, remote LUKS unlock impossible."
 	else
@@ -103,6 +119,9 @@ detect-hw host target='auto' user='nix':
 		echo "  boot.initrd.availableKernelModules = lib.mkIf ("
 		echo "    config.boot.initrd.network.enable || config.boot.initrd.systemd.network.enable"
 		echo "  ) [ $(printf '"%s" ' $mods)];"
+		echo
+		echo "  # systemd-detect-virt --vm: ${virt:-none}"
+		echo "  darkone.system.hardware.virtual = $virtual;"
 		echo "}"
 	} > "$out"
 	nixfmt "$out"
