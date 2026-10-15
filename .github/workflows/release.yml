@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
 
+# Same Nix as ci.yml and the developer machines.
+env:
+  NIX_VERSION: 2.34.8
+
 jobs:
   guard:
     name: Release guards
@@ -85,3 +89,41 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+
+  # Generic installer, no consumer key: a newcomer downloads it instead of
+  # building one first. Built on every tag, so a broken ISO stops showing up
+  # only at install time.
+  iso:
+    name: Installer ISO
+    needs: [publish]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The ISO closure plus its squashfs outgrow the runner's free disk.
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          install_url: https://releases.nixos.org/nix/nix-${{ env.NIX_VERSION }}/install
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Build
+        run: nix build .#nixosConfigurations.iso-x86_64-linux.config.system.build.isoImage
+
+      # GitHub refuses release assets of 2 GiB or more: checked, not assumed.
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          iso="dnf-installer-$GITHUB_REF_NAME-x86_64-linux.iso"
+          cp result/iso/*.iso "$iso"
+          size=$(stat -c %s "$iso")
+          if [ "$size" -ge $((2 * 1024 * 1024 * 1024)) ]; then
+            echo "::error::$iso weighs $size bytes, over the 2 GiB asset limit."
+            exit 1
+          fi
+          sha256sum "$iso" > "$iso.sha256"
+          gh release upload "$GITHUB_REF_NAME" "$iso" "$iso.sha256"

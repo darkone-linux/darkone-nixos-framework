@@ -18,6 +18,14 @@
 }:
 let
 
+  # Standalone image (release download): no admin key baked in. The installer's
+  # `nixos` account has an empty password, which sshd refuses: one `passwd`
+  # lets `ssh-copy-id` in. Empty for a consumer ISO, whose drvPath stays put.
+  keylessHint = lib.optionalString (workDir == null) (
+    "\n"
+    + ''printf '\nNo admin key in this image. Set a password with passwd, then from\nthe admin host: sudo -i -u nix ssh-copy-id nixos@%s\n' "$addr"''
+  );
+
   # IP + MAC of the interface holding the route to the Internet, i.e. the one
   # `just full-install` reaches. `ip route get` resolves only, sends no packet.
   netinfo = pkgs.writeShellApplication {
@@ -68,7 +76,7 @@ let
 
       # No trailing blank line: the stock NixOS PS1 opens with its own newline.
       printf '\n- IP: %s%s%s\n- MAC: %s%s%s\n' \
-        "$magenta" "$addr" "$reset" "$magenta" "$mac" "$reset"
+        "$magenta" "$addr" "$reset" "$magenta" "$mac" "$reset"${keylessHint}
     '';
   };
 in
