@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../dnf/config/config.schema.json
 # =============================================================================
 # Darkone NixOS Framework — declarative configuration
 # =============================================================================
@@ -23,6 +24,11 @@
 #     is given by `zone: "<zoneName>:<X.Y>"`.
 #   - `profile` references a host or user profile of the framework
 #     (or one of yours, under `usr/modules/host/` or `usr/home/profiles/`).
+#
+# Editor support: the first line points YAML-aware editors (VS Code with the
+# YAML extension, Zed, Neovim…) to the schema of the framework release you pin,
+# through the `dnf/` symlink of `nix run …#init`: completion, help on hover and
+# validation of every key.
 
 # =============================================================================
 # Global network configuration

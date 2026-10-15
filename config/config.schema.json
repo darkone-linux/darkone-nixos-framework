@@ -1,0 +1,844 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DNF configuration",
+  "description": "DNF deployment configuration (`etc/config.yaml`). Run `just generate` after every edit.",
+  "type": "object",
+  "properties": {
+    "hosts": {
+      "description": "Machines to deploy: a single host, a `range:` of identical hosts, or a `hosts:` map of near-identical ones.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/HostEntry"
+      }
+    },
+    "network": {
+      "description": "Global parameters: domain, default locale, coordination, mail, Matrix, fleet-update.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NetworkCfg"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "users": {
+      "description": "Accounts common to all zones, by login. Each login needs a `usr/users/<login>/default.nix`, even empty. The `nix` deploy account is implicit: do not declare it.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/UserCfg"
+      }
+    },
+    "zones": {
+      "description": "Sub-networks (home LAN, guest LAN, remote site…), by zone name. A host joins one with `zone:`. An implicit `www` zone holds the hosts declared with a public `ipv4`.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/ZoneCfg"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "users"
+  ],
+  "$defs": {
+    "Coordination": {
+      "description": "Headscale coordination server.",
+      "type": "object",
+      "properties": {
+        "domain": {
+          "description": "Subdomain of the coordination server: `<domain>.<network.domain>`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{1,59}$"
+        },
+        "enable": {
+          "description": "Use a coordination server. `false`: zones are only deployed locally.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "hostname": {
+          "description": "Hostname of the host running `headscale`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{1,59}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DiskoCfg": {
+      "description": "Disk layout of a host.",
+      "type": "object",
+      "properties": {
+        "devices": {
+          "description": "One block device per disk of the profile, by disk name (`/dev/disk/by-id/…` recommended).",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^/dev(/[A-Za-z0-9._:+-]+){1,3}$"
+          },
+          "propertyNames": {
+            "pattern": "^[a-z][a-zA-Z0-9-]{0,62}[a-zA-Z0-9]$"
+          }
+        },
+        "profile": {
+          "description": "Layout of `usr/hosts/disko/` or `dnf/hosts/disko/`: `btrfs-1-disk`, `ext4-1-disk`, `ext4-1-disk-legacy`, `luks-btrfs-1-disk`, `server-1-disk`, `server-4-disks`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z][a-zA-Z0-9-]{0,62}[a-zA-Z0-9]$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ExtraHost": {
+      "description": "A non-NixOS device of the zone.",
+      "type": "object",
+      "properties": {
+        "aliases": {
+          "description": "Extra DNS names.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "ip": {
+          "description": "Suffix in the zone: the full IP is `<ipPrefix>.<ip>` (e.g. `5.1`).",
+          "type": "string"
+        },
+        "mac": {
+          "description": "MAC address, lowercase hex; required for the DHCP reservation.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}$"
+        },
+        "name": {
+          "description": "Human-readable name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "services": {
+          "description": "Services this device provides, by name; the optional value customizes the portal entry and DNS.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ServiceCfg"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ip"
+      ]
+    },
+    "FleetUpdate": {
+      "description": "Defaults of `fleet-update`.",
+      "type": "object",
+      "properties": {
+        "aiModel": {
+          "description": "AI of `--ai-model`: `<tool>[:<model>][@<effort>]`, tool `claude` or `opencode`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^(claude|opencode)(:[^@\\s]+)?(@[a-zA-Z0-9_-]+)?$"
+        },
+        "criticalProfiles": {
+          "description": "Host profiles whose failures also reach the incidents room, `:`-separated. Default: `hcs:gateway:server`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deploymentOrder": {
+          "description": "Test waves by host profile, `:`-separated; `[others]` stands for the profiles not listed. Default: `hcs:gateway:server:[others]:laptop`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pingInterval": {
+          "description": "Seconds between two pings of the hosts being watched.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64",
+          "minimum": 1
+        },
+        "timeouts": {
+          "description": "Longest run of an operation, in seconds, by operation.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "propertyNames": {
+            "enum": [
+              "flakeUpdate",
+              "clean",
+              "commit",
+              "eval",
+              "build",
+              "publish",
+              "copy",
+              "activation",
+              "ssh",
+              "ping",
+              "matrix",
+              "killGrace"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Gateway": {
+      "description": "Router interfaces of a zone.",
+      "type": "object",
+      "properties": {
+        "lan": {
+          "description": "Internal side.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GatewayLan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vpn": {
+          "description": "Tailnet side.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GatewayVpn"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "wan": {
+          "description": "Uplink side.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GatewayWan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "GatewayLan": {
+      "description": "Internal side of the gateway.",
+      "type": "object",
+      "properties": {
+        "dhcp-range": {
+          "description": "DHCP ranges, `start,end,lease`. Default: `<ipPrefix>.3.200,<ipPrefix>.3.249,24h`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "interfaces": {
+          "description": "Internal NIC(s), bridged together.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "GatewayVpn": {
+      "description": "Tailnet side of the gateway.",
+      "type": "object",
+      "properties": {
+        "ipv4": {
+          "description": "Tailnet address of the gateway (100.64.0.0/10).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "GatewayWan": {
+      "description": "Uplink side of the gateway.",
+      "type": "object",
+      "properties": {
+        "interface": {
+          "description": "Uplink NIC of the gateway host (e.g. `enp1s0`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "HostEntry": {
+      "description": "A machine to deploy, or a group of identical ones (`range:`, `hosts:`).",
+      "type": "object",
+      "properties": {
+        "aliases": {
+          "description": "Extra DNS names in the host's zone.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "arch": {
+          "description": "`x86_64` (default), or `aarch64:rpi5` / `rpi4` / `rpi3` / `rpi02` for a Raspberry Pi.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "x86_64",
+            "x86_64-linux",
+            "aarch64:rpi02",
+            "aarch64:rpi3",
+            "aarch64:rpi4",
+            "aarch64:rpi5",
+            null
+          ]
+        },
+        "disko": {
+          "description": "Disk layout, read at install time only, frozen afterwards.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiskoCfg"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "features": {
+          "description": "Non-service flags, `name` or `name:value` (value defaults to the host's zone): `monitoring-node`, `nfs-client`, `build-farm`, `alert-critical`, `alert-non-critical`, `alert-disabled`…",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "groups": {
+          "description": "Host groups: users sharing one of them are authorized on this host.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "hostname": {
+          "description": "Required. DNS-friendly identifier: a letter, then letters, digits, `_` or `-`. Templated with `%d` or `%'02s` for `range:`, `%s` for `hosts:`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hosts": {
+          "description": "Near-identical hosts by name (`%s` in `hostname`), each overriding fields of this entry.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/HostEntry"
+          }
+        },
+        "ipv4": {
+          "description": "Host outside your zones (e.g. a VPS), in the implicit `www` zone. Exclusive with `zone`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ipv4Cfg"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mac": {
+          "description": "MAC address(es) of the internal NIC(s).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Mac"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "description": "Human-readable description.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "profile": {
+          "description": "Required. Host profile: built-in (`minimal`, `server`, `gateway`, `hcs`, `desktop`, `laptop`, `portable`, `vm`) or yours.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "range": {
+          "description": "`[from, to]`: identical hosts, numbered in `hostname`, `name` and `zone` (`%d`, `%'02s`).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "services": {
+          "description": "Services enabled on this host, by name (e.g. `nextcloud:`); the optional value customizes the portal entry and DNS.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ServiceCfg"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "tags": {
+          "description": "Colmena tags, for a selective deployment.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "users": {
+          "description": "Logins authorized on this host.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "zone": {
+          "description": "`<zone>` for DHCP, or `<zone>:<X.Y>` for the fixed IP `<ipPrefix>.<X.Y>`. Exclusive with `ipv4`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Ipv4Cfg": {
+      "description": "Host outside the local zones.",
+      "type": "object",
+      "properties": {
+        "external": {
+          "description": "Public IPv4 address.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "internal": {
+          "description": "Tailnet address (100.64.0.0/10).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Mac": {
+      "description": "One address, or several comma-separated; for a `range:` group, a map from index to address.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^-?\\d+$": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "Matrix": {
+      "description": "Matrix administration.",
+      "type": "object",
+      "properties": {
+        "admins": {
+          "description": "Local parts of the administrators (MXID `<admin>@<network.domain>`): bridges and server admin, invited to the alert rooms.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "NetworkCfg": {
+      "description": "Global network parameters.",
+      "type": "object",
+      "properties": {
+        "coordination": {
+          "description": "Headscale coordination server, meshing remote hosts and zones (tailnet).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Coordination"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "default": {
+          "description": "Locale and timezone of every host, unless its zone overrides them.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NetworkDefault"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "domain": {
+          "description": "Top-level DNS domain; each zone gets `<zone>.<domain>`. Choose it once: Matrix identities, Kanidm and YubiKey origins derive from it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fleetUpdate": {
+          "description": "Defaults of `fleet-update` (`just fleet-update`, daily timer). Its command-line options override them.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FleetUpdate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "matrix": {
+          "description": "Matrix administration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Matrix"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "smtp": {
+          "description": "Outgoing mail relay of the hosts running `postfix` (system mail, alert digests). The password lives in sops, key `smtp/password`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Smtp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "NetworkDefault": {
+      "description": "Default locale and timezone.",
+      "type": "object",
+      "properties": {
+        "locale": {
+          "description": "Default locale, `xx_XX.UTF-8` (e.g. `en_US.UTF-8`).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z][a-z]_[A-Z][A-Z]\\.UTF-8$"
+        },
+        "timezone": {
+          "description": "Default timezone, `Area/City` (e.g. `Europe/Paris`); UTC is `Etc/UTC`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^([A-Za-z]+)/([A-Za-z0-9_-]+)(/([A-Za-z0-9_-]+))?$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ServiceCfg": {
+      "description": "Portal entry and DNS name of a service.",
+      "type": "object",
+      "properties": {
+        "description": {
+          "description": "Description of the portal entry.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "domain": {
+          "description": "Subdomain label; defaults to the service name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "global": {
+          "description": "Publish as `<domain>.<network.domain>` instead of `<domain>.<zone>.<network.domain>`.",
+          "type": "boolean",
+          "default": false
+        },
+        "icon": {
+          "description": "Icon of the portal entry.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "description": "Title of the portal (homepage) entry.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Smtp": {
+      "description": "Outgoing mail relay.",
+      "type": "object",
+      "properties": {
+        "port": {
+          "description": "Relay port (e.g. `465` for `submissions`).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "protocol": {
+          "description": "`http`, `https`, `submission` or `submissions`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^(http|https|submission|submissions)$"
+        },
+        "sender": {
+          "description": "Sender address of outgoing mail.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "server": {
+          "description": "Relay server name (FQDN).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)+[A-Za-z]{2,63}$"
+        },
+        "tls": {
+          "description": "Use TLS.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "username": {
+          "description": "Relay login, an email address.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "UserCfg": {
+      "description": "A user account.",
+      "type": "object",
+      "properties": {
+        "disabled": {
+          "description": "Keep the user declared, but lock the account.",
+          "type": "boolean",
+          "default": false
+        },
+        "email": {
+          "description": "Email address.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "groups": {
+          "description": "Groups: a host authorizes the users sharing one of its groups.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "Full name.",
+          "type": "string"
+        },
+        "profile": {
+          "description": "Home profile: built-in (`nix-admin`, `admin`, `advanced`, `normal`, `gamer`, `student`, `teenager`, `child`, `baby`, `minimal`) or yours, under `usr/home/profiles/<name>/`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uid": {
+          "description": "Unique uid across the deployment, 1000 to 64999.",
+          "type": "integer",
+          "format": "uint32",
+          "maximum": 64999,
+          "minimum": 1000
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "uid",
+        "name"
+      ]
+    },
+    "ZoneCfg": {
+      "description": "A sub-network.",
+      "type": "object",
+      "properties": {
+        "description": {
+          "description": "Human-readable description.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "extraHosts": {
+          "description": "Non-NixOS devices reachable by name (phones, printers, IoT…): fixed IP, DHCP reservation, DNS record. By device name.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/ExtraHost"
+          }
+        },
+        "gateway": {
+          "description": "Turns one host of the zone into its router: `wan` and at least one `lan` interface are required.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Gateway"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ipPrefix": {
+          "description": "First two octets of the zone's RFC 1918 /16 (e.g. `10.0` for 10.0.0.0/16).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "locale": {
+          "description": "Locale of the zone hosts; defaults to `network.default.locale`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timezone": {
+          "description": "Timezone of the zone hosts; defaults to `network.default.timezone`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
