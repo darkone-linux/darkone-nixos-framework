@@ -51,6 +51,7 @@ copy-hw host target='auto':
 	just detect-hw "{{host}}" "$t"
 
 # Print the loadable modules each wired NIC of `target` binds to, one per line.
+# `target` = `local`: the machine running just (`install-here`).
 #
 # The whole sysfs parent chain, not the NIC alone: `virtio_net` is useless
 # without `virtio_pci`. `initstate` only exists for loadable modules, so
@@ -69,6 +70,11 @@ _nic-drivers target user='nix':
 		done
 	done | sort -u'
 
+	if [ "{{target}}" = local ] ;then
+		printf '%s\n' "$probe" | bash -s
+		exit 0
+	fi
+
 	# Read-only probe, no secret sent: host key not checked, since the installer
 	# image and the installed system answer with different keys.
 	ssh=(ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
@@ -80,11 +86,16 @@ _nic-drivers target user='nix':
 _virt target user='nix':
 	#!/usr/bin/env bash
 	set -euo pipefail
+	if [ "{{target}}" = local ] ;then
+		systemd-detect-virt --vm || true
+		exit 0
+	fi
 	ssh=(ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
 	[ "${USER:-}" = "nix" ] || ssh=(sudo -i -u nix "${ssh[@]}")
 	"${ssh[@]}" "{{user}}@{{target}}" 'systemd-detect-virt --vm || true'
 
 # `user`: `nixos` on the installer image, `nix` on an installed host.
+# `target` = `local`: the machine running just (`install-here`).
 # Imported by `lib/mk-configuration.nix`; modules shipped only when stage 1
 # has a network (remote LUKS unlock), so a clear host keeps its initrd as is.
 # A virtual machine loads no firmware (`darkone.system.hardware.virtual`).
@@ -398,6 +409,83 @@ install-key host:
 	sudo umount -R {{dnfInstallDir}}
 	sudo rmdir {{dnfInstallDir}}
 	just _log "End of key installation"
+
+# The machine running this recipe, booted on the DNF installer image, becomes
+# the admin host of the project: disko erases its own disks, the keys land on
+# the target (`bootstrap-keys`), then `nixos-install`. The project follows into
+# /etc/nixos of the new system, owned by `login`. No LUKS layout yet.
+#
+# `hash`: crypt hash of the `login` password, single-quoted (empty: kept as is).
+# `yes`: `yes` skips the confirmation, already asked by `darkone new`.
+#
+# Install this very machine as the admin host (from the DNF installer)
+[group('install')]
+install-here host login hash='' yes='':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	root=/mnt
+	disko="{{workDir}}/usr/machines/{{host}}/install/disko.nix"
+
+	# The marker of the installer image: anywhere else, this would erase the
+	# disks of a running system.
+	[ -f /etc/dnf-installer ] || just _fail "Not on the DNF installer image: install-here erases the disks of the machine it runs on."
+	[ -f "$disko" ] || just _fail "No disk layout for '{{host}}': declare disko.profile + disko.devices in etc/config.yaml, then 'just generate'."
+	! grep -q '"luks"' "$disko" || just _fail "{{host}} has an encrypted layout: install-here does not handle LUKS yet."
+	uid=$({{nix}} eval --impure --raw --expr 'toString ((import {{workDir}}/var/generated/users.nix)."{{login}}".uid or "")' 2>/dev/null || true)
+	[ -n "$uid" ] || just _fail "Unknown user '{{login}}' (see etc/config.yaml, then 'just generate')."
+	if [ "{{yes}}" != yes ] ;then
+		read -p "Erase the disks of THIS machine and install {{host}}? (y/N) " ans
+		[ "$ans" = "y" ] || { just _log "Aborted." "INSTALL"; exit 1; }
+	fi
+
+	# A previous run that failed half-way left the target mounted.
+	if mountpoint -q "$root" ;then
+		just _log "Unmounting the previous attempt..." "INSTALL"
+		sudo umount -R "$root"
+	fi
+	just _log "Erasing and mounting the disks..." "INSTALL"
+	sudo disko --mode destroy,format,mount --yes-wipe-all-disks --root-mountpoint "$root" "$disko"
+	if [ -n '{{hash}}' ] ;then
+		just bootstrap-keys "$root" "{{login}}" '{{hash}}'
+	else
+		just bootstrap-keys "$root"
+	fi
+
+	just _log "Hardware detection..." "INSTALL"
+	hw="{{workDir}}/usr/machines/{{host}}/hardware"
+	mkdir -p "$hw"
+	sudo nixos-generate-config --root "$root" --no-filesystems --show-hardware-config > "$hw/hardware-configuration.nix"
+	nixfmt -s "$hw/hardware-configuration.nix"
+	just detect-hw "{{host}}" local
+
+	# The installer image has no git identity: a neutral one, unless the
+	# project sets its own.
+	git=(git)
+	git config user.email > /dev/null || git+=(-c user.name="DNF installer" -c user.email="installer@{{host}}")
+
+	# Staged first: the seal and the secrets plan evaluate the flake, which only
+	# sees tracked files. `nix` does not exist here: the infra key is read as
+	# root, from the target.
+	"${git[@]}" add -A
+	just _seal "{{host}}"
+	"${git[@]}" add -A
+	n=$(sudo env "PATH=$PATH" WORKDIR="{{workDir}}" SOPS_AGE_KEY_FILE="$root{{sopsInfraKeyFile}}" 		bash {{scriptsDir}}/generate-secrets.sh)
+	case "$n" in skip|0) ;; *) just _log "$n secret(s) generated." "SOPS" ;; esac
+	sudo chown -R "$(id -u):$(id -g)" "{{secretsDir}}"
+	"${git[@]}" add -A
+	"${git[@]}" diff --cached --quiet || "${git[@]}" commit -q -m "chore(install): admin host {{host}}"
+
+	just _log "Installing {{host}}..." "INSTALL"
+	sudo nixos-install --flake "{{workDir}}#{{host}}" --root "$root" --no-root-password --no-channel-copy
+
+	# `dnf/` links a framework tree of this live system's store: copied too, or
+	# every recipe of the new system would point at nothing.
+	just _log "Copying the project to /etc/nixos of {{host}}..." "INSTALL"
+	sudo mkdir -p "$root/etc/nixos"
+	sudo cp -a "{{workDir}}/." "$root/etc/nixos/"
+	sudo {{nix}} copy --no-check-sigs --to "$root" "$(readlink -f "{{workDir}}/dnf")"
+	sudo chown -R "$uid:100" "$root/etc/nixos"
+	just _log "{{host}} installed: remove the installation media, then reboot." "INSTALL"
 
 # Read the MAC of a machine so it can be declared before being installed.
 #

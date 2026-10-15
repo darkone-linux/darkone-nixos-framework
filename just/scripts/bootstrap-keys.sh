@@ -36,6 +36,10 @@ die() {
 
 root=/
 hashes=()
+
+# Crypt alphabet only (yescrypt, sha-512, bcrypt): the hash travels inside
+# single-quoted shell words of the recipes.
+hashRe='^\$[0-9a-z]+\$[./0-9A-Za-z$=,+-]+$'
 while [ $# -gt 0 ]; do
   case "$1" in
   --root)
@@ -46,7 +50,7 @@ while [ $# -gt 0 ]; do
   --password-hash)
     [ $# -ge 3 ] || die "--password-hash needs a login and a hash."
     [[ $2 =~ ^[a-zA-Z][a-zA-Z0-9_-]{1,59}$ ]] || die "invalid login '$2'."
-    [[ $3 =~ ^\$[0-9a-z]+\$[^[:space:]:]+$ ]] || die "not a crypt hash for $2: expected the output of 'mkpasswd'."
+    [[ $3 =~ $hashRe ]] || die "not a crypt hash for $2: expected the output of 'mkpasswd'."
     hashes+=("$2" "$3")
     shift 3
     ;;
