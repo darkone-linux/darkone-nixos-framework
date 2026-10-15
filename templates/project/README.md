@@ -64,6 +64,10 @@ Idempotent: creates the `nix` deploy key, the age keys, `.sops.yaml`, a default
 password and the internal secrets of the declared services; never recreates
 what exists. Re-run it after adding a service, a host or a user.
 
+> [!IMPORTANT]
+> Run it on the admin machine, which is a DNF host: the admin recipes run as
+> its `nix` deploy account, and stop with an explicit message anywhere else.
+
 ### 4. Describe your deployment
 
 Everything is declared in `etc/config.yaml` (network, zones, users, hosts).

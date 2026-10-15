@@ -66,6 +66,11 @@ mot de passe par défaut et les secrets internes des services déclarés ; ne
 recrée jamais ce qui existe. À relancer après chaque nouveau service, hôte ou
 utilisateur.
 
+> [!IMPORTANT]
+> À lancer sur la machine d'administration, qui est un hôte DNF : les recettes
+> d'administration tournent sous son compte de déploiement `nix`, et
+> s'arrêtent avec un message explicite partout ailleurs.
+
 ### 4. Décrire le déploiement
 
 Tout se déclare dans `etc/config.yaml` (réseau, zones, utilisateurs, hôtes).
