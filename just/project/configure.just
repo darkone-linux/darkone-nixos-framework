@@ -5,6 +5,13 @@
 configure-admin-host:
 	#!/usr/bin/env bash
 	set -euo pipefail
+
+	# Runs as `nix`, the deploy account of a DNF host: on any other machine,
+	# sudo would only answer `unknown user nix`.
+	if [ "${USER:-}" != "nix" ] && ! getent passwd nix > /dev/null ;then
+		just _err "No 'nix' account on this machine: the admin recipes run on a DNF host."
+		just _fail "Run this from a host installed with DNF (see the installation guide)."
+	fi
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just configure-admin-host
 	if [ ! -f "$HOME/.ssh/id_ed25519" ] ;then
 		just _log "Creating nix keys..." "SSH"
