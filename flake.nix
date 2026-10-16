@@ -138,6 +138,14 @@
 
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
+      # VM tools of the installer ISO (`tests/installer`), x86_64 only like it.
+      installerTools =
+        system:
+        import ./tests/installer {
+          pkgs = nixpkgs.legacyPackages.${system};
+          iso = self.nixosConfigurations."iso-${system}".config.system.build.isoImage;
+        };
+
     in
     {
 
@@ -242,6 +250,9 @@
         # aarch64 devShell that pulls it in — fail to evaluate.
         // nixpkgs.lib.optionalAttrs (inputs.dnf-generator.packages ? ${system}) {
           dnf-generator = inputs.dnf-generator.packages.${system}.default;
+
+          # `darkone new` end to end in a VM: `just test-installer`, release CI.
+          installer-test = (installerTools system).test;
         }
       );
 
@@ -258,12 +269,25 @@
       # `mkConfigurations` re-exposes the same app to consumers, so that later
       # refreshes (`nix run .#init`) follow their own `flake.lock`.
 
-      apps = forAllSystems (system: {
-        init = import ./lib/init-app.nix {
-          pkgs = nixpkgs.legacyPackages.${system};
-          frameworkRoot = self;
-        };
-      });
+      apps = forAllSystems (
+        system:
+        {
+          init = import ./lib/init-app.nix {
+            pkgs = nixpkgs.legacyPackages.${system};
+            frameworkRoot = self;
+          };
+        }
+
+        # `nix run github:…#try`: the generic ISO of this revision in a VM
+        # window, where the generator (hence `darkone`) builds.
+        // nixpkgs.lib.optionalAttrs (inputs.dnf-generator.packages ? ${system}) {
+          try = {
+            type = "app";
+            meta.description = "Try DNF: the installer ISO in a QEMU window, disk kept between runs";
+            program = nixpkgs.lib.getExe (installerTools system).try;
+          };
+        }
+      );
 
       #------------------------------------------------------------------------
       # TEMPLATES

@@ -122,6 +122,14 @@ in
     boot.loader.efi.canTouchEfiVariables = false;
     boot.loader.systemd-boot.editor = false;
 
+    # Generic image: a serial console too, autologged in like the others. A
+    # headless machine installs through it, and the VM test drives `darkone`
+    # there (`tests/installer`). The last `console=` stays the main one.
+    boot.kernelParams = lib.mkIf (installer != null) [
+      "console=ttyS0,115200n8"
+      "console=tty0"
+    ];
+
     # Align with the 26.11 default. The installer image DOES enable ZFS support
     # (so one can install onto a pool), which is precisely why the upstream
     # warning would fire here: a forced import bypasses the guard against
