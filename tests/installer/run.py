@@ -81,6 +81,8 @@ class Qmp:
                 break
             except OSError:
                 time.sleep(0.1)
+        else:
+            raise Failure(f"QMP: no socket at {path}, QEMU did not start")
         self.file = self.sock.makefile("rw")
         self.file.readline()
         self.execute("qmp_capabilities")
@@ -125,9 +127,13 @@ class Vm:
         if iso:
             cmd += ["--iso", iso]
         self.proc = subprocess.Popen(cmd)
-        self.qmp = Qmp(qmp)
-        self.sock = socket.socket(socket.AF_UNIX)
-        self.sock.connect(serial)
+        try:
+            self.qmp = Qmp(qmp)
+            self.sock = socket.socket(socket.AF_UNIX)
+            self.sock.connect(serial)
+        except BaseException:
+            self.proc.kill()
+            raise
         self.console = pexpect.fdpexpect.fdspawn(
             self.sock.fileno(), timeout=120, encoding="utf-8", codec_errors="replace"
         )
@@ -160,6 +166,7 @@ class Vm:
         return out
 
     def stop(self, timeout=120):
+        """Waits for a poweroff, then quits QEMU; `timeout=0` quits at once."""
         try:
             self.proc.wait(timeout)
         except subprocess.TimeoutExpired:
@@ -206,14 +213,18 @@ def free_port():
 
 def boot_installer(dir, iso, usb, ports):
     vm = Vm(dir, iso, usb, ports)
-    log("Booting the installer ISO...")
-    vm.expect(SHELL_PROMPT, timeout=600)
-    vm.type("stty rows 50 cols 160\r")
-    vm.expect(SHELL_PROMPT)
+    try:
+        log("Booting the installer ISO...")
+        vm.expect(SHELL_PROMPT, timeout=600)
+        vm.type("stty rows 50 cols 160\r")
+        vm.expect(SHELL_PROMPT)
 
-    # tty1 launches the assistant by itself: the newcomer's path.
-    wait_for("darkone on tty1", lambda: _darkone_on_tty1(vm), 180)
-    log("tty1 runs darkone new by itself.")
+        # tty1 launches the assistant by itself: the newcomer's path.
+        wait_for("darkone on tty1", lambda: _darkone_on_tty1(vm), 180)
+        log("tty1 runs darkone new by itself.")
+    except BaseException:
+        vm.stop(timeout=0)
+        raise
     return vm
 
 
@@ -310,8 +321,10 @@ def check_installed(dir, usb, ports, key, encrypted):
             raise Failure(f"disk encryption: expected {encrypted}, lsblk says {crypt}")
         log(f"Installed system: running, no failed unit, /etc/nixos clean, encrypted={encrypted}.")
         ssh(ports[0], key, "nix", "sudo systemctl poweroff", check=False)
-    finally:
-        vm.stop()
+    except BaseException:
+        vm.stop(timeout=0)
+        raise
+    vm.stop()
 
 
 def check_backup(dir, usb):
@@ -356,8 +369,10 @@ def scenario(name, iso, workdir):
         install_scripted(vm) if encrypted else install_interactive(vm)
         fetch_deploy_key(vm, key)
         vm.type("sudo umount -R /mnt; sudo poweroff\r")
-    finally:
-        vm.stop(timeout=180)
+    except BaseException:
+        vm.stop(timeout=0)
+        raise
+    vm.stop(timeout=180)
     check_installed(dir, usb, ports, key, encrypted)
     check_backup(dir, usb)
     log(f"Scenario {name}: OK")
@@ -383,7 +398,9 @@ def main():
             scenario(name, os.path.abspath(args.iso), workdir)
             if not args.keep:
                 os.unlink(os.path.join(workdir, name, "disk.qcow2"))
-        except Failure as e:
+
+        # Any error fails the scenario, not the run: the next one still runs.
+        except (Failure, OSError, subprocess.CalledProcessError) as e:
             log(f"Scenario {name} FAILED: {e}\n  serial log: {os.path.join(workdir, name, 'serial.log')}")
             failed.append(name)
     sys.exit(1 if failed else 0)
