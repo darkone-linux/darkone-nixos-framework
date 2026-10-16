@@ -105,11 +105,14 @@ let
   );
 
   # tty1 of the generic image runs the assistant once a route exists: it needs
-  # the binary cache. Ctrl-C in it, or any other console, gives a shell.
+  # the binary cache. Ctrl-C in it, or any other console, gives a shell. Once
+  # per boot (`mkdir` marker): `sudo -i` on tty1 is a login shell too.
   launchAssistant = lib.optionalString (installer != null) (
     "/dev/tty1)\n"
     + "    ${lib.getExe netinfo} --welcome\n"
-    + "    ${pkgs.iproute2}/bin/ip -4 route get 1.1.1.1 >/dev/null 2>&1 && ${installer.darkone}/bin/darkone new\n"
+    + "    ${pkgs.coreutils}/bin/mkdir /tmp/dnf-assistant 2>/dev/null"
+    + " && ${pkgs.iproute2}/bin/ip -4 route get 1.1.1.1 >/dev/null 2>&1"
+    + " && ${installer.darkone}/bin/darkone new\n"
     + "    ;;\n  "
   );
 in
