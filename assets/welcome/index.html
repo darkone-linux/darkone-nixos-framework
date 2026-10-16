@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Welcome to DNF</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1d2330;
+    --muted: #5b6474;
+    --accent: #2a6fdb;
+    --done: #1f8a4c;
+    --line: #dde1e8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161a21;
+      --card: #1f242d;
+      --text: #e6e9ef;
+      --muted: #9aa3b2;
+      --accent: #6aa1ff;
+      --done: #4cc38a;
+      --line: #2e3542;
+    }
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.55 system-ui, "Cantarell", sans-serif;
+  }
+  main { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1rem 3rem; }
+  h1 { font-size: 1.9rem; margin: 0 0 .3rem; }
+  .lead { color: var(--muted); margin: 0 0 2rem; }
+  ol { list-style: none; padding: 0; margin: 0; }
+  li {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    margin-bottom: .8rem;
+  }
+  li.next { border: 2px solid var(--accent); }
+  .step { font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  li.done .step { color: var(--done); }
+  li.next .step { color: var(--accent); }
+  h2 { font-size: 1.15rem; margin: .15rem 0 .3rem; }
+  p { margin: .3rem 0; }
+  a { color: var(--accent); }
+  code { font-size: .92em; background: var(--line); padding: .05rem .3rem; border-radius: 4px; }
+  .note { margin-top: 2rem; padding: 1rem 1.2rem; border-left: 4px solid var(--accent); background: var(--card); border-radius: 0 10px 10px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Welcome to your DNF network</h1>
+  <p class="lead">Step 1 of 4 done: <strong>@hostname@</strong> is the admin host of <strong>@domain@</strong>.</p>
+
+  <ol>
+    <li class="done">
+      <div class="step">Step 1 &middot; done</div>
+      <h2>The admin host</h2>
+      <p>This machine. It holds the project of the network, <code>/etc/nixos</code>, and installs and updates every other host. In a terminal, <code>cd /etc/nixos &amp;&amp; just</code> lists its commands.</p>
+    </li>
+    <li class="next">
+      <div class="step">Step 2 &middot; next</div>
+      <h2>The gateway</h2>
+      <p>A small always-on machine between the Internet box and the network: fixed addresses, local names, shared services.</p>
+      <p><a href="https://darkone-linux.github.io/en/doc/admin-guide/install/gateway/">Install the gateway</a></p>
+    </li>
+    <li>
+      <div class="step">Step 3</div>
+      <h2>Servers and services</h2>
+      <p>Files, photos, chat, passwords&hellip; each service runs on a host of the zone, declared in <code>etc/config.yaml</code>.</p>
+      <p><a href="https://darkone-linux.github.io/en/doc/admin-guide/operate/services/">The service catalog</a></p>
+    </li>
+    <li>
+      <div class="step">Step 4</div>
+      <h2>The Internet: coordination server and zones</h2>
+      <p>A server on the Internet links the sites of the network and publishes its services.</p>
+      <p><a href="https://darkone-linux.github.io/en/doc/admin-guide/install/hcs/">The coordination server</a></p>
+    </li>
+  </ol>
+
+  <p class="note">Keep the USB stick of the backup away from this machine. With the passphrase, it restores every key of the network: without it, a lost disk loses them all.</p>
+</main>
+</body>
+</html>

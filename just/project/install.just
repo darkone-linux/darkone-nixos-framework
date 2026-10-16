@@ -497,7 +497,28 @@ install-here host login hash='' yes='' luks='':
 	sudo cp -a "{{workDir}}/." "$root/etc/nixos/"
 	sudo {{nix}} copy --no-check-sigs --to "$root" "$(readlink -f "{{workDir}}/dnf")"
 	sudo chown -R "$uid:100" "$root/etc/nixos"
-	just _log "{{host}} installed: remove the installation media, then reboot." "INSTALL"
+	just _log "{{host}} installed: back up its keys (just backup-admin), then reboot." "INSTALL"
+
+# Without it, a lost or broken admin host loses every secret of the network:
+# the `nix` deploy key, the admin and infra age keys and the project, in one
+# age file on the stick (`dnf/just/scripts/backup-admin.sh`). Nothing erased.
+#
+# `device`: a partition of the stick, `/dev/disk/by-label/<label>` for instance.
+# `passphrase`: a file holding it; empty, age asks for it.
+# `root`: the system holding the keys, `/mnt` from the installer.
+#
+# Back up the admin keys and the project on a USB stick
+[group('install')]
+backup-admin device passphrase='' root='/':
+	@sudo env "PATH=$PATH" WORKDIR="{{workDir}}" bash {{scriptsDir}}/backup-admin.sh write "{{device}}" "{{passphrase}}" "{{root}}"
+
+# Reads the backup of `just backup-admin` back, same arguments, and compares it
+# with the keys and the last commit of the project.
+#
+# Check the backup of the admin keys on a USB stick
+[group('install')]
+backup-check device passphrase='' root='/':
+	@sudo env "PATH=$PATH" WORKDIR="{{workDir}}" bash {{scriptsDir}}/backup-admin.sh check "{{device}}" "{{passphrase}}" "{{root}}"
 
 # Read the MAC of a machine so it can be declared before being installed.
 #

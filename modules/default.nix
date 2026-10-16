@@ -5,6 +5,7 @@
     ./admin/fleet-update.nix
     ./admin/locate.nix
     ./admin/nix.nix
+    ./admin/welcome.nix
     ./console/git.nix
     ./console/zsh.nix
     ./graphic/gnome.nix

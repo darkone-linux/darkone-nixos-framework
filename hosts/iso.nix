@@ -7,7 +7,7 @@
 # dnf-netinfo # IP + MAC to use, also printed on the console at boot
 # just full-install my-host nixos 10.1.3.211 # Install "my-host"
 #
-# -> First host of a new network (generic image only):
+# -> First host of a new network (generic image only, launched on tty1):
 # darkone new # this machine becomes the admin host (--answers: scripted)
 
 {
@@ -103,6 +103,15 @@ let
   assistantHint = lib.optionalString (installer != null) (
     "\n" + "printf '\\nFirst host of a new network: darkone new\\n'"
   );
+
+  # tty1 of the generic image runs the assistant once a route exists: it needs
+  # the binary cache. Ctrl-C in it, or any other console, gives a shell.
+  launchAssistant = lib.optionalString (installer != null) (
+    "/dev/tty1)\n"
+    + "    ${lib.getExe netinfo} --welcome\n"
+    + "    ${pkgs.iproute2}/bin/ip -4 route get 1.1.1.1 >/dev/null 2>&1 && ${installer.darkone}/bin/darkone new\n"
+    + "    ;;\n  "
+  );
 in
 {
   imports = [ "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix" ];
@@ -185,7 +194,7 @@ in
     # local ttys only, an SSH caller already knows the address.
     environment.loginShellInit = ''
       case "$(${pkgs.coreutils}/bin/tty)" in
-        /dev/tty[0-9]*) ${lib.getExe netinfo} --welcome ;;
+        ${launchAssistant}/dev/tty[0-9]*) ${lib.getExe netinfo} --welcome ;;
       esac
     '';
 
