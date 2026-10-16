@@ -120,17 +120,21 @@ https://darkone-linux.github.io/en/doc/admin-guide/install/first-network-install
 EOF
 
   mount "$device" "$mnt"
+
+  # Renamed once complete: a failed or interrupted write leaves the previous
+  # backup in place, and no half file under the final name.
+  part="$mnt/$name.tar.age.part"
+  tar -C "$work" -cf - dnf-backup | encrypt "$part" || {
+    rm -f "$part"
+    die "$name.tar.age not written on $device."
+  }
   if [ -e "$mnt/$name.tar.age" ]; then
     old="$name.$(date -r "$mnt/$name.tar.age" +%Y%m%d-%H%M%S)"
     mv "$mnt/$name.tar.age" "$mnt/$old.tar.age"
     [ ! -e "$mnt/$name.README.txt" ] || mv "$mnt/$name.README.txt" "$mnt/$old.README.txt"
     log BACKUP "Previous backup kept as $old.tar.age."
   fi
-
-  # Renamed once complete: a stick pulled out too early holds no half file
-  # under the final name.
-  tar -C "$work" -cf - dnf-backup | encrypt "$mnt/$name.tar.age.part"
-  mv "$mnt/$name.tar.age.part" "$mnt/$name.tar.age"
+  mv "$part" "$mnt/$name.tar.age"
   cp "$staging/README.txt" "$mnt/$name.README.txt"
   sync
   umount "$mnt"
@@ -155,6 +159,9 @@ cmp -s "$out/dnf-backup/nix/id_ed25519" "$sshKey" || die "the deploy key of the 
 cmp -s "$out/dnf-backup/nix/keys.txt" "$adminKey" || die "the admin age key of the backup differs from $adminKey."
 cmp -s "$out/dnf-backup/infra.key" "$infraKey" || die "the infra key of the backup differs from $infraKey."
 head="$("${git[@]}" rev-parse HEAD)"
-git bundle list-heads "$out/dnf-backup/project.bundle" | grep -q "^$head " ||
+
+# `grep -q` would stop reading early: SIGPIPE on git, a false failure under
+# pipefail.
+git bundle list-heads "$out/dnf-backup/project.bundle" | grep "^$head " >/dev/null ||
   die "the project of the backup misses its last commit, $head."
 log BACKUP "$name.tar.age on $device checked: keys and project match."
