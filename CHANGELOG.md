@@ -10,6 +10,126 @@ observable defaults, `lib.mkConfigurations`, public `just` recipes, the expected
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-17
+
+### ⚠ Breaking
+
+- **office**: Darkone.home.office.huntspellLang renamed hunspellLang
+- **home**: VS Code and slidev opt-in, enableVscode and enableSlidev
+- **printing**: Laptops no longer load every driver, loadAll opt-in
+
+### Added
+
+- **office**: Element as soon as Matrix runs, Fractal with enableCommunication
+- **hm**: Ghostty installs its terminfo on ssh hosts (ssh-terminfo)
+- **gnome**: EnableGdmSelector option shows the GDM user list
+- **umi**: Eye tracker calibration from a Cinnamon menu favorite
+- **umi**: HeadSpeed option dampens head control, live tuning from the REPL
+- **umi**: Rofi application grid, panel button and hiddenApps option
+- **home**: Games/education excludePackages, umi dark theme by default
+- **office**: Cartable Fantastique LibreOffice toolbar for child profile
+- **umi**: Application windows open maximized (enableMaximize)
+- **umi**: Tobii 5 defaults, head control on, headSpeed 5, gaze filter 1
+- **umi**: Hover click defaults, 1.6 s delay and 30 px motion threshold
+- **umi**: Single click once button, hover click pauses after one left click
+- **umi**: EnableStkWithMouse, play SuperTuxKart with the mouse alone
+- **templates**: Project template, nix flake new -t creates a DNF project
+- **schema**: Ship config.schema.json, editors validate etc/config.yaml
+- **iso**: Installer ISO attached to each release, keyless setup hint
+- **hardware**: No firmware on virtual machines, detected by detect-hw
+- **configure**: Bootstrap-keys creates admin keys without the nix account
+- **install**: Install-here, local install of the admin host from the ISO
+- **iso**: Generic image ships darkone, its tools and the framework tree
+- **install**: Install-here installs an encrypted admin host with LUKS
+- **install**: Admin key backup on USB, assistant on tty1, welcome page
+- **iso**: #try app, serial console, installer VM test gating the release
+
+### Fixed
+
+- **just**: Luks target description
+- **gnome**: Reset the login keyring after an admin password change
+- **alerts**: NodeDown description names the 5m delay of WAN-reached hosts
+- **secrets**: One generation unit per bundle rule, not per generator
+- **just**: Locale-independent order of the generated import lists
+- **profiles**: Every profile value overridable per user (mkDefault)
+- **advanced**: MANPAGER through bat only when bat is enabled
+- **education**: Tuxpaint under enableDraw, not enableMusic
+- **advanced**: No empty TERMINAL, ~/.local/bin once in PATH
+- **vim**: Broken visual * and # maps, Neovim-only plugins, git branch shown
+- **ai**: Copilot CLI installed as a package, never loaded as a gh extension
+- **office**: Element and Fractal autostart tied to the graphical session
+- **student**: Music with GNOME only, the profile failed on hosts without it
+- **ai**: Unparsable settings.json set aside instead of failing the switch
+- **nfs**: XDG dir quoted in the home link script
+- **home**: Overwrite an older .bkp instead of failing the activation
+- **home**: Audacious, vlc and GNOME games only with a GNOME session
+- **ai**: Claude Code status line gets node in its PATH
+- **core**: Xterm-ghostty terminfo installed fleet-wide
+- **hm**: TERM no longer forced to xterm-256color in session variables
+- **umi**: Mint-cursor-themes excluded, Bibata cursors from bibata-cursors only
+- **gnome**: Nix maintenance account hidden from the GDM user list
+- **umi**: Passwordless keyring for the autologin user on encrypted hosts too
+- **umi**: Talon waits for the panel tray, Tobii screen size limit documented
+- **invite**: Instructions improvements
+- **flake**: Fetch firefox-addons over git+https, gitlab: API returns 403
+- **monitoring**: FilesystemReadOnly ignores intended read-only mounts
+- **configure**: Explicit error when the nix deploy account is missing
+- **i18n**: Keyboard per locale from config/locales.json, en_GB pt be ch se
+- **iso**: Welcome hint, darkone new no longer needs an answers file
+- **iso**: Assistant launched once per boot on tty1, not again on sudo -i
+- **install**: Backup-admin keeps the previous backup until the new one is in
+
+### Security
+
+- **ai**: Claude Code asks before git checkout, permission labels fixed
+- **yubikey**: Expire the cached LUKS passphrase (KeyringMode=shared)
+
+### Removed
+
+- **office**: Drop mattermost-desktop
+- **audio**: Drop the easyeffects-fw16 preset, defined nowhere
+- **hm**: Removed nc alias + zed assistant config
+- **gnome**: Drop GDM greeter Exclude list, ignored by GDM
+- **umi**: Drop corner bar and Bluetooth icon, even launcher spacing
+
+### Changed
+
+- **lib**: Factor service params cascade, zone lookups and alert groups
+- **services**: Split the registry, Caddy and oauth2-proxy modules
+- **srv-dirs**: One layout table drives defaults and prefix assertions
+- **i18n**: Locale regex shared through dnfLib, drop dead keymap code
+- **yubikey**: Reuse the luks volume detection, concise comments
+- **matrix**: Split MAS, MatrixRTC and bridges into sub-modules
+- **monitoring**: One textfile collector dir constant in dnfLib
+- **headscale**: Split pivot DNS, audit and enrollment into sub-modules
+- **tailscale**: Split cert sync, self-heal and auto-pause into sub-modules
+- **idm**: Split replication and provisioning, reuse the resolved registry
+- **restic**: Split the REST server and freshness metrics into sub-modules
+- **nextcloud**: Phone region and tailnet range from dnfLib
+- **modules**: Tailnet range from dnfLib constants, English comment
+- **gateway**: Backup uplinks in their own sub-module
+- **monitoring**: One isNode source, the monitoring module option
+- **home**: Named package conditions, shared palettes in advanced and umi
+- **office**: DnfLib locale and homepage lookups, concise comments
+- **music**: MPD session variables left to the home-manager module
+- **home**: User profile imported by path, errors name the profile file
+- **advanced**: EDITOR and VISUAL left to programs.vim.defaultEditor
+- **office**: Split into browsers, matrix, nextcloud, pandoc sub-modules
+- **zsh**: P10k plugin ships p10k.zsh alone, not the whole assets/ tree
+- **user**: NixOS user profiles merged with mkMerge, not a shallow //
+- **eval**: Backport fork modules, drop the nixpkgs-oxicloud input
+
+### Documentation
+
+- **modules**: Sub-module documentation moved into the main module header
+- **home**: Module headers and comments match the code
+- **mime**: Header describes the actual defaults, dead branch dropped
+- **templates**: Admin recipes run on a DNF host, as its nix account
+
+### Dependencies
+
+- dnf-generator v0.3.0
+
 ## [0.4.0] - 2026-10-05
 
 ### ⚠ Breaking
@@ -347,7 +467,8 @@ framework as it stands, not the commits that built it.
 | [dnf-boilerplate](https://github.com/darkone-linux/dnf-boilerplate) | `v0.1.0` |
 | [dnf-example](https://github.com/darkone-linux/dnf-example) | `v0.1.0` |
 
-[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.2.2...v0.3.0
