@@ -5,11 +5,14 @@ console with pexpect, reboots on the installed disk and checks the system and
 the key backup. The real network is used: what a newcomer downloads, the test
 downloads.
 
-- `scripted`: answers file, `--non-interactive`, encrypted disk, the backup
-  stick named by the answers; the first boot is unlocked through the initrd
-  sshd (`dnf-unlock`);
-- `interactive`: every question answered on the console, clear disk, backup
-  passphrase, stick chosen, then unplugged and plugged back in over QMP.
+- `scripted`: answers file, `--non-interactive`, clear disk, backup
+  passphrase from a file, the stick named by the answers;
+- `interactive`: every question answered on the console, encrypted disk, stick
+  chosen, then unplugged and plugged back in over QMP; the first boot is
+  unlocked through the initrd sshd (`dnf-unlock`).
+
+Both back up again from the installed system (`just backup-admin`): the first
+backup is kept, renamed with its date.
 
     dnf-installer-test --iso ISO [--scenario scripted|interactive|all]
                        [--workdir DIR] [--keep]
@@ -22,6 +25,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -54,7 +58,7 @@ network:
 host:
   hostname: "poste"
 disk:
-  encrypt: true
+  encrypt: false
 locale:
   language: "fr_FR.UTF-8"
 backup:
@@ -241,11 +245,11 @@ def install_scripted(vm):
     answers = ANSWERS_SCRIPTED.replace("{hash}", hash_)
     vm.type("cat > /tmp/answers.yaml <<'EOF'\r" + answers.replace("\n", "\r") + "EOF\r")
     vm.expect(SHELL_PROMPT)
-    vm.shell(f"printf %s '{PASSPHRASE}' > /tmp/luks && chmod 600 /tmp/luks")
-    log("darkone new --answers --non-interactive (encrypted disk)...")
+    vm.shell(f"printf %s '{PASSPHRASE}' > /tmp/backup && chmod 600 /tmp/backup")
+    log("darkone new --answers --non-interactive (clear disk)...")
     out = vm.shell(
         "darkone new --answers /tmp/answers.yaml --non-interactive --yes "
-        "--luks-passphrase-file /tmp/luks --dnf-url path:$DNF_SOURCE",
+        "--backup-passphrase-file /tmp/backup --dnf-url path:$DNF_SOURCE",
         timeout=5400,
     )
     if "Done:" not in out:
@@ -253,7 +257,7 @@ def install_scripted(vm):
 
 
 def install_interactive(vm):
-    log("darkone new, every question on the console (clear disk)...")
+    log("darkone new, every question on the console (encrypted disk)...")
     vm.type("darkone new --dnf-url path:$DNF_SOURCE\r")
     steps = [
         ("Language and keyboard", ENTER),
@@ -265,9 +269,9 @@ def install_interactive(vm):
         ("Your password, again", PASSWORD + ENTER),
         ("Network domain \\(definitive\\)", DOMAIN + ENTER),
         ("Name of this machine", ENTER),
-        ("Encrypt the disk\\?", RIGHT + ENTER),
-        ("Backup passphrase", PASSPHRASE + ENTER),
-        ("Backup passphrase, again", PASSPHRASE + ENTER),
+        ("Encrypt the disk\\?", ENTER),
+        ("Disk passphrase", PASSPHRASE + ENTER),
+        ("Disk passphrase, again", PASSPHRASE + ENTER),
         ("and install\\?", LEFT + ENTER),
     ]
     for prompt, keys in steps:
@@ -320,6 +324,7 @@ def check_installed(dir, usb, ports, key, encrypted):
         if ("crypt" in crypt) != encrypted:
             raise Failure(f"disk encryption: expected {encrypted}, lsblk says {crypt}")
         log(f"Installed system: running, no failed unit, /etc/nixos clean, encrypted={encrypted}.")
+        backup_again(ports[0], key)
         ssh(ports[0], key, "nix", "sudo systemctl poweroff", check=False)
     except BaseException:
         vm.stop(timeout=0)
@@ -327,11 +332,26 @@ def check_installed(dir, usb, ports, key, encrypted):
     vm.stop()
 
 
+def backup_again(port, key):
+    """`just backup-admin` on the installed system, then its check."""
+    ssh(port, key, "nix", "umask 077 && cat > /tmp/backup-pass", stdin=PASSPHRASE)
+    device = f"/dev/disk/by-label/{STICK_LABEL}"
+    for recipe in ("backup-admin", "backup-check"):
+        ssh(port, key, "nix", f"cd /etc/nixos && just {recipe} {device} /tmp/backup-pass")
+    ssh(port, key, "nix", "rm /tmp/backup-pass")
+    log("Backed up again from the installed system, and checked.")
+
+
 def check_backup(dir, usb):
     """Opened from the host, as a newcomer would after losing the disk."""
     name = f"dnf-backup-{DOMAIN}"
     out = os.path.join(dir, "backup")
     os.makedirs(out, exist_ok=True)
+    files = subprocess.run(
+        ["mdir", "-b", "-i", f"{usb}@@1M", "::"], capture_output=True, text=True, check=True
+    ).stdout.split()
+    if not any(re.fullmatch(rf"::/{re.escape(name)}\.\d{{8}}-\d{{6}}\.tar\.age", f) for f in files):
+        raise Failure(f"the first backup is not kept under a dated name: {files}")
     for f in (f"{name}.tar.age", f"{name}.README.txt"):
         subprocess.run(["mcopy", "-o", "-i", f"{usb}@@1M", f"::{f}", out], check=True)
     pass_file = os.path.join(out, "passphrase")
@@ -350,7 +370,7 @@ def check_backup(dir, usb):
     missing = [e for e in expected if f"dnf-backup/{e}" not in names]
     if missing:
         raise Failure(f"the backup misses {missing}: {names}")
-    log("Backup opened from the host: keys and project inside.")
+    log("Backup opened from the host: keys and project inside, the first one kept.")
 
 
 def scenario(name, iso, workdir):
@@ -361,12 +381,12 @@ def scenario(name, iso, workdir):
     make_stick(usb)
     ports = (free_port(), free_port())
     key = os.path.join(dir, "nix-key")
-    encrypted = name == "scripted"
+    encrypted = name == "interactive"
     log(f"Scenario {name} in {dir}")
 
     vm = boot_installer(dir, iso, usb, ports)
     try:
-        install_scripted(vm) if encrypted else install_interactive(vm)
+        install_scripted(vm) if name == "scripted" else install_interactive(vm)
         fetch_deploy_key(vm, key)
         vm.type("sudo umount -R /mnt; sudo poweroff\r")
     except BaseException:
