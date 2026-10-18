@@ -17,6 +17,9 @@ on:
 env:
   NIX_VERSION: 2.34.8
 
+# Runner image pinned, not `ubuntu-latest` (26.04 from 2026-10-19): KVM and the
+# free disk of the installer test are checked on this image only.
+
 jobs:
   # Conventional commits are what `git-cliff` turns into the CHANGELOG. A single
   # off-vocabulary type is silently dropped from the release notes, so the
@@ -27,9 +30,9 @@ jobs:
     # `main` pushes too: commits land there directly, rarely through a PR.
     # Skipped when release.yml replays CI on a tag: nothing new to check.
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -60,9 +63,9 @@ jobs:
 
   unit-tests:
     name: Unit tests (nix-unit)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: cachix/install-nix-action@v31
         with:
@@ -78,7 +81,7 @@ jobs:
   # output. Per output, the peak is the heaviest single one (~3.1 GB).
   eval:
     name: Evaluate flake outputs (${{ matrix.system }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
 
       # A failure on one architecture must not hide the other one's result.
@@ -88,7 +91,7 @@ jobs:
           - x86_64-linux
           - aarch64-linux
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: cachix/install-nix-action@v31
         with:
@@ -103,9 +106,9 @@ jobs:
 
   lint:
     name: Lint and format
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: cachix/install-nix-action@v31
         with:

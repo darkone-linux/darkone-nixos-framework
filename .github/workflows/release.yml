@@ -14,12 +14,15 @@ permissions:
 env:
   NIX_VERSION: 2.34.8
 
+# Runner image pinned, not `ubuntu-latest` (26.04 from 2026-10-19): KVM and the
+# free disk of the installer test are checked on this image only.
+
 jobs:
   guard:
     name: Release guards
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: VERSION matches the tag
         run: |
@@ -66,9 +69,9 @@ jobs:
   publish:
     name: Publish GitHub release
     needs: [guard, verify]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The tag's own CHANGELOG section, verbatim: the release notes and the
       # file cannot say two different things.
@@ -95,14 +98,14 @@ jobs:
   installer-test:
     name: Installer test (${{ matrix.scenario }})
     needs: [guard, verify]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
         scenario: [scripted, interactive]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Free disk space
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
@@ -130,7 +133,7 @@ jobs:
 
       - name: Serial log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: installer-test-${{ matrix.scenario }}
           path: /mnt/dnf-test/*/serial.log
@@ -142,9 +145,9 @@ jobs:
   iso:
     name: Installer ISO
     needs: [publish, installer-test]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The ISO closure plus its squashfs outgrow the runner's free disk.
       - name: Free disk space
