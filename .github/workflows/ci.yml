@@ -17,8 +17,8 @@ on:
 env:
   NIX_VERSION: 2.34.8
 
-# Runner image pinned, not `ubuntu-latest` (26.04 from 2026-10-19): KVM and the
-# free disk of the installer test are checked on this image only.
+# Runner image pinned (`ubuntu-latest` moves to 26.04 from 2026-10-19): every
+# workflow moves at once, after installer-test.yml passes on the new image.
 
 jobs:
   # Conventional commits are what `git-cliff` turns into the CHANGELOG. A single
