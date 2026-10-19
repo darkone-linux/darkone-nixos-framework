@@ -43,11 +43,11 @@
 # };
 # ```
 #
-# :::caution[Commands run without approval]
-# `tools.exec` left at OpenClaw's default (`full`, ask `off`): the agent runs
-# any command as `openclaw`, the space's tokens within reach. The microVM is
-# the boundary, the hardened unit a second wall (writes to the state only);
-# an approval request only comes from an explicit policy.
+# :::caution[Commands run without approval by default]
+# `exec = "full"` (OpenClaw's default): the agent runs any command as
+# `openclaw`, the space's tokens within reach. The microVM is the boundary,
+# the hardened unit a second wall (writes to the state only). `ask`, `auto`:
+# misses go to the owner, a guard against mistakes, not a wall (same user).
 # :::
 #
 # :::note[Members trust each other]
@@ -275,6 +275,29 @@ in
         '';
       };
 
+      exec = lib.mkOption {
+        type = lib.types.enum [
+          "full"
+          "auto"
+          "ask"
+          "allowlist"
+          "deny"
+        ];
+        default = "full";
+        example = "ask";
+        description = ''
+          Command policy of the agent (OpenClaw `tools.exec.mode`):
+          - `full`: any command, unapproved (OpenClaw default);
+          - `ask`: allowlisted commands run, any other asks the owner;
+          - `auto`: a model reviews misses, the owner decides when it is unsure;
+          - `allowlist`, `deny`: allowlisted commands only, none.
+
+          Allowlist: `openclaw approvals allowlist add --agent main <path>`. With
+          the `claude-cli` runtime, pipes, redirections and substitutions are
+          refused before any prompt outside `full`.
+        '';
+      };
+
       identity = {
         name = lib.mkOption {
           type = lib.types.nullOr lib.types.str;
@@ -434,17 +457,22 @@ in
             publicOrigin = params.href;
             auth = {
               mode = "trusted-proxy";
+
+              # Approvals: the owner's sessions, not every member's device.
+              identityScopes = lib.optionalAttrs (cfg.owner != null) {
+                ${users.${cfg.owner}.email} = [ "operator.approvals" ];
+              };
               trustedProxy = {
                 userHeader = "x-auth-request-email";
                 allowUsers = memberEmails;
 
-                # The SSO is the enrollment boundary: no admin scope here.
+                # The SSO is the enrollment boundary: no admin nor approvals
+                # scope here (approvals: `identityScopes`, owner only).
                 deviceAutoApprove = {
                   enabled = true;
                   scopes = [
                     "operator.read"
                     "operator.write"
-                    "operator.approvals"
                     "operator.questions"
                   ];
                 };
@@ -473,6 +501,7 @@ in
                 model.primary = cfg.model;
               }
               // lib.optionalAttrs (runtime != null) { models.${cfg.model}.agentRuntime.id = runtime; };
+              tools.exec.mode = cfg.exec;
             }
 
             # What `openclaw agents set-identity` would write: the config is
