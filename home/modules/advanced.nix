@@ -35,8 +35,9 @@ let
   essentialsOrDnfDev = cfg.enableEssentials || cfg.enableDnfDeveloper;
   nixAdminOrDnfDev = cfg.enableNixAdmin || cfg.enableDnfDeveloper;
 
-  # Ghostty activation
-  hasGhostty = graphic && cfg.enableTools;
+  # Terminal of every technical profile: first favorite of the dash
+  # (modules/graphic/gnome.nix), Ctrl+Alt+T (home/profiles/minimal).
+  hasGhostty = graphic;
 
   # Ghostty, zellij, tmux
   termBgColor = "#0F0F0F";
