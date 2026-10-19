@@ -22,9 +22,10 @@
 # - owner (`owner`, default: the only member): its subscription runs the
 #   agent, it approves commands and gets proactive messages;
 # - Matrix: DM channel with the bot `@<host>:<domain>`, members only, rooms
-#   ignored, when the network has Matrix and `just space-init <host>` created
-#   the bot (marker `var/generated/spaces/<host>.nix`, token in the space's
-#   sops file); exec approvals asked to the owner in DM;
+#   ignored, one session per member when several, when the network has
+#   Matrix and `just space-init <host>` created the bot (marker
+#   `var/generated/spaces/<host>.nix`, token in the space's sops file); exec
+#   approvals asked to the owner in DM;
 # - agent tooling: MCP, skills, Claude Code / Codex and `packages` of the
 #   space (`darkone.host.ai-space`), shared with the members' homes;
 # - identity (`identity`: name, emoji, avatar): declared, the config being
@@ -40,6 +41,11 @@
 #   projects.notes = "git@forge.example.com:alice/notes.git";
 # };
 # ```
+#
+# :::note[Members trust each other]
+# One gateway, one operator domain: every member's UI shows every session,
+# DMs included. Members who do not trust each other get separate spaces.
+# :::
 #
 # :::note[Provider login]
 # Once per space, from the host as `nix` (the `openclaw` CLI re-runs itself as
@@ -509,6 +515,10 @@ in
               };
             })
             (lib.mkIf hasMatrix matrixConfig)
+
+            # Several members: one DM session each, else the agent's main session
+            # mixes their conversations. Context split only, not isolation.
+            (lib.mkIf (hasMatrix && lib.length members > 1) { session.dmScope = "per-channel-peer"; })
           ];
         };
       }
