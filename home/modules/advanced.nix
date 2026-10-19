@@ -206,7 +206,6 @@ in
       (lib.mkIf nixAdminOrDnfDev yq-go)
       (lib.mkIf (graphic && cfg.enableVscode) vscode) # TODO: module
       (lib.mkIf (graphic && cfg.enableVscode && cfg.enableSlidev) vscode-extensions.antfu.slidev)
-      (lib.mkIf (graphic && cfg.enableAdmin) filezilla)
       (lib.mkIf (graphic && cfg.enableAdmin) gparted)
       (lib.mkIf (graphic && cfg.enableNixAdmin) dconf-editor) # GSettings editor
       (lib.mkIf (graphic && cfg.enableTools && cfg.enableAdmin) impression) # Create bootable drives

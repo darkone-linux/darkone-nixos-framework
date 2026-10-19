@@ -264,7 +264,7 @@ in
       (mkIf (cfg.enableCommunication && cfg.enableMore) zoom-us)
       (mkIf (cfg.enableTools && cfg.enableMore) pika-backup) # Simple backups based on borg -> Security ?
       (mkIf (cfg.enableTools && cfg.enableMore) simple-scan)
-      (mkIf (cfg.enableTools && !hasVaultwarden) gnome-secrets)
+      (mkIf (cfg.enableTools && !cfg.enableSecurity && !hasVaultwarden) gnome-secrets) # KeePassXC otherwise
       (mkIf cfg.enableCalendarContacts gnome-calendar)
       (mkIf cfg.enableCalendarContacts gnome-contacts)
       (mkIf cfg.enableCalendarContacts planify) # Tasks (note: errands -> sync activation failed)
@@ -303,7 +303,6 @@ in
       (mkIf cfg.enableBrave brave)
       (mkIf cfg.enableSecurity keepassxc)
       (mkIf cfg.enableSecurity keepmenu) # Dmenu/Rofi frontend for Keepass databases
-      (mkIf cfg.enableSecurity gnome-secrets)
       (mkIf cfg.enableSecurity git-credential-keepassxc)
       (mkIf (cfg.enableCommunication && hasMatrix) fractal)
 
