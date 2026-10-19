@@ -38,7 +38,10 @@ in
       ];
     }
 
-    (mkIf hasProtectedServices {
+    # Only Caddy calls it (`forward_auth` on 127.0.0.1): on any other host of
+    # the zone it is dead weight, and an isolated host would need the fleet's
+    # `internal-service` client secret.
+    (mkIf (hasProtectedServices && config.services.caddy.enable) {
 
       # OAuth2 client secret, shared with the kanidm-side `internal-service`
       # provisioning (idm.nix declares the same `oidc-secret-internal` source).
