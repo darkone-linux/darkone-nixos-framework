@@ -100,13 +100,11 @@ in
     expected = "external";
   };
 
-  # Records the fleet default; no module consumes it.
-  testClassifyDefaultHashIsExternal = {
+  # The fleet default password was removed, hash and clear alike (F4).
+  testClassifyDefaultHashIsUnknown = {
     expr = classifySecret "default-password-hash";
-    expected = "external";
+    expected = null;
   };
-
-  # The clear counterpart was removed from the framework (F4).
   testClassifyDefaultClearIsUnknown = {
     expr = classifySecret "default-password";
     expected = null;

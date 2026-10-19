@@ -13,9 +13,7 @@
 # are created.
 #
 # Nothing else is materialised here: a secret belongs on the hosts that
-# consume it, declared by the module that reads it. `default-password-hash`
-# stays in the encrypted file, unread by any host — it records the fleet
-# default password for `just passwd <login>`.
+# consume it, declared by the module that reads it.
 #
 # :::caution[Isolated hosts]
 # `isolated = true` (default of the `ai-space` profile) points the host at

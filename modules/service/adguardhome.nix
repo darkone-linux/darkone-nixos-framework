@@ -119,8 +119,8 @@ in
       # AdguardHome Service
       #------------------------------------------------------------------------
 
-      # Own admin secret, never the fleet default password. Declarative: a
-      # password changed from the web interface is overwritten at next start.
+      # Own generated admin secret. Declarative: a password changed from the web
+      # interface is overwritten at next start.
       sops.secrets.adguardhome-admin-password-hash = { };
 
       systemd.services.adguardhome.serviceConfig.ExecStartPre = lib.mkAfter [ "+${setAdminUser}" ];

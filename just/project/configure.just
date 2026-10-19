@@ -17,12 +17,6 @@ configure-admin-host:
 	# Keys, `.sops.yaml` and first secrets: the script `bootstrap-keys` runs on
 	# a machine that has no `nix` account yet.
 	sudo env "PATH=$PATH" WORKDIR="{{workDir}}" bash {{scriptsDir}}/bootstrap-keys.sh --root /
-	if SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}} sops -d --extract '["default-password-hash"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
-		just _info "Default password already set." "SOPS"
-	else
-		just _log "We need a default password..." "SOPS"
-		just passwd-default
-	fi
 
 	# Everything the declared services need and nobody has to know: OIDC client
 	# secrets, backup credentials, service-to-service tokens... Re-run this

@@ -247,13 +247,8 @@ rec {
     # External: chosen by a human
     #--------------------------------------------------------------------------
 
-    # Interactive by design (`just passwd-default`, `just passwd <user>`):
-    # a hash the admin cannot type back is worthless. No module consumes
-    # `default-password-hash`; it records the fleet default, nothing more.
-    {
-      pattern = "default-password-hash";
-      gen = "external";
-    }
+    # Interactive by design (`just passwd <user>`): a hash the admin cannot
+    # type back is worthless.
     {
       pattern = "user/[^/]+/password-hash";
       gen = "external";

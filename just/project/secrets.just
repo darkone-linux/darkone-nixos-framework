@@ -21,40 +21,6 @@ sops:
 	sudo -i -u nix EDITOR=vim sops {{sopsSecretsFile}} || true
 	just _fix_fs_permissions
 
-# Record the fleet default password (hash only, sops). Configures no account:
-# `just passwd <login>` is what opens a session with it.
-#
-# Set the fleet default password (hash in sops)
-[group('secrets')]
-passwd-default:
-	#!/usr/bin/env bash
-	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just passwd-default
-	cd {{secretsDir}}
-	echo -n "New default DNF password: "
-	read -s PASSWORD
-	echo
-	echo -n "Please confirm: "
-	read -s PASSWORD_CONFIRM
-	echo
-	if [ "$PASSWORD" != "$PASSWORD_CONFIRM" ]; then
-		just _fail "Error: not corresponding."
-	fi
-	BCRYPT_HASH=$(mkpasswd --method=bcrypt --rounds=12 "$PASSWORD")
-	export BCRYPT_HASH
-	just _sops_before_edit
-	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
-	just _log "Updating default password..." "SOPS"
-	if [ -f {{sopsSecretsFile}} ] ;then
-		sops -d -i {{sopsSecretsFile}}
-	else
-		echo "{}" >> {{sopsSecretsFile}}
-	fi
-	yq --inplace '."default-password-hash" = strenv(BCRYPT_HASH)' {{sopsSecretsFile}}
-	sops -e -i {{sopsSecretsFile}}
-	just _fix_fs_permissions
-	just _log "Default password updated, apply it with 'just passwd <login>'" "SOPS"
-
 # `hash`: a ready sha-512 crypt hash (`mkpasswd -m sha-512`), sent by a user
 # who sets their password remotely. Single-quote it: it contains `$`.
 #
@@ -88,8 +54,8 @@ passwd user hash='':
 	# sops -i and yq --inplace both do an atomic rename inside usr/secrets/, which
 	# is darkone-owned in the default state. _sops_before_edit chowns it to
 	# nix for the duration of the edit; _fix_fs_permissions restores at the
-	# end. Same export as passwd-default so sops can decrypt without relying
-	# on the ambient ~/.config/sops/age key.
+	# end. Explicit key: sops decrypts without the ambient
+	# ~/.config/sops/age key.
 	just _sops_before_edit
 	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
 	just _log "Updating {{user}} password..." "SOPS"
@@ -288,7 +254,7 @@ _rotate-infra-init:
 
 	# Re-encrypt secrets to admin + new + old, decrypting with the stable admin
 	# key. sops resolves .sops.yaml from the CWD, so run it from the secrets dir
-	# (same pattern as passwd-default), in a subshell to keep the recipe CWD.
+	# (same pattern as passwd), in a subshell to keep the recipe CWD.
 	just _regen-sops-yaml
 	just _log "Re-encrypting secrets for new + old recipients..." "ROTATE"
 	( cd {{secretsDir}} && SOPS_AGE_KEY_FILE={{sopsAdminKeyFile}} sops updatekeys -y {{sopsSecretsFile}} )
