@@ -7,7 +7,8 @@ downloads.
 
 - `scripted`: booted without network, plugged in once tty1 waits for it;
   answers file, `--non-interactive`, clear disk, backup passphrase from a
-  file, the stick named by the answers;
+  file, the stick named by the answers, cache.nixos.org as an extra cache
+  (the option reaches `nixos-install`, nothing else changes);
 - `interactive`: every question answered on the console, encrypted disk, stick
   chosen, then unplugged and plugged back in over QMP; the first boot is
   unlocked through the initrd sshd (`dnf-unlock`).
@@ -65,6 +66,9 @@ locale:
   language: "fr_FR.UTF-8"
 backup:
   device: "/dev/disk/by-label/{STICK_LABEL}"
+cache:
+  url: "https://cache.nixos.org"
+  publicKey: "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
 """
 
 
@@ -267,6 +271,8 @@ def install_scripted(vm):
     )
     if "Done:" not in out:
         raise Failure("darkone new returned without its final message")
+    if not re.search(r"Cache +https://cache\.nixos\.org, for the install only", out):
+        raise Failure("the plan does not show the extra cache of the answers")
 
 
 def install_interactive(vm):
@@ -283,7 +289,7 @@ def install_interactive(vm):
         ("Network domain \\(definitive\\)", DOMAIN + ENTER),
         ("Name of this machine", ENTER),
         ("Encrypt the disk\\?", ENTER),
-        ("Extra package cache", ENTER),
+        ("Package cache on your network", ENTER),
         ("Disk passphrase", PASSPHRASE + ENTER),
         ("Disk passphrase, again", PASSPHRASE + ENTER),
         ("and install\\?", LEFT + ENTER),
@@ -358,7 +364,8 @@ def check_installed(dir, usb, ports, key, encrypted):
 
 def check_admin_desktop(port, key):
     """What the new admin finds: project on `main`, README in their language,
-    Ghostty and the Local network folder, Zed allowed on the emulated GPU."""
+    Ghostty, terminal programs off the grid, the Local network folder, Zed
+    allowed on the emulated GPU."""
     run = lambda cmd: ssh(port, key, "nix", cmd).stdout.strip()
     branch = run("git -C /etc/nixos branch --show-current")
     if branch != "main":
@@ -371,10 +378,19 @@ def check_admin_desktop(port, key):
     login = run("getent passwd 1000 | cut -d: -f1")
     run(f"test -x /etc/profiles/per-user/{login}/bin/ghostty")
     run(f"test ! -e /etc/profiles/per-user/{login}/bin/gimp")
+    hidden = run(
+        f"for id in btop htop vim; do "
+        f"[ -e /etc/profiles/per-user/{login}/share/applications/$id.desktop ] || continue; "
+        f"sudo grep -qx NoDisplay=true ~{login}/.local/share/applications/$id.desktop || exit 1; "
+        f"echo $id; done"
+    )
+    if not hidden:
+        raise Failure("none of btop, htop, vim installed: no hidden launcher to check")
     run(f"test -e /etc/profiles/per-user/{login}/share/applications/dnf-network-sources.desktop")
     run(f"sudo test -e ~{login}/.config/autostart/dnf-network-folder.desktop")
     run("grep -q ZED_ALLOW_EMULATED_GPU /etc/pam/environment")
-    log(f"Admin desktop: branch main, README ({'fr' if french else 'en'}), Ghostty, network folder, Zed on a VM.")
+    log(f"Admin desktop: branch main, README ({'fr' if french else 'en'}), Ghostty, "
+        f"{hidden.split()} hidden, network folder, Zed on a VM.")
 
 
 def collect_garbage(port, key):
