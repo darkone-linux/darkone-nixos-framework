@@ -19,10 +19,12 @@
 #   with the gateway password (`openclaw-gateway-password`, `just space-init`);
 # - state: `/var/lib/openclaw` (provider logins, sessions, workspace,
 #   Matrix E2EE keys);
-# - Matrix: DM channel with the bot `@<host>:<domain>`, members only, when the
-#   network has Matrix and `just space-init <host>` created the bot (marker
-#   `var/generated/spaces/<host>.nix`, token in the space's sops file); exec
-#   approvals asked to members in DM;
+# - owner (`owner`, default: the only member): its subscription runs the
+#   agent, it approves commands and gets proactive messages;
+# - Matrix: DM channel with the bot `@<host>:<domain>`, members only, rooms
+#   ignored, when the network has Matrix and `just space-init <host>` created
+#   the bot (marker `var/generated/spaces/<host>.nix`, token in the space's
+#   sops file); exec approvals asked to the owner in DM;
 # - agent tooling: MCP, skills, Claude Code / Codex and `packages` of the
 #   space (`darkone.host.ai-space`), shared with the members' homes;
 # - workspace (`/var/lib/openclaw/workspace`): `workspace` files (AGENTS.md,
@@ -175,6 +177,7 @@ let
   networkHasMatrix = lib.any (s: s.name == "matrix") network.services;
   hasMatrix = matrixBot != null && networkHasMatrix;
   memberMxids = map (u: "@${u}:${network.domain}") members;
+  ownerMxids = lib.optional (cfg.owner != null) "@${cfg.owner}:${network.domain}";
   tokenEnv = "OPENCLAW_MATRIX_TOKEN";
 
   # Runtime plugins, by store path. One list: the gateway config merges with
@@ -196,6 +199,9 @@ let
       null;
 
   matrixConfig = {
+
+    # Owner: target of proactive messages (heartbeat `owner`, DM only).
+    commands.ownerAllowFrom = map (m: "matrix:${m}") ownerMxids;
     channels.matrix = {
       enabled = true;
       homeserver = "https://matrix.${network.domain}";
@@ -207,18 +213,19 @@ let
       };
       encryption = true;
 
-      # Joins any invite, answers members only (DMs and rooms).
+      # DMs with members only. Rooms ignored: non-members would read the
+      # replies. Joins every invite (`autoJoinAllowlist` filters rooms, not
+      # inviters), a DM being one.
       autoJoin = "always";
       dm = {
         enabled = true;
         policy = "allowlist";
         allowFrom = memberMxids;
       };
-      groupPolicy = "allowlist";
-      groupAllowFrom = memberMxids;
+      groupPolicy = "disabled";
       execApprovals = {
         enabled = true;
-        approvers = memberMxids;
+        approvers = ownerMxids;
         target = "dm";
       };
     };
@@ -228,6 +235,18 @@ in
   options = {
     darkone.service.openclaw = {
       enable = lib.mkEnableOption "Enable the OpenClaw assistant of an AI space";
+
+      owner = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = if lib.length members == 1 then lib.head members else null;
+        defaultText = lib.literalMD "the only member, if any";
+        example = "alice";
+        description = ''
+          Member owning the space: its subscription logs the agent in
+          (`model`), it approves commands and receives proactive messages.
+          Required with several members (`users` order is not kept).
+        '';
+      };
 
       model = lib.mkOption {
         type = lib.types.str;
@@ -313,6 +332,10 @@ in
         {
           assertion = options ? services.openclaw-gateway;
           message = "${host.hostname}: the openclaw service runs on an `ai-space` host only.";
+        }
+        {
+          assertion = members == [ ] || lib.elem cfg.owner members;
+          message = "${host.hostname}: set `darkone.service.openclaw.owner` to one of its members (${lib.concatStringsSep ", " members}).";
         }
       ];
       warnings = lib.optional (memberEmails == [ ]) (
