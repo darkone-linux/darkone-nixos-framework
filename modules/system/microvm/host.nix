@@ -50,10 +50,27 @@ in
 
       # A guest builds its share sources and `space-init` its key path from its
       # own `stateDir`: one value on each side, or virtiofsd finds no directory.
-      assertions = lib.mapAttrsToList (name: guest: {
-        assertion = guest.config.darkone.system.microvm.stateDir == cfg.stateDir;
-        message = "${host.hostname}: microVM guest `${name}` must keep its hypervisor's `darkone.system.microvm.stateDir` (${cfg.stateDir}).";
-      }) microvmGuests;
+      assertions =
+        lib.mapAttrsToList (name: guest: {
+          assertion = guest.config.darkone.system.microvm.stateDir == cfg.stateDir;
+          message = "${host.hostname}: microVM guest `${name}` must keep its hypervisor's `darkone.system.microvm.stateDir` (${cfg.stateDir}).";
+        }) microvmGuests
+        ++ [
+
+          # Guests query the gateway DNS through the forward chain; on the
+          # gateway itself, the `input` chain below drops them.
+          {
+            assertion = !(dnfLib.isGateway host zone);
+            message = "${host.hostname}: a zone gateway cannot be a microVM hypervisor, its guests would lose the zone DNS.";
+          }
+
+          # Networkd host with a static resolver entry: NetworkManager would
+          # stack its own DNS entries and wait-online beside them.
+          {
+            assertion = !config.networking.networkmanager.enable;
+            message = "${host.hostname}: a microVM hypervisor runs on systemd-networkd, without NetworkManager.";
+          }
+        ];
 
       # `vms.<name>.autostart` defaults to true: every guest boots with the host.
       # `restartIfChanged` defaults to false with `evaluatedConfig`: without it
@@ -101,8 +118,8 @@ in
       systemd.network.networks = lib.listToAttrs (map mkTapNetwork guests);
 
       # No resolved: C8 hardening forces it into DoT + DNSSEC, which the zone
-      # resolver serves neither. Static resolvconf entry: the nameserver the
-      # zone DHCP hands out, no search domain (none sent either).
+      # resolver serves neither. Static resolvconf entry on the zone gateway; no
+      # search domain, the zone resolver answers short names itself.
       services.resolved.enable = false;
       networking.nameservers = [ gatewayIp ];
 
