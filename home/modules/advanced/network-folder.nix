@@ -50,21 +50,26 @@ let
 in
 {
   config = lib.mkIf enable {
+
+    # `Name[fr]`: the language of the session picks it, as for any app
     xdg.desktopEntries = {
       dnf-doc = {
         name = "DNF Doc";
+        settings."Name[fr]" = "Doc DNF";
         exec = "${xdgOpen} https://darkone-linux.github.io/${if french then "fr" else "en"}/";
         icon = "help-browser";
         categories = [ category ];
       };
       dnf-onboarding = {
         name = "Onboarding";
+        settings."Name[fr]" = "Premiers pas";
         exec = "${xdgOpen} ${osConfig.darkone.admin.welcome.page}";
         icon = "user-home";
         categories = [ category ];
       };
       dnf-network-sources = {
         name = "Network Sources";
+        settings."Name[fr]" = "Sources du réseau";
         exec = "${lib.getExe config.programs.ghostty.package} --working-directory=/etc/nixos";
         icon = "folder-code";
         categories = [ category ];
