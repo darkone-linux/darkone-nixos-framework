@@ -73,9 +73,13 @@ else
     *"already exists"*)  log "Bot account $BOT_USER already present." ;;
     *) die "bot registration failed: $out" ;;
   esac
-  TOKEN="$(mas_remote "manage issue-compatibility-token $bot" \
-    | sed -n 's/^Compatibility token issued: //p' | tr -d '[:space:]')"
-  [ -n "$TOKEN" ] || die "could not issue a compatibility token for $BOT_USER."
+
+  # A tracing log line (timestamp, level, maybe ANSI colours), not a bare
+  # print: match the message anywhere, keep the first word after it.
+  out="$(mas_remote "manage issue-compatibility-token $bot")" || true
+  TOKEN="$(printf '%s\n' "$out" | sed -e 's/\x1b\[[0-9;]*m//g' \
+    -n -e 's/.*Compatibility token issued: \([^[:space:]]*\).*/\1/p' | head -n 1)"
+  [ -n "$TOKEN" ] || die "could not issue a compatibility token for $BOT_USER: $out"
   sops_set openclaw-matrix-token "$TOKEN"
   log "Token issued and stored in usr/secrets/hosts/$host.yaml."
 fi

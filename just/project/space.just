@@ -43,7 +43,9 @@ space-init host:
 	recipient=$(printf '%s\n' "$sshPub" | ssh-to-age)
 
 	# Recipient first: `.sops.yaml` then seals the file for this host only.
+	# Permissions restored even when a later step fails.
 	just _sops_before_edit
+	trap 'just _fix_fs_permissions' EXIT
 	mkdir -p {{secretsDir}}/hosts
 	previous=$(cat "$pubFile" 2>/dev/null || true)
 	printf '%s\n' "$recipient" > "$pubFile"
@@ -75,7 +77,6 @@ space-init host:
 		0) just _info "Secrets already generated." "SPACE" ;;
 		*) just _log "$n secret(s) generated." "SPACE" ;;
 	esac
-	just _fix_fs_permissions
 	just _log "Commit usr/secrets/.sops.yaml and usr/secrets/hosts/{{host}}.*: flakes only see tracked files." "SPACE"
 
 # Edit the secrets of an isolated host
@@ -100,7 +101,9 @@ space-bot host:
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just space-bot "{{host}}"
 	[[ "{{host}}" =~ ^[a-z0-9][a-z0-9-]*$ ]] || just _fail "Invalid hostname '{{host}}'."
 	[ -s {{sopsAdminKeyFile}} ] || just _fail "Admin age key not found ({{sopsAdminKeyFile}}). Run 'just configure-admin-host' first."
+
+	# Permissions restored even when the script fails.
 	just _sops_before_edit
+	trap 'just _fix_fs_permissions' EXIT
 	WORKDIR="{{workDir}}" SPACE_HOST="{{host}}" SOPS_AGE_KEY_FILE={{sopsAdminKeyFile}} \
 		bash {{scriptsDir}}/configure-space-bot.sh
-	just _fix_fs_permissions
