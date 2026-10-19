@@ -4,6 +4,7 @@
   imports = [
     ./advanced.nix
     ./advanced/network-folder.nix
+    ./ai-space.nix
     ./ai.nix
     ./audio.nix
     ./education.nix

@@ -1,12 +1,14 @@
 # Member of an AI space: light terminal home, no workstation apps.
 #
 # Replaces the member's own profile on an `ai-space` host. Agent tools (Claude
-# Code, Codex, MCP) come with the space, not with this profile. Per user:
-# `usr/users/<login>/space.nix` (every space), `spaces/<host>.nix` (one space).
+# Code, Codex, MCP, skills) come from the space (`darkone.home.aiSpace`).
+# Per user: `usr/users/<login>/space.nix` (every space), `spaces/<host>.nix`
+# (one space).
 
-{ pkgs, ... }: {
+{ lib, pkgs, ... }: {
   imports = [ ./../minimal ];
 
+  darkone.home.aiSpace.enable = lib.mkDefault true;
   programs.git.enable = true;
   home.packages = with pkgs; [
     vim

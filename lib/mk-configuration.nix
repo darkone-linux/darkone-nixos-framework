@@ -25,6 +25,7 @@ let
     nixos-raspberrypi
     talon-nix
     nix-openclaw
+    claude-code
     ;
 
   # home-manager state version of every home. Hosts freeze theirs in
@@ -93,6 +94,9 @@ let
   # `pkgs.openclaw-gateway` from openclaw/nix-openclaw, for AI spaces. Lazy:
   # fetched only by a host running the service.
   openclawOverlay = import ./overlays/openclaw.nix { inherit nix-openclaw; };
+
+  # `pkgs.claude-code-nix`: the Claude Code of `darkone.home.ai`, for modules.
+  claudeCodeOverlay = import ./overlays/claude-code.nix { inherit claude-code; };
 
   # Temporary: `pkgs.opencode`/`pkgs.opencode-desktop` pinned to 1.18.29, as
   # 1.18.30 crashes on every prompt. Drop once a fix lands in `nixos-unstable`.
@@ -239,6 +243,7 @@ let
             (talonOverlay system)
             (opencodeOverlay system)
             (openclawOverlay system)
+            (claudeCodeOverlay system)
           ];
         }
 
