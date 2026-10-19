@@ -94,17 +94,17 @@ in
         ];
       };
 
-      # networkd for the taps only: dhcpcd keeps the uplink, so the LUKS initrd
-      # unlock path is unchanged.
-      systemd.network.enable = true;
+      # Whole host on networkd: the taps need it, and a dhcpcd uplink beside it
+      # trips the upstream networkd/dhcpcd warning. The uplink falls to
+      # `99-ethernet-default-dhcp`, whose `Kind = "!*"` leaves the taps out.
+      networking.useNetworkd = true;
       systemd.network.networks = lib.listToAttrs (map mkTapNetwork guests);
-      networking.dhcpcd.denyInterfaces = [ "vm-*" ];
 
-      # dhcpcd owns the uplink: networkd must not pull its uplink-side defaults.
-      # - wait-online: taps are `RequiredForOnline = no`, it times out and fails;
-      # - resolved (networkd `mkDefault`): no DNS servers, host resolution lost.
-      systemd.network.wait-online.enable = lib.mkIf (!config.networking.useNetworkd) false;
-      services.resolved.enable = lib.mkIf (!config.networking.useNetworkd) false;
+      # No resolved: C8 hardening forces it into DoT + DNSSEC, which the zone
+      # resolver serves neither. Static resolvconf entry: the nameserver the
+      # zone DHCP hands out, no search domain (none sent either).
+      services.resolved.enable = false;
+      networking.nameservers = [ gatewayIp ];
 
       # Proxy ARP answers on the LAN for the guests' `/32` routes, which only
       # exist on the taps: the zone reaches a guest without a bridge.
