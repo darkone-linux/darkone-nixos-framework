@@ -8,7 +8,7 @@
 #   workspace root.
 #
 # The symlink is gitignored by the consumer templates, whose Justfile imports
-# `dnf/just/project.just`.
+# `dnf/just/project.just`. It is a GC root (`nix-store --add-root`).
 #
 # :::tip[Run it from the project]
 # `nix run .#init` links the revision the consumer's own `flake.lock` pins, so
@@ -25,7 +25,16 @@
   program = toString (
     pkgs.writeShellScript "dnf-init" ''
       set -euo pipefail
-      ln -sfn ${frameworkRoot} dnf
+
+      # A directory there is a checkout (co-development): never replaced.
+      if [ -e dnf ] && [ ! -L dnf ]; then
+        echo "dnf is not a link, left as is." >&2
+        exit 1
+      fi
+
+      # Indirect GC root: the weekly `nix-collect-garbage` would empty the link
+      # otherwise. It follows the link, so the next `init` keeps it.
+      nix-store --add-root dnf --realise ${frameworkRoot} >/dev/null
       echo "Linked dnf -> $(readlink dnf)"
       echo "Next: 'nix develop' then 'just --list'."
     ''

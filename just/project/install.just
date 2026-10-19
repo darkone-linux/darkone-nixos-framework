@@ -496,6 +496,11 @@ install-here host login hash='' yes='' luks='':
 	sudo mkdir -p "$root/etc/nixos"
 	sudo cp -a "{{workDir}}/." "$root/etc/nixos/"
 	sudo {{nix}} copy --no-check-sigs --to "$root" "$(readlink -f "{{workDir}}/dnf")"
+
+	# The GC root of `nix run .#init` is in the store of the installer: the
+	# same indirect one in the new system, on its /etc/nixos/dnf.
+	sudo mkdir -p "$root/nix/var/nix/gcroots/auto"
+	sudo ln -sfn /etc/nixos/dnf "$root/nix/var/nix/gcroots/auto/dnf-etc-nixos"
 	sudo chown -R "$uid:100" "$root/etc/nixos"
 	just _log "{{host}} installed: back up its keys (just backup-admin), then reboot." "INSTALL"
 
