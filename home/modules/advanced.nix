@@ -5,6 +5,12 @@
 # the user's vault (end-to-end encrypted), never in clear on disk nor in sops.
 # The user runs `rbw unlock` once per session.
 # :::
+#
+# :::note[Local network folder]
+# A nix-admin on the admin host gets a "Local network" folder in the app grid
+# (`advanced/network-folder.nix`): DNF Doc, Onboarding (the welcome page) and
+# Network Sources (a terminal in `/etc/nixos`). Added once per user, at login.
+# :::
 
 {
   lib,

@@ -3,7 +3,8 @@
 # At the first GNOME session of each `wheel` member, the browser opens a local
 # page: step 1 of 4 done (the admin host), the gateway next, then services and
 # the coordination server, with links to the documentation. Shown once per
-# user (`~/.local/state/dnf/welcome-shown`).
+# user (`~/.local/state/dnf/welcome-shown`). The "Onboarding" launcher of the
+# nix-admin reopens it (`darkone.admin.welcome.page`).
 #
 # :::note[Set by the installer]
 # `darkone new` writes `darkone.admin.welcome.enable = true;` in the
@@ -40,6 +41,15 @@ in
 {
   options.darkone.admin.welcome.enable =
     lib.mkEnableOption "the first-boot welcome page of the admin host";
+
+  # Also behind the "Onboarding" launcher (home/modules/advanced/network-folder.nix)
+  options.darkone.admin.welcome.page = lib.mkOption {
+    type = lib.types.path;
+    default = page;
+    readOnly = true;
+    internal = true;
+    description = "The welcome page, an HTML file of the store";
+  };
 
   config = lib.mkIf cfg.enable {
     environment.etc."xdg/autostart/dnf-welcome.desktop".text = ''
