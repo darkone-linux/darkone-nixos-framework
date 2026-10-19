@@ -8,7 +8,7 @@
 # - hostname: "space1"
 #   zone: "cp:1.40"              # fixed IP: tap + MAC are derived from it
 #   profile: "ai-space"
-#   features: ["microvm-guest:ms-a2"]
+#   features: ["microvm-guest:ms-a2", "monitoring-node"] # monitored like any host
 # ```
 #
 # - Guest side (`microvm/guest.nix`): virtiofs shares under

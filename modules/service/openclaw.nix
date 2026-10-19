@@ -6,6 +6,7 @@
 # - hostname: "ia-pro"
 #   profile: "ai-space"
 #   users: ["alice"]          # members: Kanidm group `space-ia-pro`
+#   features: ["monitoring-node"] # alerts: space down, gateway unit failed
 #   services: { openclaw: {} }
 # ```
 #
