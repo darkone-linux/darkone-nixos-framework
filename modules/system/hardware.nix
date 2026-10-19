@@ -2,7 +2,8 @@
 #
 # Every firmware is loaded (`hardware.enableAllFirmware`), except on a virtual
 # machine: `just detect-hw` probes it (`systemd-detect-virt --vm`) and sets
-# `darkone.system.hardware.virtual` in `hardware/detected-hardware.nix`.
+# `darkone.system.hardware.virtual` in `hardware/detected-hardware.nix`. A
+# guest also lets Zed run on its emulated GPU (`ZED_ALLOW_EMULATED_GPU`).
 
 { lib, config, ... }:
 let
@@ -42,5 +43,9 @@ in
     hardware.enableRedistributableFirmware = lib.mkIf cfg.virtual false;
     hardware.cpu.intel = lib.mkIf cfg.enableIntel { updateMicrocode = true; };
     hardware.cpu.amd = lib.mkIf cfg.enableAmd { updateMicrocode = true; };
+
+    # A guest renders with llvmpipe: Zed opens an "unsupported GPU" warning
+    # at each start without it.
+    environment.sessionVariables.ZED_ALLOW_EMULATED_GPU = lib.mkIf cfg.virtual "1";
   };
 }
