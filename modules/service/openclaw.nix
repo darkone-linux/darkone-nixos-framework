@@ -15,6 +15,8 @@
 # - devices: a member's browser is paired on first visit, without operator
 #   admin (granted from the host CLI only);
 # - port: reachable from the zone gateway only;
+# - host CLI: `openclaw`, re-run as the service user, past `trusted-proxy`
+#   with the gateway password (`openclaw-gateway-password`, `just space-init`);
 # - state: `/var/lib/openclaw` (provider logins, sessions, workspace,
 #   Matrix E2EE keys);
 # - Matrix: DM channel with the bot `@<host>:<domain>`, members only, when the
@@ -35,11 +37,11 @@
 # };
 # ```
 #
-# :::note[Provider logins]
-# Once per space, from the host: `sudo -u openclaw openclaw models auth login
-# --provider openai-codex` (ChatGPT), or another provider. Tokens stay in the state.
-# Delegated CLIs log in the same way: `sudo -u openclaw -H claude` (`/login`),
-# `sudo -u openclaw -H codex login --device-auth`.
+# :::note[Provider login]
+# Once per space, from the host as `nix` (the `openclaw` CLI re-runs itself as
+# the service user), by `model` provider. Logins stay in the state.
+# - `anthropic/*` (default): `sudo -u openclaw -H claude auth login`;
+# - `openai/*`: `openclaw models auth login --provider openai`.
 # :::
 
 {
@@ -68,8 +70,18 @@ let
   params = dnfLib.extractServiceParams host network "openclaw" defaultParams;
   gatewayIp = zone.gateway.lan.ip;
 
-  # Host CLI on the service's config and state: `sudo -u openclaw openclaw …`.
+  # Secrets of the gateway environment, rendered by sops-nix.
+  envFile = config.sops.templates."openclaw-gateway.env".path;
+
+  # Host CLI on the service's state, which belongs to `openclaw`: re-runs
+  # itself as that user. The gateway password lets it past `trusted-proxy`.
   cli = pkgs.writeShellScriptBin "openclaw" ''
+    if [ "$(${pkgs.coreutils}/bin/id -un)" != openclaw ]; then
+      exec /run/wrappers/bin/sudo -u openclaw -H "$0" "$@"
+    fi
+    set -a
+    . ${envFile}
+    set +a
     export OPENCLAW_CONFIG_PATH=${config.services.openclaw-gateway.configPath or ""}
     export OPENCLAW_STATE_DIR=${stateDir}
     exec ${pkgs.openclaw-gateway}/bin/openclaw "$@"
@@ -165,11 +177,25 @@ let
   memberMxids = map (u: "@${u}:${network.domain}") members;
   tokenEnv = "OPENCLAW_MATRIX_TOKEN";
 
+  # Runtime plugins, by store path. One list: the gateway config merges with
+  # `recursiveUpdate`, which replaces lists.
+  plugins =
+    lib.optionalAttrs hasMatrix { matrix = pkgs.openclaw-runtime-plugin-matrix; }
+    // lib.optionalAttrs (runtime == "codex") { codex = pkgs.openclaw-runtime-plugin-codex; };
+
+  # Subscription runtime of the main model, from its provider:
+  # - `anthropic/*`: the logged-in `claude` CLI (Claude Pro/Max), which owns
+  #   the token;
+  # - `openai/*`: the `codex` plugin's app-server (ChatGPT Plus/Pro OAuth).
+  runtime =
+    if lib.hasPrefix "anthropic/" cfg.model && space.enableClaude then
+      "claude-cli"
+    else if lib.hasPrefix "openai/" cfg.model then
+      "codex"
+    else
+      null;
+
   matrixConfig = {
-    plugins = {
-      load.paths = [ "${pkgs.openclaw-runtime-plugin-matrix}" ];
-      entries.matrix.enabled = true;
-    };
     channels.matrix = {
       enabled = true;
       homeserver = "https://matrix.${network.domain}";
@@ -202,6 +228,17 @@ in
   options = {
     darkone.service.openclaw = {
       enable = lib.mkEnableOption "Enable the OpenClaw assistant of an AI space";
+
+      model = lib.mkOption {
+        type = lib.types.str;
+        default = "anthropic/claude-sonnet-5-5";
+        example = "openai/gpt-6-astra";
+        description = ''
+          Main model. Subscription runtime from its provider: `anthropic/*`
+          through the `claude` CLI (with `darkone.host.ai-space.enableClaude`),
+          `openai/*` through the `codex` plugin (ChatGPT OAuth).
+        '';
+      };
 
       workspace = lib.mkOption {
         type = lib.types.attrsOf (lib.types.either lib.types.lines lib.types.path);
@@ -343,7 +380,13 @@ in
 
           # Pinned: the default follows `$HOME`, not the state dir.
           config = lib.mkMerge [
-            { agents.defaults.workspace = workspaceDir; }
+            {
+              agents.defaults = {
+                workspace = workspaceDir;
+                model.primary = cfg.model;
+              }
+              // lib.optionalAttrs (runtime != null) { models.${cfg.model}.agentRuntime.id = runtime; };
+            }
             (lib.mkIf (space.mcp != { }) { mcp.servers = lib.mapAttrs (_: compact) space.mcp; })
             (lib.mkIf (space.skills != { }) { skills.load.extraDirs = [ "${skillsDir}" ]; })
             (lib.mkIf cfg.transcription.enable transcriptionConfig)
@@ -381,26 +424,43 @@ in
     ))
 
     #------------------------------------------------------------------------
-    # Matrix channel
+    # Secrets, plugins, Matrix channel
     #------------------------------------------------------------------------
 
     (lib.optionalAttrs (options ? services.openclaw-gateway) (
-      lib.mkIf (cfg.enable && hasMatrix) {
+      lib.mkIf cfg.enable {
 
         # sops-nix files are symlinks, which OpenClaw's file provider rejects:
-        # the token reaches it as an environment variable.
-        sops.secrets.openclaw-matrix-token = { };
+        # secrets reach it as environment variables. The password serves
+        # internal callers only (host CLI), Caddy still goes `trusted-proxy`.
+        sops.secrets = {
+          openclaw-gateway-password = { };
+        }
+        // lib.optionalAttrs hasMatrix { openclaw-matrix-token = { }; };
         sops.templates."openclaw-gateway.env" = {
-          content = "${tokenEnv}=${config.sops.placeholder.openclaw-matrix-token}\n";
+          content = ''
+            OPENCLAW_GATEWAY_PASSWORD=${config.sops.placeholder.openclaw-gateway-password}
+          ''
+          + lib.optionalString hasMatrix ''
+            ${tokenEnv}=${config.sops.placeholder.openclaw-matrix-token}
+          '';
           owner = "openclaw";
         };
 
         services.openclaw-gateway = {
-          environmentFiles = [ config.sops.templates."openclaw-gateway.env".path ];
+          environmentFiles = [ envFile ];
 
           # Plugins by store path: the persisted registry would shadow them.
           environment.OPENCLAW_DISABLE_PERSISTED_PLUGIN_REGISTRY = "1";
-          config = matrixConfig;
+          config = lib.mkMerge [
+            (lib.mkIf (plugins != { }) {
+              plugins = {
+                load.paths = map toString (lib.attrValues plugins);
+                entries = lib.mapAttrs (_: _: { enabled = true; }) plugins;
+              };
+            })
+            (lib.mkIf hasMatrix matrixConfig)
+          ];
         };
       }
     ))

@@ -132,10 +132,16 @@ rec {
       gen = "external";
     }
 
-    # AI space bot: same MAS flow, by `just space-bot <host>`.
+    # AI space bot: same MAS flow, by `just space-init <host>`.
     {
       pattern = "openclaw-matrix-token";
       gen = "external";
+    }
+
+    # Host CLI of an AI space past `trusted-proxy` (`OPENCLAW_GATEWAY_PASSWORD`).
+    {
+      pattern = "openclaw-gateway-password";
+      gen = "hex32";
     }
     {
       pattern = "alertmanager-webhook-secret";

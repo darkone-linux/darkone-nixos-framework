@@ -90,10 +90,15 @@ in
     expected = "external";
   };
 
-  # Issued by `just space-bot`, same reason.
+  # Issued by `just space-init`, same reason.
   testClassifySpaceBotTokenIsExternal = {
     expr = classifySecret "openclaw-matrix-token";
     expected = "external";
+  };
+
+  testClassifySpaceGatewayPasswordIsGenerated = {
+    expr = classifySecret "openclaw-gateway-password";
+    expected = "hex32";
   };
 
   testClassifyAlertWebhookIsGenerated = {
