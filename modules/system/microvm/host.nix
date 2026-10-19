@@ -65,9 +65,11 @@ in
       systemd.network.networks = lib.listToAttrs (map mkTapNetwork guests);
       networking.dhcpcd.denyInterfaces = [ "vm-*" ];
 
-      # Taps are `RequiredForOnline = no`: with no other networkd link,
-      # wait-online times out and fails. dhcpcd already gates network-online.
+      # dhcpcd owns the uplink: networkd must not pull its uplink-side defaults.
+      # - wait-online: taps are `RequiredForOnline = no`, it times out and fails;
+      # - resolved (networkd `mkDefault`): no DNS servers, host resolution lost.
       systemd.network.wait-online.enable = lib.mkIf (!config.networking.useNetworkd) false;
+      services.resolved.enable = lib.mkIf (!config.networking.useNetworkd) false;
 
       # Proxy ARP answers on the LAN for the guests' `/32` routes, which only
       # exist on the taps: the zone reaches a guest without a bridge.
