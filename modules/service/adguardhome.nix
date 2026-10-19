@@ -226,8 +226,9 @@ in
             # If AdGuard Home should use private reverse DNS servers.
             use_private_ptr_resolvers = true;
 
-            # Cache must be disabled to not disturb dnsmasq configuration changes
-            cache_enabled = false;
+            # Harmless beside dnsmasq: its local answers carry TTL 0 and its
+            # NXDOMAIN no SOA, both skipped by dnsproxy's cache.
+            cache_enabled = true;
 
             # No rate limit: zone resolver, closed to the WAN (gateway assertion).
             # The default, 20 queries/s per /24 with no cache, drops the bursts of
