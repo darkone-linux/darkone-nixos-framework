@@ -65,6 +65,10 @@ in
       systemd.network.networks = lib.listToAttrs (map mkTapNetwork guests);
       networking.dhcpcd.denyInterfaces = [ "vm-*" ];
 
+      # Taps are `RequiredForOnline = no`: with no other networkd link,
+      # wait-online times out and fails. dhcpcd already gates network-online.
+      systemd.network.wait-online.enable = lib.mkIf (!config.networking.useNetworkd) false;
+
       # Proxy ARP answers on the LAN for the guests' `/32` routes, which only
       # exist on the taps: the zone reaches a guest without a bridge.
       boot.kernel.sysctl = {
