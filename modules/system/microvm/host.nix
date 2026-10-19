@@ -48,6 +48,13 @@ in
   config = lib.optionalAttrs (options ? microvm.host) (
     lib.mkIf (guests != [ ]) {
 
+      # A guest builds its share sources and `space-init` its key path from its
+      # own `stateDir`: one value on each side, or virtiofsd finds no directory.
+      assertions = lib.mapAttrsToList (name: guest: {
+        assertion = guest.config.darkone.system.microvm.stateDir == cfg.stateDir;
+        message = "${host.hostname}: microVM guest `${name}` must keep its hypervisor's `darkone.system.microvm.stateDir` (${cfg.stateDir}).";
+      }) microvmGuests;
+
       # `vms.<name>.autostart` defaults to true: every guest boots with the host.
       # `restartIfChanged` defaults to false with `evaluatedConfig`: without it
       # a deploy installs a changed guest but leaves the old one running.
