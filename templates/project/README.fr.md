@@ -34,7 +34,8 @@ git add -A && git commit -m "…"
 ```
 
 > [!IMPORTANT]
-> Commitez avant de construire : Nix ne voit que les fichiers suivis par git.
+> Nix ne voit que les fichiers suivis par git : `git add` tout nouveau fichier
+> avant de construire. Le commit, lui, garde l'historique du réseau.
 
 ## Étapes suivantes
 

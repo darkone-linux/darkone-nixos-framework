@@ -34,7 +34,8 @@ git add -A && git commit -m "…"
 ```
 
 > [!IMPORTANT]
-> Commit before you build: Nix only sees the files git tracks.
+> Nix only sees the files git tracks: `git add` any new file before you build.
+> Commits keep the history of the network.
 
 ## Next steps
 
