@@ -33,9 +33,20 @@ in
     home.packages = space.packages;
 
     # Always on: a member's own `programs.mcp.servers` joins the space's.
+    # `secretEnv`: file refs, read at server start (HM command wrapper).
     programs.mcp = {
       enable = true;
-      servers = space.mcp;
+      servers = lib.mapAttrs (
+        name: server:
+        removeAttrs server [ "secretEnv" ]
+        // {
+          env =
+            server.env
+            // lib.genAttrs server.secretEnv (var: {
+              file = osConfig.sops.secrets."mcp/${name}/${var}".path;
+            });
+        }
+      ) space.mcp;
     };
 
     # Same native binary as `darkone.home.ai`.

@@ -143,6 +143,12 @@ rec {
       pattern = "openclaw-gateway-password";
       gen = "hex32";
     }
+
+    # MCP server credentials of an AI space (`secretEnv`): a provider's key.
+    {
+      pattern = "mcp/[^/]+/[^/]+";
+      gen = "external";
+    }
     {
       pattern = "alertmanager-webhook-secret";
       gen = "hex32";

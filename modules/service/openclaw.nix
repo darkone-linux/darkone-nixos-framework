@@ -123,6 +123,28 @@ let
   # OpenClaw rejects null or empty fields its schema types otherwise.
   compact = lib.filterAttrs (_: v: v != null && v != [ ] && v != { });
 
+  # MCP secrets (`secretEnv`): one gateway env file for every server, hence a
+  # name per server; uppercase, the only form `${VAR}` substitutes.
+  mcpEnvName = server: var: lib.toUpper "MCP_${lib.replaceStrings [ "-" ] [ "_" ] server}_${var}";
+  mcpSecrets = lib.concatLists (
+    lib.mapAttrsToList (
+      server: s:
+      map (var: {
+        env = mcpEnvName server var;
+        key = "mcp/${server}/${var}";
+      }) s.secretEnv
+    ) space.mcp
+  );
+  mcpServers = lib.mapAttrs (
+    server: s:
+    compact (
+      removeAttrs s [ "secretEnv" ]
+      // {
+        env = s.env // lib.genAttrs s.secretEnv (var: "\${${mcpEnvName server var}}");
+      }
+    )
+  ) space.mcp;
+
   # One directory per skill (`<name>/SKILL.md`), real files: OpenClaw checks
   # symlink targets. A string is inline content, anything else a path.
   skillsDir = pkgs.runCommand "openclaw-space-skills" { } (
@@ -507,7 +529,7 @@ in
             # What `openclaw agents set-identity` would write: the config is
             # read-only, the identity is declared here.
             (lib.mkIf (compact cfg.identity != { }) { agents.entries.main.identity = compact cfg.identity; })
-            (lib.mkIf (space.mcp != { }) { mcp.servers = lib.mapAttrs (_: compact) space.mcp; })
+            (lib.mkIf (space.mcp != { }) { mcp.servers = mcpServers; })
             (lib.mkIf (space.skills != { }) { skills.load.extraDirs = [ "${skillsDir}" ]; })
             (lib.mkIf cfg.transcription.enable transcriptionConfig)
           ];
@@ -565,7 +587,8 @@ in
           ''
           + lib.optionalString hasMatrix ''
             ${tokenEnv}=${config.sops.placeholder.openclaw-matrix-token}
-          '';
+          ''
+          + lib.concatMapStrings (s: "${s.env}=${config.sops.placeholder.${s.key}}\n") mcpSecrets;
           owner = "openclaw";
         };
 

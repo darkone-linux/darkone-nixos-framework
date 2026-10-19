@@ -101,6 +101,20 @@ in
     expected = "hex32";
   };
 
+  # A provider's key: never invented, one level per server and variable.
+  testClassifySpaceMcpSecretIsExternal = {
+    expr = map classifySecret [
+      "mcp/github/GITHUB_PERSONAL_ACCESS_TOKEN"
+      "mcp/github"
+      "mcp/a/b/c"
+    ];
+    expected = [
+      "external"
+      null
+      null
+    ];
+  };
+
   testClassifyAlertWebhookIsGenerated = {
     expr = classifySecret "alertmanager-webhook-secret";
     expected = "hex32";

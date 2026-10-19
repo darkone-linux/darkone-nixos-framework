@@ -17,13 +17,20 @@
 # ```nix
 # darkone.host.ai-space = {
 #   mcp.fetch = { command = "uvx"; args = [ "mcp-server-fetch" ]; };
+#   mcp.github = {
+#     command = "github-mcp-server";
+#     args = [ "stdio" ];
+#     secretEnv = [ "GITHUB_PERSONAL_ACCESS_TOKEN" ]; # sops: mcp/github/<VAR>
+#   };
 #   skills.commit-style = ./skills/commit-style;
-#   packages = [ pkgs.uv pkgs.pandoc ];
+#   packages = [ pkgs.uv pkgs.pandoc pkgs.github-mcp-server ];
 # };
 # ```
 #
-# :::caution[No secrets in MCP declarations]
-# `env` and `headers` end up in the world-readable Nix store.
+# :::caution[Secrets: `secretEnv` only]
+# `env` and `headers` end up in the world-readable Nix store. `secretEnv`
+# reads the space's sops file, for local servers: a remote server takes no
+# secret.
 # :::
 
 { lib, config, ... }:
@@ -48,6 +55,15 @@ let
         type = types.attrsOf types.str;
         default = { };
         description = "Environment of a local server (no secrets: Nix store).";
+      };
+      secretEnv = mkOption {
+        type = types.listOf (types.strMatching "[A-Za-z_][A-Za-z0-9_]*");
+        default = [ ];
+        example = [ "GITHUB_TOKEN" ];
+        description = ''
+          Secret environment of a local server: each variable read from the
+          space's sops file, key `mcp/<server>/<VAR>` (`just space-sops <host>`).
+        '';
       };
       url = mkOption {
         type = types.nullOr types.str;
@@ -107,5 +123,46 @@ in
     # Services of `host.services` are triggered by the server profile.
     darkone.host.server.enable = true;
     darkone.system.sops.isolated = lib.mkDefault true;
+
+    # Members (group `users`) read them through Home Manager, OpenClaw through
+    # its env file.
+    sops.secrets = lib.listToAttrs (
+      lib.concatLists (
+        lib.mapAttrsToList (
+          name: server:
+          map (
+            var:
+            lib.nameValuePair "mcp/${name}/${var}" {
+              group = "users";
+              mode = "0440";
+            }
+          ) server.secretEnv
+        ) cfg.mcp
+      )
+    );
+
+    # Here rather than in a member's home: the space fails, named, even without
+    # members.
+    assertions = lib.concatLists (
+      lib.mapAttrsToList (name: server: [
+        {
+          assertion = (server.command != null) != (server.url != null);
+          message = "darkone.host.ai-space.mcp.${name}: set exactly one of `command` (local) or `url` (remote).";
+        }
+        {
+          assertion =
+            server.url == null || (server.args == [ ] && server.env == { } && server.secretEnv == [ ]);
+          message = "darkone.host.ai-space.mcp.${name}: `args`, `env` and `secretEnv` are for a local server (`command`).";
+        }
+        {
+          assertion = server.headers == { } || server.url != null;
+          message = "darkone.host.ai-space.mcp.${name}: `headers` is for a remote server (`url`).";
+        }
+        {
+          assertion = server.secretEnv == [ ] || builtins.match "[A-Za-z0-9_-]+" name != null;
+          message = "darkone.host.ai-space.mcp.${name}: a server with `secretEnv` needs a name of letters, digits, `-` and `_` (sops key, env name).";
+        }
+      ]) cfg.mcp
+    );
   };
 }
