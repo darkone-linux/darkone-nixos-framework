@@ -70,7 +70,7 @@ let
       printf '\r\e[K'
 
       if [ -z "$route" ]; then
-        printf '\nNo route to the Internet, run dnf-netinfo once connected.\n'
+        printf '\nNo route to the Internet: plug a cable in, or nmtui for Wi-Fi.\n'
         exit 0
       fi
 
@@ -104,15 +104,35 @@ let
     "\n" + "printf '\\nFirst host of a new network: darkone new\\n'"
   );
 
-  # tty1 of the generic image runs the assistant once a route exists: it needs
-  # the binary cache. Ctrl-C in it, or any other console, gives a shell. Once
-  # per boot (`mkdir` marker): `sudo -i` on tty1 is a login shell too.
+  # tty1 of the generic image: `darkone new` once a route exists, the binary
+  # cache needs it. Until then a cable is picked up by itself, Enter opens
+  # nmtui for Wi-Fi. Ctrl-C, or any other console, gives a shell.
+  assistant = pkgs.writeShellApplication {
+    name = "dnf-assistant";
+    runtimeInputs = [
+      installer.darkone
+      pkgs.iproute2
+      config.networking.networkmanager.package
+    ];
+    text = ''
+      online() { ip -4 route get 1.1.1.1 >/dev/null 2>&1; }
+      if ! online; then
+        printf '\nWaiting for the network: plug a cable in, or press Enter for Wi-Fi.\n'
+        until online; do
+          if read -r -t 5; then
+            nmtui connect || true
+          fi
+        done
+      fi
+      darkone new
+    '';
+  };
+
+  # Once per boot (`mkdir` marker): `sudo -i` on tty1 is a login shell too.
   launchAssistant = lib.optionalString (installer != null) (
     "/dev/tty1)\n"
     + "    ${lib.getExe netinfo} --welcome\n"
-    + "    ${pkgs.coreutils}/bin/mkdir /tmp/dnf-assistant 2>/dev/null"
-    + " && ${pkgs.iproute2}/bin/ip -4 route get 1.1.1.1 >/dev/null 2>&1"
-    + " && ${installer.darkone}/bin/darkone new\n"
+    + "    ${pkgs.coreutils}/bin/mkdir /tmp/dnf-assistant 2>/dev/null && ${lib.getExe assistant}\n"
     + "    ;;\n  "
   );
 in
