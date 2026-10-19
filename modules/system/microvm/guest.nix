@@ -48,6 +48,11 @@ in
         # sd_notify over vsock: `microvm@` turns active once the guest is up,
         # so a deploy reports a guest that fails to boot.
         vsock.cid = link.cid;
+
+        # Writable layer: enables nix-daemon, needed by Home Manager activation
+        # and agents' `nix shell`. tmpfs: the Nix db is rebuilt at each boot
+        # anyway (upstream caveat), so built paths are lost with it.
+        writableStoreOverlay = "/nix/.rw-store";
         interfaces = [
           {
             type = "tap";
@@ -73,6 +78,11 @@ in
       # Root is a tmpfs: the host key, hence the sops identity, lives on
       # `/persist`. The infra key never enters a guest: own secrets file only.
       darkone.system.sops.isolated = lib.mkDefault true;
+
+      # Store reset at each boot: optimise is unsupported on the overlay
+      # (microvm.nix assertion), GC would only scan the hypervisor's store.
+      nix.optimise.automatic = lib.mkForce false;
+      nix.gc.automatic = lib.mkForce false;
       services.openssh.hostKeys = [
         {
           path = hostKey;
