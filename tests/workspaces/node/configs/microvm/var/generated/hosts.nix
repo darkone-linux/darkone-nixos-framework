@@ -20,7 +20,9 @@
         tags = [ "zone-z1" ];
       };
     };
-    services = { };
+    services = {
+      homepage = { };
+    };
   }
   {
     hostname = "hv1";
@@ -67,6 +69,10 @@
         ];
       };
     };
-    services = { };
+    services = {
+      openclaw = {
+        title = "Test assistant";
+      };
+    };
   }
 ]

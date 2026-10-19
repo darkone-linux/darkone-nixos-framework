@@ -107,6 +107,9 @@
     # SearXNG HTTP. modules/service/searx.nix
     searx = 8283;
 
+    # OpenClaw gateway (upstream default), AI spaces. modules/service/openclaw.nix
+    openclaw = 18789;
+
     # Kanidm HTTPS (IdM, reverse-proxy target). modules/service/idm.nix
     kanidm = 8443;
 

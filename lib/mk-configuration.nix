@@ -24,6 +24,7 @@ let
     disko
     nixos-raspberrypi
     talon-nix
+    nix-openclaw
     ;
 
   # home-manager state version of every home. Hosts freeze theirs in
@@ -86,6 +87,10 @@ let
   # `pkgs.talon` from nix-community/talon-nix, x86_64 only (absent elsewhere),
   # for UMI (multimodal input) host profiles.
   talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
+
+  # `pkgs.openclaw-gateway` from openclaw/nix-openclaw, for AI spaces. Lazy:
+  # fetched only by a host running the service.
+  openclawOverlay = import ./overlays/openclaw.nix { inherit nix-openclaw; };
 
   # Temporary: `pkgs.opencode`/`pkgs.opencode-desktop` pinned to 1.18.29, as
   # 1.18.30 crashes on every prompt. Drop once a fix lands in `nixos-unstable`.
@@ -231,6 +236,7 @@ let
             outlineOverlay
             (talonOverlay system)
             (opencodeOverlay system)
+            (openclawOverlay system)
           ];
         }
 
@@ -311,6 +317,11 @@ let
       ++ nixpkgs.lib.optional (
         getMicrovmGuests hosts host.hostname != [ ]
       ) inputs.microvm.nixosModules.host
+
+      # OpenClaw gateway module (`services.openclaw-gateway`): AI spaces only.
+      ++ nixpkgs.lib.optional (
+        (host.profile or null) == "ai-space"
+      ) nix-openclaw.nixosModules.openclaw-gateway
 
       # `not-detected.nix`: what `nixos-generate-config` imports. Deduplicated
       # by path when `hardware-configuration.nix` imports it too.

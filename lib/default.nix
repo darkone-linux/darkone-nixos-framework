@@ -59,6 +59,7 @@ in
     getMicrovmGuests
     mkMicrovmLink
     spaceGroup
+    spaceMembers
     mkSpaceGroups
     ;
   inherit (paths) resolveProfile resolveNixosProfile;

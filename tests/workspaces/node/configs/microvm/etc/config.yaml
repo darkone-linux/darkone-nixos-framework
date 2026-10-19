@@ -1,7 +1,7 @@
 # node variant: a gateway, a hypervisor and an AI space microVM guest.
 # Exercises `darkone.system.microvm` (guest and hypervisor sides), the
-# `ai-space` host profile and isolated sops. Evaluated only (eval-all): no
-# nested VM boot.
+# `ai-space` host profile, isolated sops and the OpenClaw service. Evaluated
+# only (eval-all): no nested VM boot.
 
 network:
   domain: "test.local"
@@ -45,6 +45,8 @@ hosts:
     name: "Test gateway"
     zone: "z1:1.1"
     profile: "gateway"
+    services:
+      homepage: {}
 
   - hostname: "hv1"
     name: "Test hypervisor"
@@ -57,3 +59,6 @@ hosts:
     profile: "ai-space"
     features: ["microvm-guest:hv1"]
     users: ["darkone"]
+    services:
+      openclaw:
+        title: "Test assistant"

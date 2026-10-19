@@ -78,6 +78,7 @@
     ./service/nextcloud.nix
     ./service/nfs.nix
     ./service/nix-cache.nix
+    ./service/openclaw.nix
     ./service/outline.nix
     ./service/oxicloud.nix
     ./service/postfix.nix

@@ -120,6 +120,7 @@ rec {
     forgejo = "forgejo.service";
     vaultwarden = "vaultwarden.service";
     jellyfin = "jellyfin.service";
+    openclaw = "openclaw-gateway.service";
     adguardhome = "adguardhome.service";
     grafana = "grafana.service";
     immich = "immich-server.service";

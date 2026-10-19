@@ -21,7 +21,19 @@
     sender = "Test <noreply@test.local>";
     tls = true;
   };
-  services = [ ];
+  services = [
+    {
+      name = "homepage";
+      host = "gw1";
+      zone = "z1";
+    }
+    {
+      name = "openclaw";
+      host = "space1";
+      zone = "z1";
+      title = "Test assistant";
+    }
+  ];
   zones = {
     www = {
       description = "www network zone";
@@ -30,7 +42,10 @@
       locale = "en_US.UTF-8";
       timezone = "Etc/UTC";
       name = "www";
-      tls-builder-hosts = [ ];
+      tls-builder-hosts = [
+        "homepage.z1.test.local"
+        "openclaw.z1.test.local"
+      ];
       external-hosts = [ ];
     };
     z1 = {
@@ -62,7 +77,9 @@
         server = [ ];
         host-record = [
           "gw1,gw1.z1.test.local,10.10.1.1"
+          "homepage,homepage.z1.test.local,10.10.1.1"
           "hv1,hv1.z1.test.local,10.10.1.2"
+          "openclaw,openclaw.z1.test.local,10.10.1.1"
           "space1,space1.z1.test.local,10.10.1.40"
         ];
       };

@@ -295,6 +295,20 @@ in
     expr = dnfLib.spaceGroup "ia-pro";
     expected = "space-ia-pro";
   };
+  testSpaceMembers = {
+    expr = dnfLib.spaceMembers {
+      hostname = "ia-pro";
+      users = [
+        "nix"
+        "alice"
+      ];
+    };
+    expected = [ "alice" ];
+  };
+  testSpaceMembersNoUsers = {
+    expr = dnfLib.spaceMembers { hostname = "ia-pro"; };
+    expected = [ ];
+  };
   testMkSpaceGroups = {
     expr = dnfLib.mkSpaceGroups [
       {

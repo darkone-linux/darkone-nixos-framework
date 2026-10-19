@@ -135,6 +135,9 @@
     externalAccess = true;
     activation.profiles.minimal.triggers.keys.nextcloud = [ "enable" ];
   };
+  openclaw = {
+    activation.profiles.minimal.triggers.keys.openclaw = [ "enable" ];
+  };
   outline = {
     externalAccess = true;
     activation.profiles.minimal.triggers.keys.outline = [ "enable" ];

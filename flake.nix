@@ -117,6 +117,11 @@
     # per host by `lib/mk-configuration.nix`, like the RPi board modules.
     microvm.url = "github:microvm-nix/microvm.nix";
     microvm.inputs.nixpkgs.follows = "nixpkgs";
+
+    # OpenClaw assistant of an AI space: gateway package and its modules.
+    nix-openclaw.url = "github:openclaw/nix-openclaw";
+    nix-openclaw.inputs.nixpkgs.follows = "nixpkgs";
+    nix-openclaw.inputs.home-manager.follows = "home-manager";
   };
 
   #----------------------------------------------------------------------------
