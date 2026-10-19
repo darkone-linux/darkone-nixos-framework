@@ -428,10 +428,12 @@ install-key host:
 # `yes`: `yes` skips the confirmation, already asked by `darkone new`.
 # `luks`: file holding the passphrase of an encrypted layout, typed at each
 # boot; it becomes the shared `luks-passphrase` of the fleet.
+# `cache`, `cacheKey`: an extra binary cache and its public key, for this
+# install only (the new system does not keep it).
 #
 # Install this very machine as the admin host (from the DNF installer)
 [group('install')]
-install-here host login hash='' yes='' luks='':
+install-here host login hash='' yes='' luks='' cache='' cacheKey='':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	root=/mnt
@@ -496,8 +498,14 @@ install-here host login hash='' yes='' luks='':
 	"${git[@]}" add -A
 	"${git[@]}" diff --cached --quiet || "${git[@]}" commit -q -m "chore(install): admin host {{host}}"
 
+	# Unreachable cache: Nix warns and falls back on cache.nixos.org.
+	nixOpts=()
+	if [ -n '{{cache}}' ] ;then
+		nixOpts+=(--option extra-substituters '{{cache}}')
+		[ -z '{{cacheKey}}' ] || nixOpts+=(--option extra-trusted-public-keys '{{cacheKey}}')
+	fi
 	just _log "Installing {{host}}..." "INSTALL"
-	sudo nixos-install --flake "{{workDir}}#{{host}}" --root "$root" --no-root-password --no-channel-copy
+	sudo nixos-install --flake "{{workDir}}#{{host}}" --root "$root" --no-root-password --no-channel-copy "${nixOpts[@]}"
 
 	# `dnf/` links a framework tree of this live system's store: copied too, or
 	# every recipe of the new system would point at nothing.

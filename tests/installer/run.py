@@ -283,6 +283,7 @@ def install_interactive(vm):
         ("Network domain \\(definitive\\)", DOMAIN + ENTER),
         ("Name of this machine", ENTER),
         ("Encrypt the disk\\?", ENTER),
+        ("Extra package cache", ENTER),
         ("Disk passphrase", PASSPHRASE + ENTER),
         ("Disk passphrase, again", PASSPHRASE + ENTER),
         ("and install\\?", LEFT + ENTER),
