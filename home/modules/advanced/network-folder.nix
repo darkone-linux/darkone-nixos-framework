@@ -20,15 +20,22 @@ let
 
   # Added once, after gnome-shell seeded its own folders: a dconf value set
   # before would stop that seeding, and rewrite the user's folders at each
-  # activation. Empty list = shell not seeded yet, next login.
+  # activation. Not seeded within 10 s, or any error: next login.
   addFolder = pkgs.writeShellScript "dnf-network-folder" ''
+    set -eu
     marker="''${XDG_STATE_HOME:-$HOME/.local/state}/dnf/network-folder"
     [ ! -e "$marker" ] || exit 0
     gsettings=${pkgs.glib}/bin/gsettings
-    children="$($gsettings get org.gnome.desktop.app-folders folder-children)"
+    for _ in $(${pkgs.coreutils}/bin/seq 20); do
+      children="$($gsettings get org.gnome.desktop.app-folders folder-children)"
+      case "$children" in
+        "" | "@as []" | "[]") ${pkgs.coreutils}/bin/sleep 0.5 ;;
+        *) break ;;
+      esac
+    done
     case "$children" in
+      "" | "@as []" | "[]") exit 0 ;;
       *"'dnf-network'"*) ;;
-      "@as []" | "[]") exit 0 ;;
       *) $gsettings set org.gnome.desktop.app-folders folder-children "''${children%]}, 'dnf-network']" ;;
     esac
     folder=org.gnome.desktop.app-folders.folder:/org/gnome/desktop/app-folders/folders/dnf-network/
