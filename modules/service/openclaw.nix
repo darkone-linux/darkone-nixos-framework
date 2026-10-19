@@ -311,7 +311,8 @@ in
         };
         description = ''
           Git repositories cloned once into `workspace/projects/<name>`, never
-          pulled. SSH remotes use the key of `openclaw` (`/var/lib/openclaw/.ssh`).
+          pulled. SSH remotes use the key of `openclaw` (`/var/lib/openclaw/.ssh`,
+          created by hand); the server key is accepted on first clone.
         '';
       };
 
@@ -461,7 +462,9 @@ in
           wantedBy = [ "multi-user.target" ];
           wants = [ "network-online.target" ];
           after = [ "network-online.target" ];
-          environment.GIT_SSH_COMMAND = "${pkgs.openssh}/bin/ssh";
+
+          # Non-interactive: an unknown server key would fail every first clone.
+          environment.GIT_SSH_COMMAND = "${pkgs.openssh}/bin/ssh -o StrictHostKeyChecking=accept-new";
           serviceConfig = {
             Type = "oneshot";
             RemainAfterExit = true;
