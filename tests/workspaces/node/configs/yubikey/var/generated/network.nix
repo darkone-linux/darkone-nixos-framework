@@ -61,8 +61,8 @@
         dhcp-range = [ "10.10.3.200,10.10.3.249,24h" ];
         server = [ ];
         host-record = [
-          "node1,node1.z1.test.local,10.10.1.1"
-          "server1,server1.z1.test.local,10.10.1.2"
+          "node1.z1.test.local,node1,10.10.1.1"
+          "server1.z1.test.local,server1,10.10.1.2"
         ];
       };
       roaming = { };

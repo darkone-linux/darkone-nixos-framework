@@ -52,7 +52,7 @@
         dhcp-host = [ ];
         dhcp-range = [ "10.10.3.200,10.10.3.249,24h" ];
         server = [ ];
-        host-record = [ "gw1,gw1.z1.test.local,10.10.1.1" ];
+        host-record = [ "gw1.z1.test.local,gw1,10.10.1.1" ];
       };
       roaming = { };
     };

@@ -76,11 +76,11 @@
         dhcp-range = [ "10.10.3.200,10.10.3.249,24h" ];
         server = [ ];
         host-record = [
-          "gw1,gw1.z1.test.local,10.10.1.1"
+          "gw1.z1.test.local,gw1,10.10.1.1"
+          "hv1.z1.test.local,hv1,10.10.1.2"
+          "space1.z1.test.local,space1,10.10.1.40"
           "homepage,homepage.z1.test.local,10.10.1.1"
-          "hv1,hv1.z1.test.local,10.10.1.2"
           "openclaw,openclaw.z1.test.local,10.10.1.1"
-          "space1,space1.z1.test.local,10.10.1.40"
         ];
       };
       roaming = { };

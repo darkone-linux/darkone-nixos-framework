@@ -57,9 +57,8 @@
       extraDnsmasqSettings = {
         dhcp-host = [ ];
         dhcp-range = [ "10.10.3.200,10.10.3.249,24h" ];
-        address = [ ];
         server = [ ];
-        host-record = [ "hcs,hcs.z1.test.local,10.10.1.5" ];
+        host-record = [ "hcs.z1.test.local,hcs,10.10.1.5" ];
       };
       roaming = { };
     };
@@ -87,9 +86,8 @@
       extraDnsmasqSettings = {
         dhcp-host = [ ];
         dhcp-range = [ "10.20.3.200,10.20.3.249,24h" ];
-        address = [ ];
         server = [ ];
-        host-record = [ "hcs,hcs.z1.test.local,10.10.1.5" ];
+        host-record = [ "hcs.z1.test.local,hcs,10.10.1.5" ];
       };
       roaming = { };
     };
