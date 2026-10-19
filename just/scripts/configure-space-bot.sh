@@ -2,8 +2,9 @@
 #
 # Idempotent provisioning of the Matrix bot of an AI space (OpenClaw channel).
 #
-# Run via `just space-bot <host>`, as `nix` with the admin age key. Same MAS
-# flow as `configure-alert-bot.sh`, without rooms (members talk to it in DM):
+# Last step of `just space-init <host>` on an openclaw space, as `nix` with the
+# admin age key. Same MAS flow as `configure-alert-bot.sh`, without rooms
+# (members talk to it in DM). No Matrix on the network: skipped, not an error.
 #  - bot account  : `@<host>:<domain>`, created once (`dnf-mas register-user`);
 #  - access token : reused while valid (whoami), else re-issued
 #                   (`dnf-mas issue-compatibility-token`); kept in the space's
@@ -41,7 +42,12 @@ gen() {
   nix eval --impure --raw --extra-experimental-features 'nix-command flakes' --expr "$1" 2>/dev/null || true
 }
 matrixHost="$(gen "let s = builtins.filter (x: x.name == \"matrix\") (import $workDir/var/generated/network.nix).services; in if s == [ ] then \"\" else (builtins.head s).host")"
-[ -n "$matrixHost" ] || die "matrix service not found in var/generated/network.nix — run 'just generate'."
+marker="$workDir/var/generated/spaces/$host.nix"
+if [ -z "$matrixHost" ] ;then
+  log "No matrix service on the network: no bot for $host."
+  [ ! -f "$marker" ] || log "Stale marker $marker ignored by the deploy: delete it (and openclaw-matrix-token with 'just space-sops $host')."
+  exit 0
+fi
 displayName="$(gen "let h = builtins.filter (x: x.hostname == \"$host\") (import $workDir/var/generated/hosts.nix); in if h == [ ] then \"\" else (builtins.head h).name or \"$host\"")"
 [ -n "$displayName" ] || die "$host not found in var/generated/hosts.nix — run 'just generate'."
 
@@ -96,5 +102,5 @@ cat > "$tmp" <<EOF
   matrixBot = "${bot}";
 }
 EOF
-sudo install -D -m 644 "$tmp" "$workDir/var/generated/spaces/$host.nix"
-log "Done: $BOT_USER ready. Commit var/generated/spaces/$host.nix and the secrets file, then deploy $host."
+sudo install -D -m 644 "$tmp" "$marker"
+log "$BOT_USER ready."

@@ -17,9 +17,10 @@
 # - port: reachable from the zone gateway only;
 # - state: `/var/lib/openclaw` (provider logins, sessions, workspace,
 #   Matrix E2EE keys);
-# - Matrix: DM channel with the bot `@<host>:<domain>`, members only, once
-#   `just space-bot <host>` has run (marker `var/generated/spaces/<host>.nix`,
-#   token in the space's sops file); exec approvals asked to members in DM.
+# - Matrix: DM channel with the bot `@<host>:<domain>`, members only, when the
+#   network has Matrix and `just space-init <host>` created the bot (marker
+#   `var/generated/spaces/<host>.nix`, token in the space's sops file); exec
+#   approvals asked to members in DM.
 #
 # :::note[Provider logins]
 # Once per space, from the host: `sudo -u openclaw openclaw models auth login
@@ -64,11 +65,13 @@ let
   # Identities as oauth2-proxy forwards them: the members' Kanidm e-mails.
   memberEmails = map (u: users.${u}.email) members;
 
-  # Matrix channel: on once the bot exists (`just space-bot`), so a deploy
-  # never asks sops for a token not yet issued.
+  # Matrix channel: on once the bot exists (`just space-init`), so a deploy
+  # never asks sops for a token not yet issued; off without a network Matrix,
+  # whatever a stale marker says.
   botFile = workDir + "/var/generated/spaces/${host.hostname}.nix";
   matrixBot = if builtins.pathExists botFile then (import botFile).matrixBot else null;
-  hasMatrix = matrixBot != null;
+  networkHasMatrix = lib.any (s: s.name == "matrix") network.services;
+  hasMatrix = matrixBot != null && networkHasMatrix;
   memberMxids = map (u: "@${u}:${network.domain}") members;
   tokenEnv = "OPENCLAW_MATRIX_TOKEN";
 

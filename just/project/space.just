@@ -6,10 +6,12 @@
 #
 # - host key: created on the hypervisor share of a microVM guest (its private
 #   half never leaves it), read over ssh from a bare metal host;
+# - Matrix bot, last, on a host running openclaw with a network Matrix:
+#   `@<host>:<domain>` (`configure-space-bot.sh`);
 # - idempotent: an existing host key or secret is never replaced; a changed
 #   host key re-encrypts the file for the new one.
 #
-# Initialize an isolated host: host key, own secrets file, internal secrets
+# Initialize an isolated host: host key, own secrets file, internal secrets, bot
 [group('space')]
 space-init host:
 	#!/usr/bin/env bash
@@ -77,7 +79,16 @@ space-init host:
 		0) just _info "Secrets already generated." "SPACE" ;;
 		*) just _log "$n secret(s) generated." "SPACE" ;;
 	esac
-	just _log "Commit usr/secrets/.sops.yaml and usr/secrets/hosts/{{host}}.*: flakes only see tracked files." "SPACE"
+
+	# Last: needs MAS on the matrix host, a failure leaves the above done.
+	openclaw=$(nix eval --json "{{workDir}}#nixosConfigurations.{{host}}.config.darkone.service.openclaw.enable")
+	if [ "$openclaw" = "true" ] ;then
+		WORKDIR="{{workDir}}" SPACE_HOST="{{host}}" SOPS_AGE_KEY_FILE={{sopsAdminKeyFile}} \
+			bash {{scriptsDir}}/configure-space-bot.sh
+	else
+		just _info "No openclaw service on {{host}}: no Matrix bot." "SPACE"
+	fi
+	just _log "Commit usr/secrets/.sops.yaml, usr/secrets/hosts/{{host}}.* and var/generated/spaces/: flakes only see tracked files." "SPACE"
 
 # Edit the secrets of an isolated host
 [group('space')]
@@ -89,21 +100,3 @@ space-sops host:
 	just _sops_before_edit
 	sudo -i -u nix EDITOR=vim sops "$file" || true
 	just _fix_fs_permissions
-
-# Matrix bot `@<host>:<domain>` for the OpenClaw channel: account and token
-# (kept in the space's sops file), then the marker that turns the channel on.
-#
-# Provision the Matrix bot of an AI space (idempotent)
-[group('space')]
-space-bot host:
-	#!/usr/bin/env bash
-	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just space-bot "{{host}}"
-	[[ "{{host}}" =~ ^[a-z0-9][a-z0-9-]*$ ]] || just _fail "Invalid hostname '{{host}}'."
-	[ -s {{sopsAdminKeyFile}} ] || just _fail "Admin age key not found ({{sopsAdminKeyFile}}). Run 'just configure-admin-host' first."
-
-	# Permissions restored even when the script fails.
-	just _sops_before_edit
-	trap 'just _fix_fs_permissions' EXIT
-	WORKDIR="{{workDir}}" SPACE_HOST="{{host}}" SOPS_AGE_KEY_FILE={{sopsAdminKeyFile}} \
-		bash {{scriptsDir}}/configure-space-bot.sh
