@@ -4,7 +4,8 @@
 # every profile, `scrcpy` and `scrcpy-console` when installed, Extensions for
 # non-technical profiles, and (`hideTechnicalIcons`) Settings, Printers and
 # File Roller for beginner / child profiles. `hiddenApps` (default: vim, btop,
-# htop) hides more, entries still launchable by id.
+# htop) hides more, entries still launchable by id (`gnome/hidden-apps.nix`,
+# shared with the UMI module).
 # `keepKeyring` opts the user out of the login keyring reset that follows an
 # admin password change (read by the NixOS gnome module).
 #
@@ -16,28 +17,12 @@
 {
   lib,
   config,
-  osConfig,
   pkgs,
   ...
 }:
 
 let
   cfg = config.darkone.home.gnome;
-
-  # Full copies with `NoDisplay` forced, as `umi.nix` does: launches by id
-  # and file associations keep working. An absent app gets a `Hidden` stub.
-  hiddenAppEntries = pkgs.runCommand "gnome-hidden-apps" { } ''
-    mkdir -p $out
-    for id in ${lib.escapeShellArgs cfg.hiddenApps} ; do
-      printf '[Desktop Entry]\nType=Application\nName=%s\nHidden=true\n' "$id" > "$out/$id"
-      for dir in ${osConfig.system.path}/share/applications ${config.home.path}/share/applications ; do
-        if [ -e "$dir/$id" ] ; then
-          sed -e '/^[[:blank:]]*NoDisplay=/d' -e '/^[[:blank:]]*\[Desktop Entry\]/a NoDisplay=true' "$dir/$id" > "$out/$id"
-          break
-        fi
-      done
-    done
-  '';
 in
 {
   options = {
@@ -58,11 +43,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-
-    # One file each: a recursive `applications/` would clash with `umi.nix`
-    xdg.dataFile = lib.genAttrs (map (id: "applications/${id}") cfg.hiddenApps) (name: {
-      source = "${hiddenAppEntries}/${lib.removePrefix "applications/" name}";
-    });
+    darkone.home.gnome.hiddenEntries = cfg.hiddenApps;
 
     # Hide xterm app
     home.file.".local/share/applications/xterm.desktop".text = ''

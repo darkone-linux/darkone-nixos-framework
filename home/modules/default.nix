@@ -10,6 +10,7 @@
     ./education.nix
     ./games.nix
     ./gnome.nix
+    ./gnome/hidden-apps.nix
     ./imagery.nix
     ./mime.nix
     ./music.nix

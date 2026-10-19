@@ -516,21 +516,6 @@ let
       };
     };
 
-  # Full copies with `NoDisplay` forced: a bare stub would also shadow the
-  # entry for launches by id and file associations. Leading blanks allowed,
-  # as GKeyFile does: talon-nix indents its whole entry.
-  hiddenAppEntries = pkgs.runCommand "umi-hidden-apps" { } ''
-    mkdir -p $out
-    for id in ${lib.escapeShellArgs cfg.hiddenApps} ; do
-      for dir in ${osConfig.system.path}/share/applications ${config.home.path}/share/applications ; do
-        if [ -e "$dir/$id" ] ; then
-          sed -e '/^[[:blank:]]*NoDisplay=/d' -e '/^[[:blank:]]*\[Desktop Entry\]/a NoDisplay=true' "$dir/$id" > "$out/$id"
-          break
-        fi
-      done
-    done
-  '';
-
   # Big cursor and text for gaze precision (~15-30 px). AT-SPI on from the
   # first login: Onboard's word prediction asks for it in a popup otherwise.
   interfaceSettings = {
@@ -1049,12 +1034,9 @@ in
       NoDisplay=true
     '';
 
-    # Hidden entries (cf. `hiddenAppEntries`), UMI host only: GNOME elsewhere
+    # Hidden entries (`gnome/hidden-apps.nix`), UMI host only: GNOME elsewhere
     # would lose them too, Nautilus being its only file manager.
-    home.file.".local/share/applications" = lib.mkIf (umiHost && cfg.hiddenApps != [ ]) {
-      source = hiddenAppEntries;
-      recursive = true;
-    };
+    darkone.home.gnome.hiddenEntries = lib.mkIf umiHost cfg.hiddenApps;
 
     # Application grid, its config read by any `rofi -show drun`
     programs.rofi = lib.mkIf rofiMenu {
