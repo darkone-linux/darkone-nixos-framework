@@ -23,6 +23,10 @@
   sops.age.keyFile = lib.mkForce "/etc/sops/age/infra.key";
   sops.age.generateKey = lib.mkForce false;
 
+  # Isolated host: no password hash by design, and standalone mode drops the
+  # `nix.pub` key that production deploys — credential-less in tests only.
+  users.allowNoPasswordLogin = lib.mkIf config.darkone.system.sops.isolated true;
+
   # `neededForUsers` secrets are installed right after `specialfs`, before the
   # `etc` snippet: an `environment.etc` key lands too late and the per-user
   # hashes stay undeployed. Placed by hand, ahead of it.

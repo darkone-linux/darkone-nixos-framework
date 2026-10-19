@@ -14,6 +14,7 @@
     ./graphic/supertuxkart.nix
     ./graphic/virt-manager.nix
     ./graphic/virtualbox.nix
+    ./mixin/host/ai-space.nix
     ./mixin/host/desktop.nix
     ./mixin/host/gateway.nix
     ./mixin/host/gateway/backup-links.nix
@@ -99,6 +100,9 @@
     ./system/hardware.nix
     ./system/i18n.nix
     ./system/luks.nix
+    ./system/microvm.nix
+    ./system/microvm/guest.nix
+    ./system/microvm/host.nix
     ./system/security.nix
     ./system/services.nix
     ./system/services/caddy.nix

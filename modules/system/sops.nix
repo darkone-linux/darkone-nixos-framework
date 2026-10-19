@@ -16,6 +16,13 @@
 # consume it, declared by the module that reads it. `default-password-hash`
 # stays in the encrypted file, unread by any host — it records the fleet
 # default password for `just passwd <login>`.
+#
+# :::caution[Isolated hosts]
+# `isolated = true` (default of the `ai-space` profile) points the host at
+# its own `usr/secrets/hosts/<hostname>.yaml`, without the infra key: a host
+# running untrusted agents never holds the fleet secrets. No password hash
+# either, its accounts are SSH-key only.
+# :::
 
 {
   lib,
@@ -30,6 +37,7 @@ in
 {
   options = {
     darkone.system.sops.enable = lib.mkEnableOption "Enable sops automated configuration for DNF";
+    darkone.system.sops.isolated = lib.mkEnableOption "own secrets file, no infra key, no password hashes";
   };
 
   config = lib.mkIf cfg.enable {
@@ -37,23 +45,31 @@ in
     sops = {
 
       # Sops configuration
-      defaultSopsFile = workDir + "/usr/secrets/secrets.yaml";
+      defaultSopsFile =
+        if cfg.isolated then
+          workDir + "/usr/secrets/hosts/${host.hostname}.yaml"
+        else
+          workDir + "/usr/secrets/secrets.yaml";
       age = {
-        sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
-        keyFile = "/etc/sops/age/infra.key";
+
+        # `mkDefault`: a microVM guest keeps its host key on a persistent share.
+        sshKeyPaths = lib.mkDefault [ "/etc/ssh/ssh_host_ed25519_key" ];
+        keyFile = if cfg.isolated then null else "/etc/sops/age/infra.key";
         generateKey = false; # Key generated manually
       };
 
       # Users passwords. `neededForUsers` secrets are decrypted before the
       # users exist, so sops-nix rejects `owner`/`group`/`mode` on them —
       # they stay root-owned by construction.
-      secrets = builtins.listToAttrs (
-        map (login: {
-          name = "user/" + login + "/password-hash";
-          value = {
-            neededForUsers = true;
-          };
-        }) host.users
+      secrets = lib.optionalAttrs (!cfg.isolated) (
+        builtins.listToAttrs (
+          map (login: {
+            name = "user/" + login + "/password-hash";
+            value = {
+              neededForUsers = true;
+            };
+          }) host.users
+        )
       );
     };
   };

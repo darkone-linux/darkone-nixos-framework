@@ -55,6 +55,9 @@ in
     mkNodeArgs
     rpiBoards
     rpiBoardModules
+    getMicrovmHypervisor
+    getMicrovmGuests
+    mkMicrovmLink
     ;
   inherit (paths) resolveProfile resolveNixosProfile;
   inherit (nixTools) pickForNix matchesNix;

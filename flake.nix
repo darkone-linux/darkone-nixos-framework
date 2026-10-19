@@ -111,6 +111,12 @@
     # (e.g. `darkone.host.umi` in arthur-network).
     talon-nix.url = "github:nix-community/talon-nix";
     talon-nix.inputs.nixpkgs.follows = "nixpkgs";
+
+    # MicroVM guests (cloud-hypervisor): one per AI space, on the hypervisor
+    # named by the guest's `microvm-guest:<host>` feature. Modules imported
+    # per host by `lib/mk-configuration.nix`, like the RPi board modules.
+    microvm.url = "github:microvm-nix/microvm.nix";
+    microvm.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   #----------------------------------------------------------------------------

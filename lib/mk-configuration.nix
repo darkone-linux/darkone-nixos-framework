@@ -49,6 +49,8 @@ let
   inherit (hiveLib)
     getHostArch
     getHostBoard
+    getMicrovmHypervisor
+    getMicrovmGuests
     mkNodeArgs
     rpiBoards
     rpiBoardModules
@@ -170,13 +172,21 @@ let
     inherit nixos-raspberrypi;
   });
 
+  # `microvmGuests`: evaluated systems of the guests a hypervisor runs (lazy,
+  # a guest never reads its hypervisor), empty elsewhere.
   mkNodeSpecialArgs = host: {
     name = host.hostname;
     value = mkNodeArgs {
       inherit host hosts network;
-      extraArgs = commonNodeArgsFor.${getHostArch host};
+      extraArgs = commonNodeArgsFor.${getHostArch host} // {
+        microvmGuests = nixpkgs.lib.genAttrs (getMicrovmGuests hosts host.hostname) (
+          guest: consumerNixosConfigurations.${guest}
+        );
+      };
     };
   };
+
+  isMicrovmGuest = host: getMicrovmHypervisor hosts host != null;
 
   nodeSpecialArgs = builtins.listToAttrs (map mkNodeSpecialArgs hosts);
 
@@ -295,6 +305,13 @@ let
         rpiBoardModules nixos-raspberrypi (getHostBoard host)
       )
 
+      # MicroVM: guest module on a `microvm-guest:<host>` host, host module on
+      # the hypervisor it names. Gated on the inventory, like the RPi boards.
+      ++ nixpkgs.lib.optional (isMicrovmGuest host) inputs.microvm.nixosModules.microvm
+      ++ nixpkgs.lib.optional (
+        getMicrovmGuests hosts host.hostname != [ ]
+      ) inputs.microvm.nixosModules.host
+
       # `not-detected.nix`: what `nixos-generate-config` imports. Deduplicated
       # by path when `hardware-configuration.nix` imports it too.
       ++ nixpkgs.lib.optional hasMachineDir (
@@ -388,7 +405,9 @@ let
       targetUser = "nix";
     };
   }
-  // builtins.listToAttrs (map mkHost hosts);
+
+  # MicroVM guests are deployed by their hypervisor, not by colmena.
+  // builtins.listToAttrs (map mkHost (builtins.filter (host: !(isMicrovmGuest host)) hosts));
 
   # Standalone nixosSystem evaluations (built by nixos-rebuild / nix build).
   consumerNixosConfigurations = builtins.mapAttrs (
@@ -471,11 +490,16 @@ in
 
   # Plan of `just configure-admin-host` (`just/scripts/generate-secrets.sh`).
   # Each host's `sops.secrets` is the authority on which secrets exist; `key`
-  # addresses the YAML, so aliases collapse onto their source entry.
+  # addresses the YAML, so aliases collapse onto their source entry. Isolated
+  # hosts are left out: their secrets never go to the shared file.
   secretsPlan = dnfLibFor.x86_64-linux.mkSecretPlan (
-    nixpkgs.lib.concatMap (
-      node: map (secret: secret.key) (nixpkgs.lib.attrValues node.config.sops.secrets)
-    ) (nixpkgs.lib.attrValues consumerNixosConfigurations)
+    nixpkgs.lib.concatMap
+      (node: map (secret: secret.key) (nixpkgs.lib.attrValues node.config.sops.secrets))
+      (
+        builtins.filter (node: !node.config.darkone.system.sops.isolated) (
+          nixpkgs.lib.attrValues consumerNixosConfigurations
+        )
+      )
   );
 
   devShells = forAllSystems (system: {

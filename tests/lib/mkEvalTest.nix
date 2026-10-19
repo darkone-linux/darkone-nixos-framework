@@ -23,21 +23,23 @@ let
         { nixpkgs.hostPlatform = nodeDef.system; }
         ./test-tuning.nix
 
-        {
-
-          # Eval-only (drvPath, never built/booted): a real host gets these
-          # from its hardware/disko profile, the VM tier from qemu-vm. Stub
-          # at `mkDefault` priority so disko-aware hosts (which define their
-          # own fileSystems via the disko module) win the merge cleanly.
-          fileSystems."/" = {
-            device = lib.mkDefault "/dev/vda";
-            fsType = lib.mkDefault "ext4";
+        # Eval-only (drvPath, never built/booted): a real host gets these
+        # from its hardware/disko profile, the VM tier from qemu-vm. Stub
+        # at `mkDefault` priority so disko-aware hosts (which define their
+        # own fileSystems via the disko module) win the merge cleanly. A
+        # microVM guest has its own tmpfs root, at the same priority.
+        ({ options, ... }: {
+          config = lib.optionalAttrs (!(options ? microvm.guest)) {
+            fileSystems."/" = {
+              device = lib.mkDefault "/dev/vda";
+              fsType = lib.mkDefault "ext4";
+            };
+            fileSystems."/boot" = {
+              device = lib.mkDefault "/dev/vda1";
+              fsType = lib.mkDefault "vfat";
+            };
           };
-          fileSystems."/boot" = {
-            device = lib.mkDefault "/dev/vda1";
-            fsType = lib.mkDefault "vfat";
-          };
-        }
+        })
       ];
     }).config.system.build.toplevel.drvPath;
 

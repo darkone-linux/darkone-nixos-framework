@@ -22,6 +22,30 @@ let
     mockHostArm
   ];
 
+  # MicroVM inventory: `hv` runs `guest`; `bare` carries the feature without
+  # value, which the generator fills with the zone name.
+  mockHypervisor = {
+    hostname = "hv";
+    zone = "lan";
+    ip = "10.1.1.2";
+  };
+  mockGuest = {
+    hostname = "guest";
+    zone = "lan";
+    ip = "10.1.1.40";
+    features.microvm-guest = "hv";
+  };
+  mockBareGuest = {
+    hostname = "bare";
+    zone = "lan";
+    ip = "10.1.1.41";
+    features.microvm-guest = "lan";
+  };
+  mockMicrovmHosts = [
+    mockHypervisor
+    mockGuest
+  ];
+
   # Minimal stand-in for the nixos-raspberrypi flake (only the attrs read by
   # rpiBoardModules), with sentinel values to assert selection/order.
   mockRpi = {
@@ -209,5 +233,58 @@ in
         extraArgs.network = "overridden";
       }).network;
     expected = "overridden";
+  };
+
+  # getMicrovmHypervisor
+  testGetMicrovmHypervisorNone = {
+    expr = dnfLib.getMicrovmHypervisor mockMicrovmHosts mockHypervisor;
+    expected = null;
+  };
+  testGetMicrovmHypervisorGuest = {
+    expr = dnfLib.getMicrovmHypervisor mockMicrovmHosts mockGuest;
+    expected = "hv";
+  };
+
+  # Bare feature: its zone-name value matches no host.
+  testGetMicrovmHypervisorBareThrows = {
+    expr = (builtins.tryEval (dnfLib.getMicrovmHypervisor mockMicrovmHosts mockBareGuest)).success;
+    expected = false;
+  };
+  testGetMicrovmHypervisorSelfThrows = {
+    expr =
+      (builtins.tryEval (
+        dnfLib.getMicrovmHypervisor mockMicrovmHosts (mockHypervisor // { features.microvm-guest = "hv"; })
+      )).success;
+    expected = false;
+  };
+
+  # getMicrovmGuests
+  testGetMicrovmGuestsHypervisor = {
+    expr = dnfLib.getMicrovmGuests mockMicrovmHosts "hv";
+    expected = [ "guest" ];
+  };
+  testGetMicrovmGuestsNone = {
+    expr = dnfLib.getMicrovmGuests mockMicrovmHosts "guest";
+    expected = [ ];
+  };
+
+  # mkMicrovmLink — tap + MAC from the zone IP
+  testMkMicrovmLink = {
+    expr = dnfLib.mkMicrovmLink mockGuest;
+    expected = {
+      tap = "vm-1-40";
+      mac = "02:00:0a:01:01:28";
+    };
+  };
+  testMkMicrovmLinkMaxOctets = {
+    expr = dnfLib.mkMicrovmLink (mockGuest // { ip = "10.255.255.255"; });
+    expected = {
+      tap = "vm-255-255";
+      mac = "02:00:0a:ff:ff:ff";
+    };
+  };
+  testMkMicrovmLinkNoIpThrows = {
+    expr = (builtins.tryEval (dnfLib.mkMicrovmLink (removeAttrs mockGuest [ "ip" ]))).success;
+    expected = false;
   };
 }

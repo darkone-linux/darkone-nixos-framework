@@ -7,6 +7,7 @@
   workspaces = [
     ../workspaces/node/configs/_smoke
     ../workspaces/node/configs/gateway-backup-links
+    ../workspaces/node/configs/microvm
     ../workspaces/node/configs/server-forgejo
     ../workspaces/node/configs/server-geneweb
     ../workspaces/node/configs/server-immich

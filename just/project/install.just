@@ -147,6 +147,15 @@ push-key host target='auto':
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just push-key "{{host}}" "{{target}}"
 	t=$(just _resolve "{{host}}" "{{target}}")
 	just _check_infra_admin
+
+	# An isolated host (`darkone.system.sops.isolated`) reads untrusted input:
+	# never the infra key, whichever recipe (install, configure, rotate) calls.
+	isolated=$(nix eval --json "{{workDir}}#nixosConfigurations.{{host}}.config.darkone.system.sops.isolated" 2>/dev/null) \
+		|| just _fail "Cannot evaluate {{host}}: infra key not pushed."
+	if [ "$isolated" = "true" ] ;then
+		just _info "{{host}} is isolated: infra key not pushed." "SOPS"
+		exit 0
+	fi
 	just _log "Pushing infra key file..." "SOPS"
 	ssh nix@"$t" 'sudo mkdir -p {{sopsInfraTargetDir}}'
 	ssh nix@"$t" 'sudo chown -R nix {{sopsInfraTargetDir}}'

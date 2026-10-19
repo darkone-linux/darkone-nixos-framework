@@ -24,6 +24,30 @@ let
 
   known = names: lib.concatStringsSep ", " (lib.sort (a: b: a < b) names);
 
+  # Hypervisor of a microVM guest (`features: ["microvm-guest:<host>"]`), or
+  # null. A bare feature defaults its value to the zone name, not a hostname:
+  # the value is checked against the inventory.
+  getMicrovmHypervisor =
+    hosts: host:
+    let
+      name = (host.features or { }).microvm-guest or null;
+      candidates = map (h: h.hostname) (lib.filter (h: h.hostname != host.hostname) hosts);
+    in
+    if name == null then
+      null
+    else
+      lib.throwIf (!lib.elem name candidates)
+        "DNF: `${host.hostname}`: feature `microvm-guest:${name}` names no other host (syntax: `microvm-guest:<hypervisor-hostname>`)."
+        name;
+
+  # Two-digit lowercase hex of a decimal IPv4 octet.
+  hexOctet =
+    octet:
+    let
+      hex = lib.toLower (lib.toHexString (lib.toInt octet));
+    in
+    if builtins.stringLength hex == 1 then "0${hex}" else hex;
+
   # `arch` (`cpu[:board]`, legacy `x86_64-linux` accepted) → system + board:
   #   null / "x86_64" → { system = "x86_64-linux"; board = null; }
   #   "aarch64:rpi5"  → { system = "aarch64-linux"; board = "raspberry-pi-5"; }
@@ -68,6 +92,29 @@ in
     nixos-raspberrypi.nixosModules.trusted-nix-caches
     nixos-raspberrypi.nixosModules.${board}.base
   ];
+
+  inherit getMicrovmHypervisor;
+
+  # Hostnames of the microVM guests a host runs (empty: not a hypervisor).
+  getMicrovmGuests =
+    hosts: hostname:
+    map (h: h.hostname) (lib.filter (h: getMicrovmHypervisor hosts h == hostname) hosts);
+
+  # Tap name and MAC of a guest, derived from its fixed zone IP: unique on the
+  # hypervisor, stable, no extra config key. Tap names cap at 15 chars
+  # (`vm-255-255` is 10). `02:` = locally administered unicast MAC.
+  mkMicrovmLink =
+    host:
+    let
+      ip = host.ip or null;
+      octets = lib.splitString "." ip;
+    in
+    lib.throwIf (ip == null)
+      "DNF: microVM guest `${host.hostname}` needs a fixed IP (`zone: \"<zone>:X.Y\"`)."
+      {
+        tap = "vm-${builtins.elemAt octets 2}-${builtins.elemAt octets 3}";
+        mac = "02:00:" + lib.concatMapStringsSep ":" hexOctet octets;
+      };
 
   # `specialArgs` of a host node: inventory, its zone, then `extraArgs`.
   mkNodeArgs =
