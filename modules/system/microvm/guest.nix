@@ -107,6 +107,14 @@ in
         ];
         networkConfig.DNS = [ zone.gateway.lan.ip ];
       };
+
+      # Zone resolver only: no compiled-in public fallback while the link has
+      # no DNS yet; no LLMNR/mDNS, unanswered on the tap (short names stall 4 s).
+      services.resolved.settings.Resolve = {
+        FallbackDNS = "";
+        LLMNR = false;
+        MulticastDNS = false;
+      };
     }
   );
 }
