@@ -64,6 +64,15 @@ in
         guest: map (dir: "d ${cfg.stateDir}/${guest.hostname}/${dir} 0755 root root -") shareDirs
       ) guests;
 
+      # Shares keep guest UIDs (a guest service = some hypervisor service) and
+      # a guest root can plant setuid files: root and the VMM (`microvm:kvm`)
+      # traverse, nobody else. Upstream default: 0775.
+      systemd.tmpfiles.settings."10-microvm" = lib.listToAttrs (
+        map (dir: lib.nameValuePair dir { d.mode = lib.mkForce "0770"; }) (
+          [ cfg.stateDir ] ++ map (guest: "${cfg.stateDir}/${guest.hostname}") guests
+        )
+      );
+
       # networkd for the taps only: dhcpcd keeps the uplink, so the LUKS initrd
       # unlock path is unchanged.
       systemd.network.enable = true;
