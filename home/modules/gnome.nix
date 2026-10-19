@@ -3,7 +3,8 @@
 # Hides launchers: the bare `xterm`, Qt5/Qt6 settings and NixOS manual for
 # every profile, `scrcpy` and `scrcpy-console` when installed, Extensions for
 # non-technical profiles, and (`hideTechnicalIcons`) Settings, Printers and
-# File Roller for beginner / child profiles.
+# File Roller for beginner / child profiles. `hiddenApps` (default: vim, btop,
+# htop) hides more, entries still launchable by id.
 # `keepKeyring` opts the user out of the login keyring reset that follows an
 # admin password change (read by the NixOS gnome module).
 #
@@ -15,21 +16,53 @@
 {
   lib,
   config,
+  osConfig,
   pkgs,
   ...
 }:
 
 let
   cfg = config.darkone.home.gnome;
+
+  # Full copies with `NoDisplay` forced, as `umi.nix` does: launches by id
+  # and file associations keep working. An absent app gets a `Hidden` stub.
+  hiddenAppEntries = pkgs.runCommand "gnome-hidden-apps" { } ''
+    mkdir -p $out
+    for id in ${lib.escapeShellArgs cfg.hiddenApps} ; do
+      printf '[Desktop Entry]\nType=Application\nName=%s\nHidden=true\n' "$id" > "$out/$id"
+      for dir in ${osConfig.system.path}/share/applications ${config.home.path}/share/applications ; do
+        if [ -e "$dir/$id" ] ; then
+          sed -e '/^[[:blank:]]*NoDisplay=/d' -e '/^[[:blank:]]*\[Desktop Entry\]/a NoDisplay=true' "$dir/$id" > "$out/$id"
+          break
+        fi
+      done
+    done
+  '';
 in
 {
   options = {
     darkone.home.gnome.enable = lib.mkEnableOption "Enable gnome settings for home manager";
     darkone.home.gnome.hideTechnicalIcons = lib.mkEnableOption "Hide some icons for beginners / children / babies";
     darkone.home.gnome.keepKeyring = lib.mkEnableOption "Keep the login keyring when the admin changes the session password (keyring with a password of its own)";
+    darkone.home.gnome.hiddenApps = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+
+      # Terminal programs: a launcher opening them in a terminal is noise
+      default = [
+        "btop.desktop"
+        "htop.desktop"
+        "vim.desktop"
+      ];
+      description = "Desktop entries hidden from the app grid, still launchable by id";
+    };
   };
 
   config = lib.mkIf cfg.enable {
+
+    # One file each: a recursive `applications/` would clash with `umi.nix`
+    xdg.dataFile = lib.genAttrs (map (id: "applications/${id}") cfg.hiddenApps) (name: {
+      source = "${hiddenAppEntries}/${lib.removePrefix "applications/" name}";
+    });
 
     # Hide xterm app
     home.file.".local/share/applications/xterm.desktop".text = ''
