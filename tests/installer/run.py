@@ -280,6 +280,14 @@ def install_interactive(vm):
         vm.type(keys)
     log("Installing...")
     vm.expect("USB stick for the backup", timeout=5400)
+
+    # "Skip for now", declined: back to the choice, then the stick.
+    time.sleep(0.5)
+    vm.type(DOWN + DOWN + ENTER)
+    vm.expect("Skip the backup\\?")
+    time.sleep(0.5)
+    vm.type(ENTER)
+    vm.expect("USB stick for the backup")
     time.sleep(0.5)
     vm.type(ENTER)
     vm.expect("Unplug the USB stick", timeout=300)
