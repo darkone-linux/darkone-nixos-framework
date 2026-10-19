@@ -218,7 +218,7 @@ in
           no-dhcp-interface = "lo";
 
           # Key leases on the MAC address, never on the DHCP client identifier
-          # (option 61). An install ISO (dhcpcd) and the installed system
+          # (option 61). An install ISO (NetworkManager) and the installed system
           # (networkd) advertise different identifiers for the same NIC:
           # dnsmasq would see two machines and hand out two addresses, so a
           # freshly installed host silently changed IP at its first real boot.

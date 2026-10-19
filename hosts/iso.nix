@@ -212,7 +212,9 @@ in
         "flakes"
       ];
     };
-    networking.useDHCP = lib.mkForce true;
+
+    # Network: NetworkManager of `installation-device.nix`, alone (its own
+    # `useDHCP = false`): a dhcpcd beside it would hold the same NIC.
     networking.hostName = "dnf-install";
     services.openssh.enable = true;
 
