@@ -90,6 +90,12 @@ in
     expected = "external";
   };
 
+  # Issued by `just space-bot`, same reason.
+  testClassifySpaceBotTokenIsExternal = {
+    expr = classifySecret "openclaw-matrix-token";
+    expected = "external";
+  };
+
   testClassifyAlertWebhookIsGenerated = {
     expr = classifySecret "alertmanager-webhook-secret";
     expected = "hex32";

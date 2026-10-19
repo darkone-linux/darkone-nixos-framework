@@ -131,6 +131,12 @@ rec {
       pattern = "alertmanager-matrix-(token|password)";
       gen = "external";
     }
+
+    # AI space bot: same MAS flow, by `just space-bot <host>`.
+    {
+      pattern = "openclaw-matrix-token";
+      gen = "external";
+    }
     {
       pattern = "alertmanager-webhook-secret";
       gen = "hex32";

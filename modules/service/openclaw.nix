@@ -15,7 +15,11 @@
 # - devices: a member's browser is paired on first visit, without operator
 #   admin (granted from the host CLI only);
 # - port: reachable from the zone gateway only;
-# - state: `/var/lib/openclaw` (provider logins, sessions, workspace).
+# - state: `/var/lib/openclaw` (provider logins, sessions, workspace,
+#   Matrix E2EE keys);
+# - Matrix: DM channel with the bot `@<host>:<domain>`, members only, once
+#   `just space-bot <host>` has run (marker `var/generated/spaces/<host>.nix`,
+#   token in the space's sops file); exec approvals asked to members in DM.
 #
 # :::note[Provider logins]
 # Once per space, from the host: `sudo -u openclaw openclaw models auth login
@@ -33,6 +37,7 @@
   zone,
   network,
   users,
+  workDir,
   ...
 }:
 let
@@ -54,8 +59,51 @@ let
     exec ${pkgs.openclaw-gateway}/bin/openclaw "$@"
   '';
 
+  members = lib.filter (u: users ? ${u}) (dnfLib.spaceMembers host);
+
   # Identities as oauth2-proxy forwards them: the members' Kanidm e-mails.
-  memberEmails = map (u: users.${u}.email) (lib.filter (u: users ? ${u}) (dnfLib.spaceMembers host));
+  memberEmails = map (u: users.${u}.email) members;
+
+  # Matrix channel: on once the bot exists (`just space-bot`), so a deploy
+  # never asks sops for a token not yet issued.
+  botFile = workDir + "/var/generated/spaces/${host.hostname}.nix";
+  matrixBot = if builtins.pathExists botFile then (import botFile).matrixBot else null;
+  hasMatrix = matrixBot != null;
+  memberMxids = map (u: "@${u}:${network.domain}") members;
+  tokenEnv = "OPENCLAW_MATRIX_TOKEN";
+
+  matrixConfig = {
+    plugins = {
+      load.paths = [ "${pkgs.openclaw-runtime-plugin-matrix}" ];
+      entries.matrix.enabled = true;
+    };
+    channels.matrix = {
+      enabled = true;
+      homeserver = "https://matrix.${network.domain}";
+      userId = "@${matrixBot}:${network.domain}";
+      accessToken = {
+        source = "env";
+        provider = "default";
+        id = tokenEnv;
+      };
+      encryption = true;
+
+      # Joins any invite, answers members only (DMs and rooms).
+      autoJoin = "always";
+      dm = {
+        enabled = true;
+        policy = "allowlist";
+        allowFrom = memberMxids;
+      };
+      groupPolicy = "allowlist";
+      groupAllowFrom = memberMxids;
+      execApprovals = {
+        enabled = true;
+        approvers = memberMxids;
+        target = "dm";
+      };
+    };
+  };
 in
 {
   options = {
@@ -137,6 +185,31 @@ in
               };
             };
           };
+        };
+      }
+    ))
+
+    #------------------------------------------------------------------------
+    # Matrix channel
+    #------------------------------------------------------------------------
+
+    (lib.optionalAttrs (options ? services.openclaw-gateway) (
+      lib.mkIf (cfg.enable && hasMatrix) {
+
+        # sops-nix files are symlinks, which OpenClaw's file provider rejects:
+        # the token reaches it as an environment variable.
+        sops.secrets.openclaw-matrix-token = { };
+        sops.templates."openclaw-gateway.env" = {
+          content = "${tokenEnv}=${config.sops.placeholder.openclaw-matrix-token}\n";
+          owner = "openclaw";
+        };
+
+        services.openclaw-gateway = {
+          environmentFiles = [ config.sops.templates."openclaw-gateway.env".path ];
+
+          # Plugins by store path: the persisted registry would shadow them.
+          environment.OPENCLAW_DISABLE_PERSISTED_PLUGIN_REGISTRY = "1";
+          config = matrixConfig;
         };
       }
     ))

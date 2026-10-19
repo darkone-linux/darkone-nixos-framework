@@ -88,3 +88,19 @@ space-sops host:
 	just _sops_before_edit
 	sudo -i -u nix EDITOR=vim sops "$file" || true
 	just _fix_fs_permissions
+
+# Matrix bot `@<host>:<domain>` for the OpenClaw channel: account and token
+# (kept in the space's sops file), then the marker that turns the channel on.
+#
+# Provision the Matrix bot of an AI space (idempotent)
+[group('space')]
+space-bot host:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just space-bot "{{host}}"
+	[[ "{{host}}" =~ ^[a-z0-9][a-z0-9-]*$ ]] || just _fail "Invalid hostname '{{host}}'."
+	[ -s {{sopsAdminKeyFile}} ] || just _fail "Admin age key not found ({{sopsAdminKeyFile}}). Run 'just configure-admin-host' first."
+	just _sops_before_edit
+	WORKDIR="{{workDir}}" SPACE_HOST="{{host}}" SOPS_AGE_KEY_FILE={{sopsAdminKeyFile}} \
+		bash {{scriptsDir}}/configure-space-bot.sh
+	just _fix_fs_permissions

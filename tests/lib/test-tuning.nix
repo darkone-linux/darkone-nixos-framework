@@ -7,7 +7,11 @@
 # import it into a plain `nixosSystem`; VM sizing lives in the VM helpers.
 # :::
 
-{ lib, config, ... }: {
+{ lib, config, ... }:
+let
+  secrets = lib.attrValues config.sops.secrets;
+in
+{
 
   # Seam: skip workDir-only bits + neutralize headscale/tailscale.
   darkone.test.standalone = true;
@@ -37,7 +41,12 @@
         install -m 0400 ${../fixtures/keys/test-infra.age} /etc/sops/age/infra.key
       '';
     }
-    (lib.mkIf (config.sops.secrets != { }) { setupSecretsForUsers.deps = [ "testSopsKey" ]; })
+    (lib.mkIf (lib.any (s: s.neededForUsers) secrets) {
+      setupSecretsForUsers.deps = [ "testSopsKey" ];
+    })
+
+    # Isolated host: no password hash, so no `setupSecretsForUsers` to hook.
+    (lib.mkIf (lib.any (s: !s.neededForUsers) secrets) { setupSecrets.deps = [ "testSopsKey" ]; })
   ];
 
   # Provide the self-signed cert fixture for scenarios that need TLS.
