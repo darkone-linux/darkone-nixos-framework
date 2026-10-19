@@ -20,7 +20,7 @@
 # - state: `/var/lib/openclaw` (provider logins, sessions, workspace,
 #   Matrix E2EE keys);
 # - owner (`owner`, default: the only member): its subscription runs the
-#   agent, it approves commands and gets proactive messages;
+#   agent, it gets approval requests and proactive messages;
 # - Matrix: DM channel with the bot `@<host>:<domain>`, members only, rooms
 #   ignored, one session per member when several, when the network has
 #   Matrix and `just space-init <host>` created the bot (marker
@@ -41,6 +41,12 @@
 #   projects.notes = "git@forge.example.com:alice/notes.git";
 # };
 # ```
+#
+# :::caution[Commands run without approval]
+# `tools.exec` left at OpenClaw's default (`full`, ask `off`): the agent runs
+# any command as `openclaw`, the space's tokens within reach. The microVM is
+# the boundary; an approval request only comes from an explicit policy.
+# :::
 #
 # :::note[Members trust each other]
 # One gateway, one operator domain: every member's UI shows every session,
@@ -251,7 +257,7 @@ in
         example = "alice";
         description = ''
           Member owning the space: its subscription logs the agent in
-          (`model`), it approves commands and receives proactive messages.
+          (`model`), it receives approval requests and proactive messages.
           Required with several members (`users` order is not kept).
         '';
       };
