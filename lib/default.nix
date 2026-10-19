@@ -60,6 +60,8 @@ in
     mkMicrovmLink
     spaceGroup
     spaceMembers
+    isSpaceHost
+    isSpaceMember
     mkSpaceGroups
     ;
   inherit (paths) resolveProfile resolveNixosProfile;

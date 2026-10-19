@@ -52,6 +52,8 @@ let
     getHostBoard
     getMicrovmHypervisor
     getMicrovmGuests
+    isSpaceHost
+    isSpaceMember
     mkNodeArgs
     rpiBoards
     rpiBoardModules
@@ -292,7 +294,7 @@ let
             backupFileExtension = "bkp";
             overwriteBackup = true;
 
-            users = builtins.listToAttrs (map mkHome host.users);
+            users = builtins.listToAttrs (map (mkHome host) host.users);
 
             extraSpecialArgs = mkNodeArgs {
               inherit host hosts network;
@@ -319,9 +321,7 @@ let
       ) inputs.microvm.nixosModules.host
 
       # OpenClaw gateway module (`services.openclaw-gateway`): AI spaces only.
-      ++ nixpkgs.lib.optional (
-        (host.profile or null) == "ai-space"
-      ) nix-openclaw.nixosModules.openclaw-gateway
+      ++ nixpkgs.lib.optional (isSpaceHost host) nix-openclaw.nixosModules.openclaw-gateway
 
       # `not-detected.nix`: what `nixos-generate-config` imports. Deduplicated
       # by path when `hardware-configuration.nix` imports it too.
@@ -357,28 +357,51 @@ let
   prodNodes = mkNodes { forTest = false; };
 
   # Home-manager wiring for one user login
-  mkHome = login: {
-    name = login;
-    value = {
-      imports = [
+  mkHome =
+    host: login:
+    let
+      userDir = workDir + "/usr/users/${login}";
 
-        # Framework-side home-manager modules
-        ../home
-
-        # Consumer-side home overlay + per-user customizations
-        (workDir + "/usr/home")
-        (workDir + "/usr/users/${login}")
-
-        # By path, not `import`: module errors then name the profile file.
-        (resolveProfile users.${login}.profile)
+      # On an AI space, a member's workstation setup stays out: light profile,
+      # then the user's optional overrides, every space then this one.
+      spaceImports = [
+        ../home/profiles/space-member
+      ]
+      ++ builtins.filter builtins.pathExists [
+        (userDir + "/space.nix")
+        (userDir + "/spaces/${host.hostname}.nix")
       ];
-      home = {
-        username = login;
-        homeDirectory = nixpkgs.lib.mkDefault "/home/${login}";
-        stateVersion = nixpkgs.lib.mkDefault unstableStateVersion;
+    in
+    {
+      name = login;
+      value = {
+        imports = [
+
+          # Framework-side home-manager modules
+          ../home
+
+          # Consumer-side home overlay
+          (workDir + "/usr/home")
+        ]
+        ++ (
+          if isSpaceMember host login then
+            spaceImports
+          else
+            [
+
+              # Per-user customizations, then the profile. By path, not
+              # `import`: module errors then name the profile file.
+              userDir
+              (resolveProfile users.${login}.profile)
+            ]
+        );
+        home = {
+          username = login;
+          homeDirectory = nixpkgs.lib.mkDefault "/home/${login}";
+          stateVersion = nixpkgs.lib.mkDefault unstableStateVersion;
+        };
       };
     };
-  };
 
   # One Colmena host descriptor, derived from the shared node definition.
   mkHost = host: {

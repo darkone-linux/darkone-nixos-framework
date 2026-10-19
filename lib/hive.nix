@@ -32,6 +32,12 @@ let
   # account the generator adds everywhere).
   spaceMembers = host: lib.remove "nix" (host.users or [ ]);
 
+  isSpaceHost = host: (host.profile or null) == "ai-space";
+
+  # A member's account on its space is light: no sudo, `space-member` home
+  # instead of its own profile (`lib/mk-configuration.nix`).
+  isSpaceMember = host: login: isSpaceHost host && lib.elem login (spaceMembers host);
+
   # Hypervisor of a microVM guest (`features: ["microvm-guest:<host>"]`), or
   # null. A bare feature defaults its value to the zone name, not a hostname:
   # the value is checked against the inventory.
@@ -126,16 +132,19 @@ in
         cid = lib.toInt (builtins.elemAt octets 2) * 256 + lib.toInt (builtins.elemAt octets 3) + 3;
       };
 
-  inherit spaceGroup spaceMembers;
+  inherit
+    spaceGroup
+    spaceMembers
+    isSpaceHost
+    isSpaceMember
+    ;
 
   # One members list per `ai-space` host, keyed by its group (no Linux
   # account implied).
   mkSpaceGroups =
     hosts:
     lib.listToAttrs (
-      map (h: lib.nameValuePair (spaceGroup h.hostname) (spaceMembers h)) (
-        lib.filter (h: (h.profile or null) == "ai-space") hosts
-      )
+      map (h: lib.nameValuePair (spaceGroup h.hostname) (spaceMembers h)) (lib.filter isSpaceHost hosts)
     );
 
   # `specialArgs` of a host node: inventory, its zone, then `extraArgs`.

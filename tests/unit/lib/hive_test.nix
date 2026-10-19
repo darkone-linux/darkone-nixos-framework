@@ -309,6 +309,42 @@ in
     expr = dnfLib.spaceMembers { hostname = "ia-pro"; };
     expected = [ ];
   };
+  testIsSpaceHost = {
+    expr = map dnfLib.isSpaceHost [
+      { profile = "ai-space"; }
+      { profile = "server"; }
+      { }
+    ];
+    expected = [
+      true
+      false
+      false
+    ];
+  };
+  testIsSpaceMember = {
+    expr =
+      let
+        space = {
+          profile = "ai-space";
+          users = [
+            "nix"
+            "alice"
+          ];
+        };
+      in
+      [
+        (dnfLib.isSpaceMember space "alice")
+        (dnfLib.isSpaceMember space "nix")
+        (dnfLib.isSpaceMember space "bob")
+        (dnfLib.isSpaceMember (space // { profile = "server"; }) "alice")
+      ];
+    expected = [
+      true
+      false
+      false
+      false
+    ];
+  };
   testMkSpaceGroups = {
     expr = dnfLib.mkSpaceGroups [
       {

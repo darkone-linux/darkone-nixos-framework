@@ -23,6 +23,7 @@
   pkgs,
   users,
   userNixosProfiles,
+  dnfLib,
   workDir,
   ...
 }:
@@ -47,6 +48,14 @@ let
       # A user is disabled iff it carries `disabled = true`; absent or false
       # means active (cf. config.yaml).
       disabled = user.disabled or false;
+
+      # An AI space member gets no rights from its profile (wheel, ...): sudo
+      # would expose the other members' homes and the space's provider tokens.
+      nixosProfile =
+        if dnfLib.isSpaceMember host login then
+          ../../home/nixos/minimal.nix
+        else
+          userNixosProfiles.${login};
 
       # Common to every declared account (UID and file ownership preserved
       # even when disabled, cf. R30/R53).
@@ -84,7 +93,7 @@ let
             (lib.optionalAttrs (builtins.pathExists authorizedKeysFile) {
               openssh.authorizedKeys.keyFiles = [ authorizedKeysFile ];
             })
-            (import userNixosProfiles.${login} {
+            (import nixosProfile {
               inherit
                 pkgs
                 lib
