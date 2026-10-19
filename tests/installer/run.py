@@ -345,6 +345,7 @@ def check_installed(dir, usb, ports, key, encrypted):
         if ("crypt" in crypt) != encrypted:
             raise Failure(f"disk encryption: expected {encrypted}, lsblk says {crypt}")
         log(f"Installed system: running, no failed unit, /etc/nixos clean, encrypted={encrypted}.")
+        check_admin_desktop(ports[0], key)
         collect_garbage(ports[0], key)
         backup_again(ports[0], key)
         ssh(ports[0], key, "nix", "sudo systemctl poweroff", check=False)
@@ -352,6 +353,27 @@ def check_installed(dir, usb, ports, key, encrypted):
         vm.stop(timeout=0)
         raise
     vm.stop()
+
+
+def check_admin_desktop(port, key):
+    """What the new admin finds: project on `main`, README in their language,
+    Ghostty and the Local network folder, Zed allowed on the emulated GPU."""
+    run = lambda cmd: ssh(port, key, "nix", cmd).stdout.strip()
+    branch = run("git -C /etc/nixos branch --show-current")
+    if branch != "main":
+        raise Failure(f"/etc/nixos is on branch {branch!r}, not main")
+    title = run("head -1 /etc/nixos/README.md")
+    french = "LANG=fr_" in run("cat /etc/locale.conf")
+    if title != ("# Votre réseau DNF" if french else "# Your DNF network"):
+        raise Failure(f"README.md title {title!r}, locale french={french}")
+    run("test ! -e /etc/nixos/README.fr.md")
+    login = run("getent passwd 1000 | cut -d: -f1")
+    run(f"test -x /etc/profiles/per-user/{login}/bin/ghostty")
+    run(f"test ! -e /etc/profiles/per-user/{login}/bin/gimp")
+    run(f"test -e /etc/profiles/per-user/{login}/share/applications/dnf-network-sources.desktop")
+    run(f"sudo test -e ~{login}/.config/autostart/dnf-network-folder.desktop")
+    run("grep -q ZED_ALLOW_EMULATED_GPU /etc/pam/environment")
+    log(f"Admin desktop: branch main, README ({'fr' if french else 'en'}), Ghostty, network folder, Zed on a VM.")
 
 
 def collect_garbage(port, key):
