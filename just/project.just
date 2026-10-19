@@ -18,6 +18,7 @@ import 'project/luks.just'
 import 'project/manage.just'
 import 'project/roaming.just'
 import 'project/secrets.just'
+import 'project/space.just'
 
 # Project-specific param: the repo-side gitignore path for secrets.
 secretsGitIgnore := secretsDir + '/.gitignore'

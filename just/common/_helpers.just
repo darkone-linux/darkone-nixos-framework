@@ -41,9 +41,11 @@ _fix_fs_permissions:
 	# Consumer project only: secrets file lives under usr/secrets/ and needs
 	# world-read for the nix build sandbox. Absent in framework-standalone mode,
 	# and until `just configure-admin-host` has run on a fresh workspace.
-	if [ -f "{{sopsSecretsFile}}" ]; then
-		sudo chmod 644 {{sopsSecretsFile}}
-	fi
+	for f in "{{sopsSecretsFile}}" {{secretsDir}}/hosts/*.yaml; do
+		if [ -f "$f" ]; then
+			sudo chmod 644 "$f"
+		fi
+	done
 
 	# Infra key(s) live under /etc/sops/age, owned by the nix deploy user so
 	# the admin tooling can read them (root/sops-nix reads them regardless).

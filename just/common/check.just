@@ -26,7 +26,8 @@ check-code:
 
 # Check the main flake. Filter benign "unknown flake output" warnings for the
 # DNF non-standard outputs (colmena, colmenaHive, homeManagerModules,
-# libTests, mkNodes, secretsPlan); any *other* unknown output stays visible.
+# libTests, mkNodes, secretsPlan, hostSecretsPlans); any *other* unknown
+# output stays visible.
 # sed (vs. grep -v) always exits 0, which keeps pipefail honest about nix's
 # real exit status.
 #
@@ -37,4 +38,4 @@ check-flake:
 	set -euo pipefail
 	just _log "Checking flake configuration (wait)..." "CHECK"
 	{{nix}} flake check --quiet 2>&1 \
-	  | sed -E "/^warning: unknown flake output '(colmena|colmenaHive|homeManagerModules|libTests|mkNodes|secretsPlan|version)'\$/d"
+	  | sed -E "/^warning: unknown flake output '(colmena|colmenaHive|homeManagerModules|libTests|mkNodes|secretsPlan|hostSecretsPlans|version)'\$/d"

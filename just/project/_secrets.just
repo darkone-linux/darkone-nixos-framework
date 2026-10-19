@@ -16,9 +16,11 @@ _sops_before_edit:
 	if [ -d {{secretsDir}} ] ;then
 		sudo chown -R nix {{secretsDir}}
 	fi
-	if [ -f {{sopsSecretsFile}} ] ;then
-		sudo chmod 600 {{sopsSecretsFile}}
-	fi
+	for f in {{sopsSecretsFile}} {{secretsDir}}/hosts/*.yaml ;do
+		if [ -f "$f" ] ;then
+			sudo chmod 600 "$f"
+		fi
+	done
 
 # Generate every internal secret the fleet declares (idempotent, silent when
 # there is nothing to create).
@@ -46,6 +48,10 @@ _gen-secrets:
 # SSH-derived age key plus the infra key(s). During a rotation both the new
 # (.cur) and previous (.old) infra keys are recipients; otherwise just the
 # single operational infra key.
+#
+# An isolated host (`hosts/<host>.pub`, written by `just space-init`) gets its
+# own rule, admin + host key, never the infra key. Listed first: sops applies
+# the first matching rule, and the fleet one also matches `hosts/<host>.yaml`.
 _regen-sops-yaml:
 	#!/usr/bin/env bash
 	set -euo pipefail
@@ -66,6 +72,14 @@ _regen-sops-yaml:
 	just _sops_before_edit
 	{
 		echo "creation_rules:"
+		for pub in {{secretsDir}}/hosts/*.pub ;do
+			[ -f "$pub" ] || continue
+			echo "  - path_regex: \"^hosts/$(basename "$pub" .pub)\\\\.yaml\$\""
+			echo "    key_groups:"
+			echo "    - age:"
+			echo "      - ${ADM_PUB}"
+			echo "      - $(cat "$pub")"
+		done
 		echo "  - path_regex: \"[^/]+\\\\.yaml\$\""
 		echo "    key_groups:"
 		echo "    - age:"

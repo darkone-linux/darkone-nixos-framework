@@ -15,6 +15,11 @@
 # re-encrypting refreshes the sops MAC and would leave a spurious git diff
 # behind on every run.
 #
+# An isolated host (`just space-init`) gets its own file and plan:
+#  - SECRETS_FILE: encrypted file (default `usr/secrets/secrets.yaml`);
+#  - SECRETS_PLAN: flake attribute of the plan (default `secretsPlan`);
+#  - SECRETS_EDIT: command named in the reports (default `just sops`).
+#
 # Contract:
 #  - stderr: one `- new secret: <id>` line per created entry, plus warnings;
 #  - stdout: the number of created entries, or `skip` when the fleet cannot be
@@ -24,7 +29,9 @@ set -euo pipefail
 umask 077
 
 workDir="${WORKDIR:-$PWD}"
-secrets="$workDir/usr/secrets/secrets.yaml"
+secrets="${SECRETS_FILE:-$workDir/usr/secrets/secrets.yaml}"
+plan="${SECRETS_PLAN:-secretsPlan}"
+edit="${SECRETS_EDIT:-just sops}"
 
 # Same rendering as the `_warn` / `_err` recipes of just/common/_helpers.just.
 warn() { printf '[ \033[1;36mDNF\033[0m ] \033[1;33mWRN\033[0m • %s\n' "$*" >&2; }
@@ -71,7 +78,7 @@ cleanup() {
 trap cleanup EXIT
 
 if ! nix --extra-experimental-features 'nix-command flakes' eval --json \
-  "$workDir#secretsPlan" >"$work/plan.json" 2>"$work/plan.err"; then
+  "$workDir#$plan" >"$work/plan.json" 2>"$work/plan.err"; then
   warn "Fleet not evaluable — internal secrets skipped:"
   cat "$work/plan.err" >&2
   echo skip
@@ -200,7 +207,7 @@ while IFS=$'\t' read -r gen unitKeys; do
   # A half-present bundle means someone replaced one member by hand: a fresh
   # certificate would no longer match the stored key. Report, never guess.
   if [ "$present" -gt 0 ]; then
-    warn "Incomplete '$gen' secret group, missing ${missing[*]} — fix it with 'just sops'."
+    warn "Incomplete '$gen' secret group, missing ${missing[*]} — fix it with '$edit'."
     continue
   fi
   generateUnit "$gen" "${missing[@]}"
@@ -226,7 +233,7 @@ report() {
   return 0
 }
 
-report manual "Missing secret(s) DNF must not invent, set them with 'just sops':"
+report manual "Missing secret(s) DNF must not invent, set them with '$edit':"
 report unknown "Secret(s) unknown to the registry (dnf/lib/secrets.nix):"
 
 # An Argon2 hash set by hand makes `just invite` ask for the admin token. Left

@@ -409,6 +409,11 @@ let
   # MicroVM guests are deployed by their hypervisor, not by colmena.
   // builtins.listToAttrs (map mkHost (builtins.filter (host: !(isMicrovmGuest host)) hosts));
 
+  # Secrets plan inputs: the YAML keys a host declares, and whether they live
+  # in its own file (`darkone.system.sops.isolated`) or in the shared one.
+  secretKeysOf = node: map (secret: secret.key) (nixpkgs.lib.attrValues node.config.sops.secrets);
+  isIsolated = node: node.config.darkone.system.sops.isolated;
+
   # Standalone nixosSystem evaluations (built by nixos-rebuild / nix build).
   consumerNixosConfigurations = builtins.mapAttrs (
     _name: node:
@@ -493,14 +498,15 @@ in
   # addresses the YAML, so aliases collapse onto their source entry. Isolated
   # hosts are left out: their secrets never go to the shared file.
   secretsPlan = dnfLibFor.x86_64-linux.mkSecretPlan (
-    nixpkgs.lib.concatMap
-      (node: map (secret: secret.key) (nixpkgs.lib.attrValues node.config.sops.secrets))
-      (
-        builtins.filter (node: !node.config.darkone.system.sops.isolated) (
-          nixpkgs.lib.attrValues consumerNixosConfigurations
-        )
-      )
+    nixpkgs.lib.concatMap secretKeysOf (
+      builtins.filter (node: !(isIsolated node)) (nixpkgs.lib.attrValues consumerNixosConfigurations)
+    )
   );
+
+  # One plan per isolated host, for its own file (`just space-init <host>`).
+  hostSecretsPlans = builtins.mapAttrs (
+    _: node: dnfLibFor.x86_64-linux.mkSecretPlan (secretKeysOf node)
+  ) (nixpkgs.lib.filterAttrs (_: isIsolated) consumerNixosConfigurations);
 
   devShells = forAllSystems (system: {
     default = mkDevShell system;
