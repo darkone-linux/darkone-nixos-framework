@@ -46,7 +46,8 @@
 # :::caution[Commands run without approval]
 # `tools.exec` left at OpenClaw's default (`full`, ask `off`): the agent runs
 # any command as `openclaw`, the space's tokens within reach. The microVM is
-# the boundary; an approval request only comes from an explicit policy.
+# the boundary, the hardened unit a second wall (writes to the state only);
+# an approval request only comes from an explicit policy.
 # :::
 #
 # :::note[Members trust each other]
@@ -393,6 +394,33 @@ in
 
         # Delegated CLIs on the system PATH too: their logins run from a shell.
         environment.systemPackages = [ cli ] ++ agentTools;
+
+        # Agent commands run unapproved in this unit: second wall inside the
+        # guest, writes to the state only. No `MemoryDenyWriteExecute` (V8 JIT)
+        # nor syscall filter (agent tools vary). Checked: claude, codex, nix,
+        # git, whisper.
+        systemd.services.openclaw-gateway.serviceConfig = {
+          NoNewPrivileges = true;
+          PrivateTmp = true;
+          PrivateDevices = true;
+          ProtectHome = true;
+          ProtectSystem = "strict";
+          ReadWritePaths = [ stateDir ];
+          ProtectProc = "invisible";
+          ProtectKernelTunables = true;
+          ProtectKernelModules = true;
+          ProtectKernelLogs = true;
+          ProtectControlGroups = true;
+          ProtectClock = true;
+          ProtectHostname = true;
+          RestrictSUIDSGID = true;
+          RestrictRealtime = true;
+          LockPersonality = true;
+          RemoveIPC = true;
+          CapabilityBoundingSet = "";
+          SystemCallArchitectures = "native";
+          UMask = "0077";
+        };
         services.openclaw-gateway = {
           enable = true;
           package = pkgs.openclaw-gateway;
