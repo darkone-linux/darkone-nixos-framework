@@ -104,6 +104,12 @@ let
     "\n" + "printf '\\nFirst host of a new network: darkone new\\n'"
   );
 
+  # `just try`: the project pinned on this image's own framework (`path:`),
+  # unreleased code included, instead of the release of the template.
+  dnfUrlFlag = lib.optionalString (
+    (installer.dnfUrl or null) != null
+  ) " --dnf-url ${lib.escapeShellArg installer.dnfUrl}";
+
   # tty1 of the generic image: `darkone new` once a route exists, the binary
   # cache needs it. Until then a cable is picked up by itself, Enter opens
   # nmtui for Wi-Fi. Ctrl-C, or any other console, gives a shell.
@@ -124,7 +130,7 @@ let
           fi
         done
       fi
-      darkone new
+      darkone new${dnfUrlFlag}
     '';
   };
 

@@ -252,3 +252,24 @@ test-installer scenario='all' iso='':
 		iso=$(ls "$out"/iso/*.iso)
 	fi
 	{{nix}} run .#installer-test -- --iso "$iso" --scenario "{{scenario}}"
+
+# `#try` on this tree: the installer ISO in a QEMU window, the project it
+# writes pinned on this tree (`path:`), unreleased code included. Disk under
+# ~/.local/share/dnf-try-local. `generator`: a local dnf-generator checkout.
+#
+# Try this tree's installer in a VM window: keep or reset its disk
+[group('test')]
+try disk='keep' generator='':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	cd "{{invocation_directory()}}"
+	flags=()
+	if [ -n "{{generator}}" ]; then
+		flags=(--override-input dnf-generator "git+file://$(realpath "{{generator}}")" --no-write-lock-file)
+	fi
+	cd {{dnfDir}}
+	args=()
+	if [ "{{disk}}" = reset ]; then
+		args=(--reset)
+	fi
+	{{nix}} run "${flags[@]}" .#try-local -- "${args[@]}"

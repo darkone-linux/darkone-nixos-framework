@@ -149,12 +149,35 @@
 
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
+      # `darkone new` and the project template, where the generator builds
+      # (x86_64 only).
+      isoInstaller =
+        system:
+        if inputs.dnf-generator.packages ? ${system} then
+          {
+            darkone = inputs.dnf-generator.packages.${system}.default;
+            source = self;
+          }
+        else
+          null;
+
       # VM tools of the installer ISO (`tests/installer`), x86_64 only like it.
       installerTools =
         system:
+        let
+          iso = self.nixosConfigurations."iso-${system}";
+
+          # `just try`: the project of the assistant pinned on this tree.
+          localIso = iso.extendModules {
+            specialArgs.installer = isoInstaller system // {
+              dnfUrl = "path:${self}";
+            };
+          };
+        in
         import ./tests/installer {
           pkgs = nixpkgs.legacyPackages.${system};
-          iso = self.nixosConfigurations."iso-${system}".config.system.build.isoImage;
+          iso = iso.config.system.build.isoImage;
+          localIso = localIso.config.system.build.isoImage;
         };
 
     in
@@ -200,16 +223,7 @@
               # default and queries `_module.args.workDir`; inject it explicitly.
               workDir = null;
 
-              # `darkone new` and the project template, where the generator
-              # builds (x86_64 only).
-              installer =
-                if inputs.dnf-generator.packages ? ${system} then
-                  {
-                    darkone = inputs.dnf-generator.packages.${system}.default;
-                    source = self;
-                  }
-                else
-                  null;
+              installer = isoInstaller system;
               host = {
                 hostname = "new-dnf-host";
                 name = "New Darkone NixOS Framework";
@@ -296,6 +310,13 @@
             type = "app";
             meta.description = "Try DNF: the installer ISO in a QEMU window, disk kept between runs";
             program = nixpkgs.lib.getExe (installerTools system).try;
+          };
+
+          # `just try`: same, the project pinned on this tree, not the release.
+          try-local = {
+            type = "app";
+            meta.description = "Try this tree: the installer ISO in a QEMU window, project pinned on it";
+            program = nixpkgs.lib.getExe (installerTools system).tryLocal;
           };
         }
       );

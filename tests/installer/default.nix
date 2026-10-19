@@ -4,9 +4,15 @@
 # - `test`: `darkone new` end to end, scripted and interactive (`run.py`),
 #   `just test-installer` and the release CI;
 # - `try`: the ISO of this flake in a window, a persistent disk under
-#   `~/.local/share/dnf-try` (`nix run .#try`, `--reset` starts over).
+#   `~/.local/share/dnf-try` (`nix run .#try`, `--reset` starts over);
+# - `tryLocal`: same, project pinned on this tree, disk `dnf-try-local`
+#   (`just try`).
 
-{ pkgs, iso }:
+{
+  pkgs,
+  iso,
+  localIso,
+}:
 let
   vm = pkgs.writeShellApplication {
     name = "dnf-vm";
@@ -19,6 +25,24 @@ let
   };
 
   python = pkgs.python3.withPackages (p: [ p.pexpect ]);
+
+  mkTry =
+    { name, image }:
+    pkgs.writeShellApplication {
+      inherit name;
+      runtimeInputs = [
+        vm
+        pkgs.coreutils
+      ];
+      text = ''
+        state="''${XDG_DATA_HOME:-$HOME/.local/share}/${name}"
+        if [ "''${1:-}" = "--reset" ]; then
+          rm -rf "$state"
+        fi
+        echo "DNF installer VM, disk in $state (--reset starts over)."
+        exec dnf-vm --state "$state" --gui --iso ${image}/iso/*.iso
+      '';
+    };
 in
 {
   inherit vm;
@@ -38,19 +62,13 @@ in
     text = ''exec ${python}/bin/python3 ${./run.py} "$@"'';
   };
 
-  try = pkgs.writeShellApplication {
+  try = mkTry {
     name = "dnf-try";
-    runtimeInputs = [
-      vm
-      pkgs.coreutils
-    ];
-    text = ''
-      state="''${XDG_DATA_HOME:-$HOME/.local/share}/dnf-try"
-      if [ "''${1:-}" = "--reset" ]; then
-        rm -rf "$state"
-      fi
-      echo "DNF installer VM, disk in $state (--reset starts over)."
-      exec dnf-vm --state "$state" --gui --iso ${iso}/iso/*.iso
-    '';
+    image = iso;
+  };
+
+  tryLocal = mkTry {
+    name = "dnf-try-local";
+    image = localIso;
   };
 }
