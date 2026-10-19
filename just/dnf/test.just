@@ -256,6 +256,8 @@ test-installer scenario='all' iso='':
 # `#try` on this tree: the installer ISO in a QEMU window, the project it
 # writes pinned on this tree (`path:`), unreleased code included. Disk under
 # ~/.local/share/dnf-try-local. `generator`: a local dnf-generator checkout.
+# The store of this machine is the package cache of the install (nix-serve-ng
+# on 127.0.0.1:5000, 10.0.2.2:5000 from the VM).
 #
 # Try this tree's installer in a VM window: keep or reset its disk
 [group('test')]
@@ -271,5 +273,13 @@ try disk='keep' generator='':
 	args=()
 	if [ "{{disk}}" = reset ]; then
 		args=(--reset)
+	fi
+
+	# Paths already in this store are not downloaded again; they keep their
+	# cache.nixos.org signatures. A port already taken is taken for a cache.
+	if ! (exec 3<>/dev/tcp/127.0.0.1/5000) 2>/dev/null; then
+		{{nix}} run --inputs-from . nixpkgs#nix-serve-ng -- --host 127.0.0.1 --port 5000 --quiet &
+		serve=$!
+		trap 'kill "$serve"' EXIT
 	fi
 	{{nix}} run "${flags[@]}" .#try-local -- "${args[@]}"

@@ -167,10 +167,12 @@
         let
           iso = self.nixosConfigurations."iso-${system}";
 
-          # `just try`: the project of the assistant pinned on this tree.
+          # `just try`: the project of the assistant pinned on this tree, the
+          # store of QEMU's host (10.0.2.2) as its package cache.
           localIso = iso.extendModules {
             specialArgs.installer = isoInstaller system // {
               dnfUrl = "path:${self}";
+              cache = "http://10.0.2.2:5000";
             };
           };
         in
