@@ -27,6 +27,8 @@
 #   sops file); exec approvals asked to the owner in DM;
 # - agent tooling: MCP, skills, Claude Code / Codex and `packages` of the
 #   space (`darkone.host.ai-space`), shared with the members' homes;
+# - identity (`identity`: name, emoji, avatar): declared, the config being
+#   read-only (`openclaw agents set-identity` fails);
 # - workspace (`/var/lib/openclaw/workspace`): `workspace` files (AGENTS.md,
 #   SOUL.md...) replaced at each start, others left to the agent; `projects`
 #   git-cloned once into `projects/<name>`;
@@ -259,6 +261,26 @@ in
         '';
       };
 
+      identity = {
+        name = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          example = "Jarvis";
+          description = "Name of the assistant, shown in the UI.";
+        };
+        emoji = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          example = "🦉";
+          description = "Emoji of the assistant, shown in the UI.";
+        };
+        avatar = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          description = "Avatar image (URL or workspace-relative path).";
+        };
+      };
+
       workspace = lib.mkOption {
         type = lib.types.attrsOf (lib.types.either lib.types.lines lib.types.path);
         default = { };
@@ -410,6 +432,10 @@ in
               }
               // lib.optionalAttrs (runtime != null) { models.${cfg.model}.agentRuntime.id = runtime; };
             }
+
+            # What `openclaw agents set-identity` would write: the config is
+            # read-only, the identity is declared here.
+            (lib.mkIf (compact cfg.identity != { }) { agents.entries.main.identity = compact cfg.identity; })
             (lib.mkIf (space.mcp != { }) { mcp.servers = lib.mapAttrs (_: compact) space.mcp; })
             (lib.mkIf (space.skills != { }) { skills.load.extraDirs = [ "${skillsDir}" ]; })
             (lib.mkIf cfg.transcription.enable transcriptionConfig)
