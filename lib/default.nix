@@ -58,6 +58,8 @@ in
     getMicrovmHypervisor
     getMicrovmGuests
     mkMicrovmLink
+    spaceGroup
+    mkSpaceGroups
     ;
   inherit (paths) resolveProfile resolveNixosProfile;
   inherit (nixTools) pickForNix matchesNix;

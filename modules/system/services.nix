@@ -64,7 +64,18 @@ let
     inherit (service) name;
     inherit (cfg.service.${service.name}) enable;
     inherit (cfg.service.${service.name}) displayOnHomepage;
-    inherit (cfg.service.${service.name}) proxy;
+
+    # Per instance: a space-only service gets the group of its host, and is
+    # protected even if the registry says otherwise (fail closed).
+    proxy =
+      let
+        p = cfg.service.${service.name}.proxy;
+      in
+      p
+      // lib.optionalAttrs p.spaceMembersOnly {
+        isProtected = true;
+        allowedGroups = p.allowedGroups ++ [ (dnfLib.spaceGroup service.host) ];
+      };
   }) network.services;
 
   # SSO is per zone: only a protected service of THIS zone needs oauth2-proxy
@@ -236,6 +247,11 @@ in
               type = types.listOf types.str;
               default = [ ];
               description = "Kanidm groups allowed on this protected service (empty = any authenticated user)";
+            };
+            proxy.spaceMembersOnly = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Restrict to the members of the instance host's AI space (Kanidm group `space-<host>`); implies isProtected";
             };
             proxy.isInternal = mkOption {
               type = types.bool;

@@ -289,4 +289,41 @@ in
     expr = (builtins.tryEval (dnfLib.mkMicrovmLink (removeAttrs mockGuest [ "ip" ]))).success;
     expected = false;
   };
+
+  # spaceGroup / mkSpaceGroups — Kanidm group per `ai-space` host
+  testSpaceGroup = {
+    expr = dnfLib.spaceGroup "ia-pro";
+    expected = "space-ia-pro";
+  };
+  testMkSpaceGroups = {
+    expr = dnfLib.mkSpaceGroups [
+      {
+        hostname = "ia-pro";
+        profile = "ai-space";
+        users = [
+          "alice"
+          "bob"
+          "nix"
+        ];
+      }
+      {
+        hostname = "ia-solo";
+        profile = "ai-space";
+        users = [ "nix" ];
+      }
+      {
+        hostname = "srv";
+        profile = "server";
+        users = [ "alice" ];
+      }
+      { hostname = "bare"; }
+    ];
+    expected = {
+      space-ia-pro = [
+        "alice"
+        "bob"
+      ];
+      space-ia-solo = [ ];
+    };
+  };
 }

@@ -24,6 +24,10 @@ let
 
   known = names: lib.concatStringsSep ", " (lib.sort (a: b: a < b) names);
 
+  # Kanidm group of an AI space: its members reach the space's services
+  # (`proxy.spaceMembersOnly`).
+  spaceGroup = hostname: "space-${hostname}";
+
   # Hypervisor of a microVM guest (`features: ["microvm-guest:<host>"]`), or
   # null. A bare feature defaults its value to the zone name, not a hostname:
   # the value is checked against the inventory.
@@ -117,6 +121,18 @@ in
         mac = "02:00:" + lib.concatMapStringsSep ":" hexOctet octets;
         cid = lib.toInt (builtins.elemAt octets 2) * 256 + lib.toInt (builtins.elemAt octets 3) + 3;
       };
+
+  inherit spaceGroup;
+
+  # One members list per `ai-space` host, keyed by its group: the host's
+  # `users`, minus `nix` (technical account the generator adds everywhere).
+  mkSpaceGroups =
+    hosts:
+    lib.listToAttrs (
+      map (h: lib.nameValuePair (spaceGroup h.hostname) (lib.remove "nix" (h.users or [ ]))) (
+        lib.filter (h: (h.profile or null) == "ai-space") hosts
+      )
+    );
 
   # `specialArgs` of a host node: inventory, its zone, then `extraArgs`.
   mkNodeArgs =
