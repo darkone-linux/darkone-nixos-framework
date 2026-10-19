@@ -61,9 +61,11 @@ space-init host:
 	fi
 
 	# Last line of defence: a fleet rule matching this file would leak it.
-	if SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}} sops -d "$file" > /dev/null 2>&1 ;then
-		just _fail "The infra key decrypts $file: check {{sopsYamlFile}} before any commit."
-	fi
+	# Recipients read from the metadata: `sops -d` also tries the admin keys.txt.
+	expected=$(printf '%s\n' "$(ssh-to-age -i "$HOME/.ssh/id_ed25519.pub")" "$recipient" | sort)
+	actual=$(grep -oE 'recipient: age1[0-9a-z]+' "$file" | cut -d' ' -f2 | sort)
+	[ "$actual" = "$expected" ] \
+		|| just _fail "$file is not sealed for admin + {{host}} only: check {{sopsYamlFile}} before any commit."
 
 	n=$(WORKDIR="{{workDir}}" SECRETS_FILE="$file" SECRETS_PLAN="hostSecretsPlans.{{host}}" \
 		SECRETS_EDIT="just space-sops {{host}}" SOPS_AGE_KEY_FILE={{sopsAdminKeyFile}} \
