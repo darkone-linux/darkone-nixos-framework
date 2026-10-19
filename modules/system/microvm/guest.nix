@@ -44,6 +44,10 @@ in
       microvm = {
         hypervisor = "cloud-hypervisor";
         inherit (cfg.guest) vcpu mem;
+
+        # sd_notify over vsock: `microvm@` turns active once the guest is up,
+        # so a deploy reports a guest that fails to boot.
+        vsock.cid = link.cid;
         interfaces = [
           {
             type = "tap";

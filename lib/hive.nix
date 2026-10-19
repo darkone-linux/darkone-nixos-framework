@@ -100,9 +100,10 @@ in
     hosts: hostname:
     map (h: h.hostname) (lib.filter (h: getMicrovmHypervisor hosts h == hostname) hosts);
 
-  # Tap name and MAC of a guest, derived from its fixed zone IP: unique on the
-  # hypervisor, stable, no extra config key. Tap names cap at 15 chars
-  # (`vm-255-255` is 10). `02:` = locally administered unicast MAC.
+  # Tap name, MAC and vsock CID of a guest, derived from its fixed zone IP:
+  # unique on the hypervisor, stable, no extra config key. Tap names cap at 15
+  # chars (`vm-255-255` is 10). `02:` = locally administered unicast MAC.
+  # CID: last two octets + 3, CIDs 0-2 are reserved.
   mkMicrovmLink =
     host:
     let
@@ -114,6 +115,7 @@ in
       {
         tap = "vm-${builtins.elemAt octets 2}-${builtins.elemAt octets 3}";
         mac = "02:00:" + lib.concatMapStringsSep ":" hexOctet octets;
+        cid = lib.toInt (builtins.elemAt octets 2) * 256 + lib.toInt (builtins.elemAt octets 3) + 3;
       };
 
   # `specialArgs` of a host node: inventory, its zone, then `extraArgs`.

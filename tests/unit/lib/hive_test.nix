@@ -274,6 +274,7 @@ in
     expected = {
       tap = "vm-1-40";
       mac = "02:00:0a:01:01:28";
+      cid = 299;
     };
   };
   testMkMicrovmLinkMaxOctets = {
@@ -281,6 +282,7 @@ in
     expected = {
       tap = "vm-255-255";
       mac = "02:00:0a:ff:ff:ff";
+      cid = 65538;
     };
   };
   testMkMicrovmLinkNoIpThrows = {
