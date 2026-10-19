@@ -80,6 +80,20 @@ in
         )
       );
 
+      # The same files, inert here: `nosuid,nodev` on a bind of itself, the VMM
+      # user included, no UID shift of live data. `nofail`: a remote hypervisor
+      # never stops at boot for it.
+      fileSystems.${cfg.stateDir} = {
+        device = cfg.stateDir;
+        fsType = "none";
+        options = [
+          "bind"
+          "nosuid"
+          "nodev"
+          "nofail"
+        ];
+      };
+
       # networkd for the taps only: dhcpcd keeps the uplink, so the LUKS initrd
       # unlock path is unchanged.
       systemd.network.enable = true;

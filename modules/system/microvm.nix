@@ -16,7 +16,8 @@
 #   key on `/persist`, static `/32` link routed by the hypervisor.
 # - Hypervisor side (`microvm/host.nix`): one routed tap per guest (no bridge,
 #   uplink untouched), proxy ARP on the LAN, nftables isolation (`dnf-microvm`
-#   table), `<stateDir>` closed to the hypervisor's users (0770).
+#   table), `<stateDir>` closed to the hypervisor's users (0770) and bound
+#   `nosuid,nodev` (setuid files, device nodes of a guest inert).
 #
 # :::note[Deployment]
 # Guests are no colmena nodes: deploying the hypervisor builds and restarts
