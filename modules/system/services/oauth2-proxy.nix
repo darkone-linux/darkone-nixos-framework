@@ -71,6 +71,11 @@ in
           # Share the session across the zone's subdomains (SSO).
           domain = ".${authDomain}";
           secure = true;
+
+          # Claims re-read through the Kanidm refresh token: without it, a
+          # group change waits for the 7-day cookie, whatever the Kanidm session.
+          # 15m: lifetime of the Kanidm access token.
+          refresh = "15m";
         };
 
         setXauthrequest = true; # Forwards X-Auth-Request-User, X-Auth-Request-Email, X-Auth-Request-Groups
