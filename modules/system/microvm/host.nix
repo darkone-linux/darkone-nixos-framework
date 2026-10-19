@@ -24,6 +24,11 @@ let
   privateRanges = "10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16";
   gatewayIp = zone.gateway.lan.ip;
 
+  # sshd ports of the guests, as their own config declares them.
+  sshPorts = lib.concatMapStringsSep ", " toString (
+    lib.unique (lib.concatMap (g: g.config.services.openssh.ports) (lib.attrValues microvmGuests))
+  );
+
   # Host side of a guest link: hypervisor address, route to the guest `/32`.
   mkTapNetwork =
     guest:
@@ -98,10 +103,14 @@ in
             accept
           }
 
-          # Reverse proxy and monitoring live on the zone gateway.
+          # Reverse proxy and monitoring live on the zone gateway. Ping and
+          # sshd stay open to the fleet, like any host: `just enter` works,
+          # nix key auth guards the shell.
           chain to_guest {
             ct state established,related accept
             ip saddr ${gatewayIp} accept
+            icmp type echo-request accept
+            tcp dport { ${sshPorts} } accept
             drop
           }
 
