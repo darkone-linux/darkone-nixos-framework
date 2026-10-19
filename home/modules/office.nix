@@ -270,6 +270,7 @@ in
       (mkIf cfg.enableCalendarContacts planify) # Tasks (note: errands -> sync activation failed)
       (mkIf cfg.enableEmail thunderbird)
       (mkIf cfg.enableEssentials celluloid) # Video player
+      (mkIf cfg.enableEssentials geeqie) # Image viewer: Loupe is left out of GNOME
       (mkIf cfg.enableEssentials papers) # Reader
       (mkIf cfg.enableEssentials gnome-calculator)
       (mkIf cfg.enableEssentials gnome-clocks)

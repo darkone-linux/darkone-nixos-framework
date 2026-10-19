@@ -1,8 +1,8 @@
 # Image processing software.
 #
-# Always installs the lightweight viewer (`geeqie`) and editor (`gimp`),
-# then layers tooling by audience: `enableBeginner` adds `pinta`,
-# `enablePro` adds `inkscape`/`krita`/`yed`, `enable3D` (with
+# Always installs the editor (`gimp`); the viewer (`geeqie`) is one of the
+# office essentials. Then layers tooling by audience: `enableBeginner` adds
+# `pinta`, `enablePro` adds `inkscape`/`krita`/`yed`, `enable3D` (with
 # `enablePro`) adds `blender`, `enableCAD` adds `freecad`, and `enableCli`
 # adds `imagemagick`/`jhead`.
 
@@ -29,7 +29,6 @@ in
 
     # Packages
     home.packages = with pkgs; [
-      geeqie
       gimp
       (lib.mkIf cfg.enableBeginner pinta)
       (lib.mkIf cfg.enableCli imagemagick)
