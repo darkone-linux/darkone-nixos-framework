@@ -18,7 +18,10 @@
 }:
 let
   cfg = config.darkone.service.adguardhome;
-  agh = config.services.adguardhome;
+
+  # Web interface address, target of the reverse proxy on the same host.
+  webHost = "127.0.0.1";
+  webPort = dnfConfig.network.ports.adguardhome;
 
   # ADH and DNSMASQ are on the same host.
   dnsmasqAddr = "127.0.0.1:" + (toString config.services.dnsmasq.settings.port);
@@ -63,7 +66,7 @@ in
           icon = "adguard-home";
           ip = "127.0.0.1";
         };
-        proxy.servicePort = agh.port;
+        proxy.servicePort = webPort;
         proxy.isInternal = true;
       };
     }
@@ -132,16 +135,12 @@ in
         # DHCP is managed by dnsmasq
         allowDHCP = false;
 
-        # Web interface default host + port (target for reverse proxy)
-        port = dnfConfig.network.ports.adguardhome;
-        host = "127.0.0.1"; # ADH and RP are on the same host
-
         # Allow changes made on the AdGuard Home web interface to persist between service restarts.
         mutableSettings = true;
 
         settings = {
           http = {
-            address = "${toString agh.host}:${toString agh.port}";
+            address = "${webHost}:${toString webPort}";
             session_ttl = "720h";
           };
           auth_attempts = 5;
