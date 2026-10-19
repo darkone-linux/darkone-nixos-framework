@@ -5,14 +5,16 @@ console with pexpect, reboots on the installed disk and checks the system and
 the key backup. The real network is used: what a newcomer downloads, the test
 downloads.
 
-- `scripted`: answers file, `--non-interactive`, clear disk, backup
-  passphrase from a file, the stick named by the answers;
+- `scripted`: booted without network, plugged in once tty1 waits for it;
+  answers file, `--non-interactive`, clear disk, backup passphrase from a
+  file, the stick named by the answers;
 - `interactive`: every question answered on the console, encrypted disk, stick
   chosen, then unplugged and plugged back in over QMP; the first boot is
   unlocked through the initrd sshd (`dnf-unlock`).
 
-Both back up again from the installed system (`just backup-admin`): the first
-backup is kept, renamed with its date.
+On the installed system, both collect the garbage (`dnf/` stays, a GC root),
+then back up again (`just backup-admin`): the first backup is kept, renamed
+with its date.
 
     dnf-installer-test --iso ISO [--scenario scripted|interactive|all]
                        [--workdir DIR] [--keep]
@@ -100,6 +102,9 @@ class Qmp:
                 raise Failure(f"QMP {command}: {reply['error']}")
             if "return" in reply:
                 return reply["return"]
+
+    def cable(self, up):
+        self.execute("set_link", name="net0", up=up)
 
     def unplug_stick(self):
         self.execute("device_del", id="stick")
@@ -215,16 +220,24 @@ def free_port():
         return s.getsockname()[1]
 
 
-def boot_installer(dir, iso, usb, ports):
+def boot_installer(dir, iso, usb, ports, offline):
     vm = Vm(dir, iso, usb, ports)
     try:
-        log("Booting the installer ISO...")
+        if offline:
+            vm.qmp.cable(False)
+        log("Booting the installer ISO" + (", cable unplugged..." if offline else "..."))
         vm.expect(SHELL_PROMPT, timeout=600)
         vm.type("stty rows 50 cols 160\r")
         vm.expect(SHELL_PROMPT)
 
+        # Offline, tty1 waits for a cable or a Wi-Fi, then goes on by itself.
+        if offline:
+            wait_for("tty1 waiting for the network", lambda: _on_tty1(vm, "-f bin/dnf-assistant"), 240)
+            vm.qmp.cable(True)
+            log("tty1 waits for the network: cable plugged in.")
+
         # tty1 launches the assistant by itself: the newcomer's path.
-        wait_for("darkone on tty1", lambda: _darkone_on_tty1(vm), 180)
+        wait_for("darkone on tty1", lambda: _on_tty1(vm, "-x darkone"), 180)
         log("tty1 runs darkone new by itself.")
     except BaseException:
         vm.stop(timeout=0)
@@ -232,9 +245,9 @@ def boot_installer(dir, iso, usb, ports):
     return vm
 
 
-def _darkone_on_tty1(vm):
+def _on_tty1(vm, match):
     try:
-        vm.shell("pgrep -t tty1 -x darkone")
+        vm.shell(f"pgrep -t tty1 {match}")
         return True
     except Failure:
         return False
@@ -332,12 +345,21 @@ def check_installed(dir, usb, ports, key, encrypted):
         if ("crypt" in crypt) != encrypted:
             raise Failure(f"disk encryption: expected {encrypted}, lsblk says {crypt}")
         log(f"Installed system: running, no failed unit, /etc/nixos clean, encrypted={encrypted}.")
+        collect_garbage(ports[0], key)
         backup_again(ports[0], key)
         ssh(ports[0], key, "nix", "sudo systemctl poweroff", check=False)
     except BaseException:
         vm.stop(timeout=0)
         raise
     vm.stop()
+
+
+def collect_garbage(port, key):
+    """The weekly GC of a DNF host keeps `dnf/`, what `just` imports."""
+    ssh(port, key, "nix", "sudo nix-store -q --roots $(readlink -f /etc/nixos/dnf) | grep -q '^/etc/nixos/dnf '")
+    ssh(port, key, "nix", "sudo nix-store --gc >/dev/null 2>&1")
+    ssh(port, key, "nix", "cd /etc/nixos && just --list >/dev/null")
+    log("Garbage collected: dnf/ kept, just works.")
 
 
 def backup_again(port, key):
@@ -392,7 +414,7 @@ def scenario(name, iso, workdir):
     encrypted = name == "interactive"
     log(f"Scenario {name} in {dir}")
 
-    vm = boot_installer(dir, iso, usb, ports)
+    vm = boot_installer(dir, iso, usb, ports, offline=name == "scripted")
     try:
         install_scripted(vm) if name == "scripted" else install_interactive(vm)
         fetch_deploy_key(vm, key)

@@ -12,7 +12,8 @@
 # - `--usb`: raw image on an xHCI port, device id `stick`, block node
 #   `stick-raw`: QMP `device_del` unplugs it, `device_add` plugs it back;
 # - `--ssh-port`, `--unlock-port`: 127.0.0.1 forwards to 22 and to 2222, the
-#   initrd sshd of an encrypted host (dnf/modules/system/luks.nix).
+#   initrd sshd of an encrypted host (dnf/modules/system/luks.nix);
+# - network backend `net0`: QMP `set_link` unplugs the cable, and back.
 #
 # OVMF_FV, the OVMF firmware directory, is set by the Nix wrapper.
 
@@ -76,7 +77,7 @@ fi
 fwd=""
 [ -z "$sshPort" ] || fwd+=",hostfwd=tcp:127.0.0.1:$sshPort-:22"
 [ -z "$unlockPort" ] || fwd+=",hostfwd=tcp:127.0.0.1:$unlockPort-:2222"
-args+=(-nic "user,model=virtio-net-pci$fwd")
+args+=(-nic "user,model=virtio-net-pci,id=net0$fwd")
 
 if [ -n "$usb" ]; then
   args+=(
