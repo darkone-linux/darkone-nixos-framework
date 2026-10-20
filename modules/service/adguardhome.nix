@@ -199,20 +199,25 @@ in
             ++ [
               (lib.mkIf network.coordination.enable "[/100.in-addr.arpa/]${dnfLib.constants.magicDnsAddress}")
 
-              "94.140.14.14"
-              "94.140.15.15"
+              # Public names leave encrypted only (C8), as from the HCS unbound.
+              # AdGuard DNS validates DNSSEC: a bogus zone answers SERVFAIL.
+              "tls://dns.adguard-dns.com"
               "https://dns.adguard-dns.com/dns-query"
             ];
+
+            # Clear, but only to resolve the encrypted upstreams' own names.
             bootstrap_dns = [
               "9.9.9.10"
               "149.112.112.10"
               "2620:fe::10"
               "2620:fe::fe:10"
             ];
+
+            # By IP, certificates included: no bootstrap when upstreams fail.
             fallback_dns = [
-              "8.8.8.8"
-              "8.8.4.4"
-              "1.1.1.1"
+              "tls://8.8.8.8"
+              "tls://8.8.4.4"
+              "tls://1.1.1.1"
             ];
 
             # Do not append a suffix to local names
