@@ -83,6 +83,11 @@ in
         inherit (cfg) stateDir;
       };
 
+      # Lower layer of the guests' store overlay: `nix-store --optimise` swaps
+      # its files for hardlinks, overlayfs then answers ESTALE in a running
+      # guest. GC is harmless: it only drops paths no running guest uses.
+      nix.optimise.automatic = lib.mkForce false;
+
       # virtiofsd refuses a missing source directory.
       systemd.tmpfiles.rules = lib.concatMap (
         guest: map (dir: "d ${cfg.stateDir}/${guest.hostname}/${dir} 0755 root root -") shareDirs

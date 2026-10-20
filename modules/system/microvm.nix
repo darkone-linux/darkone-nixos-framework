@@ -25,6 +25,12 @@
 # the guests whose system changed.
 # :::
 #
+# :::caution[Store optimisation]
+# Off on a hypervisor: its store is the lower layer of the guests' store
+# overlay, which answers ESTALE once `nix-store --optimise` relinks a file a
+# running guest has read. Never run it by hand there either.
+# :::
+#
 # :::caution[Isolation]
 # A guest reaches the Internet and the zone gateway DNS, nothing else on the
 # LAN, not even the hypervisor. Only the zone gateway (reverse proxy,
