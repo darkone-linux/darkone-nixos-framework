@@ -211,9 +211,13 @@ _fixtures_gen_secrets:
 		echo "    passphrase: test"
 	} > "$SEC/secrets.yaml"
 
+	# Isolated host (`ai-space`): own sops file, `space1` of the microvm variant.
+	mkdir -p "$SEC/hosts"
+	echo "openclaw-gateway-password: test" > "$SEC/hosts/space1.yaml"
+
 	# In-place encrypt: cwd = $SEC so sops finds .sops.yaml and the filename
 	# matches the path_regex creation rule.
-	( cd "$SEC" && sops -e -i secrets.yaml )
+	( cd "$SEC" && sops -e -i secrets.yaml && sops -e -i hosts/space1.yaml )
 
 	# Throwaway deploy key + LUKS manifest: `server1` exercises the luks
 	# module eval path (initrd sshd, passphrase sync unit) in the L1 tier.
