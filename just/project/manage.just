@@ -135,17 +135,27 @@ gc on keep='':
 # as nix, because the FreeRDP window has to reach the caller's own Wayland
 # display and nix cannot.
 #
-# Remote desktop (ro = view only, rw = control, login = own GDM session).
+# Remote desktop (ro = view only, rw = control, login = own GDM session, stop = disarm).
 [group('manage')]
 remote-desktop host mode='ro':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	case "{{mode}}" in
-		ro | rw | login) ;;
-		*) just _fail "mode must be 'ro', 'rw' or 'login'." ;;
+		ro | rw | login | stop) ;;
+		*) just _fail "mode must be 'ro', 'rw', 'login' or 'stop'." ;;
 	esac
 	target=$(just _target "{{host}}")
 	rssh() { sudo -i -u nix ssh -o ConnectTimeout=5 nix@"$target" "$@" ; }
+
+	# Leftover of a session whose client died before its cleanup ran: the host
+	# refuses any new one until it is disarmed or its timeout fires.
+	if [ "{{mode}}" = stop ] ;then
+		just _log "Disarming the support session on {{host}} ($target)..." "RDP"
+		rssh sudo dnf-remote-desktop stop \
+			|| just _fail "could not disarm {{host}}: is the remote-desktop enabled there?"
+		just _done
+		exit 0
+	fi
 
 	# Pinned to the same nixpkgs as the fleet, so the client never depends on
 	# what happens to be installed on the machine running just.
@@ -154,8 +164,24 @@ remote-desktop host mode='ro':
 		'let f = builtins.getFlake "{{workDir}}/dnf"; in f.inputs.nixpkgs.legacyPackages.${builtins.currentSystem}.freerdp')/bin/sdl-freerdp
 
 	just _log "Arming a {{mode}} session on {{host}} ($target)..." "RDP"
-	params=$(rssh sudo dnf-remote-desktop start "{{mode}}") \
-		|| just _fail "could not arm a {{mode}} session on {{host}}: is the remote-desktop enabled there? who is logged?"
+
+	# The host's own reason replaces the generic guess; a missing helper (feature
+	# off, host not redeployed) leaves no reason and keeps the guess.
+	errf=$(mktemp)
+	if ! params=$(rssh sudo dnf-remote-desktop start "{{mode}}" 2>"$errf") ;then
+		reason=$(sed -n 's/^dnf-remote-desktop: //p' "$errf" | tail -n1)
+		[ -n "$reason" ] || cat "$errf" >&2
+		rm -f "$errf"
+		case "$reason" in
+			*"already open"*)
+				just _fail "a support session is already armed on {{host}}: 'just rd {{host}} stop' closes it." ;;
+			"")
+				just _fail "could not arm a {{mode}} session on {{host}}: is the remote-desktop enabled there?" ;;
+			*)
+				just _fail "could not arm a {{mode}} session on {{host}}: $reason" ;;
+		esac
+	fi
+	rm -f "$errf"
 	get() { printf '%s\n' "$params" | sed -n "s/^$1=//p" | head -n1 ; }
 
 	# The remote port is fixed by the port registry; the local one only has to
