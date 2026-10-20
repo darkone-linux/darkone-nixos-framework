@@ -117,9 +117,9 @@ in
       networking.useNetworkd = true;
       systemd.network.networks = lib.listToAttrs (map mkTapNetwork guests);
 
-      # No resolved: C8 hardening forces it into DoT + DNSSEC, which the zone
-      # resolver serves neither. Static resolvconf entry on the zone gateway; no
-      # search domain, the zone resolver answers short names itself.
+      # Resolver path of the fleet's dhcpcd/NetworkManager hosts: resolvconf
+      # entry on the zone gateway, no resolved stub. No search domain, the
+      # zone resolver answers short names itself.
       services.resolved.enable = false;
       networking.nameservers = [ gatewayIp ];
 

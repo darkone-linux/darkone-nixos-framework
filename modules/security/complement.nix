@@ -331,14 +331,12 @@ in
           };
         })
 
-        # C8 — Secure DNS resolver DNSSEC + DoT (intermediary, base)
-        # sideEffects: non-DNSSEC internal zones need Domains=~example.internal
+        # C8 — Secure DNS: encrypted upstream, DNSSEC (intermediary, base)
+        # Held by the zone resolvers (AdGuard DoT/DoH, HCS unbound DoT), clear
+        # on the LAN: no client-side DoT, the gateway serves none.
+        # sideEffects: none
         (lib.mkIf (isActive "C8" "intermediary" "base" [ ]) {
-          services.resolved.settings.Resolve = {
-            DNSSEC = "true";
-            DNSOverTLS = "true";
-            FallbackDNS = ""; # No cleartext DNS fallback
-          };
+          services.resolved.settings.Resolve.FallbackDNS = ""; # No cleartext public fallback
         })
 
         # C9 — Disable core dumps (reinforced, base)
