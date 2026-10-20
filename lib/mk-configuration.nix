@@ -83,6 +83,11 @@ let
   # (nixpkgs#535206). Drop once upstream fixes the source build.
   logseqOverlay = import ./overlays/logseq.nix;
 
+  # Temporary: `kmodigest` signing flags for `virtualbox` kernel modules,
+  # whose missing `.ko.cer` breaks the modules aggregator. Drop once upstream
+  # passes `kernel.commonMakeFlags`.
+  kernelModulesSignOverlay = import ./overlays/kernel-modules-sign.nix;
+
   # `pkgs.talon` from nix-community/talon-nix, x86_64 only (absent elsewhere),
   # for UMI (multimodal input) host profiles.
   talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
@@ -235,6 +240,7 @@ let
             (genewebOverlay system)
             gimpOverlay
             logseqOverlay
+            kernelModulesSignOverlay
             (talonOverlay system)
             (opencodeOverlay system)
             (openclawOverlay system)
