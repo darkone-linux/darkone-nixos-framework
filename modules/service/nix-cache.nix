@@ -137,7 +137,7 @@ in
     darkone.service.nix-cache.enable = lib.mkEnableOption "the per-zone Nix binary-cache proxy (nginx in front of cache.nixos.org)";
     darkone.service.nix-cache.maxSize = lib.mkOption {
       type = lib.types.str;
-      default = "40g";
+      default = "100g";
       description = "Maximum on-disk cache size; nginx evicts least-recently-used entries beyond it.";
     };
     darkone.service.nix-cache.roaming = lib.mkOption {
