@@ -7,6 +7,7 @@
 
 {
   pkgs,
+  pkgs-stable,
   lib,
   config,
   osConfig,
@@ -28,7 +29,10 @@ in
     # Nix packages
     home.packages = with pkgs; [
       #(lib.mkIf cfg.enableTools noisetorch) # Realtime noise reduction (pulseaudio only)
-      (lib.mkIf cfg.enableTools audacity)
+
+      # Stable: audacity 4 fails on unstable (Qt 6.12 QML AOT in its `muse`
+      # framework, Hydra red since 2026-10-17). Back to `pkgs` once green.
+      (lib.mkIf cfg.enableTools pkgs-stable.audacity)
       lame
       (lib.mkIf graphic vlc)
     ];

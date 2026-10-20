@@ -85,6 +85,10 @@ let
                          "GRD_SCREEN_CAST_CURSOR_MODE_EMBEDDED);"
       '';
     });
+
+    # Its sharing panel builds against grd but needs none of the cursor patch:
+    # unpatched input, cached build, no gnome-control-center recompile.
+    gnome-control-center = prev.gnome-control-center.override { inherit (prev) gnome-remote-desktop; };
   };
 
   awk = "${pkgs.gawk}/bin/awk";

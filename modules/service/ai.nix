@@ -136,6 +136,10 @@ in
       # Main Open WebUI service configuration
       services.open-webui = {
         enable = true;
+
+        # Stable: unstable 0.12.3 fails, its `makeWrapperArgs` is one string that
+        # structuredAttrs (now on by default in `buildPythonPackage`) no longer splits.
+        package = lib.mkDefault pkgs-stable.open-webui;
         port = internalPort;
         host = params.ip;
 

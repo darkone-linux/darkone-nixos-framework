@@ -83,10 +83,6 @@ let
   # (nixpkgs#535206). Drop once upstream fixes the source build.
   logseqOverlay = import ./overlays/logseq.nix;
 
-  # Temporary: outline 1.10.1 `yarn-fix.patch` + hashes (nixpkgs source fetch
-  # fails). Inert on other versions; drop once nixpkgs is fixed.
-  outlineOverlay = import ./overlays/outline.nix;
-
   # `pkgs.talon` from nix-community/talon-nix, x86_64 only (absent elsewhere),
   # for UMI (multimodal input) host profiles.
   talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
@@ -239,7 +235,6 @@ let
             (genewebOverlay system)
             gimpOverlay
             logseqOverlay
-            outlineOverlay
             (talonOverlay system)
             (opencodeOverlay system)
             (openclawOverlay system)

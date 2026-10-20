@@ -239,6 +239,17 @@ in
               # Collapse concurrent misses for one path into a single fetch.
               proxy_cache_lock on;
 
+              # Resumed NAR (`Range`): straight upstream, never cached. Caching
+              # strips `Range`, so a resume refetched from byte 0 and sent nothing
+              # meanwhile: Nix stalled out on slow links, then fell back to a build.
+              proxy_cache_bypass $http_range;
+              proxy_no_cache $http_range;
+              proxy_set_header Range $http_range;
+              proxy_set_header If-Range $http_if_range;
+
+              # Slow WAN, cold CDN objects: long gaps between two upstream reads.
+              proxy_read_timeout 300s;
+
               # HTTPS upstream behind a CDN (Fastly): send the TLS SNI and the
               # Host header as the upstream name so Fastly serves the matching
               # cert and routes the request (otherwise 421).
@@ -299,11 +310,11 @@ in
           ]
         );
 
-        # Fail fast when the zone cache is down or degraded: a broken cache must
-        # never be slower than no cache at all. mkDefault so a consumer can
-        # override them per host.
-        connect-timeout = lib.mkDefault 5;
-        download-attempts = lib.mkDefault 2;
+        # A down cache still fails fast, but a slow link gets its retries: each
+        # attempt resumes the NAR, an exhausted budget means a fallback build.
+        # mkDefault so a consumer can override them per host.
+        connect-timeout = lib.mkDefault 10;
+        download-attempts = lib.mkDefault 5;
         fallback = lib.mkDefault true;
       };
     })

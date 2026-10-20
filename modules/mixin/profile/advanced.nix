@@ -5,7 +5,12 @@
 # Use HomeManager profiles to provide software tailored to each user (admin, advanced, student, child, teenager, etc.).
 # :::
 
-{ lib, config, ... }:
+{
+  lib,
+  config,
+  pkgs,
+  ...
+}:
 let
   cfg = config.darkone.profile.advanced;
 in
@@ -32,6 +37,10 @@ in
     # Additional tools
     programs = {
       iotop.enable = lib.mkDefault true;
+
+      # iotop-c: an ELF, as `security.wrappers` now requires (nixpkgs#570085);
+      # the python iotop is a script wrapper and fails `ensure-wrapper-integrity`.
+      iotop.package = lib.mkDefault pkgs.iotop-c;
       less.enable = lib.mkDefault true;
       direnv = {
         enable = lib.mkDefault true;

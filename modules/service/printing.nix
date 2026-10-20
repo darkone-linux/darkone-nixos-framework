@@ -4,12 +4,17 @@
   lib,
   config,
   pkgs,
+  pkgs-stable,
   ...
 }:
 let
   cfg = config.darkone.service.printing;
   all-users = builtins.attrNames config.users.users;
   normal-users = builtins.filter (user: config.users.users.${user}.isNormalUser) all-users;
+
+  # Stable: the plugin makes it unfree, so built here on every nixpkgs bump;
+  # stable moves far less. Unstable 3.26.4 also fails (makeCWrapper argument).
+  hplip = pkgs-stable.hplipWithPlugin;
 in
 {
   options = {
@@ -48,7 +53,7 @@ in
 
           # `hplipWithPlugin` is `hplip.override { withPlugin = true; }`: both
           # ship the same PPDs, buildEnv would keep one at random.
-          if cfg.loadAll || cfg.enableHpPrinters then [ hplipWithPlugin ] else [ ]
+          if cfg.loadAll || cfg.enableHpPrinters then [ hplip ] else [ ]
         );
     };
 
@@ -70,11 +75,11 @@ in
     # systemd.services.cups-browsed.enable = false;
     hardware.sane = lib.mkIf cfg.enableScanners {
       enable = true;
-      extraBackends = with pkgs; [
-        hplipWithPlugin
-        sane-airscan
-        epkowa
-        utsushi
+      extraBackends = [
+        hplip
+        pkgs.sane-airscan
+        pkgs.epkowa
+        pkgs.utsushi
       ];
     };
     services.udev.packages = lib.mkIf cfg.enableScanners [

@@ -16,6 +16,7 @@
 
 {
   pkgs,
+  pkgs-stable,
   lib,
   host,
   hosts,
@@ -94,7 +95,10 @@ in
       (lib.mkIf cfg.enablePro renoise)
       (lib.mkIf cfg.enablePro rosegarden)
       (lib.mkIf cfg.enableScore muse-sounds-manager)
-      (lib.mkIf cfg.enableScore musescore)
+
+      # Stable: musescore fails on unstable (Qt 6.12 QML AOT in its `muse`
+      # framework, Hydra red since 2026-10-17). Back to `pkgs` once green.
+      (lib.mkIf cfg.enableScore pkgs-stable.musescore)
       #(lib.mkIf cfg.enableScore frescobaldi) # FAIL
       (lib.mkIf cfg.enableEasy gnome-music)
       (lib.mkIf (graphic && cfg.enableMpd) gnomeExtensions.mpris-label)
