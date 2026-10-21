@@ -64,6 +64,8 @@ in
         (lib.mkIf cli sssnake)
         (lib.mkIf cli tetris)
         (lib.mkIf g3d veloren) # Minecraft like
+        (lib.mkIf g3d warzone2100) # 3D RTS, tech research
+        (lib.mkIf g3d zeroad) # Ancient civilizations RTS (~2 GB)
         (lib.mkIf isBabyOrChild kdePackages.ktuberling) # Constructor game
         (lib.mkIf isBabyOrChild li-ri) # train game
         (lib.mkIf isBabyOrChild tuxpaint)
@@ -77,6 +79,26 @@ in
         (lib.mkIf isChildOrTeen kdePackages.picmi) # Logical game
         (lib.mkIf isChildOrTeen leocad) # Virt lego
         (lib.mkIf isChildOrTeen gnome-2048)
+        (lib.mkIf isChildOrTeen extremetuxracer) # Sled racing
+        (lib.mkIf isChildOrTeen gnome-nibbles) # Snake
+        (lib.mkIf isChildOrTeen hedgewars) # Turn-based artillery (Worms like)
+        (lib.mkIf isChildOrTeen iagno) # Reversi
+        (lib.mkIf isChildOrTeen kdePackages.granatier) # Bomberman
+        (lib.mkIf isChildOrTeen kdePackages.kapman) # Pac-Man
+        (lib.mkIf isChildOrTeen kdePackages.palapeli) # Jigsaw puzzle
+        (lib.mkIf isChildOrTeen lightsoff) # Logic puzzle
+        (lib.mkIf isChildOrTeen luanti) # Voxel sandbox; games from ContentDB
+        (lib.mkIf isChildOrTeen quadrapassel) # Tetris
+        (lib.mkIf isChildOrTeen supertux) # 2D platformer, local multiplayer
+        (lib.mkIf isChildOrTeen swell-foop) # SameGame
+        (lib.mkIf isChildOrTeen xmoto) # 2D physics motocross
+        (lib.mkIf cfg.enableTeenager endless-sky) # Space trading and exploration
+        (lib.mkIf cfg.enableTeenager lincity-ng) # City building
+        (lib.mkIf cfg.enableTeenager mindustry) # Factory tower defense, logic processors
+        (lib.mkIf cfg.enableTeenager openttd) # Transport tycoon
+        (lib.mkIf cfg.enableTeenager shattered-pixel-dungeon) # Roguelike
+        (lib.mkIf cfg.enableTeenager unciv) # Civilization V remake
+        (lib.mkIf cfg.enableTeenager wesnoth) # Turn-based strategy
         (lib.mkIf gnomeGames gnome-chess)
         (lib.mkIf gnomeGames gnome-mahjongg)
         (lib.mkIf gnomeGames gnome-mines)

@@ -37,7 +37,9 @@ in
       (lib.mkIf cfg.enablePro inkscape)
       (lib.mkIf cfg.enablePro krita)
       (lib.mkIf cfg.enablePro yed)
+      (lib.mkIf cfg.enablePro pixelorama) # Pixel art, sprites
       (lib.mkIf cfg.enableCAD freecad)
+      (lib.mkIf cfg.enableCAD sweethome3d.application) # Interior design
     ];
   };
 }

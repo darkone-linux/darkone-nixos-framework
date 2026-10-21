@@ -292,6 +292,7 @@ in
       (mkIf cfg.enablePandoc typst) # `--pdf-engine=typst`
       (mkIf cfg.enableTools authenticator) # Two-factor authentication code generator
       (mkIf cfg.enableTools dialect) # translate
+      (mkIf cfg.enableTools foliate) # eBook reader
       (mkIf cfg.enableTools gnome-characters)
       (mkIf cfg.enableTools gnome-decoder) # Scan and generate QR codes
       (mkIf cfg.enableTools gnome-font-viewer)
@@ -300,6 +301,8 @@ in
       (mkIf cfg.enableTools iotas) # Simple note taking with mobile-first design and Nextcloud sync
       (mkIf cfg.enableTools snapshot) # Webcam
       (mkIf cfg.enableProductivity obsidian)
+      (mkIf cfg.enableProductivity minder) # Mind mapping
+      (mkIf cfg.enableProductivity xournalpp) # Handwritten notes, PDF annotation
       (mkIf cfg.enableProductivity logseq) # official AppImage via overlay (source build broken: nixpkgs#535206)
       (mkIf cfg.enableBrave brave)
       (mkIf cfg.enableSecurity keepassxc)

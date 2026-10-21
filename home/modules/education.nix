@@ -81,6 +81,12 @@ in
         #(lib.mkIf (cfg.enableMisc && childOrStudent) wike) # Wikipedia reader, too heavy
         (lib.mkIf (cfg.enableComputer && childOrStudent) kdePackages.kturtle) # logo
         (lib.mkIf (cfg.enableComputer && childOrStudent) klavaro)
+        (lib.mkIf (cfg.enableComputer && childOrStudent) colobot) # programmable robots game
+        (lib.mkIf (cfg.enableComputer && childOrStudent) keypunch) # typing
+        (lib.mkIf (cfg.enableComputer && cfg.enableStudent) thonny) # Python IDE for beginners
+        (lib.mkIf (cfg.enableComputer && cfg.enableStudent) tic-80) # fantasy console, game making
+        (lib.mkIf (cfg.enableLang && babyOrChild) kdePackages.klettres) # alphabet, syllables
+        (lib.mkIf (cfg.enableLang && childOrStudent) kdePackages.khangman) # hangman
         (lib.mkIf (cfg.enableLang && childOrStudent) kdePackages.parley) # vocabulary
         (lib.mkIf (cfg.enableLang && childOrStudent) verbiste)
         (lib.mkIf (cfg.enableLang && childOrStudent) gnome-characters)
@@ -96,10 +102,17 @@ in
         (lib.mkIf (cfg.enableMath && cfg.enableStudent) scilab-bin) # math
         (lib.mkIf (cfg.enableMisc && babyOrChild) gcompris)
         (lib.mkIf (cfg.enableMisc && cfg.enableChild) kdePackages.blinken) # memory training
+        (lib.mkIf (cfg.enableMisc && childOrStudent) kiwix) # offline Wikipedia / Vikidia, ZIM files apart
         (lib.mkIf (cfg.enableMisc && cfg.enableStudent) anki) # training cards
         (lib.mkIf (cfg.enableDraw && babyOrChild) tuxpaint)
         (lib.mkIf (cfg.enableMusic && childOrStudent) solfege)
+        (lib.mkIf (cfg.enableMusic && childOrStudent) kdePackages.minuet) # ear training
+        (lib.mkIf (cfg.enableMusic && cfg.enableStudent) sonic-pi) # live coding music
         (lib.mkIf (cfg.enableScience && childOrStudent) atomix) # Atom puzzle
+        (lib.mkIf (cfg.enableScience && childOrStudent) kdePackages.marble) # virtual globe, atlas
+        (lib.mkIf (cfg.enableScience && childOrStudent) stellarium) # planetarium
+        (lib.mkIf (cfg.enableScience && childOrStudent) the-powder-toy) # physics sandbox
+        (lib.mkIf (cfg.enableScience && cfg.enableStudent) kdePackages.step) # physics simulator
         (lib.mkIf (cfg.enableScience && childOrStudent) gnome-maps)
         (lib.mkIf (cfg.enableScience && childOrStudent) kdePackages.kalzium) # periodic elements
         (lib.mkIf (cfg.enableScience && childOrStudent) kdePackages.kgeography) # geography
