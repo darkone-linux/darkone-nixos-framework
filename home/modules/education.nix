@@ -83,6 +83,17 @@ in
         (lib.mkIf (cfg.enableComputer && childOrStudent) klavaro)
         (lib.mkIf (cfg.enableComputer && childOrStudent) colobot) # programmable robots game
         (lib.mkIf (cfg.enableComputer && childOrStudent) keypunch) # typing
+        (lib.mkIf (cfg.enableComputer && childOrStudent) tipp10) # progressive touch typing
+        (lib.mkIf (cfg.enableComputer && childOrStudent) ucblogo) # textual Logo, after kturtle
+        (lib.mkIf (cfg.enableComputer && cfg.enableStudent) arduino-ide) # electronics, robotics
+        (lib.mkIf (cfg.enableComputer && cfg.enableStudent) digital) # logic circuits simulator
+        (lib.mkIf (cfg.enableComputer && cfg.enableStudent) fritzing) # breadboard prototyping
+        (lib.mkIf (cfg.enableComputer && cfg.enableStudent) logisim-evolution) # logic circuits (NSI)
+        (lib.mkIf (cfg.enableComputer && cfg.enableStudent) love) # Lua 2D game engine
+        (lib.mkIf (cfg.enableComputer && cfg.enableStudent) processing) # creative coding
+        (lib.mkIf (cfg.enableComputer && cfg.enableStudent) pyxel) # Python retro game engine
+        (lib.mkIf (cfg.enableComputer && cfg.enableStudent) simulide) # real-time circuit simulator
+        (lib.mkIf (cfg.enableComputer && cfg.enableStudent) tealdeer) # `tldr` command cheat sheets
         (lib.mkIf (cfg.enableComputer && cfg.enableStudent) thonny) # Python IDE for beginners
         (lib.mkIf (cfg.enableComputer && cfg.enableStudent) tic-80) # fantasy console, game making
         (lib.mkIf (cfg.enableLang && babyOrChild) kdePackages.klettres) # alphabet, syllables
@@ -90,8 +101,12 @@ in
         (lib.mkIf (cfg.enableLang && childOrStudent) kdePackages.parley) # vocabulary
         (lib.mkIf (cfg.enableLang && childOrStudent) verbiste)
         (lib.mkIf (cfg.enableLang && childOrStudent) gnome-characters)
+        (lib.mkIf (cfg.enableLang && cfg.enableStudent) eloquent) # grammar checker (LanguageTool)
+        (lib.mkIf (cfg.enableLang && cfg.enableStudent) goldendict-ng) # offline dictionaries
         (lib.mkIf (cfg.enableMath && childOrStudent) geogebra) # math (note: geogebra6 -> build fail, current is 5)
         (lib.mkIf (cfg.enableMath && childOrStudent) kdePackages.kmplot) # math
+        (lib.mkIf (cfg.enableMath && childOrStudent) kdePackages.kig) # interactive geometry
+        (lib.mkIf (cfg.enableMath && childOrStudent) qalculate-gtk) # calculator with units, fractions
         (lib.mkIf (cfg.enableMath && cfg.enableStudent) gnome-graphs)
         (lib.mkIf (cfg.enableMath && cfg.enableStudent) kdePackages.cantor) # math
         (lib.mkIf (cfg.enableMath && cfg.enableStudent) kdePackages.kalgebra) # math
@@ -102,6 +117,8 @@ in
         (lib.mkIf (cfg.enableMath && cfg.enableStudent) scilab-bin) # math
         (lib.mkIf (cfg.enableMisc && babyOrChild) gcompris)
         (lib.mkIf (cfg.enableMisc && cfg.enableChild) kdePackages.blinken) # memory training
+        (lib.mkIf (cfg.enableMisc && cfg.enableChild) kdePackages.kwordquiz) # flash cards, simpler than anki
+        (lib.mkIf (cfg.enableMisc && childOrStudent) openboard) # interactive whiteboard, lessons
         (lib.mkIf (cfg.enableMisc && childOrStudent) kiwix) # offline Wikipedia / Vikidia, ZIM files apart
         (lib.mkIf (cfg.enableMisc && cfg.enableStudent) anki) # training cards
         (lib.mkIf (cfg.enableDraw && babyOrChild) tuxpaint)

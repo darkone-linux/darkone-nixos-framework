@@ -283,6 +283,10 @@ in
       (mkIf cfg.enableOffice liberation_ttf) # Liberation fonts
       (mkIf cfg.enableOffice libreoffice-stable) # Force visible icon theme
       (mkIf cfg.enableOffice lato) # Lato fonts
+      (mkIf cfg.enableOffice open-dyslexic) # Dyslexia-friendly font, with the Cartable Fantastique
+      (mkIf (cfg.cartableFantastique != null) kdePackages.kmag) # Screen magnifier
+      (mkIf (cfg.cartableFantastique != null) kdePackages.kmouth) # Type-and-say (speech-dispatcher)
+      #(mkIf (cfg.cartableFantastique != null) pied) # Piper voices -> piper-tts build broken (pyopenjtalk-plus, Python 3.14)
       (mkIf cfg.enablePandoc dejavu_fonts) # PDF code blocks: box drawing, symbols
       (mkIf cfg.enablePandoc exiftool) # PDF / image metadata
       (mkIf cfg.enablePandoc gentium) # PDF body font
@@ -293,6 +297,7 @@ in
       (mkIf cfg.enableTools authenticator) # Two-factor authentication code generator
       (mkIf cfg.enableTools dialect) # translate
       (mkIf cfg.enableTools foliate) # eBook reader
+      (mkIf cfg.enableTools gnome-frog) # OCR: copy text from a picture
       (mkIf cfg.enableTools gnome-characters)
       (mkIf cfg.enableTools gnome-decoder) # Scan and generate QR codes
       (mkIf cfg.enableTools gnome-font-viewer)
@@ -302,6 +307,9 @@ in
       (mkIf cfg.enableTools snapshot) # Webcam
       (mkIf cfg.enableProductivity obsidian)
       (mkIf cfg.enableProductivity minder) # Mind mapping
+      (mkIf cfg.enableProductivity drawio) # Diagrams
+      (mkIf cfg.enableProductivity focuswriter) # Distraction-free writing
+      (mkIf (cfg.enableProductivity && cfg.enableMore) novelwriter) # Long fiction writing
       (mkIf cfg.enableProductivity xournalpp) # Handwritten notes, PDF annotation
       (mkIf cfg.enableProductivity logseq) # official AppImage via overlay (source build broken: nixpkgs#535206)
       (mkIf cfg.enableBrave brave)
