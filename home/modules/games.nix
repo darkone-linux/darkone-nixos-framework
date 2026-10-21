@@ -64,7 +64,7 @@ in
         (lib.mkIf cli sssnake)
         (lib.mkIf cli tetris)
         (lib.mkIf g3d veloren) # Minecraft like
-        (lib.mkIf g3d warzone2100) # 3D RTS, tech research
+        #(lib.mkIf g3d warzone2100) # 3D RTS -> build broken against abseil 20260817 (C++20)
         (lib.mkIf g3d zeroad) # Ancient civilizations RTS (~2 GB)
         (lib.mkIf isBabyOrChild kdePackages.ktuberling) # Constructor game
         (lib.mkIf isBabyOrChild li-ri) # train game
