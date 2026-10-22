@@ -272,9 +272,9 @@ let
     else
       null;
 
-  # Mutable config: each key of the Nix config is imposed (rewritten at each
-  # start, longest prefix wins) or seeded (written when absent). Store paths
-  # are always imposed: stale after an update or a GC.
+  # Mutable config: each leaf of the Nix config is imposed (rewritten) or
+  # seeded (written when absent), longest prefix wins. Store paths are always
+  # imposed: stale after an update or a GC.
   imposedRoots = [
     [ "gateway" ]
     [
@@ -385,7 +385,7 @@ let
     value = lib.getAttrFromPath path nixConfig;
   };
   imposedEntries = map entry (lib.filter (p: classify p == "imposed") nixLeaves);
-  seededEntries = map entry (lib.filter (p: lib.hasAttrByPath p nixConfig) seededRoots);
+  seededEntries = map entry (lib.filter (p: classify p == "seeded") nixLeaves);
   unclassified = lib.filter (p: classify p == null) nixLeaves;
   seededStorePaths = lib.filter (
     p: classify p == "seeded" && builtins.hasContext (builtins.toJSON (lib.getAttrFromPath p nixConfig))
@@ -416,7 +416,7 @@ let
       $spec[0] as $s
       | reduce ($prev[0] - [ $s.imposed[].path ])[] as $p (.; delpaths([ $p ]))
       | reduce $s.seeded[] as $e (.;
-          if (try getpath($e.path) catch null) == null then setpath($e.path; $e.value) else . end)
+          if (try getpath($e.path) catch 0) == null then setpath($e.path; $e.value) else . end)
       | reduce $s.imposed[] as $e (.; setpath($e.path; $e.value))
     ' "$live" > "$tmp"
     if $jq -e -n --slurpfile a "$live" --slurpfile b "$tmp" '$a == $b' > /dev/null; then
