@@ -44,6 +44,10 @@ in
         wants = [ "network-online.target" ];
         after = [ "network-online.target" ];
 
+        # OpenMP defaults to one thread per core beside ggml's: oversubscribed,
+        # 2-3 times slower.
+        environment.OMP_NUM_THREADS = toString cfg.threads;
+
         # `/load` makes the server load any file a client names, and exit on
         # failure: chroot holding this model only, restarted by systemd. The
         # guest falls back on its local model meanwhile.
