@@ -42,6 +42,9 @@
 #   workers (`coding-agent` skill), chat-bound sessions (`/acp spawn`, acpx);
 # - Talk (`talk`): live voice conversation in the browser, OpenAI GPT-Live,
 #   work delegated to the agent (`agent-consult`), ChatGPT login first;
+# - workflows: Lobster pipelines (`lobster`, `.lobster` files through
+#   `workspace`), declared automations (`automations`, kept in sync, others
+#   left to the agent and the UI);
 # - voice notes: whisper.cpp (`transcription`); on a microVM guest the
 #   hypervisor's server (`large-v3-turbo`), local ggml `small` as fallback;
 #   local only on bare metal.
@@ -273,6 +276,7 @@ let
   # `recursiveUpdate`, which replaces lists.
   plugins =
     lib.optionalAttrs hasMatrix { matrix = pkgs.openclaw-runtime-plugin-matrix; }
+    // lib.optionalAttrs cfg.lobster { lobster = pkgs.openclaw-runtime-plugin-lobster; }
     // lib.optionalAttrs (lib.elem "codex" (map runtimeOf models)) {
       codex = pkgs.openclaw-runtime-plugin-codex;
     };
@@ -345,6 +349,70 @@ let
       };
     }
   ) cfg.providers;
+
+  # Declared automations: upserted by declaration key (`nix-<name>`), the
+  # `nix-*` ones no longer declared removed, any other left alone. Omitted
+  # enablement keeps a job paused from the UI.
+  declareAutomation =
+    name: a:
+    lib.escapeShellArgs (
+      [
+        "create"
+        "--declaration-key"
+        "nix-${name}"
+        "--name"
+        name
+        "--description"
+        "Declared in Nix (darkone.service.openclaw.automations)"
+        "--agent"
+        "main"
+        "--message"
+        a.message
+      ]
+      ++ (
+        if lib.hasPrefix "every " a.schedule then
+          [
+            "--every"
+            (lib.removePrefix "every " a.schedule)
+          ]
+        else
+          [
+            "--cron"
+            a.schedule
+          ]
+      )
+      ++ [ (if a.announce then "--announce" else "--no-deliver") ]
+      ++ lib.optionals (a.model != null) [
+        "--model"
+        a.model
+      ]
+      ++ lib.optional (!a.enable) "--disabled"
+    );
+  syncAutomations = pkgs.writeShellScript "openclaw-automations" ''
+    set -euo pipefail
+    oc=${cli}/bin/openclaw
+    jq=${pkgs.jq}/bin/jq
+
+    # The gateway answers about a minute after its start.
+    for _ in $(${pkgs.coreutils}/bin/seq 60); do
+      $oc automations status > /dev/null 2>&1 && break
+      ${pkgs.coreutils}/bin/sleep 5
+    done
+    ${lib.concatLines (
+      lib.mapAttrsToList (
+        name: a: "$oc automations ${declareAutomation name a} > /dev/null"
+      ) cfg.automations
+    )}
+    list="$($oc automations list --all --json)"
+    if [ "$(echo "$list" | $jq .hasMore)" = true ]; then
+      echo "openclaw-automations: list truncated, stale nix-* jobs may remain" >&2
+    fi
+    echo "$list" | $jq -r --argjson keep ${
+      lib.escapeShellArg (builtins.toJSON (map (n: "nix-${n}") (lib.attrNames cfg.automations)))
+    } \
+      '.jobs[] | select((.declarationKey // "") | startswith("nix-")) | select(.declarationKey as $k | $keep | index($k) | not) | .id' |
+      while read -r id; do $oc automations rm "$id" > /dev/null; done
+  '';
 
   # Mutable config: each leaf of the Nix config is imposed (rewritten) or
   # seeded (written when absent), longest prefix wins. Store paths are always
@@ -754,6 +822,57 @@ in
         };
       };
 
+      lobster = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Lobster workflows: pipelines run by the gateway, with approval steps
+          and resume, plus `llm-task` (structured LLM step). Workflow files go
+          through `workspace` (`"workflows/<name>.lobster"`).
+        '';
+      };
+
+      automations = lib.mkOption {
+        type = lib.types.attrsOf (
+          lib.types.submodule {
+            options = {
+              schedule = lib.mkOption {
+                type = lib.types.str;
+                example = "0 7 * * 1-5";
+                description = "Cron expression (5 or 6 fields), or `every <duration>` (`every 2h`).";
+              };
+              message = lib.mkOption {
+                type = lib.types.lines;
+                example = "Résume mes mails non lus et mon agenda du jour.";
+                description = "Prompt of the agent's run.";
+              };
+              announce = lib.mkOption {
+                type = lib.types.bool;
+                default = true;
+                description = "Send the final reply to the chat (owner's last channel).";
+              };
+              model = lib.mkOption {
+                type = lib.types.nullOr lib.types.str;
+                default = null;
+                description = "Model override, `<provider>/<model>` or alias.";
+              };
+              enable = lib.mkOption {
+                type = lib.types.bool;
+                default = true;
+                description = "False: kept disabled; once so, re-enabled from the UI only (`openclaw automations enable <id>`).";
+              };
+            };
+          }
+        );
+        default = { };
+        example = lib.literalExpression ''{ briefing = { schedule = "0 7 * * 1-5"; message = "Résume mon agenda du jour."; }; }'';
+        description = ''
+          Scheduled agent runs declared in Nix, kept in sync at each start
+          (`nix-<name>`, edits from the UI overwritten); those of the agent and
+          the UI are left alone.
+        '';
+      };
+
       transcription = {
         enable = lib.mkOption {
           type = lib.types.bool;
@@ -987,6 +1106,13 @@ in
               tools.exec.mode = cfg.exec;
             }
             (lib.mkIf (cfg.providers != { }) { models.providers = providersConfig; })
+            (lib.mkIf cfg.lobster {
+              plugins.entries.llm-task.enabled = true;
+              tools.alsoAllow = [
+                "lobster"
+                "llm-task"
+              ];
+            })
 
             # Claude and Codex adapters ship with acpx; OpenCode by store path,
             # not `npx` at first use.
@@ -1034,6 +1160,22 @@ in
             (lib.mkIf (space.skills != { }) { skills.load.extraDirs = [ "${skillsDir}" ]; })
             (lib.mkIf cfg.transcription.enable transcriptionConfig)
           ];
+        };
+
+        # After the gateway, whose restart reruns it; also runs with no
+        # declaration, to remove the `nix-*` jobs left behind.
+        systemd.services.openclaw-automations = {
+          description = "Sync the automations of the OpenClaw assistant";
+          wantedBy = [ "openclaw-gateway.service" ];
+          after = [ "openclaw-gateway.service" ];
+          partOf = [ "openclaw-gateway.service" ];
+          serviceConfig = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+            User = "openclaw";
+            Group = "openclaw";
+            ExecStart = "${syncAutomations}";
+          };
         };
 
         # Best effort: a remote not reachable yet (key, network) is logged and
