@@ -6,12 +6,13 @@
 # (`features: ["microvm-guest:<hypervisor>"]`), bare metal works too.
 #
 # Agent tooling, declared once per space (`usr/machines/<host>/configuration.nix`)
-# and shared by the OpenClaw assistant and every member's Claude Code / Codex
-# (`darkone.home.aiSpace`, on by default in the `space-member` home):
+# and shared by the OpenClaw assistant and every member's Claude Code / Codex /
+# OpenCode (`darkone.home.aiSpace`, on by default in the `space-member` home):
 #
 # - `mcp`: MCP servers, local (`command`) or remote (`url`);
 # - `skills`: `SKILL.md` content, a file or a skill directory, by name;
-# - `enableClaude`, `enableCodex`: CLIs for members and for OpenClaw delegation;
+# - `enableClaude`, `enableCodex`, `enableOpenCode`: CLIs for members and for
+#   OpenClaw delegation;
 # - `packages`: tools on the agents' PATH and in members' homes.
 #
 # ```nix
@@ -86,7 +87,7 @@ in
       mcp = mkOption {
         type = types.attrsOf mcpServer;
         default = { };
-        description = "MCP servers of the space: OpenClaw and members' Claude Code / Codex.";
+        description = "MCP servers of the space: OpenClaw and members' Claude Code / Codex / OpenCode.";
       };
 
       skills = mkOption {
@@ -94,7 +95,8 @@ in
         default = { };
         description = ''
           Skills of the space, by name: inline `SKILL.md`, a `SKILL.md` file or
-          a skill directory. Given to OpenClaw and members' Claude Code / Codex.
+          a skill directory. Given to OpenClaw and members' Claude Code / Codex /
+          OpenCode.
         '';
       };
 
@@ -108,6 +110,12 @@ in
         type = types.bool;
         default = true;
         description = "Codex CLI for members and for OpenClaw (coding-agent delegation).";
+      };
+
+      enableOpenCode = mkOption {
+        type = types.bool;
+        default = true;
+        description = "OpenCode for members and for OpenClaw (coding-agent delegation).";
       };
 
       packages = mkOption {

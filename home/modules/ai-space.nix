@@ -1,12 +1,13 @@
-# Agent tools of an AI space in a member's home: Claude Code, Codex, MCP, skills.
+# Agent tools of an AI space in a member's home: Claude Code, Codex, OpenCode, MCP, skills.
 #
 # Everything comes from the space (`darkone.host.ai-space` of the host), so
 # OpenClaw and every member share the same MCP servers and skills. On by
 # default in the `space-member` home; off on any other host.
 #
-# - MCP: HM `programs.mcp`, integrated into Claude Code and Codex;
-# - skills: `~/.claude/skills`, `~/.codex/skills`;
-# - logins: once per member, `claude` (`/login`), `codex login --device-auth`.
+# - MCP: HM `programs.mcp`, integrated into Claude Code, Codex and OpenCode;
+# - skills: `~/.claude/skills`, `~/.codex/skills`, `~/.config/opencode/skills`;
+# - logins: once per member, `claude` (`/login`), `codex login --device-auth`,
+#   `opencode auth login`.
 #
 # :::note[Per member, per space]
 # `usr/users/<login>/spaces/<host>.nix` adds or overrides, e.g. a personal MCP
@@ -26,7 +27,7 @@ let
 in
 {
   options = {
-    darkone.home.aiSpace.enable = lib.mkEnableOption "Agent tools of the AI space (Claude Code, Codex, MCP, skills)";
+    darkone.home.aiSpace.enable = lib.mkEnableOption "Agent tools of the AI space (Claude Code, Codex, OpenCode, MCP, skills)";
   };
 
   config = lib.mkIf (cfg.enable && space.enable) {
@@ -61,6 +62,17 @@ in
       enable = true;
       enableMcpIntegration = true;
       inherit (space) skills;
+    };
+
+    # Same settings as `darkone.home.ai`: Nix owns upgrades, no public share links.
+    programs.opencode = lib.mkIf space.enableOpenCode {
+      enable = true;
+      enableMcpIntegration = true;
+      inherit (space) skills;
+      settings = {
+        autoshare = false;
+        autoupdate = false;
+      };
     };
   };
 }

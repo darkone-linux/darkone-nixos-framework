@@ -27,8 +27,8 @@
 #   Matrix and `just space-init <host>` created the bot (marker
 #   `var/generated/spaces/<host>.nix`, token in the space's sops file); exec
 #   approvals asked to the owner in DM;
-# - agent tooling: MCP, skills, Claude Code / Codex and `packages` of the
-#   space (`darkone.host.ai-space`), shared with the members' homes;
+# - agent tooling: MCP, skills, Claude Code / Codex / OpenCode and `packages`
+#   of the space (`darkone.host.ai-space`), shared with the members' homes;
 # - identity (`identity`: name, emoji, avatar): declared, the config being
 #   read-only (`openclaw agents set-identity` fails);
 # - workspace (`/var/lib/openclaw/workspace`): `workspace` files (AGENTS.md,
@@ -118,7 +118,8 @@ let
   ]
   ++ space.packages
   ++ lib.optional space.enableClaude pkgs.claude-code-nix
-  ++ lib.optional space.enableCodex pkgs.codex;
+  ++ lib.optional space.enableCodex pkgs.codex
+  ++ lib.optional space.enableOpenCode pkgs.opencode;
 
   # OpenClaw rejects null or empty fields its schema types otherwise.
   compact = lib.filterAttrs (_: v: v != null && v != [ ] && v != { });
