@@ -34,7 +34,9 @@
 # - workspace (`/var/lib/openclaw/workspace`): `workspace` files (AGENTS.md,
 #   SOUL.md...) replaced at each start, others left to the agent; `projects`
 #   git-cloned once into `projects/<name>`;
-# - voice notes: local whisper.cpp (`transcription`, ggml `small` model).
+# - voice notes: whisper.cpp (`transcription`); on a microVM guest the
+#   hypervisor's server (`large-v3-turbo`), local ggml `small` as fallback;
+#   local only on bare metal.
 #
 # ```nix
 # darkone.service.openclaw = {
@@ -70,6 +72,7 @@
   options,
   pkgs,
   host,
+  hosts,
   zone,
   network,
   users,
@@ -179,15 +182,36 @@ let
     )
   );
 
+  # Hypervisor's whisper.cpp server (`microvm/whisper.nix`).
+  hypervisor = lib.findFirst (h: h.hostname == config.darkone.system.microvm.hypervisor) { } hosts;
+  whisperUrl = "http://${hypervisor.ip}:${toString dnfConfig.network.ports.whisper}/inference";
+  language = lib.escapeShellArg cfg.transcription.language;
+
   # Matrix voice notes are Opus: whisper.cpp reads WAV, ffmpeg converts.
-  transcribe = pkgs.writeShellScript "openclaw-transcribe" ''
-    set -euo pipefail
-    wav="$(${pkgs.coreutils}/bin/mktemp --suffix=.wav)"
-    trap '${pkgs.coreutils}/bin/rm -f "$wav"' EXIT
-    ${pkgs.ffmpeg-headless}/bin/ffmpeg -nostdin -loglevel error -y -i "$1" -ar 16000 -ac 1 -c:a pcm_s16le "$wav"
-    ${pkgs.whisper-cpp}/bin/whisper-cli -m ${cfg.transcription.model} \
-      -l ${lib.escapeShellArg cfg.transcription.language} -nt -np -f "$wav"
-  '';
+  transcribe = pkgs.writeShellScript "openclaw-transcribe" (
+    ''
+      set -euo pipefail
+      wav="$(${pkgs.coreutils}/bin/mktemp --suffix=.wav)"
+      trap '${pkgs.coreutils}/bin/rm -f "$wav"' EXIT
+      ${pkgs.ffmpeg-headless}/bin/ffmpeg -nostdin -loglevel error -y -i "$1" -ar 16000 -ac 1 -c:a pcm_s16le "$wav"
+    ''
+
+    # Server down, restarting or busy past the delay: local model.
+    + lib.optionalString (cfg.transcription.backend == "hypervisor") ''
+      if text="$(${pkgs.curl}/bin/curl --silent --show-error --fail --connect-timeout 5 --max-time 90 \
+        -F file=@"$wav" -F response_format=text -F language=${language} ${whisperUrl})"; then
+        printf '%s\n' "$text"
+        exit 0
+      fi
+      echo "openclaw-transcribe: hypervisor server failed, local fallback" >&2
+    ''
+    + ''
+      ${pkgs.whisper-cpp}/bin/whisper-cli -m ${cfg.transcription.model} \
+        -l ${language} -nt -np -f "$wav"
+    ''
+  );
+
+  hypervisorTranscription = cfg.transcription.enable && cfg.transcription.backend == "hypervisor";
 
   # Explicit CLI model: auto-detection prefers any provider holding auth.
   transcriptionConfig = {
@@ -368,7 +392,21 @@ in
         enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Transcribe voice notes locally (whisper.cpp, CPU).";
+          description = "Transcribe voice notes (whisper.cpp, CPU).";
+        };
+        backend = lib.mkOption {
+          type = lib.types.enum [
+            "hypervisor"
+            "local"
+          ];
+          default = if config.darkone.system.microvm.hypervisor != null then "hypervisor" else "local";
+          defaultText = lib.literalMD "`hypervisor` on a microVM guest, else `local`";
+          description = ''
+            Where voice notes are transcribed:
+            - `hypervisor`: the hypervisor's whisper.cpp server (bigger model,
+              more cores), `model` as fallback;
+            - `local`: on this host, with `model`.
+          '';
         };
         model = lib.mkOption {
           type = lib.types.path;
@@ -377,7 +415,7 @@ in
             sha256 = "0ywqxbziyp2bv72riyjpw4brk9v46d4cfbjfwqvvjrrq0srakqqv";
           };
           defaultText = lib.literalMD "whisper.cpp ggml `small` model (466 MB)";
-          description = "whisper.cpp ggml model.";
+          description = "whisper.cpp ggml model of local transcription (`local` backend, fallback).";
         };
         language = lib.mkOption {
           type = lib.types.str;
@@ -420,10 +458,16 @@ in
           assertion = members == [ ] || lib.elem cfg.owner members;
           message = "${host.hostname}: set `darkone.service.openclaw.owner` to one of its members (${lib.concatStringsSep ", " members}).";
         }
+        {
+          assertion = !hypervisorTranscription || config.darkone.system.microvm.hypervisor != null;
+          message = "${host.hostname}: `darkone.service.openclaw.transcription.backend = \"hypervisor\"` needs a microVM guest (`microvm-guest:<hypervisor>`).";
+        }
       ];
       warnings = lib.optional (memberEmails == [ ]) (
         "${host.hostname}: openclaw without members (`users` of the host): nobody passes the SSO."
       );
+
+      darkone.system.microvm.guest.whisper = hypervisorTranscription;
 
       # Gateway only: Caddy is the sole client, `trusted-proxy` relies on it.
       networking.firewall.extraInputRules = ''

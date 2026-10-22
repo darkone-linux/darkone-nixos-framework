@@ -104,6 +104,7 @@
     ./system/microvm.nix
     ./system/microvm/guest.nix
     ./system/microvm/host.nix
+    ./system/microvm/whisper.nix
     ./system/security.nix
     ./system/services.nix
     ./system/services/caddy.nix

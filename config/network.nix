@@ -95,6 +95,10 @@
     # Matrix Authentication Service (next-gen auth). modules/service/matrix.nix
     matrixAuth = 8090;
 
+    # whisper.cpp server of a microVM hypervisor, for its guests.
+    # modules/system/microvm/whisper.nix
+    whisper = 8091;
+
     # Jellyfin HTTP (jellyfin's fixed default). modules/service/jellyfin.nix
     jellyfin = 8096;
 

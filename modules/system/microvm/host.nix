@@ -166,10 +166,12 @@ in
             drop
           }
 
-          # Hypervisor services are closed to guests.
+          # Hypervisor services are closed to guests, but those a guest asks
+          # for (`guestInputRules`).
           chain input {
             type filter hook input priority filter; policy accept;
             iifname "vm-*" ct state established,related accept
+            ${cfg.guestInputRules}
             iifname "vm-*" drop
           }
         '';
