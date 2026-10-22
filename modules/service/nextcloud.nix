@@ -322,12 +322,9 @@ in
         # the writable `config.php`, wins over a password typed in the admin UI.
         secrets = lib.mkIf hasSmtp { mail_smtppassword = config.sops.secrets."smtp/password".path; };
 
-        # Base configuration
-        config = {
-          adminuser = cfg.adminUser;
-          adminpassFile = config.sops.secrets."nextcloud-admin-password".path;
-          dbtype = "pgsql";
-        };
+        # Base configuration. No admin account here: upstream installs with
+        # `--disable-admin-user`, cf. `nextcloud-admin-setup` below.
+        config.dbtype = "pgsql";
 
         # PostgreSQL database
         database.createLocally = true;
@@ -424,6 +421,31 @@ in
 
       # PostgreSQL backup (all databases by default)
       services.postgresqlBackup.enable = true;
+
+      #------------------------------------------------------------------------
+      # Local admin account
+      #------------------------------------------------------------------------
+
+      # Created once, never updated: the sops password is only the initial one.
+      # Keeps a local admin on fresh installs, SSO accounts are never admins.
+      systemd.services.nextcloud-admin-setup = {
+        after = [ "nextcloud-setup.service" ];
+        requires = [ "nextcloud-setup.service" ];
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          User = "nextcloud";
+          LoadCredential = occCredentials;
+        };
+        script = ''
+          if ! ${lib.getExe config.services.nextcloud.occ} user:info ${cfg.adminUser} > /dev/null; then
+            OC_PASS="$(${pkgs.coreutils}/bin/cat ${config.sops.secrets."nextcloud-admin-password".path})"
+            export OC_PASS
+            ${lib.getExe config.services.nextcloud.occ} user:add \
+              --password-from-env --group admin ${cfg.adminUser}
+          fi
+        '';
+      };
 
       #------------------------------------------------------------------------
       # Shipped app toggles (dashboard, activity, photos...)
