@@ -60,11 +60,15 @@
 # DMs included. Members who do not trust each other get separate spaces.
 # :::
 #
+# Models: `model` + `extraModels` (`/model` in the chat), the owner's
+# `subscriptions` first, else an API key (`apiKeys`, sops `openclaw/<VAR>`);
+# `providers` adds OpenAI-compatible endpoints (Nous Portal...).
+#
 # :::note[Provider login]
 # Once per space, from the host as `nix` (the `openclaw` CLI re-runs itself as
-# the service user), by `model` provider. Logins stay in the state.
-# - `anthropic/*` (default): `sudo -u openclaw -H claude auth login`;
-# - `openai/*`: `openclaw models auth login --provider openai`.
+# the service user), by subscription. Logins stay in the state.
+# - `anthropic`: `sudo -u openclaw -H claude auth login`;
+# - `openai`: `openclaw models auth login --provider openai`.
 # :::
 
 {
@@ -258,19 +262,78 @@ let
   # `recursiveUpdate`, which replaces lists.
   plugins =
     lib.optionalAttrs hasMatrix { matrix = pkgs.openclaw-runtime-plugin-matrix; }
-    // lib.optionalAttrs (runtime == "codex") { codex = pkgs.openclaw-runtime-plugin-codex; };
+    // lib.optionalAttrs (lib.elem "codex" (map runtimeOf models)) {
+      codex = pkgs.openclaw-runtime-plugin-codex;
+    };
 
-  # Subscription runtime of the main model, from its provider:
-  # - `anthropic/*`: the logged-in `claude` CLI (Claude Pro/Max), which owns
+  # Catalog, main model first.
+  models = lib.unique ([ cfg.model ] ++ cfg.extraModels);
+  providerOf = m: lib.head (lib.splitString "/" m);
+
+  # Subscription runtime of a model, from its provider, when subscribed:
+  # - `anthropic`: the logged-in `claude` CLI (Claude Pro/Max), which owns
   #   the token;
-  # - `openai/*`: the `codex` plugin's app-server (ChatGPT Plus/Pro OAuth).
-  runtime =
-    if lib.hasPrefix "anthropic/" cfg.model && space.enableClaude then
+  # - `openai`: the `codex` plugin's app-server (ChatGPT Plus/Pro OAuth).
+  # Else OpenClaw's own runtime, with the provider's API key.
+  runtimeOf =
+    m:
+    let
+      p = providerOf m;
+    in
+    if !lib.elem p cfg.subscriptions then
+      null
+    else if p == "anthropic" then
       "claude-cli"
-    else if lib.hasPrefix "openai/" cfg.model then
-      "codex"
     else
-      null;
+      "codex";
+
+  # The `claude` CLI prefers `ANTHROPIC_API_KEY` to its login: never exported
+  # beside the Claude subscription.
+  droppedKeys = lib.optional (lib.elem "anthropic" cfg.subscriptions) "ANTHROPIC_API_KEY";
+  keyVars = lib.subtractLists droppedKeys (
+    lib.unique (
+      cfg.apiKeys ++ lib.filter (k: k != null) (lib.mapAttrsToList (_: pr: pr.apiKey) cfg.providers)
+    )
+  );
+
+  # Variables certain for these two; other providers name theirs freely.
+  subscriptionKeys = {
+    anthropic = "ANTHROPIC_API_KEY";
+    openai = "OPENAI_API_KEY";
+  };
+  missingKeys = lib.filter (
+    m:
+    let
+      p = providerOf m;
+    in
+    subscriptionKeys ? ${p} && runtimeOf m == null && !lib.elem subscriptionKeys.${p} keyVars
+  ) models;
+  keylessModels = lib.filter (
+    m:
+    let
+      p = providerOf m;
+    in
+    !(subscriptionKeys ? ${p}) && !(cfg.providers ? ${p})
+  ) models;
+
+  # OpenAI-compatible providers absent from OpenClaw.
+  providersConfig = lib.mapAttrs (
+    _: pr:
+    {
+      inherit (pr) api baseUrl;
+      models = map (id: {
+        inherit id;
+        name = id;
+      }) pr.models;
+    }
+    // lib.optionalAttrs (pr.apiKey != null) {
+      apiKey = {
+        source = "env";
+        provider = "default";
+        id = pr.apiKey;
+      };
+    }
+  ) cfg.providers;
 
   # Mutable config: each leaf of the Nix config is imposed (rewritten) or
   # seeded (written when absent), longest prefix wins. Store paths are always
@@ -310,6 +373,10 @@ let
     [
       "mcp"
       "servers"
+    ]
+    [
+      "models"
+      "providers"
     ]
     [
       "tools"
@@ -482,10 +549,85 @@ in
         default = "anthropic/claude-sonnet-5-5";
         example = "openai/gpt-6-astra";
         description = ''
-          Main model. Subscription runtime from its provider: `anthropic/*`
-          through the `claude` CLI (with `darkone.host.ai-space.enableClaude`),
-          `openai/*` through the `codex` plugin (ChatGPT OAuth).
+          Main model, `<provider>/<model>`: through the owner's subscription
+          when its provider is in `subscriptions`, else an API key (`apiKeys`).
         '';
+      };
+
+      extraModels = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        example = [
+          "openai/gpt-6-astra"
+          "openrouter/moonshotai/kimi-k3"
+        ];
+        description = "Other models of the catalog, picked in the chat with `/model`; same rules as `model`.";
+      };
+
+      subscriptions = lib.mkOption {
+        type = lib.types.listOf (
+          lib.types.enum [
+            "anthropic"
+            "openai"
+          ]
+        );
+        default = [
+          "anthropic"
+          "openai"
+        ];
+        example = [ "openai" ];
+        description = ''
+          Subscriptions of the owner, used first by the models of their provider:
+          - `anthropic`: Claude Pro/Max through the `claude` CLI (needs
+            `darkone.host.ai-space.enableClaude`);
+          - `openai`: ChatGPT Plus/Pro through the `codex` plugin.
+
+          Other providers, or one left out, go through an API key (`apiKeys`).
+        '';
+      };
+
+      apiKeys = lib.mkOption {
+        type = lib.types.listOf (lib.types.strMatching "[A-Z][A-Z0-9_]*");
+        default = [ ];
+        example = [ "OPENROUTER_API_KEY" ];
+        description = ''
+          Provider API keys, by variable: read from the space's sops file
+          (`openclaw/<VAR>`, `just space-sops <host>`) into the gateway
+          environment. `ANTHROPIC_API_KEY` is dropped beside the `anthropic`
+          subscription, which it would override.
+        '';
+      };
+
+      providers = lib.mkOption {
+        type = lib.types.attrsOf (
+          lib.types.submodule {
+            options = {
+              baseUrl = lib.mkOption {
+                type = lib.types.str;
+                example = "https://inference-api.nousresearch.com/v1";
+                description = "API endpoint.";
+              };
+              api = lib.mkOption {
+                type = lib.types.str;
+                default = "openai-completions";
+                description = "API flavour (OpenClaw `models.providers.<id>.api`).";
+              };
+              apiKey = lib.mkOption {
+                type = lib.types.nullOr (lib.types.strMatching "[A-Z][A-Z0-9_]*");
+                default = null;
+                example = "NOUS_API_KEY";
+                description = "Key variable, read like `apiKeys`.";
+              };
+              models = lib.mkOption {
+                type = lib.types.listOf lib.types.str;
+                example = [ "Hermes-4-405B" ];
+                description = "Model ids, referenced as `<provider>/<id>`.";
+              };
+            };
+          }
+        );
+        default = { };
+        description = "Providers absent from OpenClaw (Nous Portal...), OpenAI-compatible by default.";
       };
 
       mutableConfig = lib.mkOption {
@@ -638,6 +780,14 @@ in
           message = "${host.hostname}: set `darkone.service.openclaw.owner` to one of its members (${lib.concatStringsSep ", " members}).";
         }
         {
+          assertion = !lib.elem "anthropic" cfg.subscriptions || space.enableClaude;
+          message = "${host.hostname}: the `anthropic` subscription runs through the `claude` CLI: set `darkone.host.ai-space.enableClaude`, or drop it from `darkone.service.openclaw.subscriptions`.";
+        }
+        {
+          assertion = missingKeys == [ ];
+          message = "${host.hostname}: openclaw models outside `subscriptions` without their key in `apiKeys`: ${lib.concatStringsSep ", " missingKeys}.";
+        }
+        {
           assertion = !cfg.mutableConfig || unclassified == [ ];
           message = "${host.hostname}: openclaw keys neither imposed nor seeded (`imposedRoots`, `seededRoots`): ${
             lib.concatMapStringsSep ", " (lib.concatStringsSep ".") unclassified
@@ -654,9 +804,16 @@ in
           message = "${host.hostname}: `darkone.service.openclaw.transcription.backend = \"hypervisor\"` needs a microVM guest (`microvm-guest:<hypervisor>`).";
         }
       ];
-      warnings = lib.optional (memberEmails == [ ]) (
-        "${host.hostname}: openclaw without members (`users` of the host): nobody passes the SSO."
-      );
+      warnings =
+        lib.optional (memberEmails == [ ]) (
+          "${host.hostname}: openclaw without members (`users` of the host): nobody passes the SSO."
+        )
+        ++ lib.optional (lib.elem "ANTHROPIC_API_KEY" cfg.apiKeys && droppedKeys != [ ]) (
+          "${host.hostname}: openclaw `ANTHROPIC_API_KEY` not exported: the `claude` CLI would prefer it to the `anthropic` subscription."
+        )
+        ++ lib.optional (keylessModels != [ ] && cfg.apiKeys == [ ]) (
+          "${host.hostname}: openclaw models through an API key, none in `apiKeys`: ${lib.concatStringsSep ", " keylessModels}."
+        );
 
       darkone.system.microvm.guest.whisper = hypervisorTranscription;
 
@@ -761,10 +918,13 @@ in
               agents.defaults = {
                 workspace = workspaceDir;
                 model.primary = cfg.model;
-              }
-              // lib.optionalAttrs (runtime != null) { models.${cfg.model}.agentRuntime.id = runtime; };
+                models = lib.genAttrs models (
+                  m: lib.optionalAttrs (runtimeOf m != null) { agentRuntime.id = runtimeOf m; }
+                );
+              };
               tools.exec.mode = cfg.exec;
             }
+            (lib.mkIf (cfg.providers != { }) { models.providers = providersConfig; })
 
             # What `openclaw agents set-identity` would write: the config is
             # read-only, the identity is declared here.
@@ -862,7 +1022,8 @@ in
         sops.secrets = {
           openclaw-gateway-password = { };
         }
-        // lib.optionalAttrs hasMatrix { openclaw-matrix-token = { }; };
+        // lib.optionalAttrs hasMatrix { openclaw-matrix-token = { }; }
+        // lib.genAttrs (map (var: "openclaw/${var}") keyVars) (_: { });
         sops.templates."openclaw-gateway.env" = {
           content = ''
             OPENCLAW_GATEWAY_PASSWORD=${config.sops.placeholder.openclaw-gateway-password}
@@ -870,7 +1031,8 @@ in
           + lib.optionalString hasMatrix ''
             ${tokenEnv}=${config.sops.placeholder.openclaw-matrix-token}
           ''
-          + lib.concatMapStrings (s: "${s.env}=${config.sops.placeholder.${s.key}}\n") mcpSecrets;
+          + lib.concatMapStrings (s: "${s.env}=${config.sops.placeholder.${s.key}}\n") mcpSecrets
+          + lib.concatMapStrings (var: "${var}=${config.sops.placeholder."openclaw/${var}"}\n") keyVars;
           owner = "openclaw";
         };
 
