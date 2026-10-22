@@ -37,6 +37,8 @@
 # - workspace (`/var/lib/openclaw/workspace`): `workspace` files (AGENTS.md,
 #   SOUL.md...) replaced at each start, others left to the agent; `projects`
 #   git-cloned once into `projects/<name>`;
+# - Talk (`talk`): live voice conversation in the browser, OpenAI GPT-Live,
+#   work delegated to the agent (`agent-consult`), ChatGPT login first;
 # - voice notes: whisper.cpp (`transcription`); on a microVM guest the
 #   hypervisor's server (`large-v3-turbo`), local ggml `small` as fallback;
 #   local only on bare metal.
@@ -709,6 +711,32 @@ in
         '';
       };
 
+      talk = {
+        enable = lib.mkEnableOption "Talk: live voice conversation in the browser (OpenAI GPT-Live)";
+        model = lib.mkOption {
+          type = lib.types.str;
+          default = "gpt-live-1-codex";
+          description = ''
+            Realtime model. `gpt-live-1-codex`: the owner's ChatGPT login
+            (`openclaw models auth login --provider openai`), else a Platform
+            key (`OPENAI_API_KEY`); `gpt-live-1`, `gpt-realtime-2.1` (camera):
+            Platform key only. Pinned: unset, a Platform key wins over ChatGPT.
+          '';
+        };
+        voice = lib.mkOption {
+          type = lib.types.str;
+          default = "cove";
+          example = "sol";
+          description = "Voice of the model's route (`gpt-live-1-codex`: `cove`, `arbor`, `breeze`, `ember`, `juniper`, `maple`, `sol`, `spruce`, `vale`).";
+        };
+        instructions = lib.mkOption {
+          type = lib.types.nullOr lib.types.lines;
+          default = null;
+          example = "Réponds en français, en phrases courtes.";
+          description = "Instructions appended to OpenClaw's realtime prompt.";
+        };
+      };
+
       transcription = {
         enable = lib.mkOption {
           type = lib.types.bool;
@@ -811,6 +839,12 @@ in
         ++ lib.optional (lib.elem "ANTHROPIC_API_KEY" cfg.apiKeys && droppedKeys != [ ]) (
           "${host.hostname}: openclaw `ANTHROPIC_API_KEY` not exported: the `claude` CLI would prefer it to the `anthropic` subscription."
         )
+        ++
+          lib.optional
+            (cfg.talk.enable && cfg.talk.model != "gpt-live-1-codex" && !lib.elem "OPENAI_API_KEY" keyVars)
+            (
+              "${host.hostname}: openclaw Talk model `${cfg.talk.model}` needs a Platform key: add `OPENAI_API_KEY` to `apiKeys`."
+            )
         ++ lib.optional (keylessModels != [ ] && cfg.apiKeys == [ ]) (
           "${host.hostname}: openclaw models through an API key, none in `apiKeys`: ${lib.concatStringsSep ", " keylessModels}."
         );
@@ -925,6 +959,21 @@ in
               tools.exec.mode = cfg.exec;
             }
             (lib.mkIf (cfg.providers != { }) { models.providers = providersConfig; })
+
+            # WebRTC between browser and OpenAI, SDP through the gateway; the
+            # bundled `openai` plugin must load (never `plugins.allow`).
+            (lib.mkIf cfg.talk.enable {
+              talk.realtime = {
+                provider = "openai";
+                transport = "webrtc";
+                brain = "agent-consult";
+                providers.openai = {
+                  inherit (cfg.talk) model;
+                  speakerVoice = cfg.talk.voice;
+                };
+              }
+              // lib.optionalAttrs (cfg.talk.instructions != null) { inherit (cfg.talk) instructions; };
+            })
 
             # What `openclaw agents set-identity` would write: the config is
             # read-only, the identity is declared here.
