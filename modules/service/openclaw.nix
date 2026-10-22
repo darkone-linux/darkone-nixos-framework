@@ -35,8 +35,11 @@
 #   at each start (imposed: access, channels, plugins, store paths; seeded
 #   once: model, exec, identity...), owner gets `operator.admin`;
 # - workspace (`/var/lib/openclaw/workspace`): `workspace` files (AGENTS.md,
-#   SOUL.md...) replaced at each start, others left to the agent; `projects`
-#   git-cloned once into `projects/<name>`;
+#   SOUL.md...) replaced at each start, others left to the agent;
+# - projects: the space's shared `projectsDir` is the agent's working dir
+#   (`agents.defaults.cwd`), `projects` git-cloned once into it;
+# - coding agents (Claude Code, Codex, OpenCode of the space): background
+#   workers (`coding-agent` skill), chat-bound sessions (`/acp spawn`, acpx);
 # - Talk (`talk`): live voice conversation in the browser, OpenAI GPT-Live,
 #   work delegated to the agent (`agent-consult`), ChatGPT login first;
 # - voice notes: whisper.cpp (`transcription`); on a microVM guest the
@@ -128,6 +131,12 @@ let
   members = lib.filter (u: users ? ${u}) (dnfLib.spaceMembers host);
   space = config.darkone.host.ai-space;
   workspaceDir = "${stateDir}/workspace";
+
+  # ACP harness ids of the space's coding CLIs, the first one by default.
+  codingAgents =
+    lib.optional space.enableClaude "claude"
+    ++ lib.optional space.enableCodex "codex"
+    ++ lib.optional space.enableOpenCode "opencode";
 
   # Agent PATH: shell basics, the space's tools, the delegated coding CLIs.
   agentTools = [
@@ -420,6 +429,13 @@ let
       "skills"
       "entries"
     ]
+    [
+      "plugins"
+      "entries"
+      "acpx"
+      "config"
+      "permissionMode"
+    ]
   ];
 
   # Lists are leaves: imposed whole.
@@ -705,9 +721,10 @@ in
           notes = "https://forge.example.com/alice/notes.git";
         };
         description = ''
-          Git repositories cloned once into `workspace/projects/<name>`, never
-          pulled. SSH remotes use the key of `openclaw` (`/var/lib/openclaw/.ssh`,
-          created by hand); the server key is accepted on first clone.
+          Git repositories cloned once into `<projectsDir>/<name>`
+          (`darkone.host.ai-space.projectsDir`), never pulled. SSH remotes use
+          the key of `openclaw` (`/var/lib/openclaw/.ssh`, created by hand); the
+          server key is accepted on first clone.
         '';
       };
 
@@ -785,7 +802,10 @@ in
     {
       darkone.system.services.service.openclaw = {
         inherit defaultParams;
-        persist.dirs = [ stateDir ];
+        persist.dirs = [
+          stateDir
+          space.projectsDir
+        ];
         proxy.servicePort = port;
         proxy.spaceMembersOnly = true;
       };
@@ -868,7 +888,7 @@ in
         environment.systemPackages = [ cli ] ++ agentTools;
 
         # Agent commands run unapproved in this unit: second wall inside the
-        # guest, writes to the state only. No `MemoryDenyWriteExecute` (V8 JIT)
+        # guest, writes to the state and the projects only. No `MemoryDenyWriteExecute` (V8 JIT)
         # nor syscall filter (agent tools vary). Checked: claude, codex, nix,
         # git, whisper.
         systemd.services.openclaw-gateway.serviceConfig = {
@@ -877,7 +897,10 @@ in
           PrivateDevices = true;
           ProtectHome = true;
           ProtectSystem = "strict";
-          ReadWritePaths = [ stateDir ];
+          ReadWritePaths = [
+            stateDir
+            space.projectsDir
+          ];
           ProtectProc = "invisible";
           ProtectKernelTunables = true;
           ProtectKernelModules = true;
@@ -943,7 +966,8 @@ in
     (lib.optionalAttrs (options ? services.openclaw-gateway) (
       lib.mkIf cfg.enable {
         services.openclaw-gateway = {
-          servicePath = agentTools;
+          # `cli`: coding workers report back with `openclaw message send`.
+          servicePath = agentTools ++ [ cli ];
           execStartPre = lib.optional (cfg.workspace != { }) "${installWorkspace}";
 
           # Pinned: the default follows `$HOME`, not the state dir.
@@ -951,6 +975,10 @@ in
             {
               agents.defaults = {
                 workspace = workspaceDir;
+
+                # Commands and deliverables; bootstrap files and memory stay
+                # in the workspace. Outside the state: coding workers refuse it.
+                cwd = space.projectsDir;
                 model.primary = cfg.model;
                 models = lib.genAttrs models (
                   m: lib.optionalAttrs (runtimeOf m != null) { agentRuntime.id = runtimeOf m; }
@@ -959,6 +987,30 @@ in
               tools.exec.mode = cfg.exec;
             }
             (lib.mkIf (cfg.providers != { }) { models.providers = providersConfig; })
+
+            # Claude and Codex adapters ship with acpx; OpenCode by store path,
+            # not `npx` at first use.
+            (lib.mkIf (codingAgents != [ ]) {
+              skills.entries.coding-agent.enabled = true;
+              acp = {
+                enabled = true;
+                backend = "acpx";
+                defaultAgent = lib.head codingAgents;
+                allowedAgents = codingAgents;
+              };
+              plugins.entries.acpx = {
+                enabled = true;
+                config = {
+                  permissionMode = if cfg.exec == "full" then "approve-all" else "approve-reads";
+                }
+                // lib.optionalAttrs space.enableOpenCode {
+                  agents.opencode = {
+                    command = "${pkgs.opencode}/bin/opencode";
+                    args = [ "acp" ];
+                  };
+                };
+              };
+            })
 
             # WebRTC between browser and OpenAI, SDP through the gateway; the
             # bundled `openai` plugin must load (never `plugins.allow`).
@@ -987,7 +1039,7 @@ in
         # Best effort: a remote not reachable yet (key, network) is logged and
         # retried at the next boot, it never fails the deploy.
         systemd.services.openclaw-projects = lib.mkIf (cfg.projects != { }) {
-          description = "Clone the projects of the OpenClaw workspace";
+          description = "Clone the projects of the AI space";
           wantedBy = [ "multi-user.target" ];
           wants = [ "network-online.target" ];
           after = [ "network-online.target" ];
@@ -1004,10 +1056,12 @@ in
             lib.mapAttrsToList (
               name: url:
               let
-                dir = lib.escapeShellArg "${workspaceDir}/projects/${name}";
+                dir = lib.escapeShellArg "${space.projectsDir}/${name}";
               in
+
+              # Group-writable objects and refs: members work in it too.
               ''
-                [ -d ${dir}/.git ] || ${pkgs.git}/bin/git clone ${lib.escapeShellArg url} ${dir} \
+                [ -d ${dir}/.git ] || ${pkgs.git}/bin/git clone -c core.sharedRepository=group ${lib.escapeShellArg url} ${dir} \
                   || echo "openclaw-projects: ${name} not cloned (${url})" >&2
               ''
             ) cfg.projects

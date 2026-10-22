@@ -13,7 +13,9 @@
 # - `skills`: `SKILL.md` content, a file or a skill directory, by name;
 # - `enableClaude`, `enableCodex`, `enableOpenCode`: CLIs for members and for
 #   OpenClaw delegation;
-# - `packages`: tools on the agents' PATH and in members' homes.
+# - `packages`: tools on the agents' PATH and in members' homes;
+# - `projectsDir`: shared projects, writable by every member and the agent
+#   (group `projects`, setgid, default ACL), `~/projects` in members' homes.
 #
 # ```nix
 # darkone.host.ai-space = {
@@ -34,9 +36,17 @@
 # secret.
 # :::
 
-{ lib, config, ... }:
+{
+  lib,
+  config,
+  dnfLib,
+  host,
+  users,
+  ...
+}:
 let
   cfg = config.darkone.host.ai-space;
+  members = lib.filter (u: users ? ${u}) (dnfLib.spaceMembers host);
   inherit (lib) mkOption types;
 
   # Subset of HM `programs.mcp.servers` that OpenClaw (`mcp.servers`) reads too.
@@ -123,6 +133,15 @@ in
         default = [ ];
         description = "Tools of the space: OpenClaw PATH and members' homes.";
       };
+
+      projectsDir = mkOption {
+        type = types.str;
+        default = "/var/lib/projects";
+        description = ''
+          Shared projects of the space: every member and the OpenClaw agent
+          (its working dir) read and write them, `~/projects` in members' homes.
+        '';
+      };
     };
   };
 
@@ -131,6 +150,32 @@ in
     # Services of `host.services` are triggered by the server profile.
     darkone.host.server.enable = true;
     darkone.system.sops.isolated = lib.mkDefault true;
+
+    # Members trust each other: group rights whatever the umask (`0077` of the
+    # OpenClaw unit), through setgid and a default ACL.
+    users.groups.projects.members =
+      members ++ lib.optional config.darkone.service.openclaw.enable "openclaw";
+    systemd.tmpfiles.settings."10-ai-space-projects".${cfg.projectsDir} = {
+      d = {
+        mode = "2770";
+        user = "root";
+        group = "projects";
+      };
+      "a+".argument = lib.concatStringsSep "," [
+        "default:user::rwx"
+        "default:group::rwx"
+        "default:group:projects:rwx"
+        "default:mask::rwx"
+        "default:other::---"
+      ];
+    };
+
+    # Repositories owned by another member or the agent: git refuses them
+    # otherwise (`dubious ownership`).
+    programs.git = {
+      enable = true;
+      config.safe.directory = [ "${cfg.projectsDir}/*" ];
+    };
 
     # Members (group `users`) read them through Home Manager, OpenClaw through
     # its env file.

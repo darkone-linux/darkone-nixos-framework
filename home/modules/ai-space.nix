@@ -7,7 +7,8 @@
 # - MCP: HM `programs.mcp`, integrated into Claude Code, Codex and OpenCode;
 # - skills: `~/.claude/skills`, `~/.codex/skills`, `~/.config/opencode/skills`;
 # - logins: once per member, `claude` (`/login`), `codex login --device-auth`,
-#   `opencode auth login`.
+#   `opencode auth login`;
+# - `~/projects`: the space's shared projects (`projectsDir`).
 #
 # :::note[Per member, per space]
 # `usr/users/<login>/spaces/<host>.nix` adds or overrides, e.g. a personal MCP
@@ -32,6 +33,7 @@ in
 
   config = lib.mkIf (cfg.enable && space.enable) {
     home.packages = space.packages;
+    home.file.projects.source = config.lib.file.mkOutOfStoreSymlink space.projectsDir;
 
     # Always on: a member's own `programs.mcp.servers` joins the space's.
     # `secretEnv`: file refs, read at server start (HM command wrapper).
