@@ -31,6 +31,9 @@
 #   of the space (`darkone.host.ai-space`), shared with the members' homes;
 # - identity (`identity`: name, emoji, avatar): declared, the config being
 #   read-only (`openclaw agents set-identity` fails);
+# - `mutableConfig`: config writable from the UI and the CLI, Nix keys merged
+#   at each start (imposed: access, channels, plugins, store paths; seeded
+#   once: model, exec, identity...), owner gets `operator.admin`;
 # - workspace (`/var/lib/openclaw/workspace`): `workspace` files (AGENTS.md,
 #   SOUL.md...) replaced at each start, others left to the agent; `projects`
 #   git-cloned once into `projects/<name>`;
@@ -103,10 +106,18 @@ let
     set -a
     . ${envFile}
     set +a
-    export OPENCLAW_CONFIG_PATH=${config.services.openclaw-gateway.configPath or ""}
+    export OPENCLAW_CONFIG_PATH=${configPath}
     export OPENCLAW_STATE_DIR=${stateDir}
+    ${lib.optionalString cfg.mutableConfig "export OPENCLAW_NIX_MODE=0"}
     exec ${pkgs.openclaw-gateway}/bin/openclaw "$@"
   '';
+
+  # Mutable: a state file, the store one (`/etc`) stays as reference.
+  configPath =
+    if cfg.mutableConfig then
+      "${stateDir}/openclaw.json"
+    else
+      config.services.openclaw-gateway.configPath or "";
 
   members = lib.filter (u: users ? ${u}) (dnfLib.spaceMembers host);
   space = config.darkone.host.ai-space;
@@ -261,6 +272,161 @@ let
     else
       null;
 
+  # Mutable config: each key of the Nix config is imposed (rewritten at each
+  # start, longest prefix wins) or seeded (written when absent). Store paths
+  # are always imposed: stale after an update or a GC.
+  imposedRoots = [
+    [ "gateway" ]
+    [
+      "channels"
+      "matrix"
+    ]
+    [
+      "commands"
+      "ownerAllowFrom"
+    ]
+    [
+      "plugins"
+      "load"
+    ]
+    [
+      "plugins"
+      "entries"
+    ]
+    [
+      "agents"
+      "defaults"
+      "workspace"
+    ]
+    [
+      "agents"
+      "defaults"
+      "cwd"
+    ]
+    [
+      "session"
+      "dmScope"
+    ]
+    [
+      "mcp"
+      "servers"
+    ]
+    [
+      "tools"
+      "alsoAllow"
+    ]
+    [
+      "tools"
+      "media"
+    ]
+    [
+      "skills"
+      "load"
+    ]
+  ];
+  seededRoots = [
+    [
+      "agents"
+      "defaults"
+      "model"
+    ]
+    [
+      "agents"
+      "defaults"
+      "models"
+    ]
+    [
+      "agents"
+      "entries"
+      "main"
+      "identity"
+    ]
+    [
+      "tools"
+      "exec"
+    ]
+    [ "talk" ]
+    [ "acp" ]
+    [
+      "skills"
+      "entries"
+    ]
+  ];
+
+  # Lists are leaves: imposed whole.
+  leafPaths =
+    path: v:
+    if builtins.isAttrs v && v != { } then
+      lib.concatLists (lib.mapAttrsToList (n: leafPaths (path ++ [ n ])) v)
+    else
+      [ path ];
+  longestRoot =
+    roots: path:
+    lib.foldl' (a: r: if lib.length r > lib.length a then r else a) [ ] (
+      lib.filter (r: lib.take (lib.length r) path == r) roots
+    );
+  classify =
+    path:
+    let
+      imposed = longestRoot imposedRoots path;
+      seeded = longestRoot seededRoots path;
+    in
+    if imposed == [ ] && seeded == [ ] then
+      null
+    else if lib.length imposed > lib.length seeded then
+      "imposed"
+    else
+      "seeded";
+
+  nixConfig = config.services.openclaw-gateway.config;
+  nixLeaves = leafPaths [ ] nixConfig;
+  entry = path: {
+    inherit path;
+    value = lib.getAttrFromPath path nixConfig;
+  };
+  imposedEntries = map entry (lib.filter (p: classify p == "imposed") nixLeaves);
+  seededEntries = map entry (lib.filter (p: lib.hasAttrByPath p nixConfig) seededRoots);
+  unclassified = lib.filter (p: classify p == null) nixLeaves;
+  seededStorePaths = lib.filter (
+    p: classify p == "seeded" && builtins.hasContext (builtins.toJSON (lib.getAttrFromPath p nixConfig))
+  ) nixLeaves;
+
+  # Previous imposed leaves: deleted once Nix drops them (old owner scope,
+  # removed plugin). Written only on a real change: the guard below fires on
+  # its own writes, and OpenClaw may reformat the file.
+  mergeSpec = pkgs.writeText "openclaw-config-merge.json" (
+    builtins.toJSON {
+      imposed = imposedEntries;
+      seeded = seededEntries;
+    }
+  );
+  mergeConfig = pkgs.writeShellScript "openclaw-config-merge" ''
+    set -euo pipefail
+    jq=${pkgs.jq}/bin/jq
+    live=${configPath}
+    prev=${stateDir}/.openclaw-imposed.json
+    tmp="$live.nix-tmp"
+    if [ -f "$live" ] && ! $jq empty "$live" 2>/dev/null; then
+      echo "openclaw-config-merge: invalid $live, moved to $live.invalid" >&2
+      ${pkgs.coreutils}/bin/mv -f "$live" "$live.invalid"
+    fi
+    [ -f "$live" ] || echo '{}' > "$live"
+    [ -f "$prev" ] || echo '[]' > "$prev"
+    $jq --slurpfile spec ${mergeSpec} --slurpfile prev "$prev" '
+      $spec[0] as $s
+      | reduce ($prev[0] - [ $s.imposed[].path ])[] as $p (.; delpaths([ $p ]))
+      | reduce $s.seeded[] as $e (.;
+          if (try getpath($e.path) catch null) == null then setpath($e.path; $e.value) else . end)
+      | reduce $s.imposed[] as $e (.; setpath($e.path; $e.value))
+    ' "$live" > "$tmp"
+    if $jq -e -n --slurpfile a "$live" --slurpfile b "$tmp" '$a == $b' > /dev/null; then
+      ${pkgs.coreutils}/bin/rm -f "$tmp"
+    else
+      ${pkgs.coreutils}/bin/mv -f "$tmp" "$live"
+    fi
+    $jq '[ .imposed[].path ]' ${mergeSpec} > "$prev"
+  '';
+
   matrixConfig = {
 
     # Owner: target of proactive messages (heartbeat `owner`, DM only).
@@ -319,6 +485,19 @@ in
           Main model. Subscription runtime from its provider: `anthropic/*`
           through the `claude` CLI (with `darkone.host.ai-space.enableClaude`),
           `openai/*` through the `codex` plugin (ChatGPT OAuth).
+        '';
+      };
+
+      mutableConfig = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Config writable from the UI and `openclaw config set`, the owner being
+          operator admin. Nix keys merged at each start:
+          - imposed, rewritten (also on any change of the file): gateway and
+            access, Matrix channel, plugins, MCP servers, store paths;
+          - seeded, written when absent, then the UI rules: `model`, `exec`,
+            `identity`, talk, ACP, skill switches.
         '';
       };
 
@@ -459,6 +638,18 @@ in
           message = "${host.hostname}: set `darkone.service.openclaw.owner` to one of its members (${lib.concatStringsSep ", " members}).";
         }
         {
+          assertion = !cfg.mutableConfig || unclassified == [ ];
+          message = "${host.hostname}: openclaw keys neither imposed nor seeded (`imposedRoots`, `seededRoots`): ${
+            lib.concatMapStringsSep ", " (lib.concatStringsSep ".") unclassified
+          }.";
+        }
+        {
+          assertion = !cfg.mutableConfig || seededStorePaths == [ ];
+          message = "${host.hostname}: openclaw seeded keys holding a store path, to impose: ${
+            lib.concatMapStringsSep ", " (lib.concatStringsSep ".") seededStorePaths
+          }.";
+        }
+        {
           assertion = !hypervisorTranscription || config.darkone.system.microvm.hypervisor != null;
           message = "${host.hostname}: `darkone.service.openclaw.transcription.backend = \"hypervisor\"` needs a microVM guest (`microvm-guest:<hypervisor>`).";
         }
@@ -526,8 +717,12 @@ in
               mode = "trusted-proxy";
 
               # Approvals: the owner's sessions, not every member's device.
+              # Admin with a mutable config: settings of the UI.
               identityScopes = lib.optionalAttrs (cfg.owner != null) {
-                ${users.${cfg.owner}.email} = [ "operator.approvals" ];
+                ${users.${cfg.owner}.email} = [
+                  "operator.approvals"
+                ]
+                ++ lib.optional cfg.mutableConfig "operator.admin";
               };
               trustedProxy = {
                 userHeader = "x-auth-request-email";
@@ -608,6 +803,48 @@ in
               ''
             ) cfg.projects
           );
+        };
+      }
+    ))
+
+    #------------------------------------------------------------------------
+    # Mutable config
+    #------------------------------------------------------------------------
+
+    (lib.optionalAttrs (options ? services.openclaw-gateway) (
+      lib.mkIf (cfg.enable && cfg.mutableConfig) {
+
+        # Unset, the package wrapper sets `OPENCLAW_NIX_MODE=1`: read-only UI.
+        # Merged over the module's variables: the state file wins over `/etc`.
+        services.openclaw-gateway = {
+          environment = {
+            OPENCLAW_NIX_MODE = "0";
+            OPENCLAW_CONFIG_PATH = configPath;
+            CLAWDBOT_CONFIG_PATH = configPath;
+          };
+          execStartPre = [ "${mergeConfig}" ];
+        };
+
+        # The agent runs as `openclaw` too: imposed keys come back as soon as
+        # the file changes, not at the next start only.
+        systemd.paths.openclaw-config-guard = {
+          wantedBy = [ "multi-user.target" ];
+          pathConfig.PathChanged = configPath;
+        };
+        systemd.services.openclaw-config-guard = {
+          description = "Re-impose the Nix keys of the OpenClaw config";
+          serviceConfig = {
+            Type = "oneshot";
+            User = "openclaw";
+            Group = "openclaw";
+            ExecStart = "${mergeConfig}";
+            UMask = "0077";
+            NoNewPrivileges = true;
+            PrivateTmp = true;
+            ProtectHome = true;
+            ProtectSystem = "strict";
+            ReadWritePaths = [ stateDir ];
+          };
         };
       }
     ))
