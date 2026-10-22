@@ -11,9 +11,15 @@
 # never has to name two modules for one game.
 # :::
 #
-# :::caution[Zone-scoped firewall]
-# Game and discovery ports are accepted from the zone prefix only. A STK host
-# that also holds a WAN or tailnet address does not publish the game there.
+# :::tip[Playing across zones]
+# Game and discovery ports accept every zone prefix and the tailnet. Broadcast
+# discovery stays inside the zone: from another zone, join with "Enter server
+# address" (server IP, port 2759).
+# :::
+#
+# :::caution[Fleet-scoped firewall]
+# Sources are matched on fleet prefixes, never on an interface: a STK host that
+# also holds a WAN address does not publish the game there.
 # :::
 
 {
@@ -22,6 +28,7 @@
   dnfLib,
   zone,
   host,
+  network,
   pkgs,
   ...
 }:
@@ -31,6 +38,14 @@ let
   # The global zone carries no prefix: nothing to anchor a source match on.
   inLocalZone = dnfLib.inLocalZone zone;
   zoneCidr = lib.optionalString inLocalZone "${zone.networkIp}/${toString zone.prefixLength}";
+
+  # Other zones arrive through the gateways with their source kept
+  # (`--snat-subnet-routes=false`); roaming hosts with their tailnet address.
+  fleetCidrs =
+    lib.mapAttrsToList (_: z: "${z.networkIp}/${toString z.prefixLength}") (
+      lib.filterAttrs (_: dnfLib.inLocalZone) network.zones
+    )
+    ++ lib.optional network.coordination.enable dnfLib.constants.tailnetIpv4Cidr;
 in
 {
   options = {
@@ -68,11 +83,11 @@ in
       enable = true;
 
       # No `allowedUDPPorts`: without `iifname` nor source match, every host leg
-      # would get the game. Three rules on the zone prefix: 2757 (discovery,
-      # broadcast and unicast), 2759 (game server), the ephemeral range (the
-      # discovery answer, which conntrack cannot relate to a broadcast).
+      # would get the game. 2757 (discovery) and 2759 (game) from the fleet;
+      # the ephemeral range from the zone only: broadcast discovery answers,
+      # which conntrack cannot relate, never cross a gateway.
       extraInputRules = lib.optionalString inLocalZone ''
-        ip saddr ${zoneCidr} udp dport { 2757, 2759 } accept
+        ip saddr { ${lib.concatStringsSep ", " fleetCidrs} } udp dport { 2757, 2759 } accept
         ip saddr ${zoneCidr} udp dport 32768-60999 accept
       '';
     };
