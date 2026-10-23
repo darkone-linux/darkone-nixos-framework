@@ -391,15 +391,14 @@ in
           # Covers the wait loop below (default 90s would race it).
           TimeoutStartSec = "150s";
 
-          # `after`/`wants` only mean kanidm.service's start job finished, not
-          # that the OIDC discovery endpoint answers through Caddy yet (same
-          # gap as `system/services/oauth2-proxy.nix`). Best-effort, never blocks:
-          # starts with CLI fallback if the issuer stays unreachable.
+          # Wait for a real 200 on the discovery document: the CLI fallback
+          # sticks until the next restart. Caddy answers 502 while Kanidm is
+          # down, and its bot filter 403s a `curl` User-Agent.
           ExecStartPre = pkgs.writeShellScript "headscale-wait-oidc" ''
             url="${oidc.openidConfigUrl}"
             for _ in $(${pkgs.coreutils}/bin/seq 1 15); do
-              code=$(${pkgs.curl}/bin/curl -sS -o /dev/null -w '%{http_code}' --max-time 4 "$url" || true)
-              [ -n "$code" ] && [ "$code" != "000" ] && exit 0
+              code=$(${pkgs.curl}/bin/curl -sS -A dnf-wait-oidc -o /dev/null -w '%{http_code}' --max-time 4 "$url" || true)
+              [ "$code" = "200" ] && exit 0
               ${pkgs.coreutils}/bin/sleep 3
             done
             echo "headscale: OIDC issuer unreachable after ~100s, starting with CLI fallback" >&2

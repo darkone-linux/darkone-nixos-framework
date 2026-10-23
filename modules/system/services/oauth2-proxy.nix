@@ -127,17 +127,14 @@ in
           # so systemd does not SIGTERM it as a start-pre timeout.
           TimeoutStartSec = "150s";
 
-          # Readiness gate: wait until kanidm answers the discovery URL *at all*.
-          # Any HTTP status means reachable — kanidm 403s an unauthenticated GET,
-          # yet the daemon's own discovery still succeeds; only a connection failure
-          # (curl prints 000) keeps us waiting. Best-effort: on timeout we start
-          # anyway and rely on Restart above. Keeps the common case a clean first
-          # start (no failed flap, no SystemdUnitFailed noise).
+          # Readiness gate: a real 200 on the discovery document. Caddy answers
+          # 502 while kanidm is down, and its bot filter 403s a `curl` User-Agent.
+          # Best-effort: on timeout, start anyway and rely on Restart above.
           ExecStartPre = pkgs.writeShellScript "oauth2-proxy-wait-issuer" ''
             url="${oidcIssuerUrl}/.well-known/openid-configuration"
             for _ in $(${pkgs.coreutils}/bin/seq 1 15); do
-              code=$(${pkgs.curl}/bin/curl -sS -o /dev/null -w '%{http_code}' --max-time 4 "$url" || true)
-              [ -n "$code" ] && [ "$code" != "000" ] && exit 0
+              code=$(${pkgs.curl}/bin/curl -sS -A dnf-wait-oidc -o /dev/null -w '%{http_code}' --max-time 4 "$url" || true)
+              [ "$code" = "200" ] && exit 0
               ${pkgs.coreutils}/bin/sleep 3
             done
             echo "oauth2-proxy: issuer unreachable after ~100s, starting anyway" >&2
