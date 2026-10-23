@@ -283,8 +283,9 @@ in
         enable = true;
         settings = {
 
-          # Public Headscale server URL
-          server_url = "https://${params.fqdn}:443";
+          # Public URL, no port: the OIDC `redirect_uri` derives from it and must
+          # equal the one registered in Kanidm (`params.href`).
+          server_url = params.href;
 
           # Local Caddy, the only proxy: without it every request logs
           # `127.0.0.1` instead of the client address.
