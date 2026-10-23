@@ -236,6 +236,13 @@ in
         inherit defaultParams;
         persist.dirs = [ "/var/lib/headscale" ];
         proxy.servicePort = srv.port;
+
+        # headscale reads these before X-Forwarded-For (`trusted_proxies`
+        # below): a client-sent value must never reach it.
+        proxy.preExtraConfig = ''
+          request_header -True-Client-IP
+          request_header X-Real-IP {remote_host}
+        '';
       };
 
       # Kanidm OAuth2 client template. Scopes are mapped to `tailnet` only:
@@ -278,6 +285,13 @@ in
 
           # Public Headscale server URL
           server_url = "https://${params.fqdn}:443";
+
+          # Local Caddy, the only proxy: without it every request logs
+          # `127.0.0.1` instead of the client address.
+          trusted_proxies = [
+            "127.0.0.1/32"
+            "::1/128"
+          ];
 
           # Configuration DNS
           dns = {
