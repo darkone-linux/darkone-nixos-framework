@@ -383,6 +383,13 @@ in
         pkce.enabled = true;
       };
 
+      # Local Kanidm: reach the issuer on loopback (Caddy listens there too).
+      # Its tailnet address needs this host's tailscaled, itself waiting on
+      # headscale: at boot, OIDC times out and falls back to CLI.
+      networking.hosts."127.0.0.1" = lib.mkIf config.darkone.service.idm.enable [
+        (lib.removePrefix "https://" idmUrl)
+      ];
+
       systemd.services.headscale = {
         wants = issuerUnits;
         after = issuerUnits;
