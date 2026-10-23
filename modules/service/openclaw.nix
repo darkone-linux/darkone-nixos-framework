@@ -16,8 +16,9 @@
 # - devices: a member's browser is paired on first visit, without operator
 #   admin (granted from the host CLI only);
 # - port: reachable from the zone gateway only;
-# - host CLI: `openclaw`, re-run as the service user, past `trusted-proxy`
-#   with the gateway password (`openclaw-gateway-password`, `just space-init`);
+# - host CLI: `openclaw` (alone: the TUI), re-run as the service user, past
+#   `trusted-proxy` with the gateway password (`openclaw-gateway-password`,
+#   `just space-init`); admins and `cliUsers` (default: the owner) only;
 # - state: `/var/lib/openclaw` (provider logins, sessions, workspace,
 #   Matrix E2EE keys);
 # - owner (`owner`, default: the only member): its subscription runs the
@@ -74,7 +75,8 @@
 #
 # :::note[Provider login]
 # Once per space, from the host as `nix` (the `openclaw` CLI re-runs itself as
-# the service user), by subscription. Logins stay in the state.
+# the service user, also for `cliUsers`), by subscription. Logins stay in the
+# state.
 # - `anthropic`: `sudo -u openclaw -H claude auth login`;
 # - `openai`: `openclaw models auth login --provider openai`.
 # :::
@@ -108,12 +110,11 @@ let
   # Secrets of the gateway environment, rendered by sops-nix.
   envFile = config.sops.templates."openclaw-gateway.env".path;
 
-  # Host CLI on the service's state, which belongs to `openclaw`: re-runs
-  # itself as that user. The gateway password lets it past `trusted-proxy`.
-  cli = pkgs.writeShellScriptBin "openclaw" ''
-    if [ "$(${pkgs.coreutils}/bin/id -un)" != openclaw ]; then
-      exec /run/wrappers/bin/sudo -u openclaw -H "$0" "$@"
-    fi
+  # Host CLI on the service's state, run as `openclaw`. The gateway password
+  # lets it past `trusted-proxy`; bare `openclaw` (setup routing) ignores it,
+  # `tui` reads it.
+  cliRun = pkgs.writeShellScript "openclaw-cli" ''
+    [ $# -eq 0 ] && set -- tui
     set -a
     . ${envFile}
     set +a
@@ -121,6 +122,21 @@ let
     export OPENCLAW_STATE_DIR=${stateDir}
     ${lib.optionalString cfg.mutableConfig "export OPENCLAW_NIX_MODE=0"}
     exec ${pkgs.openclaw-gateway}/bin/openclaw "$@"
+  '';
+
+  # Admins and `cliUsers` reach `cliRun` through sudo; other members, without
+  # sudo, would face a password prompt.
+  cliDenied = lib.subtractLists cfg.cliUsers members;
+  cli = pkgs.writeShellScriptBin "openclaw" ''
+    case "$(${pkgs.coreutils}/bin/id -un)" in
+      openclaw) exec ${cliRun} "$@" ;;
+      ${lib.optionalString (cliDenied != [ ]) ''
+        ${lib.concatStringsSep "|" cliDenied})
+          echo "openclaw: host CLI reserved to darkone.service.openclaw.cliUsers; use ${params.href}" >&2
+          exit 1 ;;
+      ''}
+    esac
+    exec /run/wrappers/bin/sudo -u openclaw -H ${cliRun} "$@"
   '';
 
   # Mutable: a state file, the store one (`/etc`) stays as reference.
@@ -629,6 +645,21 @@ in
         '';
       };
 
+      cliUsers = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = lib.optional (cfg.owner != null && !config.security.sudo.execWheelOnly) cfg.owner;
+        defaultText = lib.literalMD "the owner, unless sudo is restricted to `wheel`";
+        example = [
+          "alice"
+          "bob"
+        ];
+        description = ''
+          Members running the host CLI (`openclaw`) as the service user, by a
+          sudo rule: TUI, provider logins, admin. Its `!` shell commands run as
+          `openclaw` too, the space's tokens within reach.
+        '';
+      };
+
       model = lib.mkOption {
         type = lib.types.str;
         default = "anthropic/claude-sonnet-5-5";
@@ -946,6 +977,14 @@ in
           message = "${host.hostname}: set `darkone.service.openclaw.owner` to one of its members (${lib.concatStringsSep ", " members}).";
         }
         {
+          assertion = lib.all (u: lib.elem u members) cfg.cliUsers;
+          message = "${host.hostname}: `darkone.service.openclaw.cliUsers` must be members (${lib.concatStringsSep ", " members}).";
+        }
+        {
+          assertion = cfg.cliUsers == [ ] || !config.security.sudo.execWheelOnly;
+          message = "${host.hostname}: `darkone.service.openclaw.cliUsers` go through sudo, restricted to `wheel` here (`security.sudo.execWheelOnly`).";
+        }
+        {
           assertion = !lib.elem "anthropic" cfg.subscriptions || space.enableClaude;
           message = "${host.hostname}: the `anthropic` subscription runs through the `claude` CLI: set `darkone.host.ai-space.enableClaude`, or drop it from `darkone.service.openclaw.subscriptions`.";
         }
@@ -1004,6 +1043,18 @@ in
 
         # Delegated CLIs on the system PATH too: their logins run from a shell.
         environment.systemPackages = [ cli ] ++ agentTools;
+
+        # Any arguments: the CLI is the whole service account anyway.
+        security.sudo.extraRules = lib.optional (cfg.cliUsers != [ ]) {
+          users = cfg.cliUsers;
+          runAs = "openclaw";
+          commands = [
+            {
+              command = "${cliRun}";
+              options = [ "NOPASSWD" ];
+            }
+          ];
+        };
 
         # Agent commands run unapproved in this unit: second wall inside the
         # guest, writes to the state and the projects only. No `MemoryDenyWriteExecute` (V8 JIT)
