@@ -145,8 +145,10 @@ in
     };
     expected = [ "tag:gw-far" ];
   };
-  testHostsSkipGatewayWithAdminGroup = {
-    expr = (policy { hosts = [ (gwFar // { groups = [ "admin" ]; }) ]; }).hosts ? gw-far;
+  testSshSkipsGatewayWithAdminGroup = {
+    expr =
+      builtins.any (r: builtins.elem "gw-far" r.src)
+        (policy { hosts = [ (gwFar // { groups = [ "admin" ]; }) ]; }).acls;
     expected = false;
   };
 
@@ -178,9 +180,34 @@ in
       zone-lan = "10.1.0.0/16";
       gateway-far = "10.2.1.1/32";
       gateway-lan = "10.1.1.1/32";
+      gw-far = "10.2.1.1/32";
+      gw-lan = "10.1.1.1/32";
       laptop = "10.1.12.1/32";
+      desktop = "10.1.11.1/32";
     };
   };
+
+  # Global zone hosts (the HCS: `tag:hcs`) and unaddressed hosts get no alias.
+  testHostAliasScope =
+    let
+      aliases =
+        (policy {
+          hosts = [
+            hcs
+            (desktop // { ip = ""; })
+          ];
+        }).hosts;
+    in
+    {
+      expr = {
+        hcs = aliases ? hcs;
+        desktop = aliases ? desktop;
+      };
+      expected = {
+        hcs = false;
+        desktop = false;
+      };
+    };
   testAdminDeviceAlias = {
     expr = (policy { adminDevices.phone = "100.64.0.9"; }).hosts.phone;
     expected = "100.64.0.9/32";

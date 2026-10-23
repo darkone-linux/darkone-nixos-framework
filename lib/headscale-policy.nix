@@ -98,9 +98,11 @@ in
       zoneAliases = map zoneAlias zoneNames;
       gatewayTags = map gatewayTag zoneNames;
       allTags = [ hcsTag ] ++ gatewayTags ++ [ adminTag ];
-      adminHosts = filter (
-        h: hasAttr h.zone zones && (h.ip or "") != "" && isAdminStation h zones.${h.zone} network
-      ) hosts;
+
+      # Every addressed host of a local zone is an alias (name -> LAN IP):
+      # `extraAcls` names a server without restating its address.
+      zoneHosts = filter (h: hasAttr h.zone zones && (h.ip or "") != "") hosts;
+      adminHosts = filter (h: isAdminStation h zones.${h.zone} network) zoneHosts;
 
       # Empty groups are dropped: a rule naming an undefined group fails the
       # whole policy.
@@ -160,7 +162,7 @@ in
       hosts =
         mapAttrs' (z: zone: nameValuePair (zoneAlias z) (zoneCidr zone)) zones
         // mapAttrs' (z: ip: nameValuePair (gatewayLanAlias z) "${ip}/32") gatewayLanIps
-        // listToAttrs (map (h: nameValuePair h.hostname "${h.ip}/32") adminHosts)
+        // listToAttrs (map (h: nameValuePair h.hostname "${h.ip}/32") zoneHosts)
         // mapAttrs (_: ip: "${ip}/32") adminDevices
         // extraHosts;
       autoApprovers = {

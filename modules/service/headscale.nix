@@ -9,6 +9,8 @@
 # - Machines and zone LANs reach each other. Personal devices: DNS and HTTPS
 #   on the HCS, HTTPS on zone gateways (every zone for admins, else their
 #   `zone-*` groups). SSH from admin stations and `policy.adminDevices`.
+# - Every addressed zone host is a policy alias (`nas` -> its LAN IP): any
+#   other service opens through `policy.extraAcls` (`nas:445`).
 # - Personal devices log in through Kanidm (OIDC), for members of the Kanidm
 #   `tailnet` group; their keys expire after `nodeExpiry`.
 #
@@ -188,7 +190,7 @@ in
         example = {
           printer = "10.1.3.1/32";
         };
-        description = "Extra policy host aliases (name -> CIDR), to use in `extraAcls`.";
+        description = "Extra policy host aliases (name -> CIDR), to use in `extraAcls`. Declared zone hosts already have one.";
       };
       extraAcls = lib.mkOption {
         type = lib.types.listOf (lib.types.attrsOf lib.types.anything);
