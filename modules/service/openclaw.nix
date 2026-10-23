@@ -100,8 +100,7 @@ let
   stateDir = "/var/lib/openclaw";
   defaultParams = {
     title = "Assistant IA";
-    description = "Agent personnel de l'espace";
-    icon = "mdi-robot";
+    description = "Agent OpenClaw";
   };
   params = dnfLib.extractServiceParams host network "openclaw" defaultParams;
   gatewayIp = zone.gateway.lan.ip;
