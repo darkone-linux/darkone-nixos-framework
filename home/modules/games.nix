@@ -65,7 +65,7 @@ in
         (lib.mkIf cli tetris)
         (lib.mkIf g3d veloren) # Minecraft like
         #(lib.mkIf g3d warzone2100) # 3D RTS -> build broken against abseil 20260817 (C++20)
-        (lib.mkIf g3d zeroad) # Ancient civilizations RTS (~2 GB)
+        #(lib.mkIf g3d zeroad) # Ancient civilizations RTS (~2 GB)
         (lib.mkIf isBabyOrChild kdePackages.ktuberling) # Constructor game
         (lib.mkIf isBabyOrChild li-ri) # train game
         (lib.mkIf isBabyOrChild tuxpaint)
@@ -81,7 +81,7 @@ in
         (lib.mkIf isChildOrTeen gnome-2048)
         (lib.mkIf isChildOrTeen extremetuxracer) # Sled racing
         (lib.mkIf isChildOrTeen gnome-nibbles) # Snake
-        (lib.mkIf isChildOrTeen hedgewars) # Turn-based artillery (Worms like)
+        #(lib.mkIf isChildOrTeen hedgewars) # Turn-based artillery (Worms like)
         (lib.mkIf isChildOrTeen iagno) # Reversi
         (lib.mkIf isChildOrTeen kdePackages.granatier) # Bomberman
         (lib.mkIf isChildOrTeen kdePackages.kapman) # Pac-Man
@@ -91,7 +91,7 @@ in
         (lib.mkIf isChildOrTeen quadrapassel) # Tetris
         (lib.mkIf isChildOrTeen supertux) # 2D platformer, local multiplayer
         (lib.mkIf isChildOrTeen swell-foop) # SameGame
-        (lib.mkIf isChildOrTeen xmoto) # 2D physics motocross
+        #(lib.mkIf isChildOrTeen xmoto) # 2D physics motocross
         (lib.mkIf cfg.enableTeenager endless-sky) # Space trading and exploration
         (lib.mkIf cfg.enableTeenager lincity-ng) # City building
         (lib.mkIf cfg.enableTeenager mindustry) # Factory tower defense, logic processors
