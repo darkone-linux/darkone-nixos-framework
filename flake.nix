@@ -102,7 +102,7 @@
     # format: a release pins an exact tag here (`just release`) and
     # `.github/workflows/release.yml` refuses a tag whose lock points anywhere
     # but a published `dnf-generator` release.
-    dnf-generator.url = "github:darkone-linux/dnf-generator/v0.3.1";
+    dnf-generator.url = "github:darkone-linux/dnf-generator/v0.3.2";
     dnf-generator.inputs.nixpkgs.follows = "nixpkgs";
 
     # Talon (voice + gaze input, talonvoice.com): unfree upstream tarball
