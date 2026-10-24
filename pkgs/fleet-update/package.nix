@@ -38,13 +38,13 @@
 
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "fleet-update";
-  version = "0.7.4";
+  version = "0.7.5";
 
   src = fetchFromGitHub {
     owner = "darkone-linux";
     repo = "dnf-fleet-update";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-O8OT+vPMRtG52w0BuvYqsi2k74c4UqvVisDiZeoIKDw=";
+    hash = "sha256-thtgMXty4dRtbA65q5YSxgwYwt5bj3Bgd8FH7QTKhIw=";
   };
 
   # Fixed-output: `bun install` needs the network. `--os`/`--cpu` wildcards
@@ -93,7 +93,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     # A fixed-output derivation must not reference store paths (patched shebangs).
     dontFixup = true;
 
-    outputHash = "sha256-/F6Ri0e4J2+IIXwqbkNz9Iz3zVbeuXmei32pUHzo+iw=";
+    outputHash = "sha256-5oiLGfkbVeto031bEhev/9Lm3rss0COHL5hf8docYnw=";
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };
