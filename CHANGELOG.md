@@ -10,6 +10,121 @@ observable defaults, `lib.mkConfigurations`, public `just` recipes, the expected
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-24
+
+### ⚠ Breaking
+
+- **secrets**: Drop default-password-hash and just passwd-default
+- **space**: Space-bot merged into space-init, bot needs network Matrix
+- **openclaw**: Gateway password secret for the host CLI, runtime by provider
+- **openclaw**: Clone projects into shared projectsDir, coding agents
+
+### Added
+
+- **microvm**: Routed microVM guests, ai-space profile, isolated sops
+- **space**: Just space-init, own sops file for isolated hosts
+- **home**: Ghostty for every technical profile, no longer behind enableTools
+- **home**: Admin profiles without imagery, music and Filezilla, one KeePass app
+- **gnome**: Vim, btop and htop hidden from the app grid (hiddenApps)
+- **home**: Local network folder for the nix-admin: doc, onboarding, sources
+- **microvm**: Guest readiness over vsock, CID derived from the zone IP
+- **microvm**: Guests reachable by ping and ssh from the fleet
+- **space**: Kanidm group per AI space, proxy.spaceMembersOnly per instance
+- **openclaw**: OpenClaw assistant of an AI space behind the zone SSO
+- **space**: Light accounts for members, no sudo, space-member home
+- **openclaw**: Matrix channel of an AI space, just space-bot
+- **space**: AI space agent tooling, MCP, skills, Claude Code, Codex, whisper
+- **openclaw**: Space owner approves, gets proactive DMs; Matrix rooms ignored
+- **openclaw**: Declared identity of the assistant, the config is read-only
+- **installer**: Just try, the installer VM with the project pinned on this tree
+- **install**: Install-here takes an extra binary cache for nixos-install
+- **openclaw**: Exec policy option, approvals reserved to the owner
+- **space**: MCP server secrets from the space's sops file (secretEnv)
+- **installer**: Just try serves this machine's store, a relaunch keeps the pin
+- **home**: Local network launchers named in French in a French session
+- **microvm**: Hypervisor asserted neither gateway nor NetworkManager
+- **remote-desktop**: Rd stop mode, host reason on arming failure
+- **home**: More games, education and productivity apps for child/teen
+- **home**: School, accessibility and coding tools for child/teen
+- **umi**: Talon speech recognition asleep at start by default
+- **supertuxkart**: Accept players from every zone and the tailnet
+- **ai-space**: Opencode for members and the openclaw agent
+- **microvm**: Hypervisor whisper.cpp server for guests' voice notes
+- **openclaw**: Mutable config option, owner admin in the UI
+- **openclaw**: Model catalog, subscriptions first, API keys, providers
+- **openclaw**: Browser Talk with OpenAI GPT-Live, ChatGPT login first
+- **openclaw**: Lobster workflows, automations declared in Nix
+- **openclaw**: CliUsers run the host CLI, bare openclaw opens the TUI
+- **headscale**: Policy alias for every declared zone host
+- **headscale**: Log real client IPs behind the local Caddy
+
+### Fixed
+
+- **iso**: Tty1 waits for the network, Enter opens nmtui for Wi-Fi
+- **init**: Dnf/ link is a GC root, kept by the weekly garbage collection
+- **iso**: NetworkManager alone on the NICs, no dhcpcd beside it
+- **oauth2-proxy**: Run only where Caddy calls it, not on every zone host
+- **hardware**: Zed starts without the emulated GPU warning on a VM
+- **space**: Space-init checks file recipients, not infra-key decryption
+- **microvm**: No networkd wait-online on a dhcpcd hypervisor
+- **microvm**: Keep dhcpcd DNS on the hypervisor, no networkd-pulled resolved
+- **microvm**: Writable store layer in guests, Home Manager activates
+- **space**: Space-bot parses the MAS token log line, perms restored on failure
+- **space**: Space-bot writes its marker with sudo, var/generated is not nix's
+- **space**: Space-init writes the bot marker in nixfmt shape
+- **sso**: Oauth2-proxy refreshes claims every 15m, group changes apply
+- **microvm**: Hypervisor asserts its guests keep its stateDir
+- **openclaw**: One DM session per member when a space has several
+- **openclaw**: Project clones accept a new SSH server key
+- **home**: Image viewer for every graphic profile, Geeqie with the essentials
+- **home**: Local network folder waits for the shell's folders, retried on error
+- **gnome**: One hidden-apps list with UMI, absent apps no longer shadowed
+- **microvm**: Hypervisor fully on networkd, static zone resolver
+- **microvm**: Guest resolves through the zone only, no fallback nor LLMNR
+- **microvm**: No store optimise on a hypervisor, guest overlays go ESTALE
+- **nix-cache**: Resumed NARs bypass the cache, stable pins for broken apps
+- **tests**: Sops fixture for the isolated space1 host of eval-all
+- **virtualbox**: Sign kernel modules with kmodigest, aggregator needs .ko.cer
+- **nextcloud**: Create admin via occ, adminuser option removed upstream
+- **openclaw**: Seed mutable config per key, keep UI-set shapes
+- **openclaw**: Icon & description
+- **openclaw**: Patch Node runtime with patchelf --no-sort, ld.so segfault
+- **headscale**: Wait for a real 200 from the OIDC issuer before starting
+- **headscale**: Reach local Kanidm on loopback, no boot-time OIDC fallback
+
+### Security
+
+- **microvm**: Guest state dirs closed to the hypervisor's users (0770)
+- **openclaw**: Hardened gateway unit, agent writes to its state only
+- **microvm**: Guest state bound nosuid,nodev on the hypervisor
+- **adguardhome**: Upstream and fallback DNS over TLS/HTTPS only
+- **c8**: Zone resolvers encrypt upstream, clients only drop the fallback
+
+### Removed
+
+- **adguardhome**: Drop deprecated host/port, set settings.http.address
+- **games**: Drop warzone2100, build broken against abseil 20260817
+- **headscale**: Drop :443 from server_url, matching the OIDC redirect
+
+### Changed
+
+- **adguardhome**: DNS cache on, dnsmasq local answers stay uncached
+- **nix-cache**: Raise default cache size from 40g to 100g
+- **microvm**: Align whisper OpenMP threads with the server's
+
+### Documentation
+
+- **template**: Project README rewritten as the admin's welcome guide
+- **openclaw**: Commands run without approval, the microVM is the boundary
+- **space**: Monitoring-node in the header examples, alerts need it
+- **template**: README asks for git add before a build, commits for history
+
+### Dependencies
+
+- dnf-generator v0.3.1
+- dnf-generator v0.3.2
+- fleet-update v0.7.5
+
 ## [0.5.0] - 2026-10-17
 
 ### ⚠ Breaking
@@ -467,7 +582,8 @@ framework as it stands, not the commits that built it.
 | [dnf-boilerplate](https://github.com/darkone-linux/dnf-boilerplate) | `v0.1.0` |
 | [dnf-example](https://github.com/darkone-linux/dnf-example) | `v0.1.0` |
 
-[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.3.0...v0.3.1

@@ -24,7 +24,7 @@
   # this URL for an absolute `git+file://` pointing at the sibling checkout.
 
   inputs = {
-    dnf.url = "github:darkone-linux/darkone-nixos-framework/v0.5.0";
+    dnf.url = "github:darkone-linux/darkone-nixos-framework/v0.6.0";
   };
 
   #----------------------------------------------------------------------------
