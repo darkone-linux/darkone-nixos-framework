@@ -30,11 +30,12 @@
 #   approvals asked to the owner in DM;
 # - agent tooling: MCP, skills, Claude Code / Codex / OpenCode and `packages`
 #   of the space (`darkone.host.ai-space`), shared with the members' homes;
-# - identity (`identity`: name, emoji, avatar): declared, the config being
-#   read-only (`openclaw agents set-identity` fails);
+# - identity (`identity`: name, emoji, avatar): imposed, also on the Matrix
+#   bot (display name; avatar, else the emoji drawn), the avatar uploaded by
+#   `just space-init <host>` (eval warning when out of date);
 # - `mutableConfig`: config writable from the UI and the CLI, Nix keys merged
-#   at each start (imposed: access, channels, plugins, store paths; seeded
-#   once: model, exec, identity...), owner gets `operator.admin`;
+#   at each start (imposed: access, channels, plugins, identity, store paths;
+#   seeded once: model, exec, talk...), owner gets `operator.admin`;
 # - workspace (`/var/lib/openclaw/workspace`): `workspace` files (AGENTS.md,
 #   SOUL.md...) replaced at each start, others left to the agent;
 # - projects: the space's shared `projectsDir` is the agent's working dir
@@ -280,12 +281,78 @@ let
   # never asks sops for a token not yet issued; off without a network Matrix,
   # whatever a stale marker says.
   botFile = workDir + "/var/generated/spaces/${host.hostname}.nix";
-  matrixBot = if builtins.pathExists botFile then (import botFile).matrixBot else null;
+  marker = if builtins.pathExists botFile then import botFile else { };
+  matrixBot = marker.matrixBot or null;
   networkHasMatrix = lib.any (s: s.name == "matrix") network.services;
   hasMatrix = matrixBot != null && networkHasMatrix;
   memberMxids = map (u: "@${u}:${network.domain}") members;
   ownerMxids = lib.optional (cfg.owner != null) "@${cfg.owner}:${network.domain}";
   tokenEnv = "OPENCLAW_MATRIX_TOKEN";
+
+  # Avatar: a file, an `https` URL, else the emoji. A workspace-relative path
+  # serves the UI only.
+  inherit (cfg.identity) avatar emoji;
+  avatarIsFile = builtins.isPath avatar;
+  avatarIsUrl = builtins.isString avatar && lib.hasPrefix "https://" avatar;
+  avatarExt = lib.toLower (lib.last (lib.splitString "." (baseNameOf avatar)));
+  avatarMimes = {
+    png = "image/png";
+    jpg = "image/jpeg";
+    jpeg = "image/jpeg";
+    gif = "image/gif";
+    webp = "image/webp";
+  };
+  uiAvatar = "avatars/assistant.${avatarExt}";
+
+  # Matrix has no emoji field: drawn on a tile, cropped round by the clients.
+  emojiSvg = pkgs.writeText "openclaw-avatar.svg" ''
+    <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256">
+      <rect width="256" height="256" fill="#e8e0f5"/>
+      <text x="128" y="128" font-family="Noto Color Emoji" font-size="150"
+        text-anchor="middle" dominant-baseline="central">${lib.escapeXML emoji}</text>
+    </svg>
+  '';
+  emojiAvatar = pkgs.runCommand "openclaw-avatar.png" { } ''
+    ${pkgs.resvg}/bin/resvg --skip-system-fonts \
+      --use-fonts-dir ${pkgs.noto-fonts-color-emoji}/share/fonts ${emojiSvg} $out
+  '';
+
+  # Bot profile, applied by `just space-init` (`configure-space-bot.sh`).
+  # `avatarSource` fingerprints the uploaded image, compared to the marker's
+  # (`emoji-v1`: bumped with the drawing).
+  noAvatar = {
+    avatarSource = null;
+    avatarFile = null;
+    avatarMime = null;
+    avatarUrl = null;
+  };
+  matrixProfile = {
+    displayName = if cfg.identity.name != null then cfg.identity.name else host.name or host.hostname;
+  }
+  // (
+    if avatarIsFile then
+      noAvatar
+      // {
+        avatarSource = "sha256:${builtins.hashFile "sha256" avatar}";
+        avatarFile = "${avatar}";
+        avatarMime = avatarMimes.${avatarExt} or null;
+      }
+    else if avatarIsUrl then
+      noAvatar
+      // {
+        avatarSource = avatar;
+        avatarUrl = avatar;
+      }
+    else if emoji != null then
+      noAvatar
+      // {
+        avatarSource = "emoji-v1:${emoji}";
+        avatarFile = emojiAvatar;
+        avatarMime = "image/png";
+      }
+    else
+      noAvatar
+  );
 
   # Runtime plugins, by store path. One list: the gateway config merges with
   # `recursiveUpdate`, which replaces lists.
@@ -484,6 +551,14 @@ let
       "skills"
       "load"
     ]
+
+    # Same values as the Matrix bot's profile, which the UI cannot change.
+    [
+      "agents"
+      "entries"
+      "main"
+      "identity"
+    ]
   ];
   seededRoots = [
     [
@@ -495,12 +570,6 @@ let
       "agents"
       "defaults"
       "models"
-    ]
-    [
-      "agents"
-      "entries"
-      "main"
-      "identity"
     ]
     [
       "tools"
@@ -625,6 +694,13 @@ let
         approvers = ownerMxids;
         target = "dm";
       };
+
+      # Profile re-applied at each start. Avatar as `mxc://`, uploaded once:
+      # an `https` one would be re-uploaded, `channels.matrix` being imposed.
+      name = matrixProfile.displayName;
+    }
+    // lib.optionalAttrs (matrixProfile.avatarSource != null && marker ? matrixAvatar) {
+      avatarUrl = marker.matrixAvatar.url;
     };
   };
 in
@@ -753,9 +829,10 @@ in
           Config writable from the UI and `openclaw config set`, the owner being
           operator admin. Nix keys merged at each start:
           - imposed, rewritten (also on any change of the file): gateway and
-            access, Matrix channel, plugins, MCP servers, store paths;
+            access, Matrix channel, plugins, MCP servers, `identity`, store
+            paths;
           - seeded, written when absent, then the UI rules: `model`, `exec`,
-            `identity`, talk, ACP, skill switches.
+            talk, ACP, skill switches.
         '';
       };
 
@@ -787,19 +864,34 @@ in
           type = lib.types.nullOr lib.types.str;
           default = null;
           example = "Jarvis";
-          description = "Name of the assistant, shown in the UI.";
+          description = "Name of the assistant, in the UI and on the Matrix bot (default there: the host's `name`).";
         };
         emoji = lib.mkOption {
           type = lib.types.nullOr lib.types.str;
           default = null;
           example = "🦉";
-          description = "Emoji of the assistant, shown in the UI.";
+          description = "Emoji of the assistant, in the UI; drawn as the Matrix bot's avatar without `avatar`.";
         };
         avatar = lib.mkOption {
-          type = lib.types.nullOr lib.types.str;
+          type = lib.types.nullOr (lib.types.either lib.types.str lib.types.path);
           default = null;
-          description = "Avatar image (URL or workspace-relative path).";
+          example = lib.literalExpression "./jarvis.png";
+          description = ''
+            Avatar of the assistant:
+            - file (png, jpg, gif, webp; 2 MB at most for the UI) or `https://`
+              URL: UI and Matrix bot, uploaded by `just space-init <host>`;
+            - path relative to the workspace: UI only, the emoji on Matrix.
+          '';
         };
+      };
+
+      # Read by `just space-init` (`configure-space-bot.sh`).
+      matrixProfile = lib.mkOption {
+        type = lib.types.raw;
+        internal = true;
+        readOnly = true;
+        default = matrixProfile;
+        description = "Profile of the Matrix bot: display name, avatar and its fingerprint.";
       };
 
       workspace = lib.mkOption {
@@ -985,6 +1077,10 @@ in
           message = "${host.hostname}: `darkone.service.openclaw.cliUsers` go through sudo, restricted to `wheel` here (`security.sudo.execWheelOnly`).";
         }
         {
+          assertion = !avatarIsFile || avatarMimes ? ${avatarExt};
+          message = "${host.hostname}: `darkone.service.openclaw.identity.avatar` takes a png, jpg, gif or webp file.";
+        }
+        {
           assertion = !lib.elem "anthropic" cfg.subscriptions || space.enableClaude;
           message = "${host.hostname}: the `anthropic` subscription runs through the `claude` CLI: set `darkone.host.ai-space.enableClaude`, or drop it from `darkone.service.openclaw.subscriptions`.";
         }
@@ -1024,6 +1120,9 @@ in
             )
         ++ lib.optional (keylessModels != [ ] && cfg.apiKeys == [ ]) (
           "${host.hostname}: openclaw models through an API key, none in `apiKeys`: ${lib.concatStringsSep ", " keylessModels}."
+        )
+        ++ lib.optional (hasMatrix && (marker.matrixAvatar.source or null) != matrixProfile.avatarSource) (
+          "${host.hostname}: openclaw Matrix avatar out of date: run `just space-init ${host.hostname}`, commit `var/generated/spaces/`."
         );
 
       darkone.system.microvm.guest.whisper = hypervisorTranscription;
@@ -1134,6 +1233,7 @@ in
 
     (lib.optionalAttrs (options ? services.openclaw-gateway) (
       lib.mkIf cfg.enable {
+        darkone.service.openclaw.workspace = lib.mkIf avatarIsFile { ${uiAvatar} = avatar; };
         services.openclaw-gateway = {
           # `cli`: coding workers report back with `openclaw message send`.
           servicePath = agentTools ++ [ cli ];
@@ -1203,9 +1303,13 @@ in
               // lib.optionalAttrs (cfg.talk.instructions != null) { inherit (cfg.talk) instructions; };
             })
 
-            # What `openclaw agents set-identity` would write: the config is
-            # read-only, the identity is declared here.
-            (lib.mkIf (compact cfg.identity != { }) { agents.entries.main.identity = compact cfg.identity; })
+            # What `openclaw agents set-identity` would write; a file avatar is
+            # served from the workspace.
+            (lib.mkIf (compact cfg.identity != { }) {
+              agents.entries.main.identity = compact (
+                cfg.identity // lib.optionalAttrs avatarIsFile { avatar = uiAvatar; }
+              );
+            })
             (lib.mkIf (space.mcp != { }) { mcp.servers = mcpServers; })
             (lib.mkIf (space.skills != { }) { skills.load.extraDirs = [ "${skillsDir}" ]; })
             (lib.mkIf cfg.transcription.enable transcriptionConfig)

@@ -7,7 +7,8 @@
 # - host key: created on the hypervisor share of a microVM guest (its private
 #   half never leaves it), read over ssh from a bare metal host;
 # - Matrix bot, last, on a host running openclaw with a network Matrix:
-#   `@<host>:<domain>` (`configure-space-bot.sh`);
+#   `@<host>:<domain>`, display name and avatar of its `identity`
+#   (`configure-space-bot.sh`); rerun after an avatar change;
 # - idempotent: an existing host key or secret is never replaced; a changed
 #   host key re-encrypts the file for the new one.
 #

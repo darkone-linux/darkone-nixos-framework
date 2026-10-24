@@ -9,8 +9,12 @@
 #  - access token : reused while valid (whoami), else re-issued
 #                   (`dnf-mas issue-compatibility-token`); kept in the space's
 #                   own sops file (`usr/secrets/hosts/<host>.yaml`);
+#  - profile      : display name and avatar of `identity`
+#                   (`darkone.service.openclaw.matrixProfile`), the avatar
+#                   uploaded once per source;
 #  - marker       : `var/generated/spaces/<host>.nix`, which turns the
-#                   OpenClaw Matrix channel on at the next deploy.
+#                   OpenClaw Matrix channel on at the next deploy, with the
+#                   avatar's `mxc://` URI the gateway re-applies.
 
 set -euo pipefail
 
@@ -37,7 +41,7 @@ bot="$host"
 BOT_USER="@${bot}:${domain}"
 PUBLIC_HS="https://matrix.${domain}"
 
-# `just generate` output: the matrix host, and the space's display name.
+# `just generate` output: the matrix host.
 gen() {
   nix eval --impure --raw --extra-experimental-features 'nix-command flakes' --expr "$1" 2>/dev/null || true
 }
@@ -48,8 +52,9 @@ if [ -z "$matrixHost" ] ;then
   [ ! -f "$marker" ] || log "Stale marker $marker ignored by the deploy: delete it (and openclaw-matrix-token with 'just space-sops $host')."
   exit 0
 fi
-displayName="$(gen "let h = builtins.filter (x: x.hostname == \"$host\") (import $workDir/var/generated/hosts.nix); in if h == [ ] then \"\" else (builtins.head h).name or \"$host\"")"
-[ -n "$displayName" ] || die "$host not found in var/generated/hosts.nix — run 'just generate'."
+profileAttr="$workDir#nixosConfigurations.$host.config.darkone.service.openclaw.matrixProfile"
+profile="$(nix eval --json "$profileAttr")" || die "cannot evaluate the Matrix profile of $host."
+displayName="$(jq -r .displayName <<<"$profile")"
 
 log "Space=$host  bot=$BOT_USER  matrixHost=$matrixHost"
 
@@ -90,16 +95,88 @@ else
   log "Token issued and stored in usr/secrets/hosts/$host.yaml."
 fi
 
-# --- 2. Marker: enables the OpenClaw Matrix channel -------------------------
+# --- 2. Profile: display name and avatar ------------------------------------
+# Also re-applied by the gateway at each start; set here for an immediate
+# effect. A PUT is skipped when unchanged: each one notifies every DM.
+tmp="$(mktemp)"
+img="$(mktemp)"
+trap 'rm -f "$tmp" "$img"' EXIT
+profileUrl="$PUBLIC_HS/_matrix/client/v3/profile/$(jq -rn --arg u "$BOT_USER" '$u | @uri')"
+current="$(mx -fsS -H "Authorization: Bearer $TOKEN" "$profileUrl" 2>/dev/null || echo '{}')"
+put_profile() {
+  mx -fsS -X PUT -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+    "$profileUrl/$1" -d "$(jq -cn --arg k "$1" --arg v "$2" '{($k): $v}')" >/dev/null \
+    || die "cannot set the $1 of $BOT_USER."
+}
+
+if [ "$(jq -r '.displayname // empty' <<<"$current")" != "$displayName" ]; then
+  put_profile displayname "$displayName"
+  log "Display name: $displayName."
+fi
+
+# Avatar uploaded once per source (`avatarSource`), its `mxc://` kept in the
+# marker.
+avatarSource="$(jq -r '.avatarSource // empty' <<<"$profile")"
+prev="$(gen "if builtins.pathExists $marker then builtins.toJSON ((import $marker).matrixAvatar or null) else \"null\"")"
+[ -n "$prev" ] || prev=null
+avatarUrl=""
+if [ -n "$avatarSource" ] && [ "$(jq -r '.source // empty' <<<"$prev")" = "$avatarSource" ]; then
+  avatarUrl="$(jq -r .url <<<"$prev")"
+elif [ -n "$avatarSource" ]; then
+  if [ -n "$(jq -r '.avatarFile // empty' <<<"$profile")" ]; then
+    file="$(nix build --no-link --print-out-paths "$profileAttr.avatarFile")" \
+      || die "cannot build the avatar of $host."
+    mime="$(jq -r .avatarMime <<<"$profile")"
+  else
+    mime="$(mx -fsSL --max-filesize 10485760 -o "$img" -w '%{content_type}' "$(jq -r .avatarUrl <<<"$profile")")" \
+      || die "cannot download the avatar of $host."
+    file="$img"
+    mime="${mime%%;*}"
+  fi
+  case "$mime" in
+    image/png | image/jpeg | image/gif | image/webp) ;;
+    *) die "avatar of $host: png, jpg, gif or webp expected, got '$mime'." ;;
+  esac
+  [ "$(stat -c %s "$file")" -le 10485760 ] || die "avatar of $host: over 10 MB."
+  avatarUrl="$(mx -fsS -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: $mime" \
+    --data-binary @"$file" "$PUBLIC_HS/_matrix/media/v3/upload?filename=avatar" \
+    | jq -r '.content_uri // empty')" || true
+  [ -n "$avatarUrl" ] || die "avatar upload failed for $BOT_USER."
+  log "Avatar uploaded: $avatarUrl."
+fi
+
+# No avatar declared: cleared only when this script had set one.
+if [ "$(jq -r '.avatar_url // empty' <<<"$current")" != "$avatarUrl" ] \
+  && { [ -n "$avatarUrl" ] || [ "$prev" != null ]; }; then
+  put_profile avatar_url "$avatarUrl"
+  log "Avatar: ${avatarUrl:-cleared}."
+fi
+
+# --- 3. Marker: enables the OpenClaw Matrix channel -------------------------
 # `var/generated` belongs to the workspace owner, not to `nix`: written with
 # sudo, ownership restored by the recipe (`_fix_fs_permissions`). Already in
 # nixfmt shape: `just clean` leaves it untouched.
-tmp="$(mktemp)"
-trap 'rm -f "$tmp"' EXIT
+# Nix string literal: `\`, `"` and `${` escaped.
+nixStr() {
+  local s="${1//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  printf '"%s"' "${s//\$\{/\\\$\{}"
+}
+if [ -n "$avatarUrl" ]; then
+  body="{
+  matrixBot = $(nixStr "$bot");
+  matrixAvatar = {
+    source = $(nixStr "$avatarSource");
+    url = $(nixStr "$avatarUrl");
+  };
+}"
+else
+  body="{ matrixBot = $(nixStr "$bot"); }"
+fi
 cat > "$tmp" <<EOF
 # Generated by \`just space-init $host\` — do not edit by hand.
 # Read by dnf/modules/service/openclaw.nix: enables the Matrix channel.
-{ matrixBot = "${bot}"; }
+$body
 EOF
 sudo install -D -m 644 "$tmp" "$marker"
 log "$BOT_USER ready."
