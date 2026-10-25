@@ -220,6 +220,14 @@ install host user='nix' ip='auto' do='install':
 
 	TARGET_HOST=$(just _resolve "{{host}}" "{{ip}}")
 
+	# Where the installer sits drives the reservation check and its caches
+	# below. Outside every zone network (public IP, box LAN) neither a DNF
+	# reservation nor a zone cache can reach it.
+	outside=false
+	if just _outside-zones "$TARGET_HOST" 2>/dev/null ;then
+		outside=true
+	fi
+
 	# nixos-anywhere pins --target-host for the whole run and has no option to
 	# follow a renumbering (only a port change, --post-kexec-ssh-port). So the
 	# address must already be one the machine will KEEP: installing over an OS
@@ -234,7 +242,7 @@ install host user='nix' ip='auto' do='install':
 	#
 	# Only inside a zone network: elsewhere (public IP of a remote gateway, box
 	# LAN, tailnet) no DNF reservation exists to move the installer.
-	if [ -n "$zonegw" ] && just _outside-zones "$TARGET_HOST" 2>/dev/null ;then
+	if [ -n "$zonegw" ] && [ "$outside" = true ] ;then
 		just _log "{{host}} installed on $TARGET_HOST, outside every zone network: no DNF reservation can move it." "INSTALL"
 	elif [ -n "$zonegw" ] ;then
 		expected=$(just _candidates "{{host}}")
@@ -310,6 +318,16 @@ install host user='nix' ip='auto' do='install':
 		sudo chown -R nix "$stage"
 
 		naflags=()
+
+		# nixos-anywhere hands the host's own substituters to the installer: its
+		# zone caches, the LAN path for closures. Outside a zone each one only
+		# times out (5 attempts per nix command); cache.nixos.org stays.
+		if [ "$outside" = true ] ;then
+			naflags+=(--no-use-machine-substituters)
+			just _log "Installer outside every zone network: public cache only, the rest from here." "INSTALL"
+		else
+			just _log "Installer inside a zone network: it pulls from the zone caches of {{host}}." "INSTALL"
+		fi
 		if grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/install/disko.nix 2>/dev/null ;then
 
 			# The initrd host key must be on the disk before nixos-install
