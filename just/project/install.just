@@ -170,7 +170,7 @@ push-key host target='auto':
 install host user='nix' ip='auto' do='install':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" != "nix" ] || just _fail "Do not full-install with nix user but with the owner of your code.";
+	[ "${USER:-}" != "nix" ] || just _fail "Run install as the owner of the project, not as nix."
 	read -p "Are you sure to format disks and install a new system? (y/N) " ans
 	[ "$ans" = "y" ] || { just _log "Aborted." "INSTALL"; exit 1; }
 	just _fix_fs_permissions
@@ -185,8 +185,13 @@ install host user='nix' ip='auto' do='install':
 	if [ ! -f "./usr/machines/{{host}}/install/disko.nix" ]; then
 		just _fail "No disk layout for '{{host}}': declare disko.profile + disko.devices in etc/config.yaml."
 	fi
+
+	# Placeholder on a first install only: nixos-anywhere rewrites the file
+	# before its build. A reinstall keeps it, or a run dying before the format
+	# would commit a host without its disk drivers.
 	mkdir -p ./usr/machines/{{host}}/hardware
-	echo "{ }" > ./usr/machines/{{host}}/hardware/hardware-configuration.nix
+	[ -f ./usr/machines/{{host}}/hardware/hardware-configuration.nix ] \
+		|| echo "{ }" > ./usr/machines/{{host}}/hardware/hardware-configuration.nix
 
 	# The install ends on a reboot, and the rest of the chain has to find the
 	# machine again. dnsmasq keys its reservation on the MAC and DNS publishes
@@ -643,13 +648,12 @@ full-install host user='nixos' ip='auto':
 	answer=$(just _wait-any "{{host}}" "$target" 22)
 	read -r target port <<<"$answer"
 	just _log "{{host}} is back at $target." "INSTALL"
-	just configure {{host}} "$target"
-	just _log "Let's do that automatically..."
-	just _log "Adding and committing (amend)..." "GIT"
+	DNF_FULL_INSTALL=1 just configure {{host}} "$target"
+	just _log "Committing what configure changed..." "GIT"
 
-	# Amend only what `just install` itself committed. When it had nothing to
-	# commit, HEAD is somebody else's work and amending would rewrite it in
-	# silence, so fold the install leftovers into a commit of their own.
+	# A commit of its own: HEAD is one of `install`'s, or somebody else's work
+	# when `install` had nothing to commit. Only a re-run finding its own
+	# commit on top amends it.
 	msg="chore(full-install): new host {{host}}"
 	git add .
 	if git diff --cached --quiet ;then

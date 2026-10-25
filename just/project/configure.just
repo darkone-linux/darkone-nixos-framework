@@ -82,9 +82,13 @@ configure host ip='auto':
 	if [ "$t" != "{{host}}" ] && [ "$t" != "$home" ] ;then
 		just roaming "{{host}}" "$t"
 	fi
-	just _log "If no error occurs, do not forget to commit and apply:"
-	just _log "git add . && git commit -m 'Configuring new host {{host}}'"
-	just _log "just apply-verbose {{host}}"
+
+	# `full-install` commits and applies right after: no reminder there.
+	if [ -z "${DNF_FULL_INSTALL:-}" ] ;then
+		just _log "If no error occurs, do not forget to commit and apply:"
+		just _log "git add . && git commit -m 'Configuring new host {{host}}'"
+		just _log "just apply-verbose {{host}}"
+	fi
 	just host-info "{{host}}" "$t"
 
 # The key travels from the HCS to the host through a pipe only: never in argv,
