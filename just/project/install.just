@@ -148,12 +148,11 @@ push-key host target='auto':
 	t=$(just _resolve "{{host}}" "{{target}}")
 	just _check_infra_admin
 
-	# An isolated host (`darkone.system.sops.isolated`) reads untrusted input:
-	# never the infra key, whichever recipe (install, configure, rotate) calls.
-	isolated=$(nix eval --json "{{workDir}}#nixosConfigurations.{{host}}.config.darkone.system.sops.isolated" 2>/dev/null) \
-		|| just _fail "Cannot evaluate {{host}}: infra key not pushed."
-	if [ "$isolated" = "true" ] ;then
-		just _info "{{host}} is isolated: infra key not pushed." "SOPS"
+	# An isolated host reads untrusted input: never the infra key. Same rule
+	# as the staging of `install`.
+	reads=$(just _reads-infra-key "{{host}}")
+	if [ "$reads" != true ] ;then
+		just _info "{{host}} does not read the infra key: not pushed." "SOPS"
 		exit 0
 	fi
 	just _log "Pushing infra key file..." "SOPS"
@@ -295,6 +294,9 @@ install host user='nix' ip='auto' do='install':
 		fi
 		{{nix}} run github:nix-community/nixos-anywhere -- --flake .#{{host}} --vm-test
 	elif [ "{{do}}" == "install" ] ;then
+
+		# Before the tree changes hands: a failing evaluation leaves nothing to undo.
+		reads=$(just _reads-infra-key "{{host}}")
 		NIX_HOME=$(getent passwd nix | cut -d: -f6)
 		mkdir -p {{workDir}}/usr/machines/{{host}}
 		sudo chown -R nix {{workDir}}/usr/machines/{{host}}
@@ -313,8 +315,13 @@ install host user='nix' ip='auto' do='install':
 		sudo chmod 700 "$stage" ; sudo chmod 600 "$pwfile"
 
 		# sops age key: without it the first activation decrypts nothing —
-		# `just push-key` only runs later, at `just configure`.
-		sudo install -D -m 600 {{sopsInfraKeyFile}} "$stage{{sopsInfraKeyFile}}"
+		# `just push-key` only runs later, at `just configure`. Same rule as
+		# `push-key`: never on a host whose sops-nix does not read it.
+		if [ "$reads" = true ] ;then
+			sudo install -D -m 600 {{sopsInfraKeyFile}} "$stage{{sopsInfraKeyFile}}"
+		else
+			just _info "{{host}} does not read the infra key: not staged." "SOPS"
+		fi
 		sudo chown -R nix "$stage"
 
 		naflags=()

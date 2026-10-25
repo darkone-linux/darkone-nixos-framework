@@ -9,6 +9,20 @@ _check_infra_admin:
 		just _fail "If you are on the admin host, run 'just configure-admin-host' first."
 	fi
 
+# Prints `true` when the sops-nix of {{host}} reads the infra key (effective
+# `sops.age.keyFile`): an isolated host, or any override, says `false`.
+# Fails when {{host}} does not evaluate, never a guess.
+_reads-infra-key host:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	keyFile=$({{nix}} eval --json "{{workDir}}#nixosConfigurations.{{host}}.config.sops.age.keyFile" 2>/dev/null) \
+		|| just _fail "Cannot evaluate {{host}}: unknown whether it reads the infra key."
+	if [ "$keyFile" = '"{{sopsInfraKeyFile}}"' ] ;then
+		echo true
+	else
+		echo false
+	fi
+
 _sops_before_edit:
 	#!/usr/bin/env bash
 	set -euo pipefail

@@ -315,13 +315,20 @@ _rotate-infra-finalize:
 	nodes=$(just _hive-nodes)
 	[ -n "$nodes" ] || just _fail "No hive nodes found (colmena eval failed?). Aborting."
 
-	# Integrity gate: refuse to drop the old key until EVERY hive host carries
-	# the new one (else a host would be left unable to decrypt). Unreachable
-	# hosts count as missing.
+	# Integrity gate: refuse to drop the old key until EVERY hive host that
+	# reads it carries the new one (else a host would be left unable to
+	# decrypt). Unreachable hosts count as missing.
 	just _log "Verifying every host carries the new key..." "ROTATE"
 	missing=()
 	for node in $nodes ;do
 		[ "$node" = "$self" ] && continue
+
+		# Never pushed there (`push-key`): nothing to verify.
+		reads=$(just _reads-infra-key "$node")
+		if [ "$reads" != true ] ;then
+			just _info "$node does not read the infra key, skipped." "ROTATE"
+			continue
+		fi
 		tmp=$(mktemp)
 		if ssh -o BatchMode=yes nix@"$node" 'sudo cat {{sopsInfraKeyFile}}' > "$tmp" 2>/dev/null \
 			&& age-keygen -y "$tmp" 2>/dev/null | grep -qxF "$NEW_PUB" ;then
