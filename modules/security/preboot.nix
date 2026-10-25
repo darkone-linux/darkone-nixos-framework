@@ -121,7 +121,6 @@ in
         (lib.mkIf (isActive "R6" "high" "base" [ ]) {
 
           # Signed UKI (Unified Kernel Image) with lanzaboote — see R3
-          # boot.initrd.systemd.enable = true;
           # boot.uki.enable = true;
           # TODO: gate on boot.lanzaboote.enable or boot.uki.enable
         })

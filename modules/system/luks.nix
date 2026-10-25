@@ -238,10 +238,7 @@ in
 
       (lib.mkIf hasNixPub {
 
-        # systemd stage 1 (already forced by the yubikey module on encrypted
-        # hosts, restated here so the ssh unlock works without it) + networkd
-        # in the initrd.
-        boot.initrd.systemd.enable = true;
+        # networkd in the (systemd-only) initrd.
         boot.initrd.systemd.network.enable = true;
 
         # Regular hosts DHCP on wired interfaces; gateways replicate their

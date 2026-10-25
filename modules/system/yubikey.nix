@@ -205,9 +205,7 @@ in
 
       (lib.mkIf luksActive {
 
-        # systemd initrd unlocks the FIDO2 keyslots; USB HID modules make the
-        # key reachable before cryptsetup runs.
-        boot.initrd.systemd.enable = true;
+        # USB HID modules make the key reachable before cryptsetup runs.
         boot.initrd.availableKernelModules = [
           "usbhid"
           "hid_generic"
