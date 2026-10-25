@@ -18,8 +18,9 @@
 # :::caution[Isolated hosts]
 # `isolated = true` (default of the `ai-space` profile) points the host at
 # its own `usr/secrets/hosts/<hostname>.yaml`, without the infra key: a host
-# running untrusted agents never holds the fleet secrets. No password hash
-# either, its accounts are SSH-key only.
+# running untrusted agents never holds the fleet secrets, and a key an
+# earlier install left is deleted. No password hash either, its accounts are
+# SSH-key only.
 # :::
 
 {
@@ -31,6 +32,7 @@
 }:
 let
   cfg = config.darkone.system.sops;
+  infraKey = "/etc/sops/age/infra.key";
 in
 {
   options = {
@@ -52,7 +54,7 @@ in
 
         # `mkDefault`: a microVM guest keeps its host key on a persistent share.
         sshKeyPaths = lib.mkDefault [ "/etc/ssh/ssh_host_ed25519_key" ];
-        keyFile = if cfg.isolated then null else "/etc/sops/age/infra.key";
+        keyFile = if cfg.isolated then null else infraKey;
         generateKey = false; # Key generated manually
       };
 
@@ -70,5 +72,12 @@ in
         )
       );
     };
+
+    # A host turned isolated keeps the key an earlier install left: tmpfiles
+    # `r` deletes it, at boot and on switch. Never on an admin host, which
+    # holds the master copy.
+    systemd.tmpfiles.rules = lib.mkIf (cfg.isolated && !config.darkone.admin.nix.enable) [
+      "r ${infraKey}"
+    ];
   };
 }
