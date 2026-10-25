@@ -67,7 +67,8 @@
 #
 # :::note[Per-rule exceptions]
 # A rule with an exception is excluded from activation even if the level would cover it.
-# Mandatory rationale in `rationale`.
+# Mandatory rationale in `rationale`. Host exceptions add to the structural
+# SELinux ones (R46–R49), never replace them.
 # :::
 #
 # :::caution[Side effects]
@@ -130,15 +131,8 @@
             };
           }
         );
-        default = {
-
-          # SELinux is unsupported on NixOS — structural exception
-          R46.rationale = "SELinux is unsupported on NixOS.";
-          R47.rationale = "SELinux is unsupported on NixOS.";
-          R48.rationale = "SELinux is unsupported on NixOS.";
-          R49.rationale = "SELinux is unsupported on NixOS.";
-        };
-        description = "Per-rule exceptions with mandatory rationale.";
+        default = { };
+        description = "Per-rule exceptions with mandatory rationale. Merged with the structural SELinux exceptions (R46–R49).";
       };
 
       # --- Cross-cutting options (used by multiple themed files) ---
@@ -169,4 +163,11 @@
       };
     };
   };
+
+  # Structural exceptions as definitions, not as the option default: a host
+  # declaring its own `exceptions` would replace a default, and drop these.
+  # SELinux is unsupported on NixOS.
+  config.darkone.system.security.exceptions = lib.genAttrs [ "R46" "R47" "R48" "R49" ] (_: {
+    rationale = lib.mkDefault "SELinux is unsupported on NixOS.";
+  });
 }
