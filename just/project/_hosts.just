@@ -113,6 +113,27 @@ _zone-addrs host:
 	  + "\n"
 	'
 
+# Hostname of the gateway serving this machine, its local zone picked as in
+# `_zone-addrs`. Empty when unknown.
+_here-gateway:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	gw=$(ip -4 route show default 2>/dev/null | awk '{print $3; exit}' || true)
+	{{nix}} eval --raw --impure --expr '
+	  let
+	    hosts = import {{workDir}}/var/generated/hosts.nix;
+	    network = import {{workDir}}/var/generated/network.nix;
+	    localZones = builtins.filter (z: z.name != "www") (builtins.attrValues network.zones);
+	    routedBy = builtins.filter (z: (z.gateway.lan.ip or "") == "'"$gw"'") localZones;
+	    mine = builtins.filter (h: h.hostname == "'"$(hostname -s)"'") hosts;
+	    here =
+	      if routedBy != [ ] then builtins.head routedBy
+	      else if mine != [ ] then network.zones.${(builtins.head mine).zone} or null
+	      else null;
+	  in
+	  if here == null then "" else here.gateway.hostname or ""
+	'
+
 # Address to reach {{host}} from the machine running just.
 #
 # Its own name when both sit in the same zone. Otherwise the address the local

@@ -171,6 +171,14 @@ install host user='nix' ip='auto' do='install':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	[ "${USER:-}" != "nix" ] || just _fail "Run install as the owner of the project, not as nix."
+
+	# `git add .` below folds every pending change into the install commits:
+	# list what lies outside this host while answering N still costs nothing.
+	others=$(git status --porcelain | grep -vE '^.. (etc/config\.yaml|flake\.lock|var/generated/|usr/secrets/|usr/machines/{{host}}/)' || true)
+	if [ -n "$others" ] ;then
+		just _warn "Uncommitted changes outside {{host}}, committed with its install:"
+		printf '%s\n' "$others" >&2
+	fi
 	read -p "Are you sure to format disks and install a new system? (y/N) " ans
 	[ "$ans" = "y" ] || { just _log "Aborted." "INSTALL"; exit 1; }
 	just _fix_fs_permissions
@@ -255,6 +263,16 @@ install host user='nix' ip='auto' do='install':
 			just _err "The installer re-runs DHCP and will move to its reservation mid-install,"
 			just _err "leaving nixos-anywhere talking to nothing. Expected: $(echo $expected)."
 			just _fail "Put the machine on its reserved address first (reboot it), then install there."
+		fi
+	fi
+
+	# Last cheap stop: nothing formatted nor committed yet. `test` mode
+	# installs nothing the fleet has to reach.
+	if [ "{{do}}" = "install" ] ;then
+		warnings=$(just _install-preflight "{{host}}" "$TARGET_HOST" "$outside")
+		if [ "$warnings" != 0 ] ;then
+			read -p "Continue anyway? (y/N) " ans
+			[ "$ans" = "y" ] || { just _log "Aborted." "INSTALL"; exit 1; }
 		fi
 	fi
 
@@ -395,6 +413,48 @@ install host user='nix' ip='auto' do='install':
 		just _fail "Unknown action '{{do}}' — valid values: install, test"
 	fi
 	just _log "Now you can test nix@{{host}} and run 'just configure {{host}}'"
+
+# What `install` cannot see failing until the host has rebooted, checked before
+# anything is formatted. Warns about each, then prints how many there were.
+_install-preflight host target outside:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	n=0
+	warn() { just _warn "$1" ; n=$((n + 1)) ; }
+	cfg={{workDir}}/etc/config.yaml
+
+	# Every step after the install reaches the host by name: `roaming-clear`
+	# drops any other route at the end.
+	if ! getent hosts "{{host}}" >/dev/null ;then
+		gw=$(just _here-gateway)
+		warn "{{host}} does not resolve here, every step by name would fail after the install: 'just apply ${gw:-<local gateway>}' first."
+	fi
+
+	# `tailnet-enroll` mints the key the HCS declares, so an HCS deployed
+	# before this host refuses it. Same lookup as `dnf-tailnet-enroll status`,
+	# on the spec built here and on the one it serves.
+	hcs=$(yq -r '.network.coordination.hostname // ""' "$cfg")
+	if [ "$(yq -r '.network.coordination.enable // false' "$cfg")" = true ] && [ -n "$hcs" ] && [ "{{host}}" != "$hcs" ] ;then
+		lookup='first(.nodes[] | select(.name == $h) | {tags, ipv4}) // null'
+		if ! spec=$({{nix}} build --no-link --print-out-paths \
+			"{{workDir}}#nixosConfigurations.$hcs.config.darkone.service.headscale.shared.auditSpec" 2>/dev/null) ;then
+			warn "Cannot evaluate the tailnet identities of $hcs: enrollment of {{host}} unchecked."
+		elif want=$(jq -c --arg h "{{host}}" "$lookup" "$spec") && [ "$want" != null ] ;then
+			have=$(sudo -i -u nix ssh -o BatchMode=yes -o ConnectTimeout=15 "nix@$hcs" \
+				sudo /run/current-system/sw/bin/dnf-tailnet-enroll status "{{host}}" 2>/dev/null | jq -c '.declared') || have=""
+			if [ -z "$have" ] ;then
+				warn "$hcs unreachable, enrollment of {{host}} unchecked: 'just tailnet-enroll {{host}}' after the install if it fails."
+			elif [ "$have" != "$want" ] ;then
+				warn "$hcs does not declare {{host}} as configured: 'just apply $hcs' first, its tailnet enrollment depends on it."
+			fi
+		fi
+	fi
+
+	# An encrypted host first boots into its initrd, listening on 2222.
+	if [ "{{outside}}" = true ] && grep -q '"luks"' "{{workDir}}/usr/machines/{{host}}/install/disko.nix" 2>/dev/null ;then
+		warn "{{host}} is encrypted and outside every zone: {{target}} must also answer on 2222 (box port forward) for the unlock."
+	fi
+	echo "$n"
 
 # Seal a host: `install/state.nix` at the release of its locked nixpkgs, what
 # `nixos-generate-config` writes. Also freezes `install/disko.nix` (generator).
