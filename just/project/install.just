@@ -423,7 +423,7 @@ install host user='nix' ip='auto' do='install':
 	else
 		just _fail "Unknown action '{{do}}' — valid values: install, test"
 	fi
-	just _log "Now you can test nix@{{host}} and run 'just configure {{host}}'"
+	[ -n "${DNF_FULL_INSTALL:-}" ] || just _log "Now you can test nix@{{host}} and run 'just configure {{host}}'"
 
 # What `install` cannot see failing until the host has rebooted, checked before
 # anything is formatted. Warns about each, then prints how many there were.
@@ -695,6 +695,9 @@ host-info host target='auto':
 full-install host user='nixos' ip='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
+
+	# Each recipe below is one step of this chain: no "next, run X" hint.
+	export DNF_FULL_INSTALL=1
 	target=$(just _resolve "{{host}}" "{{ip}}")
 	if [ "$target" != "{{host}}" ] ;then
 		just _log "{{host}} sits outside its own zone, reachable at $target." "INSTALL"
@@ -719,7 +722,7 @@ full-install host user='nixos' ip='auto':
 	answer=$(just _wait-any "{{host}}" "$target" 22)
 	read -r target port <<<"$answer"
 	just _log "{{host}} is back at $target." "INSTALL"
-	DNF_FULL_INSTALL=1 just configure {{host}} "$target"
+	just configure {{host}} "$target"
 	just _log "Committing what configure changed..." "GIT"
 
 	# A commit of its own: HEAD is one of `install`'s, or somebody else's work

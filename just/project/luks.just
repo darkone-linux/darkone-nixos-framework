@@ -261,7 +261,9 @@ luks host action='' ip='auto' wan='':
 			|| just _warn "Sync units not deployed yet: run 'just apply {{host}}' to converge."
 	fi
 	just _log "Provisioned {{host}}. Audit it with 'just luks {{host}} show'." "LUKS"
-	just _log "If luks.json changed: git add usr/secrets/luks.json && git commit ... && just apply {{host}}" "LUKS"
+
+	# `full-install` commits and applies right after.
+	[ -n "${DNF_FULL_INSTALL:-}" ] || just _log "If luks.json changed: git add usr/secrets/luks.json && git commit ... && just apply {{host}}" "LUKS"
 
 # Implementation of `just luks <host> show`: keyslot table + remote-unlock audit.
 #
