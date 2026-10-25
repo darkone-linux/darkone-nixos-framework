@@ -107,4 +107,39 @@ in
       content = [ 8080 ];
     };
   };
+
+  # ----- gatewayAwaitsTailnet -----
+  # Headscale on, no tailnet IP declared yet: WAN is the only way in.
+  testAwaitsTailnetNotEnrolled = {
+    expr = dnfLib.gatewayAwaitsTailnet { coordination.enable = true; } mockZone;
+    expected = true;
+  };
+
+  # Enrolled: `vpn.ipv4` declared, the tailnet takes over.
+  testAwaitsTailnetEnrolled = {
+    expr = dnfLib.gatewayAwaitsTailnet { coordination.enable = true; } (
+      mockZone // { gateway.vpn.ipv4 = "100.64.0.1"; }
+    );
+    expected = false;
+  };
+
+  # Regression: an empty `vpn.ipv4` (generated data) is not an enrollment.
+  testAwaitsTailnetEmptyIp = {
+    expr = dnfLib.gatewayAwaitsTailnet { coordination.enable = true; } (
+      mockZone // { gateway.vpn.ipv4 = ""; }
+    );
+    expected = true;
+  };
+
+  # No headscale: no tailnet to wait for, WAN stays closed.
+  testAwaitsTailnetNoCoordination = {
+    expr = dnfLib.gatewayAwaitsTailnet { coordination.enable = false; } mockZone;
+    expected = false;
+  };
+
+  # Missing `coordination` attribute: treated as disabled.
+  testAwaitsTailnetMissingCoordination = {
+    expr = dnfLib.gatewayAwaitsTailnet { } mockZone;
+    expected = false;
+  };
 }

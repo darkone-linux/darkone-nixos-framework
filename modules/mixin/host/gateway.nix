@@ -7,6 +7,14 @@
 # gateway and all machines on the local network.
 # :::
 #
+# :::caution[Public SSH until the tailnet takes over]
+# `wanSsh.enable` opens sshd on the WAN interface (key-only, fail2ban), to
+# install a remote gateway reached through a box port forward. Default: on
+# while headscale is active and the zone declares no `gateway.vpn.ipv4`;
+# declaring it then applying closes the port. The initrd (LUKS unlock, 2222)
+# has no firewall: this option does not apply there.
+# :::
+#
 # :::caution[Routed traffic is filtered]
 # `filterForward = true`: only LAN <-> WAN and LAN <-> tailnet cross. Anything
 # else is dropped — add it to `networking.firewall.extraForwardRules`.
@@ -43,12 +51,14 @@
   dnfLib,
   network,
   host,
+  zone,
   ...
 }:
 let
   cfg = config.darkone.host.gateway;
   hasHeadscale = network.coordination.enable;
   hasAdguardHome = config.darkone.service.adguardhome.enable;
+  wanInterface = zone.gateway.wan.interface or "";
 
   # Never re-type an interface name: a hand-written one stops matching silently.
   inherit (dnfLib.constants) lanInterface vpnInterface;
@@ -69,6 +79,12 @@ in
 {
   options = {
     darkone.host.gateway.enable = lib.mkEnableOption "Enable gateway features for the current host (dhcp, dns, proxy, etc.)";
+    darkone.host.gateway.wanSsh.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = dnfLib.gatewayAwaitsTailnet network zone;
+      defaultText = lib.literalExpression "network.coordination.enable && zone.gateway.vpn.ipv4 is unset";
+      description = "Public SSH on the WAN interface, to reach a remote gateway not yet on the tailnet";
+    };
   };
 
   config = lib.mkIf cfg.enable (
@@ -152,6 +168,29 @@ in
           server = config.services.headscale.settings.dns.nameservers.global;
         };
       }
+
+      #--------------------------------------------------------------------------
+      # Public SSH (remote gateway bootstrap)
+      #--------------------------------------------------------------------------
+
+      # Named WAN interface only: the assertion above forbids a global port.
+      (lib.mkIf cfg.wanSsh.enable {
+        networking.firewall.interfaces = lib.mkIf (wanInterface != "") {
+          ${wanInterface}.allowedTCPPorts = config.services.openssh.ports;
+        };
+        assertions = [
+          {
+            assertion = wanInterface != "";
+            message = "Gateway ${host.hostname}: wanSsh.enable needs zones.${zone.name}.gateway.wan.interface in etc/config.yaml.";
+          }
+        ];
+        warnings = [
+          ''
+            Gateway ${host.hostname}: SSH is public on ${wanInterface} (darkone.host.gateway.wanSsh).
+            Once enrolled, declare zones.${zone.name}.gateway.vpn.ipv4 in etc/config.yaml and apply to close it.
+          ''
+        ];
+      })
 
       # Activate services declared in host.services via modules.nix triggers.
       (dnfLib.triggerProfileServices profileServicesArgs)

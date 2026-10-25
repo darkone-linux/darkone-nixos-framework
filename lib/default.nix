@@ -107,7 +107,7 @@ in
     mkAlertRuleGroups
     mkSilenceRoutes
     ;
-  inherit (firewall) getInternalInterfaceFwPath mkInternalFirewall;
+  inherit (firewall) getInternalInterfaceFwPath mkInternalFirewall gatewayAwaitsTailnet;
   inherit (oidc)
     oauth2ClientName
     idmHref

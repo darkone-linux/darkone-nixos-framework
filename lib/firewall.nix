@@ -40,4 +40,10 @@ rec {
     lib.setAttrByPath (getInternalInterfaceFwPath host zone) {
       allowedTCPPorts = lib.mkIf (!(isGateway host zone)) ports;
     };
+
+  # True while a zone gateway is off the tailnet: headscale coordinates the
+  # network but the zone declares no `gateway.vpn.ipv4` yet, so its WAN is the
+  # only way in (default of `darkone.host.gateway.wanSsh.enable`).
+  gatewayAwaitsTailnet =
+    network: zone: (network.coordination.enable or false) && (zone.gateway.vpn.ipv4 or "") == "";
 }
