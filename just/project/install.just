@@ -325,6 +325,13 @@ install host user='nix' ip='auto' do='install':
 		if [ "$outside" = true ] ;then
 			naflags+=(--no-use-machine-substituters)
 			just _log "Installer outside every zone network: public cache only, the rest from here." "INSTALL"
+
+		# A gateway reaches its zone caches (own proxy, zone harmonia) through
+		# itself: dead during its own install. The global harmonia alone could
+		# answer; the admin host serves its share instead.
+		elif [ "$zonegw" = "{{host}}" ] ;then
+			naflags+=(--no-use-machine-substituters)
+			just _log "{{host}} is its zone gateway, its zone caches sit behind it: public cache only, the rest from here." "INSTALL"
 		else
 			just _log "Installer inside a zone network: it pulls from the zone caches of {{host}}." "INSTALL"
 		fi
