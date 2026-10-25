@@ -231,7 +231,12 @@ install host user='nix' ip='auto' do='install':
 	# `_candidates` without an explicit ip lists exactly the addresses the host
 	# legitimately answers on — its own, its roaming reservation, its name — so
 	# a host installed while visiting another zone still passes.
-	if [ -n "$zonegw" ] ;then
+	#
+	# Only inside a zone network: elsewhere (public IP of a remote gateway, box
+	# LAN, tailnet) no DNF reservation exists to move the installer.
+	if [ -n "$zonegw" ] && just _outside-zones "$TARGET_HOST" 2>/dev/null ;then
+		just _log "{{host}} installed on $TARGET_HOST, outside every zone network: no DNF reservation can move it." "INSTALL"
+	elif [ -n "$zonegw" ] ;then
 		expected=$(just _candidates "{{host}}")
 		if ! printf '%s\n' "$expected" | grep -qx -- "$TARGET_HOST" ;then
 			just _err "Installing {{host}} on $TARGET_HOST, which is not an address it keeps."

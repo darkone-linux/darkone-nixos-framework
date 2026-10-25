@@ -219,6 +219,26 @@ _candidates host ip='':
 	addrs+=("{{host}}")
 	printf '%s\n' "${addrs[@]}" | awk 'NF && !seen[$0]++'
 
+# Succeeds when `addr` is an IPv4 literal outside every zone network: no DNF
+# dnsmasq serves it, so no reservation can renumber the host (public IP behind
+# a box forward, tailnet). A hostname, or an unreadable network.nix, fails.
+_outside-zones addr:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[[ "{{addr}}" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || exit 1
+	toint() { local IFS=. ; set -- $1 ; echo $(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 )) ; }
+	ip=$(toint "{{addr}}")
+	nets=$({{nix}} eval --raw --impure --expr '
+	  let network = import {{workDir}}/var/generated/network.nix;
+	  in builtins.concatStringsSep "" (map (z: z.networkIp + " " + toString z.prefixLength + "\n")
+	    (builtins.filter (z: z ? networkIp && z ? prefixLength) (builtins.attrValues network.zones)))
+	')
+	while read -r net len ;do
+		[ -n "$net" ] || continue
+		mask=$(( (0xFFFFFFFF << (32 - len)) & 0xFFFFFFFF ))
+		[ $(( ip & mask )) -ne $(( $(toint "$net") & mask )) ] || exit 1
+	done <<<"$nets"
+
 # Wait until one of `_candidates` answers, then print "<address> <port>".
 #
 # Deliberately not `ping`: a gateway drops ICMP everywhere but on its LAN
