@@ -9,9 +9,10 @@
 #           SSH host key `luks/<host>/initrd-key`) and the public manifest entry
 #           in usr/secrets/luks.json. Never touches the target.
 # - ``      `pre`, then converge the target: put the initrd host key back if it
-#           is missing, record the gateway WAN IP so `just unlock`
+#           is missing, record the gateway public address so `just unlock`
 #           still finds the initrd sshd when the VPN is down, and bootstrap the
 #           shared keyslot of a host installed before the shared-format era.
+#           Behind a box (NAT), pass that address as `wan` (IP or DDNS name).
 # - `passwd` rotate the per-host passphrase, then converge.
 # - `show`  read-only audit: keyslot table + remote-unlock conformity.
 #
@@ -21,10 +22,10 @@
 #
 # LUKS provisioning & info. Actions: pre, passwd, show
 [group('luks')]
-luks host action='' ip='auto':
+luks host action='' ip='auto' wan='':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just luks "{{host}}" "{{action}}" "{{ip}}"
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just luks "{{host}}" "{{action}}" "{{ip}}" "{{wan}}"
 	case "{{action}}" in ''|pre|passwd|show) ;; *) just _fail "Unknown action '{{action}}' — valid: pre, passwd, show" ;; esac
 	manifest={{secretsDir}}/luks.json
 	hostconf=$(just _host_conf "{{host}}")
@@ -192,7 +193,7 @@ luks host action='' ip='auto':
 			&& sudo chmod 644 /var/lib/luks-initrd/ssh_host_ed25519_key.pub'
 	fi
 
-	# Gateways: record the current WAN IP. The VPN route to a zone dies with
+	# Gateways: record the public address. The VPN route to a zone dies with
 	# its gateway, so `just unlock` (`_enter_initrd`) falls back to this
 	# address to reach the initrd sshd. Refreshed at each run (ISP renumbering needs a
 	# re-run). The gateway hostname comes from var/generated/network.nix (same
@@ -204,15 +205,27 @@ luks host action='' ip='auto':
 	gwhost=$({{nix}} eval --impure --raw \
 		--expr "(import {{workDir}}/var/generated/network.nix).zones.\"$zone\".gateway.hostname or \"\"" 2>/dev/null || echo "")
 	if [ -n "$wanif" ] && [ "$gwhost" = "{{host}}" ] ;then
-		wan=$(ssh nix@"$target" "ip -4 -o addr show dev '$wanif' scope global" 2>/dev/null \
+		ifaddr=$(ssh nix@"$target" "ip -4 -o addr show dev '$wanif' scope global" 2>/dev/null \
 			| awk '{print $4}' | cut -d/ -f1 | head -1)
+
+		# Behind a box the interface holds a private address, useless from the
+		# Internet: explicit `wan` first, then a public interface address, then
+		# the target itself when it was reached on a public IP (box forward).
+		wan="{{wan}}"
+		if [ -z "$wan" ] && [ -n "$ifaddr" ] && just _is-public-ipv4 "$ifaddr" 2>/dev/null ;then
+			wan=$ifaddr
+		elif [ -z "$wan" ] && just _is-public-ipv4 "$target" 2>/dev/null ;then
+			wan=$target
+		fi
 		if [ -n "$wan" ] ;then
 			# The earlier _fix_fs_permissions restored usr/secrets/ ownership:
 			# reopen it for the manifest write, restore right after.
 			just _sops_before_edit
 			WAN="$wan" yq -i -p=json -o=json '."{{host}}".wan = strenv(WAN)' "$manifest"
 			just _fix_fs_permissions
-			just _log "WAN IP of {{host}} recorded: $wan" "LUKS"
+			just _log "Public address of {{host}} recorded: $wan" "LUKS"
+		else
+			just _warn "{{host}} sits behind NAT (${ifaddr:-no WAN address}): public address not recorded. Forward 2222 on the box, then: just luks {{host}} '' auto <public IP or DDNS name>"
 		fi
 	fi
 
@@ -452,9 +465,15 @@ _luks-show host target:
 		--expr "(import {{workDir}}/var/generated/network.nix).zones.\"${zone%%:*}\".gateway.hostname or \"\"" 2>/dev/null || echo "")
 	if [ "$gwhost" = "{{host}}" ] ;then
 		wan=$(yq -r '."{{host}}".wan // ""' {{secretsDir}}/luks.json)
-		[ -n "$wan" ] \
-			&& pass "gateway WAN address recorded ($wan)" \
-			|| fail "no WAN address recorded: unreachable in initrd once the VPN is down"
+		if [ -z "$wan" ] ;then
+			fail "no WAN address recorded: unreachable in initrd once the VPN is down"
+
+		# Recorded before public addresses were told apart: a box-side IP.
+		elif [[ "$wan" =~ ^[0-9.]+$ ]] && ! just _is-public-ipv4 "$wan" 2>/dev/null ;then
+			fail "recorded WAN address $wan is private: re-run 'just luks {{host}} \"\" auto <public address>'"
+		else
+			pass "gateway WAN address recorded ($wan)"
+		fi
 	fi
 
 	echo
@@ -573,3 +592,19 @@ _enter_initrd host ip='':
 		fi
 	done
 	just _fail "{{host}}: no initrd answering on port 2222 (tried:$candidates)."
+
+# Succeeds when `addr` is a public IPv4 literal, the only kind a box port
+# forward answers on: private, CGNAT/tailnet (100.64/10), loopback and
+# link-local ranges fail, and so does a hostname.
+_is-public-ipv4 addr:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[[ "{{addr}}" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]] || exit 1
+	a=${BASH_REMATCH[1]} ; b=${BASH_REMATCH[2]}
+	case "$a" in
+		0|10|127) exit 1 ;;
+		172) [ "$b" -lt 16 ] || [ "$b" -gt 31 ] || exit 1 ;;
+		192) [ "$b" -ne 168 ] || exit 1 ;;
+		100) [ "$b" -lt 64 ] || [ "$b" -gt 127 ] || exit 1 ;;
+		169) [ "$b" -ne 254 ] || exit 1 ;;
+	esac
