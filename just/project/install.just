@@ -315,7 +315,7 @@ install host user='nix' ip='auto' do='install':
 		if grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/install/disko.nix 2>/dev/null ;then
 			just _warn "vm-test cannot supply the LUKS format key: disko will fail on {{host}}."
 		fi
-		{{nix}} run github:nix-community/nixos-anywhere -- --flake .#{{host}} --vm-test
+		{{nix}} run {{workDir}}#nixos-anywhere -- --flake .#{{host}} --vm-test
 	elif [ "{{do}}" == "install" ] ;then
 
 		# Before the tree changes hands: a failing evaluation leaves nothing to undo.
@@ -394,7 +394,8 @@ install host user='nix' ip='auto' do='install':
 			naflags+=(--disk-encryption-keys /tmp/dnf-luks.key "$pwfile")
 		fi
 
-		sudo -i -u nix {{nix}} run github:nix-community/nixos-anywhere -- \
+		# Revision locked by the framework, the one its install tests run.
+		sudo -i -u nix {{nix}} run {{workDir}}#nixos-anywhere -- \
 			--copy-host-keys \
 			--flake "{{workDir}}#{{host}}" \
 			-i "${NIX_HOME}/.ssh/id_ed25519" \
@@ -511,7 +512,7 @@ install-key host:
 		sudo chmod 600 /tmp/dnf-luks.key
 		[ -s /tmp/dnf-luks.key ] || just _fail "Empty shared LUKS passphrase in sops."
 	fi
-	sudo {{nix}} run github:nix-community/disko -- \
+	sudo {{nix}} run {{workDir}}#disko -- \
 	  --mode disko \
 	  --root-mountpoint {{dnfInstallDir}} ./usr/machines/{{host}}/install/disko.nix
 	just _log "NixOS DNF installation..."

@@ -22,6 +22,7 @@ let
     colmena
     sops-nix
     disko
+    nixos-anywhere
     nixos-raspberrypi
     talon-nix
     nix-openclaw
@@ -553,8 +554,16 @@ in
   });
 
   # DNF-only packages (`pkgs/`) against the consumer's own lock: `nix run
-  # .#fleet-update` works without the module or a framework checkout.
-  packages = forAllSystems (system: import ../pkgs { pkgs = nixpkgsFor.${system}; });
+  # .#fleet-update` works without the module or a framework checkout. The
+  # install tools too, at the revisions the framework locks and tests.
+  packages = forAllSystems (
+    system:
+    import ../pkgs { pkgs = nixpkgsFor.${system}; }
+    // {
+      inherit (disko.packages.${system}) disko;
+      inherit (nixos-anywhere.packages.${system}) nixos-anywhere;
+    }
+  );
 
   # `nix run .#init` — (re)link `dnf/` onto the framework revision this project
   # pins in its own flake.lock. Run it after every `nix flake update dnf`, so
