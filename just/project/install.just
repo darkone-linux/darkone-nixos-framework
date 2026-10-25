@@ -45,10 +45,18 @@ copy-hw host target='auto':
 	just _log "Extracting hardware information..."
 	mkdir -p usr/machines/{{host}}/hardware
 	sudo -i -u nix ssh nix@"$t" "sudo nixos-generate-config --no-filesystems --show-hardware-config" > {{workDir}}/usr/machines/{{host}}/hardware/hardware-configuration.nix
-	nixfmt -s usr/machines/{{host}}/hardware/hardware-configuration.nix
+	just _normalize-nix usr/machines/{{host}}/hardware/hardware-configuration.nix
 
 	# nixos-generate-config never lists NIC drivers: same step, so they cannot drift.
 	just detect-hw "{{host}}" "$t"
+
+# A probed file rewritten as `just clean` would (deadnix, then nixfmt -s):
+# committed in that form, no later clean or probe turns it into a commit.
+_normalize-nix file:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	deadnix -eq "{{file}}"
+	nixfmt -s "{{file}}"
 
 # Print the loadable modules each wired NIC of `target` binds to, one per line.
 # `target` = `local`: the machine running just (`install-here`).
@@ -405,8 +413,10 @@ install host user='nix' ip='auto' do='install':
 			--target-host {{user}}@$TARGET_HOST
 
 		# Committed before the reboot: a full-install interrupted at unlock or
-		# configure would otherwise lose the only probe of this machine.
+		# configure would otherwise lose the only probe of this machine. In the
+		# form `copy-hw` gives it, so its next probe finds nothing to commit.
 		just _fix_fs_permissions
+		just _normalize-nix {{workDir}}/usr/machines/{{host}}/hardware/hardware-configuration.nix
 		git add usr/machines/{{host}}/hardware
 		git diff --cached --quiet || git -c maintenance.autoDetach=false commit -m "chore(install): hardware of {{host}}"
 		git reset -q
