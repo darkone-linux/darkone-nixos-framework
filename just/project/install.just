@@ -311,6 +311,19 @@ install host user='nix' ip='auto' do='install':
 	just _gen-secrets
 	just _fix_fs_permissions
 
+	# An isolated host decrypts only its own file, needed by the build: sealed
+	# for the installer's host key, the one `--copy-host-keys` puts on the disk
+	# (a kexec installer keeps the running system's).
+	if [ "{{do}}" = "install" ] ;then
+		isolated=$({{nix}} eval --json "{{workDir}}#nixosConfigurations.{{host}}.config.darkone.system.sops.isolated") \
+			|| just _fail "Cannot evaluate {{host}}: unknown whether it is isolated."
+		if [ "$isolated" = true ] ;then
+			pub=$( { ssh-keyscan -T 10 -t ed25519 "$TARGET_HOST" 2>/dev/null || true ; } | awk '/^[^#]/ {print $2, $3; exit}')
+			[ -n "$pub" ] || just _fail "Cannot read the host key of the installer ($TARGET_HOST)."
+			just _space-seal "{{host}}" "$pub"
+		fi
+	fi
+
 	# `maintenance.autoDetach=false`: a detached auto-maintenance is still
 	# repacking when `chown -R nix .git` walks the tree, dying on its temp files.
 	git add . && (git diff --cached --quiet || git -c maintenance.autoDetach=false commit -m "chore(install): new host {{host}}") && git reset

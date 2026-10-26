@@ -5,7 +5,8 @@
 # sealed for the admin key and its own host key, never the infra key.
 #
 # - host key: created on the hypervisor share of a microVM guest (its private
-#   half never leaves it), read over ssh from a bare metal host;
+#   half never leaves it), read over ssh from a bare metal host, or from its
+#   installer by `just install`, before the build;
 # - Matrix bot, last, on a host running openclaw with a network Matrix:
 #   `@<host>:<domain>`, display name and avatar of its `identity`
 #   (`configure-space-bot.sh`); rerun after an avatar change;
@@ -20,15 +21,12 @@ space-init host:
 	[ "${USER:-}" = "nix" ] || exec sudo -u nix just space-init "{{host}}"
 	[[ "{{host}}" =~ ^[a-z0-9][a-z0-9-]*$ ]] || just _fail "Invalid hostname '{{host}}'."
 	just _check_infra_admin
-	[ -s {{sopsAdminKeyFile}} ] || just _fail "Admin age key not found ({{sopsAdminKeyFile}}). Run 'just configure-admin-host' first."
 
 	cfg="{{workDir}}#nixosConfigurations.{{host}}.config.darkone.system"
 	isolated=$(nix eval --json "$cfg.sops.isolated" 2>/dev/null) \
 		|| just _fail "Cannot evaluate {{host}}: declared in etc/config.yaml, 'just generate' run?"
 	[ "$isolated" = "true" ] || just _fail "{{host}} is not isolated: its secrets live in secrets.yaml."
 	hypervisor=$(nix eval --json "$cfg.microvm.hypervisor" | jq -r '. // empty')
-	pubFile={{secretsDir}}/hosts/{{host}}.pub
-	file={{secretsDir}}/hosts/{{host}}.yaml
 
 	# The guest reads its key on `/persist`, a share of the hypervisor.
 	if [ -n "$hypervisor" ] ;then
@@ -41,9 +39,34 @@ space-init host:
 	else
 		t=$(just _resolve "{{host}}" auto)
 		just _log "Host key of {{host}} (bare metal)..." "SPACE"
-		sshPub=$(ssh nix@"$t" cat /etc/ssh/ssh_host_ed25519_key.pub)
+
+		# `ssh-keyscan`: `--copy-host-keys` leaves the `.pub` files root-only.
+		sshPub=$( { ssh-keyscan -T 10 -t ed25519 "$t" 2>/dev/null || true ; } | awk '/^[^#]/ {print $2, $3; exit}')
+		[ -n "$sshPub" ] || just _fail "Cannot read the host key of {{host}} ($t)."
 	fi
-	recipient=$(printf '%s\n' "$sshPub" | ssh-to-age)
+	just _space-seal "{{host}}" "$sshPub"
+
+	# Last: needs MAS on the matrix host, a failure leaves the above done.
+	openclaw=$(nix eval --json "{{workDir}}#nixosConfigurations.{{host}}.config.darkone.service.openclaw.enable")
+	if [ "$openclaw" = "true" ] ;then
+		WORKDIR="{{workDir}}" SPACE_HOST="{{host}}" SOPS_AGE_KEY_FILE={{sopsAdminKeyFile}} \
+			bash {{scriptsDir}}/configure-space-bot.sh
+	else
+		just _info "No openclaw service on {{host}}: no Matrix bot." "SPACE"
+	fi
+	just _log "Commit usr/secrets/.sops.yaml, usr/secrets/hosts/{{host}}.* and var/generated/spaces/: flakes only see tracked files." "SPACE"
+
+# Seals usr/secrets/hosts/<host>.yaml for the admin key and the host SSH key
+# `pubkey`, then fills its internal secrets. Shared by `space-init` (key of the
+# running host) and `install` (key of the installer, copied to the disk).
+_space-seal host pubkey:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just _space-seal "{{host}}" "{{pubkey}}"
+	[ -s {{sopsAdminKeyFile}} ] || just _fail "Admin age key not found ({{sopsAdminKeyFile}}). Run 'just configure-admin-host' first."
+	recipient=$(printf '%s\n' "{{pubkey}}" | ssh-to-age)
+	pubFile={{secretsDir}}/hosts/{{host}}.pub
+	file={{secretsDir}}/hosts/{{host}}.yaml
 
 	# Recipient first: `.sops.yaml` then seals the file for this host only.
 	# Permissions restored even when a later step fails.
@@ -80,16 +103,6 @@ space-init host:
 		0) just _info "Secrets already generated." "SPACE" ;;
 		*) just _log "$n secret(s) generated." "SPACE" ;;
 	esac
-
-	# Last: needs MAS on the matrix host, a failure leaves the above done.
-	openclaw=$(nix eval --json "{{workDir}}#nixosConfigurations.{{host}}.config.darkone.service.openclaw.enable")
-	if [ "$openclaw" = "true" ] ;then
-		WORKDIR="{{workDir}}" SPACE_HOST="{{host}}" SOPS_AGE_KEY_FILE={{sopsAdminKeyFile}} \
-			bash {{scriptsDir}}/configure-space-bot.sh
-	else
-		just _info "No openclaw service on {{host}}: no Matrix bot." "SPACE"
-	fi
-	just _log "Commit usr/secrets/.sops.yaml, usr/secrets/hosts/{{host}}.* and var/generated/spaces/: flakes only see tracked files." "SPACE"
 
 # Edit the secrets of an isolated host
 [group('space')]
