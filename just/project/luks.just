@@ -511,6 +511,16 @@ unlock host ip='' timeout='600':
 	fi
 	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
 
+	# Pinned initrd host key (M8): no passphrase for a sshd on 2222 that cannot
+	# prove it is this initrd. `HostKeyAlias`: one entry, whatever address
+	# answers (IP, name, WAN).
+	pub=$(sops -d --extract '["luks"]["{{host}}"]["initrd-key-pub"]' {{sopsSecretsFile}} 2>/dev/null) || pub=""
+	[ -n "$pub" ] || just _fail "Initrd host key of {{host}} unreadable from sops: nothing sent. Unlock at the console, then 'just luks {{host}}' from the admin host."
+	kh=$(mktemp) ; trap 'rm -f "$kh"' EXIT
+	echo "initrd-{{host}} $pub" >"$kh"
+	pin=(-p 2222 -o HostKeyAlias="initrd-{{host}}" -o UserKnownHostsFile="$kh"
+		-o GlobalKnownHostsFile=/dev/null -o StrictHostKeyChecking=yes)
+
 	# The WAN address recorded for a gateway is the only way in when the VPN
 	# route to its zone died with it (same fallback as `_enter_initrd`).
 	wan=$(yq -r '."{{host}}".wan // ""' {{secretsDir}}/luks.json 2>/dev/null || true)
@@ -526,6 +536,14 @@ unlock host ip='' timeout='600':
 		exit 0
 	fi
 
+	# Checked once here for a clear verdict; every connection below enforces it
+	# again (`StrictHostKeyChecking=yes`). `#` lines: the banner ssh-keyscan
+	# prints on stdout.
+	seen=$( { ssh-keyscan -p 2222 -T 10 -t ed25519 "$addr" 2>/dev/null || true ; } | awk '/^[^#]/ {print $2, $3; exit}')
+	[ -n "$seen" ] || just _fail "{{host}} ($addr): no initrd host key read on 2222, nothing sent."
+	[ "$seen" = "$(awk '{print $1, $2}' <<<"$pub")" ] \
+		|| just _fail "{{host}} ($addr) shows another initrd host key than sops on 2222: nothing sent. Not an impostor? Unlock at the console, then 'just luks {{host}}'."
+
 	# Shared passphrase FIRST: disko formats the volume with it, and the
 	# per-host keyslot is only added later by luks-passphrase-sync, from the
 	# booted system — at the very first boot the shared slot is the only one
@@ -539,8 +557,7 @@ unlock host ip='' timeout='600':
 	$stored && keys=('["luks-passphrase"]' '["luks"]["{{host}}"]["passphrase"]')
 	for key in "${keys[@]}" ;do
 		sops -d --extract "$key" {{sopsSecretsFile}} 2>/dev/null \
-			| ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-				-o ConnectTimeout=10 root@"$addr" dnf-unlock >/dev/null 2>&1 || continue
+			| ssh "${pin[@]}" -o ConnectTimeout=10 root@"$addr" dnf-unlock >/dev/null 2>&1 || continue
 
 		# A refused passphrase leaves the initrd up and asking again; an
 		# accepted one opens the volume and switches root, taking the initrd
@@ -572,13 +589,15 @@ unlock host ip='' timeout='600':
 	done
 	! $stored || just _warn "No stored passphrase accepted by {{host}}."
 	[ -t 0 ] || just _fail "Could not unlock {{host}} at $addr: run 'just unlock {{host}}' from a terminal to type it."
-	exec just _enter_initrd "{{host}}" "$addr"
+
+	# No `exec`: the EXIT trap removes the pin file.
+	just _enter_initrd "{{host}}" "$addr" "$kh"
 
 # Interactive LUKS prompt of a host waiting in initrd (sshd on 2222): probe the
 # explicit ip, the hostname, then the WAN IP of usr/secrets/luks.json — the VPN
-# route to a zone dies with its gateway. root@, own initrd host key regenerated
-# by every reinstall: outside the `Match user nix` policy, "never pin" restated.
-_enter_initrd host ip='':
+# route to a zone dies with its gateway. root@, outside the `Match user nix`
+# policy: the initrd host key is pinned by `known_hosts`, built by `unlock`.
+_enter_initrd host ip known_hosts:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	candidates="{{ip}}"
@@ -588,7 +607,8 @@ _enter_initrd host ip='':
 	for c in $candidates ;do
 		if timeout 2 bash -c "exec 3<>/dev/tcp/$c/2222" 2>/dev/null ;then
 			just _log "{{host}} ($c) is waiting in initrd: answering the LUKS prompt..." "LUKS"
-			ssh=(ssh -t -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$c"
+			ssh=(ssh -t -p 2222 -o HostKeyAlias="initrd-{{host}}" -o UserKnownHostsFile="{{known_hosts}}"
+				-o GlobalKnownHostsFile=/dev/null -o StrictHostKeyChecking=yes root@"$c"
 				systemd-tty-ask-password-agent --query --watch)
 			if [ "${USER:-}" = "nix" ]; then
 				exec "${ssh[@]}"
