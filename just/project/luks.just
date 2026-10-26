@@ -20,6 +20,9 @@
 # with the shared one (nixos-anywhere --disk-encryption-keys), so the format
 # keyslot IS the shared keyslot. See dnf/modules/system/luks.nix.
 #
+# An isolated host has no shared slot: formatted with its own passphrase, its
+# `luks/<host>/*` in its own file (`_luks-store`), `passwd` rotated from here.
+#
 # LUKS provisioning & info. Actions: pre, passwd, show
 [group('luks')]
 luks host action='' ip='auto' wan='':
@@ -43,6 +46,12 @@ luks host action='' ip='auto' wan='':
 	[ -f {{sopsSecretsFile}} ] || just _fail "No sops secrets file: run 'just configure-admin-host' first."
 	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
 
+	# `luks/<host>/*` of an isolated host lives in its own file: no fleet
+	# secret ever goes through that host (`hsops`, never the shared slot).
+	s=$(just _luks-store "{{host}}") ; read -r store storekey <<<"$s"
+	isolated=false ; [ "$store" = {{sopsSecretsFile}} ] || isolated=true
+	hsops() { SOPS_AGE_KEY_FILE="$storekey" sops "$@" ; }
+
 	#--------------------------------------------------------------------------
 	# Offline phase (`pre`): everything that must exist before the build
 	#--------------------------------------------------------------------------
@@ -53,11 +62,17 @@ luks host action='' ip='auto' wan='':
 		# Shared passphrase: asked once fleet-wide. It authorizes keyslot
 		# management (same slot `just yubikey` uses) and is what disko formats
 		# every encrypted volume with.
-		if ! sops -d --extract '["luks-passphrase"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
+		if ! $isolated && ! sops -d --extract '["luks-passphrase"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
 			echo -n "Shared LUKS passphrase (unlocks every encrypted host): "
 			read -s LP ; echo
 			[ -n "$LP" ] || just _fail "Empty passphrase."
 			sops set {{sopsSecretsFile}} '["luks-passphrase"]' "\"$LP\""
+		fi
+
+		# A host turned isolated starts over in its own file: its former
+		# entries open nothing it boots after the reinstall.
+		if $isolated && sops -d --extract '["luks"]["{{host}}"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
+			just _warn "Stale luks/{{host}} in secrets.yaml ({{host}} is isolated): delete it with 'just sops' once reinstalled."
 		fi
 
 		# Per-host passphrase: the slot handed to the machine's own user, so
@@ -81,9 +96,16 @@ luks host action='' ip='auto' wan='':
 				PP=$(openssl rand -base64 32)
 				just _log "Random passphrase generated (kept in sops only)." "LUKS"
 			fi
-			sops set {{sopsSecretsFile}} '["luks"]["{{host}}"]["passphrase"]' "\"$PP\""
-		elif ! sops -d --extract '["luks"]["{{host}}"]["passphrase"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
-			sops set {{sopsSecretsFile}} '["luks"]["{{host}}"]["passphrase"]' \
+
+			# No sync unit on an isolated host: the target phase rotates the
+			# keyslot first, sops follows.
+			if $isolated ;then
+				NEWPP=$PP
+			else
+				sops set {{sopsSecretsFile}} '["luks"]["{{host}}"]["passphrase"]' "\"$PP\""
+			fi
+		elif ! hsops -d --extract '["luks"]["{{host}}"]["passphrase"]' "$store" >/dev/null 2>&1 ;then
+			hsops set "$store" '["luks"]["{{host}}"]["passphrase"]' \
 				"\"$(openssl rand -base64 32)\""
 			just _log "Per-host passphrase generated at random (set one with 'just luks {{host}} passwd')." "LUKS"
 		else
@@ -95,19 +117,19 @@ luks host action='' ip='auto' wan='':
 		# on 2222 — a key generated on the target would always arrive after the
 		# bootloader that had to embed it. base64: byte-exact round-trip through
 		# sops and YAML.
-		if ! sops -d --extract '["luks"]["{{host}}"]["initrd-key"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
+		if ! hsops -d --extract '["luks"]["{{host}}"]["initrd-key"]' "$store" >/dev/null 2>&1 ;then
 			# /run itself is root-only; fall back to TMPDIR for the few seconds
 			# the private key exists outside sops.
 			rt="${XDG_RUNTIME_DIR:-}" ; [ -n "$rt" ] && [ -d "$rt" ] || rt=$(dirname "$(mktemp -u)")
 			tmp=$(mktemp -d -p "$rt" dnf-luks-XXXXXX) ; chmod 700 "$tmp"
 			trap 'rm -rf "$tmp"' EXIT
 			ssh-keygen -t ed25519 -N "" -q -f "$tmp/key"
-			sops set {{sopsSecretsFile}} '["luks"]["{{host}}"]["initrd-key"]' \
+			hsops set "$store" '["luks"]["{{host}}"]["initrd-key"]' \
 				"\"$(base64 -w0 < "$tmp/key")\""
 
 			# `-y` and not the .pub file: same derived form the convergence
 			# compares against, so a match is a match.
-			sops set {{sopsSecretsFile}} '["luks"]["{{host}}"]["initrd-key-pub"]' \
+			hsops set "$store" '["luks"]["{{host}}"]["initrd-key-pub"]' \
 				"\"$(ssh-keygen -y -f "$tmp/key")\""
 			rm -rf "$tmp" ; trap - EXIT
 			just _log "Initrd SSH host key generated and stored in sops." "LUKS"
@@ -131,12 +153,13 @@ luks host action='' ip='auto' wan='':
 		if [ "{{action}}" = "show" ] ;then
 			just _fail "{{host}} unreachable at $target (waiting in initrd? see 'just unlock')."
 		fi
+		[ -z "${NEWPP:-}" ] || just _fail "{{host}} unreachable at $target: its keyslot rotates first, nothing changed."
 		just _warn "{{host}} unreachable at $target: re-run 'just luks {{host}}' once it is up, BEFORE any apply."
 		exit 0
 	fi
 
-	SHARED=$(sops -d --extract '["luks-passphrase"]' {{sopsSecretsFile}})
-	PERHOST=$(sops -d --extract '["luks"]["{{host}}"]["passphrase"]' {{sopsSecretsFile}})
+	SHARED="" ; $isolated || SHARED=$(sops -d --extract '["luks-passphrase"]' {{sopsSecretsFile}})
+	PERHOST=$(hsops -d --extract '["luks"]["{{host}}"]["passphrase"]' "$store")
 
 	# Trailing `exit 0`: a `for` loop reports its LAST iteration, so the probe
 	# failed whenever the final by-partlabel entry was not LUKS — devs was
@@ -153,9 +176,39 @@ luks host action='' ip='auto' wan='':
 			| sed -n 's/^Key slot \([0-9]\+\) unlocked.*/\1/p' | head -n1 || true
 	}
 
+	# Adds keyslot $2 to device $3, authorized by $1: old key on stdin, new key
+	# via a root-only tmpfs file, both wiped.
+	add_key() {
+		printf '%s\n%s\n' "$1" "$2" | ssh nix@"$target" "sudo bash -c 'IFS= read -r cur; IFS= read -r new; t=\$(mktemp -p /run); chmod 600 \"\$t\"; printf %s \"\$new\" >\"\$t\"; rc=0; printf %s \"\$cur\" | cryptsetup luksAddKey --key-file=- $3 \"\$t\" >/dev/null 2>&1 || rc=1; rm -f \"\$t\"; exit \$rc'"
+	}
+
 	if [ "{{action}}" = "show" ] ;then
-		just _luks-show "{{host}}" "$target"
+		just _luks-show "{{host}}" "$target" "$store" "$storekey"
 		exit 0
+	fi
+
+	# Isolated `passwd`: its one passphrase also authorizes its rotation, so no
+	# unit can do it at apply. New slot added, stored, old slot killed: a
+	# stored value opens the volume at every step.
+	if [ -n "${NEWPP:-}" ] ;then
+		[ "$NEWPP" != "$PERHOST" ] || just _fail "Same passphrase as the current one: nothing to rotate."
+		declare -A oldslot=()
+		for dev in $devs ;do
+			oldslot[$dev]=$(slot_of "$PERHOST" "$dev")
+			[ -n "${oldslot[$dev]}" ] || just _fail "$dev refuses the stored passphrase of {{host}}: nothing rotated."
+		done
+		for dev in $devs ;do
+			add_key "$PERHOST" "$NEWPP" "$dev" || just _fail "luksAddKey failed on $dev: sops unchanged."
+		done
+		just _sops_before_edit
+		hsops set "$store" '["luks"]["{{host}}"]["passphrase"]' "\"$NEWPP\""
+		just _fix_fs_permissions
+		for dev in $devs ;do
+			printf '%s' "$NEWPP" | ssh nix@"$target" "sudo cryptsetup luksKillSlot -q --key-file=- '$dev' ${oldslot[$dev]}" \
+				|| just _warn "$dev: old slot ${oldslot[$dev]} left in place (still opens with the old passphrase)."
+		done
+		PERHOST=$NEWPP
+		just _log "Passphrase of {{host}} rotated on $(echo $devs)." "LUKS"
 	fi
 
 	# A host provisioned before the key lived in sops already runs an initrd
@@ -167,13 +220,13 @@ luks host action='' ip='auto' wan='':
 	# file: only the private half is authoritative, and a stale or missing .pub
 	# would send us adopting or restoring the wrong thing.
 	targetpub=$(ssh nix@"$target" 'sudo ssh-keygen -y -f /var/lib/luks-initrd/ssh_host_ed25519_key 2>/dev/null' || true)
-	sopspub=$(sops -d --extract '["luks"]["{{host}}"]["initrd-key-pub"]' {{sopsSecretsFile}} 2>/dev/null || true)
+	sopspub=$(hsops -d --extract '["luks"]["{{host}}"]["initrd-key-pub"]' "$store" 2>/dev/null || true)
 	if [ -n "$targetpub" ] && [ "$targetpub" != "$sopspub" ] ;then
 		just _log "Adopting the initrd host key already installed on {{host}}..." "LUKS"
 		just _sops_before_edit
-		sops set {{sopsSecretsFile}} '["luks"]["{{host}}"]["initrd-key"]' \
+		hsops set "$store" '["luks"]["{{host}}"]["initrd-key"]' \
 			"\"$(ssh nix@"$target" 'sudo base64 -w0 /var/lib/luks-initrd/ssh_host_ed25519_key')\""
-		sops set {{sopsSecretsFile}} '["luks"]["{{host}}"]["initrd-key-pub"]' "\"$targetpub\""
+		hsops set "$store" '["luks"]["{{host}}"]["initrd-key-pub"]' "\"$targetpub\""
 		just _fix_fs_permissions
 		ssh nix@"$target" 'sudo ssh-keygen -y -f /var/lib/luks-initrd/ssh_host_ed25519_key \
 			| sudo tee /var/lib/luks-initrd/ssh_host_ed25519_key.pub >/dev/null'
@@ -187,9 +240,9 @@ luks host action='' ip='auto' wan='':
 
 		# `sudo tee`, never `sudo cmd > file`: a remote redirection runs in the nix
 		# user's shell, which cannot write into the root-only key directory.
-		sops -d --extract '["luks"]["{{host}}"]["initrd-key"]' {{sopsSecretsFile}} \
+		hsops -d --extract '["luks"]["{{host}}"]["initrd-key"]' "$store" \
 			| ssh nix@"$target" 'sudo mkdir -p /var/lib/luks-initrd && base64 -d | sudo tee /var/lib/luks-initrd/ssh_host_ed25519_key >/dev/null'
-		sops -d --extract '["luks"]["{{host}}"]["initrd-key-pub"]' {{sopsSecretsFile}} \
+		hsops -d --extract '["luks"]["{{host}}"]["initrd-key-pub"]' "$store" \
 			| ssh nix@"$target" 'sudo tee /var/lib/luks-initrd/ssh_host_ed25519_key.pub >/dev/null'
 		ssh nix@"$target" 'sudo chown -R root:root /var/lib/luks-initrd \
 			&& sudo chmod 700 /var/lib/luks-initrd \
@@ -240,20 +293,21 @@ luks host action='' ip='auto' wan='':
 	# installed by the current `just install`.
 	fixed=""
 	for dev in $devs ;do
-		if [ -n "$(slot_of "$SHARED" "$dev")" ] || [ -n "$(slot_of "$PERHOST" "$dev")" ] ;then
+		if { ! $isolated && [ -n "$(slot_of "$SHARED" "$dev")" ] ; } || [ -n "$(slot_of "$PERHOST" "$dev")" ] ;then
 			just _log "$dev already accepts a managed passphrase." "LUKS"
 			continue
 		fi
+
+		# Never asked for an isolated host: the only other passphrase its disk
+		# could hold is a fleet one, not to be typed into it.
+		! $isolated || just _fail "$dev of isolated {{host}} refuses its own passphrase: reinstall it with 'just install {{host}}'."
 		just _warn "$dev accepts no managed passphrase: host installed before the shared format."
 		if [ -z "${INSTALL:-}" ] ;then
 			echo -n "Legacy install passphrase of {{host}}: "
 			read -s INSTALL ; echo
 			[ -n "$INSTALL" ] || just _fail "Empty passphrase."
 		fi
-
-		# Old key on stdin, new key via a root-only tmpfs file, both wiped.
-		printf '%s\n%s\n' "$INSTALL" "$SHARED" | ssh nix@"$target" "sudo bash -c 'IFS= read -r cur; IFS= read -r new; t=\$(mktemp -p /run); chmod 600 \"\$t\"; printf %s \"\$new\" >\"\$t\"; rc=0; printf %s \"\$cur\" | cryptsetup luksAddKey --key-file=- $dev \"\$t\" >/dev/null 2>&1 || rc=1; rm -f \"\$t\"; exit \$rc'" \
-			|| just _fail "luksAddKey failed on $dev (wrong install passphrase?)."
+		add_key "$INSTALL" "$SHARED" "$dev" || just _fail "luksAddKey failed on $dev (wrong install passphrase?)."
 		just _log "Shared keyslot bootstrapped on $dev." "LUKS"
 		fixed=1
 	done
@@ -269,6 +323,26 @@ luks host action='' ip='auto' wan='':
 	# `full-install` commits and applies right after.
 	[ -n "${DNF_FULL_INSTALL:-}" ] || just _log "If luks.json changed: git add usr/secrets/luks.json && git commit ... && just apply {{host}}" "LUKS"
 
+# Where `luks/<host>/*` lives, as `<sops file> <age key file>`: the fleet file
+# under the infra key, or an isolated host's own file under the admin key (the
+# infra key is no recipient there).
+_luks-store host:
+	#!/usr/bin/env bash
+	set -euo pipefail
+
+	# As nix: the admin key path is the home of whoever runs this, and nix
+	# reads it.
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just _luks-store "{{host}}"
+	isolated=$({{nix}} eval --json "{{workDir}}#nixosConfigurations.{{host}}.config.darkone.system.sops.isolated" 2>/dev/null) \
+		|| just _fail "Cannot evaluate {{host}}: unknown where its LUKS secrets live."
+	if [ "$isolated" != true ] ;then
+		echo "{{sopsSecretsFile}} {{sopsInfraKeyFile}}"
+	elif [ -f {{secretsDir}}/hosts/{{host}}.yaml ] ;then
+		echo "{{secretsDir}}/hosts/{{host}}.yaml {{sopsAdminKeyFile}}"
+	else
+		just _fail "No secrets file for isolated {{host}}: 'just install {{host}}' or 'just space-init {{host}}' seals it."
+	fi
+
 # Implementation of `just luks <host> show`: keyslot table + remote-unlock audit.
 #
 # Live verification wherever it is possible — every managed passphrase is
@@ -278,12 +352,16 @@ luks host action='' ip='auto' wan='':
 #
 # Column widths are computed, never hard-coded: a device path or a YubiKey name
 # is as long as it happens to be.
-_luks-show host target:
+_luks-show host target store storekey:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
-	shared=$(sops -d --extract '["luks-passphrase"]' {{sopsSecretsFile}})
-	perhost=$(sops -d --extract '["luks"]["{{host}}"]["passphrase"]' {{sopsSecretsFile}})
+	isolated=false ; [ "{{store}}" = {{sopsSecretsFile}} ] || isolated=true
+	hsops() { SOPS_AGE_KEY_FILE="{{storekey}}" sops "$@" ; }
+
+	# Never the shared passphrase into an isolated host, not even as a test.
+	shared="" ; $isolated || shared=$(sops -d --extract '["luks-passphrase"]' {{sopsSecretsFile}})
+	perhost=$(hsops -d --extract '["luks"]["{{host}}"]["passphrase"]' "{{store}}")
 	failures=0
 	pass() { printf '  {{GREEN}}OK{{NORMAL}}    %s\n' "$1" ; }
 	fail() { printf '  {{RED}}FAIL{{NORMAL}}  %s\n' "$1" ; failures=$((failures + 1)) ; }
@@ -316,7 +394,7 @@ _luks-show host target:
 				| ssh nix@"{{target}}" "sudo LC_ALL=C cryptsetup --verbose open --test-passphrase --key-file=- '$dev'" 2>&1 \
 				| sed -n 's/^Key slot \([0-9]\+\) unlocked.*/\1/p' | head -n1 || true
 		}
-		sharedslot=$(slot_of "$shared")
+		sharedslot="" ; $isolated || sharedslot=$(slot_of "$shared")
 		hostslot=$(slot_of "$perhost")
 
 		# slot -> "content|source" for every slot we can name.
@@ -361,14 +439,15 @@ _luks-show host target:
 
 		# A managed passphrase that opens nothing is the one failure that locks
 		# the fleet out of the machine.
-		[ -n "$sharedslot" ] || fail "$dev: the shared passphrase does not open this volume"
+		[ -n "$sharedslot" ] || $isolated || fail "$dev: the shared passphrase does not open this volume"
 		[ -n "$hostslot" ] || fail "$dev: the per-host passphrase does not open this volume (apply the host?)"
 
 		# The ledger drives rotation: a stale entry silently kills the wrong
-		# slot at the next passphrase change.
+		# slot at the next passphrase change. None on an isolated host (no
+		# sync unit).
 		for entry in "shared:$sharedslot" "host:$hostslot" ;do
 			label=${entry%%:*} ; live=${entry#*:}
-			[ -n "$live" ] || continue
+			{ [ -n "$live" ] && ! $isolated ; } || continue
 			recorded=$(printf '%s\n' "$ledger" | awk -v l="$label" -v d="$dev" '$1 == l && $2 == d {print $4}' | tail -n1)
 			[ -n "$recorded" ] || { warn "$dev: $label slot $live is not in the ledger yet (apply the host)" ; continue ; }
 			[ "$recorded" = "$live" ] && continue
@@ -391,7 +470,7 @@ _luks-show host target:
 		pass "initrd host key present on the target ($fp)"
 
 		# The public half is enough to compare, and never lands on a disk.
-		backup=$(sops -d --extract '["luks"]["{{host}}"]["initrd-key-pub"]' {{sopsSecretsFile}} 2>/dev/null \
+		backup=$(hsops -d --extract '["luks"]["{{host}}"]["initrd-key-pub"]' "{{store}}" 2>/dev/null \
 			| ssh-keygen -lf /dev/stdin 2>/dev/null | awk '{print $2}' || true)
 		if [ -z "$backup" ] ;then
 			fail "no initrd key backup in sops: a reinstall would lose remote unlock"
@@ -504,17 +583,18 @@ unlock host ip='' timeout='600':
 		exit 0
 	fi
 	stored=true
-	if [ ! -f {{sopsInfraKeyFile}} ] ;then
-		[ -t 0 ] || just _check_infra_admin
-		just _warn "No infra key here: the passphrase will be asked."
+	s=$(just _luks-store "{{host}}") ; read -r store storekey <<<"$s"
+	if [ ! -f "$storekey" ] ;then
+		[ -t 0 ] || just _fail "No $storekey here: run 'just unlock {{host}}' from the admin host."
+		just _warn "No $storekey here: the passphrase will be asked."
 		stored=false
 	fi
-	export SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}}
+	export SOPS_AGE_KEY_FILE=$storekey
 
 	# Pinned initrd host key (M8): no passphrase for a sshd on 2222 that cannot
 	# prove it is this initrd. `HostKeyAlias`: one entry, whatever address
 	# answers (IP, name, WAN).
-	pub=$(sops -d --extract '["luks"]["{{host}}"]["initrd-key-pub"]' {{sopsSecretsFile}} 2>/dev/null) || pub=""
+	pub=$(sops -d --extract '["luks"]["{{host}}"]["initrd-key-pub"]' "$store" 2>/dev/null) || pub=""
 	[ -n "$pub" ] || just _fail "Initrd host key of {{host}} unreadable from sops: nothing sent. Unlock at the console, then 'just luks {{host}}' from the admin host."
 	kh=$(mktemp) ; trap 'rm -f "$kh"' EXIT
 	echo "initrd-{{host}} $pub" >"$kh"
@@ -548,15 +628,18 @@ unlock host ip='' timeout='600':
 	# per-host keyslot is only added later by luks-passphrase-sync, from the
 	# booted system — at the very first boot the shared slot is the only one
 	# that exists. The per-host passphrase stays as the fallback for a host
-	# installed before that was true.
+	# installed before that was true. An isolated host: its own one only.
 	#
 	# `dnf-unlock` can only report that it ANSWERED the prompt, never that the
 	# passphrase was accepted: a refused one just makes systemd ask again. So
 	# every attempt is confirmed from here instead.
 	keys=()
-	$stored && keys=('["luks-passphrase"]' '["luks"]["{{host}}"]["passphrase"]')
+	if $stored ;then
+		[ "$store" != {{sopsSecretsFile}} ] || keys=('["luks-passphrase"]')
+		keys+=('["luks"]["{{host}}"]["passphrase"]')
+	fi
 	for key in "${keys[@]}" ;do
-		sops -d --extract "$key" {{sopsSecretsFile}} 2>/dev/null \
+		sops -d --extract "$key" "$store" 2>/dev/null \
 			| ssh "${pin[@]}" -o ConnectTimeout=10 root@"$addr" dnf-unlock >/dev/null 2>&1 || continue
 
 		# A refused passphrase leaves the initrd up and asking again; an

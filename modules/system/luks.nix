@@ -46,6 +46,14 @@
 #   since they are themselves the DHCP server their initrd would otherwise wait
 #   on.
 #
+# :::caution[Isolated hosts]
+# An isolated host (`darkone.system.sops.isolated`) never holds a fleet secret:
+# no shared keyslot, disko formats with its own passphrase, and
+# `luks/<host>/*` lives in its own `usr/secrets/hosts/<host>.yaml`. No sync
+# unit either, a lone passphrase cannot authorize its own rotation:
+# `just luks <host> passwd` rotates it from the admin host. Remote unlock stays.
+# :::
+#
 # :::note[Zero configuration]
 # Enabled by default but fully inert until the host appears in
 # `usr/secrets/luks.json` AND declares a LUKS volume in its disko config.
@@ -378,7 +386,9 @@ in
       # Keyslots: converge shared + per-host passphrases into every header
       #========================================================================
 
-      {
+      # Never on an isolated host: the shared passphrase is a fleet secret, and
+      # its own one alone cannot authorize a rotation (`just luks <host> passwd`).
+      (lib.mkIf (!config.darkone.system.sops.isolated) {
 
         # Both provisioned by `just luks`; sops-nix fails the activation if a
         # key is missing from secrets.yaml, hence the manifest gating above.
@@ -501,7 +511,7 @@ in
             PERHOST = config.sops.secrets.${hostSecret}.path;
           };
         };
-      }
+      })
     ]
   );
 }

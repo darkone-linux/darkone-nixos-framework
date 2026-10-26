@@ -92,15 +92,19 @@ let
   ) (lib.attrNames pamRegistry);
 
   # (user, key) pairs carrying a FIDO2 hmac-secret credential (LUKS-capable).
-  luksKeys = lib.concatLists (
-    lib.mapAttrsToList (
-      login: keys:
-      lib.mapAttrsToList (kname: k: {
-        inherit (k) credId salt;
-        owner = "${login}/${kname}";
-        secret = "yubikey/${login}/${kname}/luks-secret";
-      }) (lib.filterAttrs (_: k: (k.credId or "") != "") keys)
-    ) registry
+  # None on an isolated host: its initrd picks the salt a touch answers, and
+  # the fleet salt would hand it the value that opens every other disk.
+  luksKeys = lib.optionals (!config.darkone.system.sops.isolated) (
+    lib.concatLists (
+      lib.mapAttrsToList (
+        login: keys:
+        lib.mapAttrsToList (kname: k: {
+          inherit (k) credId salt;
+          owner = "${login}/${kname}";
+          secret = "yubikey/${login}/${kname}/luks-secret";
+        }) (lib.filterAttrs (_: k: (k.credId or "") != "") keys)
+      ) registry
+    )
   );
 
   # LUKS volumes of the host disko layout (detected by `system/luks.nix`).

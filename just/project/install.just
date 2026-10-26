@@ -288,28 +288,18 @@ install host user='nix' ip='auto' do='install':
 	# initrd must already carry the NIC driver `just unlock` depends on.
 	just detect-hw "{{host}}" "$TARGET_HOST" "{{user}}"
 
-	# Offline half of the LUKS provisioning, BEFORE the build: the module only
-	# wakes up for a host listed in usr/secrets/luks.json, and the initrd host
-	# key it needs must exist in sops so `--extra-files` can stage it below.
-	# No-op on an unencrypted host.
-	just luks "{{host}}" pre
-
 	# Seal: stateVersion and disk layout frozen from here on, kept on
 	# reinstall. Never in `test` mode, which installs nothing.
 	if [ "{{do}}" = "install" ] ;then
 		just _seal "{{host}}"
 	fi
 
+	# Staged before the sops steps on purpose: they evaluate the flake, and nix
+	# only sees files git already knows about — a brand new host would stay
+	# invisible to the very steps that must create its credentials.
 	just _log "We need to add, commit and build..."
 	git add .
-
-	# Staged before the sops step on purpose: `_gen-secrets` evaluates the flake
-	# to know which secrets the fleet needs, and nix only sees files git already
-	# knows about — a brand new host would stay invisible to the very step that
-	# must create its credentials.
 	just _log "Sops updates..."
-	just _gen-secrets
-	just _fix_fs_permissions
 
 	# An isolated host decrypts only its own file, needed by the build: sealed
 	# for the installer's host key, the one `--copy-host-keys` puts on the disk
@@ -323,6 +313,15 @@ install host user='nix' ip='auto' do='install':
 			just _space-seal "{{host}}" "$pub"
 		fi
 	fi
+
+	# Offline half of the LUKS provisioning, BEFORE the build: the module only
+	# wakes up for a host listed in usr/secrets/luks.json, and the initrd host
+	# key it needs must exist in sops so `--extra-files` can stage it below.
+	# After the seal: an isolated host keeps them in its own file. No-op on an
+	# unencrypted host.
+	just luks "{{host}}" pre
+	just _gen-secrets
+	just _fix_fs_permissions
 
 	# `maintenance.autoDetach=false`: a detached auto-maintenance is still
 	# repacking when `chown -R nix .git` walks the tree, dying on its temp files.
@@ -341,6 +340,11 @@ install host user='nix' ip='auto' do='install':
 
 		# Before the tree changes hands: a failing evaluation leaves nothing to undo.
 		reads=$(just _reads-infra-key "{{host}}")
+		luks=false
+		if grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/install/disko.nix 2>/dev/null ;then
+			luks=true
+			s=$(just _luks-store "{{host}}") ; read -r store storekey <<<"$s"
+		fi
 		NIX_HOME=$(getent passwd nix | cut -d: -f6)
 		mkdir -p {{workDir}}/usr/machines/{{host}}
 		sudo chown -R nix {{workDir}}/usr/machines/{{host}}
@@ -386,18 +390,18 @@ install host user='nix' ip='auto' do='install':
 		else
 			just _log "Installer inside a zone network: it pulls from the zone caches of {{host}}." "INSTALL"
 		fi
-		if grep -q '"luks"' {{workDir}}/usr/machines/{{host}}/install/disko.nix 2>/dev/null ;then
+		if $luks ;then
 
 			# The initrd host key must be on the disk before nixos-install
 			# embeds it in the bootloader: that is what makes the very first
 			# boot answer on 2222 (dnf/modules/system/luks.nix). base64 in sops
 			# so the key round-trips byte for byte.
 			sudo -u nix mkdir -p "$stage/var/lib/luks-initrd"
-			sudo -u nix env SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}} \
-				sops -d --extract '["luks"]["{{host}}"]["initrd-key"]' {{sopsSecretsFile}} \
+			sudo -u nix env SOPS_AGE_KEY_FILE="$storekey" \
+				sops -d --extract '["luks"]["{{host}}"]["initrd-key"]' "$store" \
 				| base64 -d | sudo -u nix tee "$stage/var/lib/luks-initrd/ssh_host_ed25519_key" >/dev/null
-			sudo -u nix env SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}} \
-				sops -d --extract '["luks"]["{{host}}"]["initrd-key-pub"]' {{sopsSecretsFile}} \
+			sudo -u nix env SOPS_AGE_KEY_FILE="$storekey" \
+				sops -d --extract '["luks"]["{{host}}"]["initrd-key-pub"]' "$store" \
 				| sudo -u nix tee "$stage/var/lib/luks-initrd/ssh_host_ed25519_key.pub" >/dev/null
 			sudo chmod 700 "$stage/var/lib/luks-initrd"
 			sudo chmod 600 "$stage/var/lib/luks-initrd/ssh_host_ed25519_key"
@@ -406,12 +410,15 @@ install host user='nix' ip='auto' do='install':
 			# disko formats with the shared fleet passphrase (passwordFile in
 			# dnf/hosts/disko/luks-*.nix), so the format keyslot IS the shared
 			# keyslot: nothing to type here, nothing to retype at `just luks`.
+			# An isolated host: with its own, the fleet one never reaches it.
 			# Piped, never captured: `$(...)` would eat a trailing byte and
 			# cryptsetup compares raw file contents.
-			sudo -u nix env SOPS_AGE_KEY_FILE={{sopsInfraKeyFile}} \
-				sops -d --extract '["luks-passphrase"]' {{sopsSecretsFile}} \
+			fmtkey='["luks-passphrase"]'
+			[ "$store" = {{sopsSecretsFile}} ] || fmtkey='["luks"]["{{host}}"]["passphrase"]'
+			sudo -u nix env SOPS_AGE_KEY_FILE="$storekey" \
+				sops -d --extract "$fmtkey" "$store" \
 				| sudo -u nix tee "$pwfile" >/dev/null
-			[ -s "$pwfile" ] || just _fail "Empty shared LUKS passphrase in sops."
+			[ -s "$pwfile" ] || just _fail "Empty LUKS format passphrase in sops ($fmtkey)."
 			naflags+=(--disk-encryption-keys /tmp/dnf-luks.key "$pwfile")
 		fi
 
