@@ -25,7 +25,11 @@
 luks host action='' ip='auto' wan='':
 	#!/usr/bin/env bash
 	set -euo pipefail
-	[ "${USER:-}" = "nix" ] || exec sudo -u nix just luks "{{host}}" "{{action}}" "{{ip}}" "{{wan}}"
+
+	# `env`: sudo resets the environment, and `full-install` mutes the closing
+	# hint through DNF_FULL_INSTALL.
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix env DNF_FULL_INSTALL="${DNF_FULL_INSTALL:-}" \
+		just luks "{{host}}" "{{action}}" "{{ip}}" "{{wan}}"
 	case "{{action}}" in ''|pre|passwd|show) ;; *) just _fail "Unknown action '{{action}}' — valid: pre, passwd, show" ;; esac
 	manifest={{secretsDir}}/luks.json
 	hostconf=$(just _host_conf "{{host}}")
