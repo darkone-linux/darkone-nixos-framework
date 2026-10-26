@@ -91,21 +91,24 @@ let
     lib.optionalString (creds != [ ]) "${lib.concatStringsSep ":" ([ login ] ++ creds)}\n"
   ) (lib.attrNames pamRegistry);
 
-  # (user, key) pairs carrying a FIDO2 hmac-secret credential (LUKS-capable).
-  # None on an isolated host: its initrd picks the salt a touch answers, and
-  # the fleet salt would hand it the value that opens every other disk.
-  luksKeys = lib.optionals (!config.darkone.system.sops.isolated) (
-    lib.concatLists (
-      lib.mapAttrsToList (
-        login: keys:
-        lib.mapAttrsToList (kname: k: {
-          inherit (k) credId salt;
-          owner = "${login}/${kname}";
-          secret = "yubikey/${login}/${kname}/luks-secret";
-        }) (lib.filterAttrs (_: k: (k.credId or "") != "") keys)
-      ) registry
-    )
+  # (user, key) pairs carrying a FIDO2 hmac-secret credential, at the fleet salt.
+  fleetLuksKeys = lib.concatLists (
+    lib.mapAttrsToList (
+      login: keys:
+      lib.mapAttrsToList (kname: k: {
+        inherit (k) credId salt;
+        owner = "${login}/${kname}";
+        secret = "yubikey/${login}/${kname}/luks-secret";
+      }) (lib.filterAttrs (_: k: (k.credId or "") != "") keys)
+    ) registry
   );
+  fleetSalts = map (k: k.salt) fleetLuksKeys;
+
+  # Keys this host enrolls. None on an isolated host: its initrd picks the
+  # salt a touch answers, and the fleet salt would hand it the value that
+  # opens every other disk.
+  isolated = config.darkone.system.sops.isolated;
+  luksKeys = lib.optionals (!isolated) fleetLuksKeys;
 
   # LUKS volumes of the host disko layout (detected by `system/luks.nix`).
   luksNames = config.darkone.system.luks.volumes;
@@ -201,6 +204,17 @@ in
         # never creates: one udev warning per rule on each reload. Access comes
         # from the `uaccess` tag anyway; an empty group silences the noise.
         users.groups.plugdev = { };
+      }
+
+      # Guards the gating of `luksKeys`, whatever feeds it later: one fleet
+      # salt in an isolated host's enrollment data fails the eval.
+      {
+        assertions = [
+          {
+            assertion = !isolated || !lib.any (k: lib.elem k.salt fleetSalts) luksKeys;
+            message = "${host.hostname} is isolated (darkone.system.sops.isolated) and would enroll YubiKeys at the fleet salt: one touch at its boot would hand it the value that opens every other disk.";
+          }
+        ];
       }
 
       #========================================================================

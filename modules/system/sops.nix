@@ -20,7 +20,8 @@
 # its own `usr/secrets/hosts/<hostname>.yaml`, without the infra key: a host
 # running untrusted agents never holds the fleet secrets, and a key an
 # earlier install left is deleted. No password hash either, its accounts are
-# SSH-key only.
+# SSH-key only. Declaring a fleet value there (`luks-passphrase`, a password
+# hash, a FIDO2 secret at the fleet salt) fails the eval.
 # :::
 
 {
@@ -33,6 +34,17 @@
 let
   cfg = config.darkone.system.sops;
   infraKey = "/etc/sops/age/infra.key";
+
+  # Fleet values an isolated host never declares, by YAML key (aliases
+  # included): each opens every disk or account of the fleet.
+  fleetKeys = [
+    "luks-passphrase"
+    "user/[^/]+/password-hash"
+    "yubikey/[^/]+/[^/]+/luks-secret"
+  ];
+  leaks = lib.filter (s: lib.any (p: builtins.match p s.key != null) fleetKeys) (
+    lib.attrValues config.sops.secrets
+  );
 in
 {
   options = {
@@ -78,6 +90,17 @@ in
     # holds the master copy.
     systemd.tmpfiles.rules = lib.mkIf (cfg.isolated && !config.darkone.admin.nix.enable) [
       "r ${infraKey}"
+    ];
+
+    # Before the build, which would only report the key missing from the host
+    # file: copying it there is the mistake this prevents.
+    assertions = [
+      {
+        assertion = !cfg.isolated || leaks == [ ];
+        message = "${host.hostname} is isolated (darkone.system.sops.isolated) and declares fleet secrets: ${
+          lib.concatMapStringsSep ", " (s: s.key) leaks
+        }. Disable what declares them on this host, never copy them into usr/secrets/hosts/${host.hostname}.yaml.";
+      }
     ];
   };
 }
