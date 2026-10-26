@@ -451,7 +451,9 @@ _install-preflight host target outside:
 			"{{workDir}}#nixosConfigurations.$hcs.config.darkone.service.headscale.shared.auditSpec" 2>/dev/null) ;then
 			warn "Cannot evaluate the tailnet identities of $hcs: enrollment of {{host}} unchecked."
 		elif want=$(jq -c --arg h "{{host}}" "$lookup" "$spec") && [ "$want" != null ] ;then
-			have=$(sudo -i -u nix ssh -o BatchMode=yes -o ConnectTimeout=15 "nix@$hcs" \
+
+			# `-n`: stdin holds the answers to `install`'s prompts, not this ssh's.
+			have=$(sudo -i -u nix ssh -n -o BatchMode=yes -o ConnectTimeout=15 "nix@$hcs" \
 				sudo /run/current-system/sw/bin/dnf-tailnet-enroll status "{{host}}" 2>/dev/null | jq -c '.declared') || have=""
 			if [ -z "$have" ] ;then
 				warn "$hcs unreachable, enrollment of {{host}} unchecked: 'just tailnet-enroll {{host}}' after the install if it fails."
