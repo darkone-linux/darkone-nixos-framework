@@ -15,7 +15,7 @@ pkgs/
 | | |
 |---|---|
 | `pkgs/` | absent from nixpkgs, installed by hosts or users |
-| `lib/overlays/` | **temporary** patch over an existing nixpkgs package, dropped once upstream is fixed |
+| `lib/overlays/` | **temporary** patch over an existing nixpkgs package, dropped once upstream is fixed; registered in `config/workarounds.nix` |
 | flake `inputs` | what the framework's own machinery needs (`dnf-generator`, `colmena`) |
 
 > [!NOTE]
