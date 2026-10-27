@@ -313,6 +313,13 @@ rec {
       gen = "external";
     }
 
+    # FIDO2 value of a key at an isolated host's own salt, derived from the
+    # physical key by `just yubikey`.
+    {
+      pattern = "luks/[^/]+/fido2/[^/]+/[^/]+";
+      gen = "external";
+    }
+
     # Initrd SSH host key (base64), created by `just luks <host> pre` and
     # staged into the target by `just install`. Tooling-only: the initrd has no
     # sops, so this never becomes a `sops.secrets` entry.

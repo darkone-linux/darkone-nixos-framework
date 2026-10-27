@@ -162,6 +162,11 @@ in
     expected = "external";
   };
 
+  testClassifyLuksFido2IsExternal = {
+    expr = classifySecret "luks/gw-ag/fido2/alice/main";
+    expected = "external";
+  };
+
   testClassifyYubikeyIsExternal = {
     expr = classifySecret "yubikey/alice/main/luks-secret";
     expected = "external";

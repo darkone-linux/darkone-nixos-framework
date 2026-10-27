@@ -22,6 +22,14 @@
 #   exact format `systemd-cryptenroll` writes) and prunes revoked ones. The
 #   physical key is only ever needed at boot to unlock the disk.
 #
+# :::caution[Isolated hosts: salts of their own]
+# An isolated host (`darkone.system.sops.isolated`) never sees the fleet salt
+# nor its value: `just yubikey` derives one value per (key, isolated encrypted
+# host) at a salt of that host (`hostSalts` in the registry, value in the
+# host's own sops file, one touch each), authorized there by the host's own
+# passphrase. A key not captured for a host is not enrolled on it.
+# :::
+#
 # :::note[Zero configuration]
 # Enabled by default, but fully inert until the registry file exists.
 # LUKS support keys on the LUKS volumes found in the host disko config
@@ -91,24 +99,38 @@ let
     lib.optionalString (creds != [ ]) "${lib.concatStringsSep ":" ([ login ] ++ creds)}\n"
   ) (lib.attrNames pamRegistry);
 
-  # (user, key) pairs carrying a FIDO2 hmac-secret credential, at the fleet salt.
-  fleetLuksKeys = lib.concatLists (
+  # (user, key) pairs carrying a FIDO2 hmac-secret credential (LUKS-capable).
+  credKeys = lib.concatLists (
     lib.mapAttrsToList (
       login: keys:
-      lib.mapAttrsToList (kname: k: {
-        inherit (k) credId salt;
-        owner = "${login}/${kname}";
-        secret = "yubikey/${login}/${kname}/luks-secret";
-      }) (lib.filterAttrs (_: k: (k.credId or "") != "") keys)
+      lib.mapAttrsToList (kname: k: k // { owner = "${login}/${kname}"; }) (
+        lib.filterAttrs (_: k: (k.credId or "") != "") keys
+      )
     ) registry
   );
+
+  # At the fleet salt: one derived value per key, valid on every ordinary host.
+  fleetLuksKeys = map (k: {
+    inherit (k) credId salt owner;
+    secret = "yubikey/${k.owner}/luks-secret";
+  }) credKeys;
   fleetSalts = map (k: k.salt) fleetLuksKeys;
 
-  # Keys this host enrolls. None on an isolated host: its initrd picks the
-  # salt a touch answers, and the fleet salt would hand it the value that
-  # opens every other disk.
+  # An isolated host takes the same credentials at salts of its own
+  # (`hostSalts`, from `just yubikey`): its initrd picks the salt a touch
+  # answers, and the fleet one would hand it the value opening every other
+  # disk. A key not captured for it yet is simply not enrolled there.
   isolated = config.darkone.system.sops.isolated;
-  luksKeys = lib.optionals (!isolated) fleetLuksKeys;
+  hostLuksKeys = map (k: {
+    inherit (k) credId owner;
+    salt = k.hostSalts.${host.hostname};
+    secret = "luks/${host.hostname}/fido2/${k.owner}";
+  }) (lib.filter (k: k ? hostSalts.${host.hostname}) credKeys);
+  luksKeys = if isolated then hostLuksKeys else fleetLuksKeys;
+
+  # Passphrase authorizing keyslot changes: an isolated host's own one, it
+  # never holds the shared one.
+  authSecret = if isolated then "luks/${host.hostname}/passphrase" else "luks-passphrase";
 
   # LUKS volumes of the host disko layout (detected by `system/luks.nix`).
   luksNames = config.darkone.system.luks.volumes;
@@ -206,8 +228,8 @@ in
         users.groups.plugdev = { };
       }
 
-      # Guards the gating of `luksKeys`, whatever feeds it later: one fleet
-      # salt in an isolated host's enrollment data fails the eval.
+      # Guards `hostLuksKeys`: one fleet salt in an isolated host's enrollment
+      # data fails the eval (a registry edited by hand, a salt copied over).
       {
         assertions = [
           {
@@ -306,10 +328,9 @@ in
           }) unlockable
         );
 
-        # Derived secrets (one per enrolled key) + the shared passphrase that
-        # authorizes keyslot management. All created by `just yubikey`.
-        # restartUnits: a changed credential converges at the same apply
-        # instead of waiting for the next boot.
+        # Derived secrets (one per enrolled key, created by `just yubikey`) +
+        # the passphrase that authorizes keyslot management. restartUnits: a
+        # changed credential converges at the same apply, not at next boot.
         sops.secrets =
           lib.listToAttrs (
             map (k: {
@@ -318,7 +339,7 @@ in
             }) luksKeys
           )
           // {
-            luks-passphrase.restartUnits = [ "yubikey-luks-enroll.service" ];
+            ${authSecret}.restartUnits = [ "yubikey-luks-enroll.service" ];
           };
 
         # Idempotent sync of the LUKS2 headers with the declared credentials:
@@ -334,7 +355,7 @@ in
           # a (re)converged passphrase keyslot must re-trigger this unit:
           # partOf propagates every luks-passphrase-sync restart (rotation,
           # bootstrap after reinstall) here. Dangling when the luks module is
-          # inert, which systemd ignores.
+          # inert or the host isolated, which systemd ignores.
           partOf = [ "luks-passphrase-sync.service" ];
           serviceConfig = {
             Type = "oneshot";
@@ -352,7 +373,7 @@ in
             grep=${pkgs.gnugrep}/bin/grep
             awk=${pkgs.gawk}/bin/awk
             data=${enrollData}
-            pass=${config.sops.secrets.luks-passphrase.path}
+            pass=${config.sops.secrets.${authSecret}.path}
 
             # Slots of the managed passphrases, as recorded by
             # luks-passphrase-sync. Needed to tell an orphan keyslot from a
@@ -393,7 +414,7 @@ in
             ${pkgs.coreutils}/bin/touch "$state"
 
             if [ ! -s "$pass" ]; then
-              echo "luks-passphrase secret is empty, nothing done"
+              echo "${authSecret} secret is empty, nothing done"
               exit 0
             fi
             declared=$($jq -r '.keys[].credId' "$data")
@@ -510,7 +531,7 @@ in
                   # keyslot passphrase, exactly as systemd-cryptenroll stores it.
                   before=$(printf '%s' "$dump" | $jq -r '.keyslots | keys | join(" ")')
                   if ! $cs luksAddKey --key-file="$pass" "$dev" "$secret"; then
-                    echo "luksAddKey failed on $dev for $owner (wrong luks-passphrase?), skipped"
+                    echo "luksAddKey failed on $dev for $owner (wrong ${authSecret}?), skipped"
                     continue
                   fi
                   dump=$($cs luksDump --dump-json-metadata "$dev")

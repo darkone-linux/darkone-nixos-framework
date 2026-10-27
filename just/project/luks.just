@@ -366,18 +366,24 @@ _luks-show host target store storekey:
 	pass() { printf '  {{GREEN}}OK{{NORMAL}}    %s\n' "$1" ; }
 	fail() { printf '  {{RED}}FAIL{{NORMAL}}  %s\n' "$1" ; failures=$((failures + 1)) ; }
 	warn() { printf '  {{YELLOW}}WARN{{NORMAL}}  %s\n' "$1" ; }
+	note() { printf '  NOTE  %s\n' "$1" ; }
 
 	# Token and registry may spell the same credential in either base64 flavour
 	# (standard or url-safe, padded or not): fold both to one form to compare.
 	b64norm() { tr '+/' '-_' | tr -d '=' ; }
-	declare -A credname=()
+
+	# Salts too: an isolated host must answer at its own ones only (`-` for an
+	# empty field, which tab-splitting would collapse).
+	declare -A credname=() fleetsalt=() ownsalt=()
 	if [ -f {{secretsDir}}/yubikeys.json ] ;then
-		while IFS=$'\t' read -r label cred ;do
-			[ -n "$cred" ] || continue
+		while IFS=$'\t' read -r label cred salt own ;do
+			[ "$cred" != - ] || continue
 			credname["$(printf %s "$cred" | b64norm)"]=$label
+			[ "$salt" = - ] || fleetsalt["$(printf %s "$salt" | b64norm)"]=$label
+			[ "$own" = - ] || ownsalt[$label]=$(printf %s "$own" | b64norm)
 		done < <(yq -p=json -o=tsv '
 			to_entries | .[] as $u | $u.value | to_entries | .[]
-			| [$u.key + "/" + .key, .value.credId // ""]' {{secretsDir}}/yubikeys.json)
+			| [$u.key + "/" + .key, .value.credId // "-", .value.salt // "-", .value.hostSalts."{{host}}" // "-"]' {{secretsDir}}/yubikeys.json)
 	fi
 
 	devs=$(echo 'for p in /dev/disk/by-partlabel/*; do cryptsetup isLuks --type luks2 "$p" 2>/dev/null && echo "$p"; done; exit 0' \
@@ -398,19 +404,25 @@ _luks-show host target store storekey:
 		hostslot=$(slot_of "$perhost")
 
 		# slot -> "content|source" for every slot we can name.
-		declare -A content=() origin=()
+		declare -A content=() origin=() salted=()
 		[ -z "$sharedslot" ] || { content[$sharedslot]="Shared passphrase" ; origin[$sharedslot]="sops luks-passphrase" ; }
 		[ -z "$hostslot" ] || { content[$hostslot]="Host passphrase" ; origin[$hostslot]="sops luks/{{host}}/passphrase" ; }
-		while IFS=$'\t' read -r ttype cred tslots ;do
+		while IFS=$'\t' read -r ttype cred tsalt tslots ;do
 			[ "$ttype" = "systemd-fido2" ] || continue
 			label=${credname[$(printf %s "$cred" | b64norm)]:-unregistered}
+			tsalt=$(printf %s "$tsalt" | b64norm)
 			for s in ${tslots//,/ } ;do
 				content[$s]="YubiKey $label"
 				origin[$s]="systemd-fido2 token"
+				$isolated || continue
+				if [ -n "${fleetsalt[$tsalt]:-}" ] ;then salted[$s]=fleet
+				elif [ "${ownsalt[$label]:-}" = "$tsalt" ] ;then salted[$s]=own
+				else salted[$s]=stale
+				fi
 			done
 		done < <(printf '%s' "$meta" | yq -p=json -o=tsv '
 			.tokens // {} | to_entries | .[]
-			| [.value.type, .value."fido2-credential" // "", (.value.keyslots // [] | join(","))]')
+			| [.value.type, .value."fido2-credential" // "-", .value."fido2-salt" // "-", (.value.keyslots // [] | join(","))]')
 
 		mapfile -t slots < <(printf '%s' "$meta" | yq -p=json -o=tsv '.keyslots | keys | .[]' | sort -n)
 		w1=7 ; w2=0 ; w3=0
@@ -430,7 +442,13 @@ _luks-show host target store storekey:
 			case "$c" in
 				"Shared passphrase"|"Host passphrase") check="opens the volume" ;;
 				"YubiKey unregistered") check="not in yubikeys.json" ;;
-				YubiKey*) check="enrolled" ;;
+				YubiKey*)
+					case "${salted[$s]:-}" in
+						fleet) check="FLEET SALT" ;;
+						stale) check="salt not in yubikeys.json" ;;
+						own) check="enrolled, own salt" ;;
+						*) check="enrolled" ;;
+					esac ;;
 				Unknown) check="not managed by DNF" ;;
 			esac
 			printf "  %-4s  %-${w2}s  %-${w3}s  %s\n" "$s" "$c" "$o" "$check"
@@ -441,6 +459,10 @@ _luks-show host target store storekey:
 		# the fleet out of the machine.
 		[ -n "$sharedslot" ] || $isolated || fail "$dev: the shared passphrase does not open this volume"
 		[ -n "$hostslot" ] || fail "$dev: the per-host passphrase does not open this volume (apply the host?)"
+		for s in "${!salted[@]}" ;do
+			[ "${salted[$s]}" != fleet ] \
+				|| fail "$dev: keyslot $s answers at the fleet salt, one touch here yields the value opening every other disk"
+		done
 
 		# The ledger drives rotation: a stale entry silently kills the wrong
 		# slot at the next passphrase change. None on an isolated host (no
@@ -454,6 +476,16 @@ _luks-show host target store storekey:
 			fail "$dev: ledger says $label is slot $recorded, the volume answers on $live"
 		done
 	done
+
+	# Not an error: a key away from the admin host is enrolled here once
+	# captured, the passphrase stays meanwhile.
+	if $isolated ;then
+		away=""
+		for label in "${credname[@]}" ;do
+			[ -n "${ownsalt[$label]:-}" ] || away="$away $label"
+		done
+		[ -z "$away" ] || note "not captured for {{host}} yet:$away (plug it, 'just yubikey <user> <key>')"
+	fi
 
 	#--------------------------------------------------------------------------
 	# Remote unlock conformity

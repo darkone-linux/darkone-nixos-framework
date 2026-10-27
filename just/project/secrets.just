@@ -79,8 +79,12 @@ passwd user hash='':
 # an interactive web ceremony by design; Vaultwarden 2FA is self-service).
 # `action=revoke` removes the (user, key) everywhere at next apply.
 #
+# Isolated encrypted hosts never see the fleet salt: one more touch per such
+# host, at a salt of its own (value in its own file, admin key).
+#
 # Re-running is idempotent: the plugged key is identity-checked (silent FIDO2
-# assertion against the registered credId). Same key = nothing to do; different
+# assertion against the registered credId). Same key = only the isolated hosts
+# it is missing from (a key away today catches up later); different
 # key = full replacement, the old credential is pruned fleet-wide at next apply
 # (old Kanidm/Vaultwarden passkeys must be removed by hand). Requires exactly
 # ONE plugged key: with several, each capture could target a different device.
@@ -103,6 +107,13 @@ yubikey user key='main' action='enroll':
 	# removes the PAM credential and prunes the LUKS keyslots at next apply.
 	if [ "{{action}}" = "revoke" ] ;then
 		[ -f "$registry" ] || just _fail "No registry ($registry)."
+
+		# Its values at isolated hosts' salts go with it.
+		for h in $(yq -r '."{{user}}"."{{key}}".hostSalts // {} | keys | .[]' "$registry") ;do
+			[ -f {{secretsDir}}/hosts/"$h".yaml ] || continue
+			SOPS_AGE_KEY_FILE={{sopsAdminKeyFile}} sops unset {{secretsDir}}/hosts/"$h".yaml \
+				"[\"luks\"][\"$h\"][\"fido2\"][\"{{user}}\"][\"{{key}}\"]" || true
+		done
 		yq -i -p=json -o=json 'del(."{{user}}"."{{key}}")' "$registry"
 		yq -i -p=json -o=json 'del(."{{user}}" | select(length == 0))' "$registry"
 		sops unset {{sopsSecretsFile}} '["yubikey"]["{{user}}"]["{{key}}"]' || true
@@ -134,6 +145,38 @@ yubikey user key='main' action='enroll':
 		printf '%s\n%s\n%s\n' "$(openssl rand -base64 32)" io.systemd.cryptsetup "$1" \
 			| fido fido2-assert -G -t up=false "$dev" >/dev/null 2>&1
 	}
+
+	# Same credential at each isolated encrypted host's own salt (`hostSalts`).
+	# A kept salt recomputes a lost value identically, so only a missing value
+	# costs a touch.
+	capture_isolated() {
+		local credid=$1 hosts h n file path salt secret captured=""
+		hosts=$({{nix}} eval --json {{workDir}}#hostSecretsPlans --apply builtins.attrNames | jq -r '.[]') \
+			|| just _fail "Cannot list the isolated hosts (nix eval of hostSecretsPlans)."
+		for h in $hosts ;do
+			n=$({{nix}} eval --json {{workDir}}#nixosConfigurations."$h".config.darkone.system.luks.volumes | jq length)
+			[ "$n" -gt 0 ] || continue
+			file={{secretsDir}}/hosts/$h.yaml
+			[ -f "$file" ] || { just _warn "Isolated $h has no secrets file yet: 'just install $h' seals it, then re-run." ; continue ; }
+			[ -f {{sopsAdminKeyFile}} ] || just _fail "No admin age key ({{sopsAdminKeyFile}}): $h's file is sealed for it."
+			path="[\"luks\"][\"$h\"][\"fido2\"][\"{{user}}\"][\"{{key}}\"]"
+			salt=$(yq -r ".\"{{user}}\".\"{{key}}\".hostSalts.\"$h\" // \"\"" "$registry")
+			if [ -n "$salt" ] && SOPS_AGE_KEY_FILE={{sopsAdminKeyFile}} sops -d --extract "$path" "$file" >/dev/null 2>&1 ;then
+				continue
+			fi
+			[ -n "$salt" ] || salt=$(openssl rand -base64 32)
+			just _log "LUKS secret of isolated $h (own salt): touch the key..." "YUBIKEY"
+			secret=$(printf '%s\n%s\n%s\n%s\n' "$(openssl rand -base64 32)" io.systemd.cryptsetup "$credid" "$salt" \
+				| fido fido2-assert -G -h "$dev" | sed -n 5p)
+			[ -n "$secret" ] || just _fail "FIDO2 hmac-secret capture failed for $h."
+
+			# Value first: a salt without its value fails the host's build.
+			SOPS_AGE_KEY_FILE={{sopsAdminKeyFile}} sops set "$file" "$path" "\"$secret\""
+			SALT="$salt" yq -i -p=json -o=json ".\"{{user}}\".\"{{key}}\".hostSalts.\"$h\" = strenv(SALT)" "$registry"
+			captured="$captured $h"
+		done
+		[ -z "$captured" ] || just _log "Captured for isolated$captured: commit usr/secrets, then 'just apply' each." "YUBIKEY"
+	}
 	if [ -f "$registry" ] ;then
 		for kname in main backup ;do
 			cred=$(yq -r ".\"{{user}}\".\"$kname\".credId // \"\"" "$registry")
@@ -142,8 +185,9 @@ yubikey user key='main' action='enroll':
 				[ "$kname" = "{{key}}" ] \
 					|| just _fail "This physical key is already enrolled as {{user}}/$kname."
 				if sops -d --extract '["yubikey"]["{{user}}"]["{{key}}"]["luks-secret"]' {{sopsSecretsFile}} >/dev/null 2>&1 ;then
+					just _log "This key is already enrolled as {{user}}/{{key}}." "YUBIKEY"
+					capture_isolated "$cred"
 					just _fix_fs_permissions
-					just _log "This key is already enrolled as {{user}}/{{key}}: nothing to do." "YUBIKEY"
 					exit 0
 				fi
 				just _log "Registry entry intact but sops secret missing: re-enrolling." "YUBIKEY"
@@ -195,6 +239,9 @@ yubikey user key='main' action='enroll':
 	[ -f "$registry" ] || echo '{}' > "$registry"
 	PAM="$pamcred" CID="$credid" SALT="$salt" yq -i -p=json -o=json \
 		'."{{user}}"."{{key}}" = {"pam": strenv(PAM), "credId": strenv(CID), "salt": strenv(SALT)}' "$registry"
+
+	# The entry above drops any `hostSalts`: their values were the old credential's.
+	capture_isolated "$credid"
 	just _fix_fs_permissions
 	just _log "Enrolled {{user}}/{{key}}." "YUBIKEY"
 	just _log "Now: git add usr/secrets/yubikeys.json && git commit ... && just apply" "YUBIKEY"
