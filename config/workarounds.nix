@@ -120,15 +120,6 @@
     since = "2026-10-20";
   };
 
-  d2 = {
-    kind = "pin";
-    files = [ "home/modules/advanced.nix" ];
-    reason = "undocumented (commit a206fbb)";
-    package = "d2";
-    dropWhen = "Hydra builds unstable d2";
-    since = "2026-09-17";
-  };
-
   #----------------------------------------------------------------------------
   # Inline bypasses
   #----------------------------------------------------------------------------

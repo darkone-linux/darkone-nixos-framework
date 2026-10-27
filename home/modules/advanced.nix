@@ -190,7 +190,7 @@ in
       (lib.mkIf fleetTools bun) # `just fleet-update` from src/dnf-fleet-update (codev)
       (lib.mkIf fleetTools cargo)
       (lib.mkIf fleetTools colmena)
-      (lib.mkIf fleetTools pkgs-stable.d2) # doc diagrams
+      (lib.mkIf fleetTools d2) # doc diagrams
       (lib.mkIf fleetTools deadnix)
       (lib.mkIf fleetTools gcc) # Rust generator build
       (lib.mkIf fleetTools just)
