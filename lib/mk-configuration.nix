@@ -76,10 +76,6 @@ let
   # the `nixpkgs-geneweb` input (cf. flake.nix).
   genewebOverlay = import ./overlays/geneweb.nix { inherit nixpkgs-geneweb; };
 
-  # Temporary: `__structuredAttrs = false` on `gimp`, whose build breaks
-  # otherwise. Drop once upstream makes it `__structuredAttrs`-clean.
-  gimpOverlay = import ./overlays/gimp.nix;
-
   # Temporary: logseq official AppImage, the electron-forge build is broken
   # (nixpkgs#535206). Drop once upstream fixes the source build.
   logseqOverlay = import ./overlays/logseq.nix;
@@ -243,7 +239,6 @@ let
             dnfPackagesOverlay
             (dnfGeneratorOverlay system)
             (genewebOverlay system)
-            gimpOverlay
             logseqOverlay
             kernelModulesSignOverlay
             posthogOverlay

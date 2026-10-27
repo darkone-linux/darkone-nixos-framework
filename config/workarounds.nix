@@ -40,15 +40,6 @@
     since = "2026-10-27";
   };
 
-  gimp = {
-    kind = "overlay";
-    files = [ "lib/overlays/gimp.nix" ];
-    reason = "gimp build breaks under `__structuredAttrs`";
-    package = "gimp";
-    dropWhen = "Hydra builds unstable gimp";
-    since = "2026-06-17";
-  };
-
   logseq = {
     kind = "overlay";
     files = [
