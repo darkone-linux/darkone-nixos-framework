@@ -30,4 +30,5 @@ in
   config_alerts = import ./config/alerts_test.nix { inherit dnfLib lib; };
   config_network = import ./config/network_test.nix { inherit dnfLib lib; };
   config_modules = import ./config/modules_test.nix { inherit dnfLib lib; };
+  config_workarounds = import ./config/workarounds_test.nix { inherit dnfLib lib; };
 }
