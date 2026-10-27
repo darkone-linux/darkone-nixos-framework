@@ -33,7 +33,7 @@
   posthog = {
     kind = "overlay";
     files = [ "lib/overlays/posthog.nix" ];
-    reason = "posthog marked broken since mcp 2: aider-chat refuses to evaluate";
+    reason = "posthog marked broken since mcp 2: aider-chat refuses to evaluate; uncached, timing tests flake";
     upstream = "NixOS/nixpkgs#578265";
     package = "python3Packages.posthog";
     dropWhen = "nixpkgs#578265 in the locked nixpkgs";
