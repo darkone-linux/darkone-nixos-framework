@@ -111,15 +111,6 @@
     since = "2026-09-18";
   };
 
-  audacity = {
-    kind = "pin";
-    files = [ "home/modules/audio.nix" ];
-    reason = "audacity 4 fails on unstable: Qt 6.12 QML AOT in its `muse` framework";
-    package = "audacity";
-    dropWhen = "Hydra builds unstable audacity";
-    since = "2026-10-20";
-  };
-
   musescore = {
     kind = "pin";
     files = [ "home/modules/music.nix" ];
