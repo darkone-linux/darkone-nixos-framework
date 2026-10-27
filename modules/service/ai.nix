@@ -93,7 +93,6 @@ in
 
       services.ollama = {
         enable = true;
-        package = lib.mkDefault pkgs-stable.ollama; # More recent than unstable
         openFirewall = lib.mkDefault false;
         host = "0.0.0.0";
         loadModels = [

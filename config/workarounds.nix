@@ -120,18 +120,6 @@
     since = "2026-10-20";
   };
 
-  ollama = {
-    kind = "pin";
-    files = [
-      "home/modules/ai.nix"
-      "modules/service/ai.nix"
-    ];
-    reason = "stable carried a newer ollama than unstable";
-    package = "ollama";
-    dropWhen = "unstable ollama >= stable";
-    since = "2026-06-07";
-  };
-
   d2 = {
     kind = "pin";
     files = [ "home/modules/advanced.nix" ];
