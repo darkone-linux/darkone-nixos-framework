@@ -111,15 +111,6 @@
     since = "2026-09-18";
   };
 
-  musescore = {
-    kind = "pin";
-    files = [ "home/modules/music.nix" ];
-    reason = "musescore fails on unstable: Qt 6.12 QML AOT in its `muse` framework";
-    package = "musescore";
-    dropWhen = "Hydra builds unstable musescore";
-    since = "2026-10-20";
-  };
-
   open-webui = {
     kind = "pin";
     files = [ "modules/service/ai.nix" ];
