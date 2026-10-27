@@ -121,19 +121,6 @@
   };
 
   #----------------------------------------------------------------------------
-  # Inline bypasses
-  #----------------------------------------------------------------------------
-
-  librewolf = {
-    kind = "inline";
-    files = [ "home/modules/office/browsers.nix" ];
-    reason = "librewolf flagged insecure (no maintainer): disabled fleet-wide by `&& false`";
-    package = "librewolf";
-    dropWhen = "librewolf no longer flagged insecure";
-    since = "2026-06-17";
-  };
-
-  #----------------------------------------------------------------------------
   # Insecure packages allowed (`permittedInsecurePackages`)
   #----------------------------------------------------------------------------
 

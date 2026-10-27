@@ -278,10 +278,7 @@ in
     # LibreWolf (for kids)
     #--------------------------------------------------------------------------
 
-    # TEMPORARY: librewolf-151.0.2-1 is marked insecure upstream (no nixpkgs
-    # maintainer). Disabled fleet-wide to keep evaluation pure; drop the
-    # `&& false` once nixpkgs ships a maintained, secure build.
-    programs.librewolf = mkIf (cfg.enableLibreWolf && false) {
+    programs.librewolf = mkIf cfg.enableLibreWolf {
       enable = true;
 
       # Lang https://releases.mozilla.org/pub/firefox/releases/140.7.0esr/linux-x86_64/
