@@ -89,6 +89,10 @@ let
   # passes `kernel.commonMakeFlags`.
   kernelModulesSignOverlay = import ./overlays/kernel-modules-sign.nix;
 
+  # Temporary: unbroken `posthog` (dependency of `aider-chat`), marked broken
+  # since `mcp` 2. Drop once nixpkgs#578265 reaches `nixos-unstable`.
+  posthogOverlay = import ./overlays/posthog.nix;
+
   # `pkgs.talon` from nix-community/talon-nix, x86_64 only (absent elsewhere),
   # for UMI (multimodal input) host profiles.
   talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
@@ -242,6 +246,7 @@ let
             gimpOverlay
             logseqOverlay
             kernelModulesSignOverlay
+            posthogOverlay
             (talonOverlay system)
             (opencodeOverlay system)
             (openclawOverlay system)
