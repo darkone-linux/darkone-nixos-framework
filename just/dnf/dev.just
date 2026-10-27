@@ -1,4 +1,11 @@
-# DNF just — framework development: dnf-only packages.
+# DNF just — framework development: dnf-only packages, temporary workarounds.
+
+# Registry: `config/workarounds.nix`. Network: GitHub (gh) and cache.nixos.org.
+#
+# List temporary workarounds with their upstream status and drop candidates
+[group('dev')]
+workarounds:
+	bash {{scriptsDir}}/workarounds.sh {{dnfDir}}
 
 # Bump a dnf/pkgs derivation to its latest upstream release, or to `version`
 [group('dev')]

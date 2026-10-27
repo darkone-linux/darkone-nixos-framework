@@ -143,7 +143,7 @@
     files = [ "modules/service/ai.nix" ];
     reason = "unstable 0.12.3 `makeWrapperArgs` is one string, unsplit under `__structuredAttrs`";
     package = "open-webui";
-    dropWhen = "Hydra builds unstable open-webui";
+    dropWhen = "unstable open-webui builds (unfree: never on Hydra, `nix build` it)";
     since = "2026-10-20";
   };
 
