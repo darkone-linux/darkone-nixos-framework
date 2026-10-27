@@ -165,7 +165,6 @@
   host,
   zone,
   pkgs,
-  pkgs-stable,
   ...
 }:
 let
@@ -431,11 +430,6 @@ in
       #------------------------------------------------------------------------
 
       # TODO: manhole for admin debugging? https://element-hq.github.io/synapse/latest/manhole.html
-
-      # Stable synapse: unstable 1.162.0 fails (dependency broken on Hydra). The
-      # module's `package` is read-only, it wraps this attribute. Drop once
-      # unstable reaches the deployed version: no schema downgrade.
-      nixpkgs.overlays = [ (_final: _prev: { inherit (pkgs-stable) matrix-synapse-unwrapped; }) ];
 
       services.matrix-synapse = {
         enable = true;

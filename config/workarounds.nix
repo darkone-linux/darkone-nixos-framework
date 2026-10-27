@@ -120,15 +120,6 @@
     since = "2026-10-20";
   };
 
-  matrix-synapse = {
-    kind = "pin";
-    files = [ "modules/service/matrix.nix" ];
-    reason = "unstable 1.162.0 failed: dependency broken on Hydra";
-    package = "matrix-synapse-unwrapped";
-    dropWhen = "Hydra builds unstable synapse >= the deployed version (no schema downgrade)";
-    since = "2026-10-20";
-  };
-
   ollama = {
     kind = "pin";
     files = [
