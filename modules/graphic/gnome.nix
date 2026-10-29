@@ -11,6 +11,11 @@
 # Apps ask once again for their credentials. Opt-out, for a keyring with a
 # password of its own: `darkone.home.gnome.keepKeyring`.
 # :::
+#
+# :::note[Passwordless login keyring]
+# Users with `darkone.home.gnome.passwordlessKeyring` skip `pam_gnome_keyring`
+# at auth: a password would re-encrypt their plain keyring at its next write.
+# :::
 
 {
   lib,
@@ -24,6 +29,7 @@ let
   inherit (lib)
     concatStringsSep
     escapeShellArg
+    filter
     filterAttrs
     findFirst
     gvariant
@@ -54,6 +60,15 @@ let
       "${escapeShellArg login}) hashFile=${escapeShellArg user.hashedPasswordFile} home=${escapeShellArg user.home} ;;"
     ) keyringResetUsers
   );
+
+  # Passwordless keyring (cf. header), read from each home
+  passwordlessKeyringUsers = filter (
+    login:
+    let
+      hm = config.home-manager.users.${login}.darkone.home.gnome or { };
+    in
+    (hm.enable or false) && (hm.passwordlessKeyring or false)
+  ) host.users;
 
   # Run as root by PAM. One fingerprint of the hash file per account: a new
   # fingerprint means a new password, hence a keyring to drop.
@@ -225,6 +240,21 @@ in
         type = "auth";
       };
       args = mkAfter [ "${keyringReset}" ];
+    };
+
+    # Passwordless keyring (cf. header): `success=1` jumps the keyring auth
+    # line only, the session line still starts the daemon (`auto_start`).
+    security.pam.services.login.rules.auth.passwordless-keyring = {
+      enable = config.security.pam.services.login.enableGnomeKeyring && passwordlessKeyringUsers != [ ];
+      control = "[success=1 default=ignore]";
+      modulePath = "${config.security.pam.package}/lib/security/pam_succeed_if.so";
+      order = config.security.pam.services.login.rules.auth.gnome_keyring.order - 5;
+      settings.quiet = true;
+      args = mkAfter [
+        "user"
+        "in"
+        (concatStringsSep ":" passwordlessKeyringUsers)
+      ];
     };
 
     #==========================================================================

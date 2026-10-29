@@ -178,26 +178,11 @@ in
 
     # The autologin user's keyring has no password (`darkone.home.umi`), and
     # gnome-keyring re-encrypts a plain keyring with any password that unlocked
-    # it: `pam_gdm` (boot passphrase) and the keyring auth line go.
+    # it: `pam_gdm` (boot passphrase) and the keyring auth line go. A password
+    # login (`login`) is covered by the gnome module's passwordless-keyring skip.
     security.pam.services.gdm-autologin.rules.auth = lib.mkIf autoLoginGdm {
       gdm.enable = lib.mkForce false;
       gnome_keyring.enable = lib.mkForce false;
-    };
-
-    # Same for a password login of that user (`login`, substacked by
-    # gdm-password): its keyring auth line is skipped, the session line still
-    # starts the daemon (`auto_start`).
-    security.pam.services.login.rules.auth.umi-keyring-skip = lib.mkIf autoLoginGdm {
-      enable = config.security.pam.services.login.enableGnomeKeyring;
-      control = "[success=1 default=ignore]";
-      modulePath = "${config.security.pam.package}/lib/security/pam_succeed_if.so";
-      order = config.security.pam.services.login.rules.auth.gnome_keyring.order - 5;
-      settings.quiet = true;
-      args = lib.mkAfter [
-        "user"
-        "="
-        cfg.autoLoginUser
-      ];
     };
 
     # `su` hands over the X cookie (pam_xauth, NixOS default): a CLI run as

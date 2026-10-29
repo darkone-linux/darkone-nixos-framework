@@ -68,16 +68,9 @@
 #
 # :::caution[Login keyring of the autologin user: no password, on every host]
 # An autologin session types no password: a keyring sealed with one pops a gcr
-# prompt the UMI user cannot answer. Its login keyring is seeded with an empty
-# password (plain ini, unlocked without prompt); a sealed one is deleted at
-# each activation, `user.keystore` included, and its secrets are lost.
-#
-# - At rest, LUKS protects it; autologin already hands the session to whoever
-#   boots the machine.
-# - The UMI host keeps every password away from gnome-keyring for this user:
-#   a plain keyring unlocked with a password is re-encrypted with it at the
-#   next write (`pam_gdm` and the boot passphrase included).
-# - Other users, and every password login elsewhere: untouched.
+# prompt the UMI user cannot answer. `darkone.home.gnome.passwordlessKeyring`
+# is forced on for this user, encrypted host or not (secrets of a sealed
+# keyring lost once). The UMI host also strips `pam_gdm` from gdm-autologin.
 # :::
 {
   lib,
@@ -636,20 +629,7 @@ let
   );
   nextAppletId = 1 + lib.foldl' lib.max 0 (map (a: a.id) (panelZones.left ++ panelZones.right));
 
-  # gnome-keyring's on-disk format for a keyring with no password: plain ini
-  # instead of the encrypted blob, unlocked at startup without a prompt.
-  plainLoginKeyring = pkgs.writeText "login.keyring" ''
-    [keyring]
-    display-name=login
-    ctime=0
-    mtime=0
-    lock-on-idle=false
-    lock-after=false
-  '';
-  defaultKeyringName = pkgs.writeText "default-keyring" "login";
-
-  # A password login hands its password to gnome-keyring: seeding there would
-  # swap an encrypted keyring for a plain one (UMI user on a non-UMI host).
+  # Autologin types no password: its keyring cannot have one (cf. header)
   autoLogin = osConfig.services.displayManager.autoLogin;
   isAutoLoginUser = autoLogin.enable && autoLogin.user == config.home.username;
 in
@@ -1155,34 +1135,8 @@ in
       ) spicesSettings}
     '';
 
-    # Passwordless login keyring, for the autologin user only (cf. the header):
-    # gnome-keyring tries an empty password before prompting, and stores such a
-    # keyring as plain ini, not an encrypted blob.
-    home.activation.umiLoginKeyring = lib.mkIf isAutoLoginUser (
-      lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        keyringDir="$HOME/.local/share/keyrings"
-        run ${pkgs.coreutils}/bin/mkdir -p -m 700 "$keyringDir"
-
-        # A keyring that opens without a password starts with `[keyring]`;
-        # anything else is the encrypted binary format, locked behind a
-        # passphrase nobody can type here. Dropping it is the only way out of
-        # the prompt loop. `user.keystore` (PKCS#11 objects) is sealed with the
-        # same password and would prompt on its own, so it goes too.
-        if [ -e "$keyringDir/login.keyring" ] &&
-           [ "$(${pkgs.coreutils}/bin/head -c 9 "$keyringDir/login.keyring")" != "[keyring]" ] ; then
-          run ${pkgs.coreutils}/bin/rm -f "$keyringDir/login.keyring" "$keyringDir/user.keystore"
-        fi
-
-        if [ ! -e "$keyringDir/login.keyring" ] ; then
-          run ${pkgs.coreutils}/bin/install -m 600 ${plainLoginKeyring} "$keyringDir/login.keyring"
-        fi
-
-        # Without it, storing a secret in a home that never had a default
-        # collection pops the "create a keyring" prompt (cf. home/modules/office.nix).
-        if [ ! -e "$keyringDir/default" ] ; then
-          run ${pkgs.coreutils}/bin/install -m 600 ${defaultKeyringName} "$keyringDir/default"
-        fi
-      ''
-    );
+    # Passwordless login keyring for the autologin user, on every host (cf.
+    # the header): above the encrypted-host default of the gnome home module
+    darkone.home.gnome.passwordlessKeyring = lib.mkIf isAutoLoginUser true;
   };
 }

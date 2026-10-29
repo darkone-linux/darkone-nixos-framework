@@ -8,6 +8,14 @@
 # shared with the UMI module).
 # `keepKeyring` opts the user out of the login keyring reset that follows an
 # admin password change (read by the NixOS gnome module).
+# `passwordlessKeyring` (default: non-advanced users on a LUKS host) gives the
+# login keyring no password: a key login (`pam_u2f`) opens it without a prompt.
+#
+# :::caution[Passwordless keyring: secrets in clear text]
+# Protected at rest by LUKS only, and copied as is into restic backups. A
+# keyring sealed with a password is deleted at activation (never under a
+# running session): apps ask for their credentials once again.
+# :::
 #
 # :::caution[NFS bookmarks]
 # Do not declare `gtk.gtk3.bookmarks` from this module — while NFS home shares
@@ -18,17 +26,39 @@
   lib,
   config,
   pkgs,
+  osConfig,
   ...
 }:
 
 let
   cfg = config.darkone.home.gnome;
+
+  # gnome-keyring's on-disk format for a keyring with no password: plain ini
+  # instead of the encrypted blob, unlocked at startup without a prompt.
+  plainLoginKeyring = pkgs.writeText "login.keyring" ''
+    [keyring]
+    display-name=login
+    ctime=0
+    mtime=0
+    lock-on-idle=false
+    lock-after=false
+  '';
+  defaultKeyringName = pkgs.writeText "default-keyring" "login";
 in
 {
   options = {
     darkone.home.gnome.enable = lib.mkEnableOption "Enable gnome settings for home manager";
     darkone.home.gnome.hideTechnicalIcons = lib.mkEnableOption "Hide some icons for beginners / children / babies";
     darkone.home.gnome.keepKeyring = lib.mkEnableOption "Keep the login keyring when the admin changes the session password (keyring with a password of its own)";
+    darkone.home.gnome.passwordlessKeyring = lib.mkOption {
+      type = lib.types.bool;
+      default =
+        !config.darkone.home.advanced.enable
+        && !cfg.keepKeyring
+        && (osConfig.boot.initrd.luks.devices or { }) != { };
+      defaultText = lib.literalExpression "!darkone.home.advanced.enable && !keepKeyring && <host has a LUKS volume>";
+      description = "Login keyring with no password, opened without a prompt (key or password login). Secrets in clear text, protected at rest by LUKS only.";
+    };
     darkone.home.gnome.hiddenApps = lib.mkOption {
       type = lib.types.listOf lib.types.str;
 
@@ -155,5 +185,40 @@ in
         };
       })
     ];
+
+    # Passwordless login keyring (cf. header): gnome-keyring tries an empty
+    # password before prompting, and stores such a keyring as plain ini. The
+    # NixOS gnome module keeps every password away from it (PAM skip).
+    home.activation.passwordlessKeyring = lib.mkIf cfg.passwordlessKeyring (
+      lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        keyringDir="$HOME/.local/share/keyrings"
+
+        # A running daemon (`just apply` under an open session) rewrites the
+        # keyring it holds: never swap it there, the next boot converts it
+        # (home-manager runs before `systemd-user-sessions`).
+        if [ ! -S "/run/user/$(${pkgs.coreutils}/bin/id -u)/keyring/control" ] ; then
+          run ${pkgs.coreutils}/bin/mkdir -p -m 700 "$keyringDir"
+
+          # A keyring that opens without a password starts with `[keyring]`;
+          # anything else is the encrypted binary format, which no password
+          # reaches anymore. `user.keystore` (PKCS#11 objects) is sealed with
+          # the same password and would prompt on its own, so it goes too.
+          if [ -e "$keyringDir/login.keyring" ] &&
+             [ "$(${pkgs.coreutils}/bin/head -c 9 "$keyringDir/login.keyring")" != "[keyring]" ] ; then
+            run ${pkgs.coreutils}/bin/rm -f "$keyringDir/login.keyring" "$keyringDir/user.keystore"
+          fi
+
+          if [ ! -e "$keyringDir/login.keyring" ] ; then
+            run ${pkgs.coreutils}/bin/install -m 600 ${plainLoginKeyring} "$keyringDir/login.keyring"
+          fi
+
+          # Without it, storing a secret in a home that never had a default
+          # collection pops the "create a keyring" prompt (cf. home/modules/office.nix).
+          if [ ! -e "$keyringDir/default" ] ; then
+            run ${pkgs.coreutils}/bin/install -m 600 ${defaultKeyringName} "$keyringDir/default"
+          fi
+        fi
+      ''
+    );
   };
 }

@@ -54,14 +54,9 @@
 # :::
 #
 # :::caution[GNOME keyring stays locked on a key login]
-# `sufficient` short-circuits the auth stack: touching the key ends it before
-# `pam_gnome_keyring` runs, so the daemon starts with no password and GNOME
-# asks for the keyring one at session start (GNOME Online Accounts and
-# evolution-data-server request the secret service immediately). A password
-# login is unaffected. Remedy on the desktop hosts concerned: give the *login*
-# keyring an empty password in Seahorse — it then unlocks by itself, secrets
-# landing in clear text on an already LUKS-encrypted disk. See
-# `doc/admin-guide/operate/yubikey`.
+# `sufficient` ends the auth stack before `pam_gnome_keyring`: a sealed login
+# keyring prompts at session start. Remedy: `darkone.home.gnome.passwordlessKeyring`,
+# on by default for non-advanced users of a LUKS host.
 # :::
 
 {
