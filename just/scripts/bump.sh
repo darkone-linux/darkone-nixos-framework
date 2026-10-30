@@ -245,11 +245,26 @@ fi
 previousTag="$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n1)"
 changelogBefore="$(cat CHANGELOG.md)"
 
-# A trap, not a line at the end: the entry is printed before it, and a closed
-# pipe there would otherwise leave the rewritten file on disk.
-if [ "$dryRun" -eq 1 ]; then
-  trap 'if [ "$changelogExisted" -eq 1 ]; then printf "%s\n" "$changelogBefore" > CHANGELOG.md; else rm -f CHANGELOG.md; fi' EXIT
-fi
+versionWritten=0
+committed=0
+
+# Short of the release commit, the tree goes back as found: dry run, closed pipe,
+# refused prompt, signal, hook. CHANGELOG by content: a dry run may start dirty.
+restoreTree() {
+  [ "$committed" -eq 0 ] || return 0
+
+  # Past the guards, which proved the tree clean: only this script's writes differ.
+  if [ "$versionWritten" -eq 1 ]; then
+    git reset -q
+    git restore -- .
+  fi
+  if [ "$changelogExisted" -eq 1 ]; then
+    printf '%s\n' "$changelogBefore" > CHANGELOG.md
+  else
+    rm -f CHANGELOG.md
+  fi
+}
+trap restoreTree EXIT
 
 BLOCK="$block" NEW="$new" REMOTE="$remote" PREV="$previousTag" python3 - <<'PY'
 import os, re
@@ -316,26 +331,26 @@ if [ "$dryRun" -eq 1 ]; then
   exit 0
 fi
 
+# EOF (no terminal, ^D) names the way out: bare `read` dies silently under `set -e`.
+ask() {
+  local answer
+  read -r -p "$1 [y/N] " answer || die "No answer (no terminal?) — pass --yes to confirm."
+  [ "${answer,,}" = "y" ]
+}
+
 if [ "$assumeYes" -eq 0 ]; then
-  if [ -n "${EDITOR:-}" ]; then
-    read -r -p "Edit the entry before committing? [y/N] " answer
-    [ "${answer,,}" = "y" ] && "$EDITOR" CHANGELOG.md
+  if [ -n "${EDITOR:-}" ] && ask "Edit the entry before committing?"; then
+    "$EDITOR" CHANGELOG.md
   fi
-  read -r -p "Release v$new? [y/N] " answer
-  if [ "${answer,,}" != "y" ]; then
-    if [ "$changelogExisted" -eq 1 ]; then
-      printf '%s\n' "$changelogBefore" > CHANGELOG.md
-    else
-      rm -f CHANGELOG.md
-    fi
-    die "Aborted."
-  fi
+  ask "Release v$new?" || die "Aborted."
 fi
 
+versionWritten=1
 writeVersion "$new"
 
 git add -A
 git commit -q -m "chore(release): v$new"
+committed=1
 
 # Annotated tag carrying the entry, verbatim: git's default `-m` cleanup treats
 # the Markdown headings as comments and strips every one of them. The oldest
