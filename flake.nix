@@ -52,7 +52,7 @@
     # `/repository/commits` API the `gitlab:` fetcher resolves refs with (403).
     # Revert once NixOS/nix#16588 (single-commit endpoint) ships.
     firefox-addons = {
-      url = "git+https://gitlab.com/rycee/nur-expressions?dir=pkgs/firefox-addons&shallow=1";
+      url = "git+https://gitlab.com/rycee/nur-expressions.git?dir=pkgs/firefox-addons&shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

@@ -138,13 +138,13 @@
         "rev": "0f3482a1d3619f951843021a944e8b8b153022b0",
         "shallow": true,
         "type": "git",
-        "url": "https://gitlab.com/rycee/nur-expressions"
+        "url": "https://gitlab.com/rycee/nur-expressions.git"
       },
       "original": {
         "dir": "pkgs/firefox-addons",
         "shallow": true,
         "type": "git",
-        "url": "https://gitlab.com/rycee/nur-expressions"
+        "url": "https://gitlab.com/rycee/nur-expressions.git"
       }
     },
     "flake-compat": {
