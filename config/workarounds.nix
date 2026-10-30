@@ -127,8 +127,9 @@
   fpdf2-image-test = {
     kind = "inline";
     files = [ "modules/service/ai.nix" ];
-    reason = "stable fpdf2 2.8.5 `test_image_with_explicit_dimensions` fails on a PDF hash mismatch: open-webui does not build";
-    dropWhen = "stable fpdf2 builds with its full test suite, or open-webui leaves its stable pin";
+    reason = "stable fpdf2 2.8.5 `test_image_with_explicit_dimensions`: reference PDF predates the Pillow 13 backport, systematic hash mismatch, open-webui does not build";
+    upstream = "NixOS/nixpkgs#580486";
+    dropWhen = "nixpkgs#580486 in the locked nixpkgs-stable, or open-webui leaves its stable pin";
     since = "2026-10-29";
   };
 

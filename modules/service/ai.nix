@@ -35,7 +35,7 @@ let
   oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
 
   # Temporary (`config/workarounds.nix`, `fpdf2-image-test`): fpdf2 2.8.5
-  # `test_image_with_explicit_dimensions` fails on a PDF hash mismatch.
+  # `test_image_with_explicit_dimensions` reference predates Pillow 13.
   python3Stable = pkgs-stable.python3.override {
     self = python3Stable;
     packageOverrides = _pyfinal: pyprev: {
