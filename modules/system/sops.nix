@@ -12,6 +12,11 @@
 # `neededForUsers = true` so the hash is available before the user accounts
 # are created.
 #
+# Regular secrets are installed by `sops-install-secrets.service`
+# (`sops.useSystemdActivation`), before `sysinit.target`; a changed secret
+# restarts its `restartUnits` within the same switch. Password hashes stay
+# in the activation script, ahead of the user accounts.
+#
 # Nothing else is materialised here: a secret belongs on the hosts that
 # consume it, declared by the module that reads it.
 #
@@ -55,6 +60,11 @@ in
   config = lib.mkIf cfg.enable {
 
     sops = {
+
+      # Secrets from `sops-install-secrets.service`: `restartUnits` go through
+      # `systemctl try-restart`. The activation-script path relies on
+      # `/run/nixos/activation-restart-list`, removed in NixOS 26.11.
+      useSystemdActivation = lib.mkDefault true;
 
       # Sops configuration
       defaultSopsFile =

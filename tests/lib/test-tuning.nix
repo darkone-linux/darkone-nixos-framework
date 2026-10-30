@@ -46,7 +46,10 @@ in
     })
 
     # Isolated host: no password hash, so no `setupSecretsForUsers` to hook.
-    (lib.mkIf (lib.any (s: !s.neededForUsers) secrets) { setupSecrets.deps = [ "testSopsKey" ]; })
+    # `useSystemdActivation`: no `setupSecrets`, the unit runs after activation.
+    (lib.mkIf (!config.sops.useSystemdActivation && lib.any (s: !s.neededForUsers) secrets) {
+      setupSecrets.deps = [ "testSopsKey" ];
+    })
   ];
 
   # Provide the self-signed cert fixture for scenarios that need TLS.

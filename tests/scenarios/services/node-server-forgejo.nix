@@ -9,6 +9,7 @@
 #   - sshd resolves the forge keys through `AuthorizedKeysCommand`, and
 #     accepts the command path (`safe_path`: no store symlink, no
 #     group-writable parent)
+#   - regular sops secrets installed by `sops-install-secrets.service`
 #
 # Out of scope here (covered elsewhere or optional):
 #   - caddy reverse proxy: lives on the gateway in real DNF topology, not
@@ -31,6 +32,11 @@
     start_all()
 
     server1.wait_for_unit("multi-user.target")
+
+    # `useSystemdActivation`: regular secrets come from a unit ordered before
+    # `sysinit.target`, no longer from the activation script.
+    server1.succeed("systemctl is-active sops-install-secrets.service")
+    server1.succeed("test -s /run/secrets/smtp/password")
 
     # Hard deps from the forgejo module body.
     for unit in ["postgresql.service", "forgejo.service"]:
