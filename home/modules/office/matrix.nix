@@ -14,15 +14,13 @@ let
   hasFractal = cfg.enableCommunication && hasMatrix;
   element = config.programs.element-desktop;
   localMatrixServer = "https://matrix.${network.domain}";
-  idmUri = "https://idm.${network.domain}";
 in
 {
   config = mkIf cfg.enable {
 
     # Element for every office user of a Matrix network (opt out per user:
     # `programs.element-desktop.enable = false`), the only pre-configurable
-    # client. Fractal lacks `m.login.sso` (native OIDC/MAS only, Synapse runs
-    # legacy `oidc_providers`), a declarative config and a tray.
+    # client. Fractal lacks a declarative config and a tray.
 
     # TODO: complete, share with modules/service/element.nix
     programs.element-desktop = mkIf hasMatrix {
@@ -45,11 +43,9 @@ in
           on_welcome_page = true;
           on_login_page = true;
         };
-        oidc_static_clients."${idmUri}/".client_id = "matrix-synapse";
-        oidc_metadata = {
-          client_uri = idmUri;
-          logo_uri = idmUri + "/pkg/img/logo.svg";
-        };
+
+        # No `oidc_static_clients`/`oidc_metadata` override: MAS would reject
+        # the dynamic registration (cf. `modules/service/element.nix`).
       };
     };
 
