@@ -70,7 +70,7 @@
 # An autologin session types no password: a keyring sealed with one pops a gcr
 # prompt the UMI user cannot answer. `darkone.home.gnome.passwordlessKeyring`
 # is forced on for this user, encrypted host or not (secrets of a sealed
-# keyring lost once). The UMI host also strips `pam_gdm` from gdm-autologin.
+# keyring set aside once). The UMI host also strips `pam_gdm` from gdm-autologin.
 # :::
 {
   lib,

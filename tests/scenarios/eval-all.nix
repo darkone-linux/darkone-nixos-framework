@@ -16,6 +16,7 @@
     ../workspaces/node/configs/disko-server
     ../workspaces/node/configs/yubikey
     ../workspaces/node/configs/user-ssh
+    ../workspaces/node/configs/user-keyring
     ../workspaces/network/configs/dns
     ../workspaces/vpn/configs/multizone
   ];

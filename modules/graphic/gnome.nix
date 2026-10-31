@@ -3,13 +3,14 @@
 # :::note[Login keyring after `just passwd`]
 # PAM unlocks the login keyring with the session password, which a change
 # made by the admin cannot re-encrypt (the old password is unknown). The next
-# password login drops the keyring: GNOME recreates it, empty, on the new
-# password. No prompt, and the old password opens nothing anymore.
+# password login moves the keyring to `~/.local/share/keyrings.sealed/`: GNOME
+# recreates it, empty, on the new password. No prompt.
 # :::
 #
-# :::caution[Keyring secrets lost on each admin password change]
-# Apps ask once again for their credentials. Opt-out, for a keyring with a
-# password of its own: `darkone.home.gnome.keepKeyring`.
+# :::caution[Keyring secrets set aside on each admin password change]
+# Apps ask once again for their credentials; Element Desktop loses its session
+# (repair: `operate/users.mdx`). Opt-out, for a keyring with a password of its
+# own: `darkone.home.gnome.keepKeyring`.
 # :::
 #
 # :::note[Passwordless login keyring]
@@ -106,9 +107,18 @@ let
       # `darkone.home.umi`) is not tied to the session password: kept
       magic=$(asUser ${pkgs.coreutils}/bin/head -c 9 -- "$keyrings/login.keyring" 2>/dev/null) || magic=absent
       if [ "$magic" != absent ] && [ "$magic" != "[keyring]" ]; then
-        asUser ${pkgs.coreutils}/bin/rm -f -- "$keyrings/login.keyring" "$keyrings/user.keystore"
+
+        # Moved, never deleted (cf. `darkone.home.gnome`): the old password
+        # still opens it, should an app need a key it cannot ask for again.
+        sealed=$home/.local/share/keyrings.sealed
+        sealedAt=$(${pkgs.coreutils}/bin/date +%Y%m%d-%H%M%S)
+        asUser ${pkgs.coreutils}/bin/mkdir -p -m 700 -- "$sealed"
+        asUser ${pkgs.coreutils}/bin/mv -- "$keyrings/login.keyring" "$sealed/login.keyring.$sealedAt"
+        if asUser ${pkgs.coreutils}/bin/test -e "$keyrings/user.keystore"; then
+          asUser ${pkgs.coreutils}/bin/mv -- "$keyrings/user.keystore" "$sealed/user.keystore.$sealedAt"
+        fi
         ${pkgs.util-linux}/bin/logger -t keyring-reset -p authpriv.notice \
-          "$PAM_USER: session password changed, login keyring dropped"
+          "$PAM_USER: session password changed, login keyring moved to $sealed"
       fi
     else
 

@@ -12,9 +12,13 @@
 # login keyring no password: a key login (`pam_u2f`) opens it without a prompt.
 #
 # :::caution[Passwordless keyring: secrets in clear text]
-# Protected at rest by LUKS only, and copied as is into restic backups. A
-# keyring sealed with a password is deleted at activation (never under a
-# running session): apps ask for their credentials once again.
+# Protected at rest by LUKS only, and copied as is into restic backups.
+# :::
+#
+# :::caution[Sealed keyring set aside at activation]
+# Moved to `~/.local/share/keyrings.sealed/`, never under a running session.
+# Apps ask for their credentials once again; Element Desktop loses its session
+# (`safeStorage` key gone), repair in the admin guide (`operate/users.mdx`).
 # :::
 #
 # :::caution[NFS bookmarks]
@@ -205,7 +209,18 @@ in
           # the same password and would prompt on its own, so it goes too.
           if [ -e "$keyringDir/login.keyring" ] &&
              [ "$(${pkgs.coreutils}/bin/head -c 9 "$keyringDir/login.keyring")" != "[keyring]" ] ; then
-            run ${pkgs.coreutils}/bin/rm -f "$keyringDir/login.keyring" "$keyringDir/user.keystore"
+
+            # Moved, never deleted: holds keys no app can ask for again
+            # (`safeStorage`), and the old password still opens it. Out of
+            # `keyrings/`: the daemon must not load it as a collection.
+            sealedDir="$HOME/.local/share/keyrings.sealed"
+            sealedAt="$(${pkgs.coreutils}/bin/date +%Y%m%d-%H%M%S)"
+            run ${pkgs.coreutils}/bin/mkdir -p -m 700 "$sealedDir"
+            run ${pkgs.coreutils}/bin/mv "$keyringDir/login.keyring" "$sealedDir/login.keyring.$sealedAt"
+            if [ -e "$keyringDir/user.keystore" ] ; then
+              run ${pkgs.coreutils}/bin/mv "$keyringDir/user.keystore" "$sealedDir/user.keystore.$sealedAt"
+            fi
+            noteEcho "Sealed login keyring moved to $sealedDir"
           fi
 
           if [ ! -e "$keyringDir/login.keyring" ] ; then

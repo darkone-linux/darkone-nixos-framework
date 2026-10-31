@@ -1,0 +1,40 @@
+# Login keyring test workspace: passwordless conversion and reset after an
+# admin password change, on a single graphical node. Schema mirrors the real
+# /etc/nixos/etc/config.yaml.
+
+network:
+  domain: "test.local"
+  default:
+    locale: "en_US.UTF-8"
+    timezone: "Etc/UTC"
+  coordination:
+    enable: false
+    hostname: "hcs"
+    domain: "headscale"
+
+zones:
+  z1:
+    description: "Test zone 1"
+    ipPrefix: "10.10"
+    gateway:
+      wan:
+        interface: "eth0"
+      lan:
+        interfaces: ["eth1"]
+      vpn:
+        ipv4: "100.64.0.1"
+
+users:
+  darkone:
+    uid: 1000
+    name: "Darkone"
+    email: "darkone@test.local"
+    profile: "nix-admin"
+    groups: ["global"]
+
+hosts:
+  - hostname: "node1"
+    name: "Login keyring node"
+    zone: "z1:1.1"
+    profile: "minimal"
+    users: ["darkone"]
