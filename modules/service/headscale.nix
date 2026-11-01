@@ -123,7 +123,7 @@ let
           private_key_path: $TMPDIR/noise.key
         prefixes:
           v4: ${dnfLib.constants.tailnetIpv4Cidr}
-          v6: fd7a:115c:a1e0::/48
+          v6: ${dnfLib.constants.tailnetIpv6Cidr}
         derp:
           server:
             enabled: false

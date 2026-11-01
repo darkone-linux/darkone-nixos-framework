@@ -54,7 +54,7 @@ let
   # `allowed_groups` query param restricts access to those Kanidm groups, so a
   # single oauth2-proxy can guard several services with distinct group policies.
   mkForwardAuth =
-    allowedGroups:
+    matcher: allowedGroups:
     let
 
       # Kanidm emits groups in the `groups` claim as SPNs (`name@<domain>`), not
@@ -64,7 +64,7 @@ let
       query = optionalString (allowedGroups != [ ]) "?allowed_groups=${concatStringsSep "," spns}";
     in
     ''
-      forward_auth http://127.0.0.1:${oauth2ProxyPort} {
+      forward_auth ${optionalString (matcher != null) "${matcher} "}http://127.0.0.1:${oauth2ProxyPort} {
         uri /oauth2/auth${query}
         copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
 
@@ -78,6 +78,47 @@ let
         }
       }
     '';
+
+  # `proxy.tailnetIdentity`: tailscaled names a personal device, else the SSO.
+  # - `route`: this order, Caddy's directive sort runs `request_header` last;
+  # - identity headers dropped first: from here on, only an auth response sets them;
+  # - `remote_ip`, never `client_ip`: `trusted_proxies` covers the tailnet.
+  mkTailnetForwardAuth = { allowedGroups, memberEmails, ... }: ''
+    route {
+      request_header -X-Auth-Request-User
+      request_header -X-Auth-Request-Email
+      request_header -X-Auth-Request-Groups
+
+      @tailnet remote_ip ${dnfLib.constants.tailnetIpv4Cidr} ${dnfLib.constants.tailnetIpv6Cidr}
+      forward_auth @tailnet unix/${config.services.tailscaleAuth.socketPath} {
+        uri /auth
+        header_up Remote-Addr {remote_host}
+        header_up Remote-Port {remote_port}
+        copy_headers Tailscale-User>X-Auth-Request-Email Tailscale-Login>X-Auth-Request-User
+
+        # Refused (tagged node, unknown address): carry on to the SSO. The
+        # `vars` is a no-op: reverse_proxy skips a route-less handle_response.
+        @refused status 4xx 5xx
+        handle_response @refused {
+          vars tailnet_identity refused
+        }
+      }
+
+      # Kanidm's `allowed_groups` does not run on this path.
+      @notMember {
+        header X-Auth-Request-Email *
+        ${optionalString (memberEmails != [ ]) ''
+          not {
+            ${concatMapStringsSep "\n" (email: "header X-Auth-Request-Email ${email}") memberEmails}
+          }
+        ''}
+      }
+      respond @notMember 403
+
+      @anonymous header !X-Auth-Request-Email
+      ${mkForwardAuth "@anonymous" allowedGroups}
+    }
+  '';
 
   # Bind internal IP for internal access services. `client_ip` (not `remote_ip`)
   # resolves the real client through trusted proxies (X-Forwarded-For), so a
@@ -147,10 +188,16 @@ let
   # Make virtualhost prefix:
   # - isInternal -> abort external access
   # - isProtected -> forward to oauth2-proxy (must be logged with kanidm + member of allowedGroups)
+  # - tailnetIdentity -> identify personal tailnet devices first (fallback: oauth2-proxy)
   mkPrefix =
-    isInternal: isProtected: allowedGroups:
-    (optionalString isInternal internalServiceBindSection)
-    + (optionalString isProtected (mkForwardAuth allowedGroups));
+    proxy:
+    (optionalString proxy.isInternal internalServiceBindSection)
+    + (optionalString proxy.isProtected (
+      if proxy.tailnetIdentity && hasHeadscale then
+        mkTailnetForwardAuth proxy
+      else
+        mkForwardAuth null proxy.allowedGroups
+    ));
 
   # A service can be turned into a virtualhost iff it is enabled and, when it
   # emits a `reverse_proxy` line, knows the backend port. Guarding on
@@ -192,6 +239,15 @@ let
     ((localZoneServices != [ ]) || (globalServices != [ ]) || (hostsForTls != [ ]))
     && (isGateway || isHcs);
 
+  # This host answers at least one vhost with the tailnet identity path.
+  hasTailnetIdentity =
+    hasHeadscale
+    && hasServicesToExpose
+    && any (s: s.proxy.tailnetIdentity) (localZoneServices ++ globalServices);
+
+  # The path skips Kanidm's `allowed_groups`: no member list, no check.
+  tailnetIdentityMisuses = filter (s: s.proxy.tailnetIdentity && !s.proxy.spaceMembersOnly) services;
+
   inherit (dnfLib.constants) caddyStorage;
 
   # Caddy access logs in JSON for Alloy/Loki ingestion.
@@ -221,7 +277,24 @@ in
           concatMapStringsSep ", " (s: s.name) externalInternalConflicts
         }.";
       }
+      {
+        assertion = tailnetIdentityMisuses == [ ];
+        message = "darkone.system.services: proxy.tailnetIdentity requires proxy.spaceMembersOnly: ${
+          concatMapStringsSep ", " (s: s.name) tailnetIdentityMisuses
+        }.";
+      }
     ];
+
+    #--------------------------------------------------------------------------
+    # Tailnet identity
+    #--------------------------------------------------------------------------
+
+    # Caddy's own group on the socket: `enableReload` keeps its running process,
+    # which would never gain a supplementary group.
+    services.tailscaleAuth = mkIf hasTailnetIdentity {
+      enable = true;
+      inherit (config.services.caddy) group;
+    };
 
     #--------------------------------------------------------------------------
     # Reverse proxy
@@ -325,7 +398,7 @@ in
 
             # Protected services wrap auth + backend in a catch-all handle so the
             # anchor's `/oauth2/*` handle is excluded from the forward-auth check.
-            prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups;
+            prefix = mkPrefix srv.proxy;
             body =
               if srv.proxy.isProtected then
                 ''
@@ -369,7 +442,7 @@ in
         ++ map (
           srv:
           let
-            prefix = mkPrefix srv.proxy.isInternal srv.proxy.isProtected srv.proxy.allowedGroups;
+            prefix = mkPrefix srv.proxy;
             noRobots = optionalString srv.params.noRobots badBotsSection;
             reverseProxy = lib.optionalString srv.proxy.hasReverseProxy "reverse_proxy ${srv.proxy.scheme}://${srv.params.ip}:${toString srv.proxy.servicePort}";
           in

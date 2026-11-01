@@ -32,6 +32,11 @@
     expected = "/run/node-exporter-textfile";
   };
 
+  testTailnetIpv6Cidr = {
+    expr = dnfLib.constants.tailnetIpv6Cidr;
+    expected = "fd7a:115c:a1e0::/48";
+  };
+
   testRoamingDomain = {
     expr = dnfLib.constants.roamingDomain;
     expected = "dnf.internal";

@@ -31,6 +31,9 @@ in
   # Tailnet IPv4 range: headscale's default `prefixes.v4`.
   tailnetIpv4Cidr = "100.64.0.0/10";
 
+  # Tailnet IPv6 range: headscale's default `prefixes.v6`.
+  tailnetIpv6Cidr = "fd7a:115c:a1e0::/48";
+
   # Reserved zone name for the global (Internet-facing) network.
   # Hosts outside this zone are considered local and reachable through a
   # zone gateway.

@@ -33,6 +33,13 @@
 # public `/oauth2/*` endpoints; a cookie scoped to the zone domain keeps the
 # session across its services.
 # :::
+#
+# :::note[Tailnet identity]
+# `proxy.tailnetIdentity`, for clients unable to follow the login flow (native
+# apps): a personal tailnet device is identified by tailscaled
+# (`tailscale.nginx-auth`) and passes as its owner, if member of the space.
+# Tagged machines, unknown addresses, off-tailnet clients: the SSO, unchanged.
+# :::
 
 {
   lib,
@@ -41,6 +48,7 @@
   hosts,
   zone,
   network,
+  users,
   dnfLib,
   ...
 }:
@@ -75,6 +83,12 @@ let
       // lib.optionalAttrs p.spaceMembersOnly {
         isProtected = true;
         allowedGroups = p.allowedGroups ++ [ (dnfLib.spaceGroup service.host) ];
+
+        # Kanidm groups are unknown on the tailnet identity path: Caddy compares
+        # emails. Undeclared logins dropped, as in the Kanidm group.
+        memberEmails = map (u: users.${u}.email) (
+          filter (u: users ? ${u}) (dnfLib.spaceMembers (dnfLib.findHost service.host service.zone hosts))
+        );
       };
   }) network.services;
 
@@ -252,6 +266,11 @@ in
               type = types.bool;
               default = false;
               description = "Restrict to the members of the instance host's AI space (Kanidm group `space-<host>`); implies isProtected";
+            };
+            proxy.tailnetIdentity = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Identify a member's personal tailnet device without the SSO, for clients unable to follow the login flow; requires spaceMembersOnly";
             };
             proxy.isInternal = mkOption {
               type = types.bool;
