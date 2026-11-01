@@ -8,7 +8,8 @@
 #   `groups` contains `admin`).
 # - Machines and zone LANs reach each other. Personal devices: DNS and HTTPS
 #   on the HCS, HTTPS on zone gateways (every zone for admins, else their
-#   `zone-*` groups). SSH from admin stations and `policy.adminDevices`.
+#   `zone-*` groups and the zones of their AI spaces). SSH from admin stations
+#   and `policy.adminDevices`.
 # - Every addressed zone host is a policy alias (`nas` -> its LAN IP): any
 #   other service opens through `policy.extraAcls` (`nas:445`).
 # - Personal devices log in through Kanidm (OIDC), for members of the Kanidm
