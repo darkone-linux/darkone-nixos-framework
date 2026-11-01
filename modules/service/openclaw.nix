@@ -13,8 +13,10 @@
 # - access: Caddy forward auth, members of `space-<host>` only
 #   (`proxy.spaceMembersOnly`); OpenClaw trusts the zone gateway as proxy
 #   (`trusted-proxy`) and reads the identity from `x-auth-request-email`;
+# - tailnet: a member's personal device passes without the SSO
+#   (`proxy.tailnetIdentity`), the only way in for the Android app;
 # - devices: a member's browser is paired on first visit, without operator
-#   admin (granted from the host CLI only);
+#   admin (granted from the host CLI only); the app with `openclaw qr`;
 # - port: reachable from the zone gateway only;
 # - host CLI: `openclaw` (alone: the TUI), re-run as the service user, past
 #   `trusted-proxy` with the gateway password (`openclaw-gateway-password`,
@@ -1049,6 +1051,7 @@ in
         ];
         proxy.servicePort = port;
         proxy.spaceMembersOnly = true;
+        proxy.tailnetIdentity = true;
       };
     }
 
@@ -1446,6 +1449,12 @@ in
                 load.paths = map toString (lib.attrValues plugins);
                 entries = lib.mapAttrs (_: _: { enabled = true; }) plugins;
               };
+            })
+
+            # Setup codes (`openclaw qr`, Control UI) target the proxy: the LAN
+            # bind they default to is firewalled. TLS needs the tailnet.
+            (lib.mkIf network.coordination.enable {
+              plugins.entries.device-pair.config.publicUrl = "wss://${params.fqdn}";
             })
             (lib.mkIf hasMatrix matrixConfig)
 
