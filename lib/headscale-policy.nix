@@ -5,7 +5,11 @@
 # from the generated hosts, users and zones. Pure and side-effect free:
 # `service/headscale.nix` and `service/headscale/audit.nix` serialize them.
 
-{ lib, topology }:
+{
+  lib,
+  topology,
+  hive,
+}:
 let
   inherit (lib)
     attrNames
@@ -72,8 +76,16 @@ let
     ++ optional (topology.inLocalZone zone && topology.isGateway host zone) (gatewayTag zone.name)
     ++ optional (isAdminStation host zone network) adminTag;
 
-  # Logins allowed to join the tailnet: an admin profile, or a zone to reach.
-  tailnetUsers = users: attrNames (filterAttrs (_: u: isAdminUser u || userZones u != [ ]) users);
+  # Logins allowed to join the tailnet: an admin profile, a zone to reach, or
+  # an AI space to reach.
+  tailnetUsers =
+    { users, hosts }:
+    let
+      spaceLogins = concatMap hive.spaceMembers (filter hive.isSpaceHost hosts);
+    in
+    attrNames (
+      filterAttrs (login: u: isAdminUser u || userZones u != [ ] || elem login spaceLogins) users
+    );
 in
 {
   inherit tailnetNodeTags tailnetUsers;
@@ -104,6 +116,11 @@ in
       zoneHosts = filter (h: hasAttr h.zone zones && (h.ip or "") != "") hosts;
       adminHosts = filter (h: isAdminStation h zones.${h.zone} network) zoneHosts;
 
+      # AI spaces of the local zones. A global one needs no rule: the HCS 443 is
+      # open to every member.
+      spaceHosts = filter hive.isSpaceHost zoneHosts;
+      spaceGroup = h: "group:${hive.spaceGroup h.hostname}";
+
       # Empty groups are dropped: a rule naming an undefined group fails the
       # whole policy.
       zoneUsers = zoneName: attrNames (filterAttrs (_: u: elem zoneName (userZones u)) users);
@@ -112,6 +129,11 @@ in
           "group:admins" = map userRef (attrNames (filterAttrs (_: isAdminUser) users));
         }
         // listToAttrs (map (z: nameValuePair "group:zone-${z}" (map userRef (zoneUsers z))) zoneNames)
+        // listToAttrs (
+          map (
+            h: nameValuePair (spaceGroup h) (map userRef (filter (u: hasAttr u users) (hive.spaceMembers h)))
+          ) spaceHosts
+        )
       );
       hasGroup = name: hasAttr name groups;
 
@@ -136,6 +158,12 @@ in
       ++ optional (hasGroup "group:admins") (accept [ "group:admins" ] (concatMap gatewayHttps zoneNames))
       ++ map (z: accept [ "group:zone-${z}" ] (gatewayHttps z)) (
         filter (z: hasGroup "group:zone-${z}") zoneNames
+      )
+
+      # A space is reached through the gateway of its zone, whatever the zones
+      # of its members.
+      ++ map (h: accept [ (spaceGroup h) ] (gatewayHttps h.zone)) (
+        filter (h: hasGroup (spaceGroup h)) spaceHosts
       )
       ++ [
         (accept [ "autogroup:member" ] [ "autogroup:self:*" ])
@@ -212,6 +240,6 @@ in
         }
       ) (filter (host: nodeTags host != [ ]) hosts);
       inherit adminDevices;
-      users = tailnetUsers users;
+      users = tailnetUsers { inherit users hosts; };
     };
 }

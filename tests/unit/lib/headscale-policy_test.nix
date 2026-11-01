@@ -90,6 +90,31 @@ let
     };
   };
 
+  # AI space of the `far` zone: `guest` has no tailnet right of its own, `nix`
+  # never counts as a member, `ghost` is undeclared.
+  space = {
+    hostname = "ia";
+    zone = "far";
+    ip = "10.2.1.40";
+    profile = "ai-space";
+    users = [
+      "guest"
+      "alice"
+      "nix"
+      "ghost"
+    ];
+    groups = [ ];
+  };
+  spacePolicy = policy { hosts = hosts ++ [ space ]; };
+  spaceRule = {
+    action = "accept";
+    src = [ "group:space-ia" ];
+    dst = [
+      "tag:gw-far:443"
+      "gateway-far:443"
+    ];
+  };
+
   policy = args: dnfLib.mkHeadscalePolicy ({ inherit network hosts users; } // args);
   enforced = policy { };
   hasRule = acls: rule: builtins.elem rule acls;
@@ -165,11 +190,86 @@ in
 
   # ----- tailnetUsers -----
   testTailnetUsers = {
-    expr = dnfLib.tailnetUsers users;
+    expr = dnfLib.tailnetUsers { inherit users hosts; };
     expected = [
       "alice"
       "bob"
     ];
+  };
+
+  # A space member joins, even without any other right; an undeclared one is
+  # left out.
+  testTailnetUsersSpaceMember = {
+    expr = dnfLib.tailnetUsers {
+      inherit users;
+      hosts = hosts ++ [ space ];
+    };
+    expected = [
+      "alice"
+      "bob"
+      "guest"
+    ];
+  };
+
+  # ----- mkHeadscalePolicy: AI spaces -----
+  testSpaceGroup = {
+    expr = spacePolicy.groups."group:space-ia";
+    expected = [
+      "guest@"
+      "alice@"
+    ];
+  };
+  testSpaceRule = {
+    expr = hasRule spacePolicy.acls spaceRule;
+    expected = true;
+  };
+
+  # No member left: the group would fail the whole policy, the rule goes with it.
+  testSpaceWithoutMembers = {
+    expr =
+      let
+        p = policy { hosts = hosts ++ [ (space // { users = [ "nix" ]; }) ]; };
+      in
+      {
+        group = p.groups ? "group:space-ia";
+        rule = hasRule p.acls spaceRule;
+      };
+    expected = {
+      group = false;
+      rule = false;
+    };
+  };
+
+  # Global zone: reached on the HCS, open to every member.
+  testSpaceGlobalNoRule = {
+    expr = (policy { hosts = hosts ++ [ (space // { zone = "www"; }) ]; }).groups ? "group:space-ia";
+    expected = false;
+  };
+
+  # Open policy: identities kept, the rule is only part of the enforced set.
+  testSpaceOpenPolicy = {
+    expr =
+      let
+        p = policy {
+          hosts = hosts ++ [ space ];
+          enforce = false;
+        };
+      in
+      {
+        group = p.groups ? "group:space-ia";
+        rule = hasRule p.acls spaceRule;
+      };
+    expected = {
+      group = true;
+      rule = false;
+    };
+  };
+
+  # A host outside `ai-space` grants nothing to its users.
+  testSpaceOtherProfile = {
+    expr =
+      (policy { hosts = hosts ++ [ (space // { profile = "server"; }) ]; }).groups ? "group:space-ia";
+    expected = false;
   };
 
   # ----- mkHeadscalePolicy: identities -----

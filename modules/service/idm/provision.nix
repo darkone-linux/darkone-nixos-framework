@@ -224,7 +224,9 @@ in
 
       # Logins allowed to register a personal device on the tailnet: the
       # headscale OAuth2 client maps its scopes to this group only.
-      // optionalAttrs network.coordination.enable { tailnet.members = dnfLib.tailnetUsers users; }
+      // optionalAttrs network.coordination.enable {
+        tailnet.members = dnfLib.tailnetUsers { inherit users hosts; };
+      }
 
       # One group per AI space, gating its protected services. Undeclared
       # logins are dropped: kanidm-provision rejects an unknown member.
