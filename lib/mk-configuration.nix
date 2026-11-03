@@ -89,6 +89,10 @@ let
   # since `mcp` 2. Drop once nixpkgs#578265 reaches `nixos-unstable`.
   posthogOverlay = import ./overlays/posthog.nix;
 
+  # Temporary: `digital` built with the full JDK, its AWT tests fail under
+  # maven's `jdk_headless`. Drop once nixpkgs#581567 reaches `nixos-unstable`.
+  digitalOverlay = import ./overlays/digital.nix;
+
   # `pkgs.talon` from nix-community/talon-nix, x86_64 only (absent elsewhere),
   # for UMI (multimodal input) host profiles.
   talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
@@ -242,6 +246,7 @@ let
             logseqOverlay
             kernelModulesSignOverlay
             posthogOverlay
+            digitalOverlay
             (talonOverlay system)
             (opencodeOverlay system)
             (openclawOverlay system)

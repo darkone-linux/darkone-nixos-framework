@@ -40,6 +40,16 @@
     since = "2026-10-27";
   };
 
+  digital = {
+    kind = "overlay";
+    files = [ "lib/overlays/digital.nix" ];
+    reason = "buildMavenPackage defaults to jdk_headless (nixpkgs#578013): no libfontmanager, 11 AWT tests fail";
+    upstream = "NixOS/nixpkgs#581567";
+    package = "digital";
+    dropWhen = "nixpkgs#581567 in the locked nixpkgs";
+    since = "2026-11-03";
+  };
+
   logseq = {
     kind = "overlay";
     files = [
