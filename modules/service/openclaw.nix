@@ -44,8 +44,9 @@
 #   (`agents.defaults.cwd`), `projects` git-cloned once into it;
 # - coding agents (Claude Code, Codex, OpenCode of the space): background
 #   workers (`coding-agent` skill), chat-bound sessions (`/acp spawn`, acpx);
-# - Talk (`talk`): live voice conversation in the browser, OpenAI GPT-Live,
-#   work delegated to the agent (`agent-consult`), ChatGPT login first;
+# - Talk (`talk`): live voice conversation (browser, Android app), OpenAI
+#   GPT-Live (ChatGPT login first) or Gemini Live (`GEMINI_API_KEY`), work
+#   delegated to the agent (`agent-consult`);
 # - workflows: Lobster pipelines (`lobster`, `.lobster` files through
 #   `workspace`), declared automations (`automations`, kept in sync, others
 #   left to the agent and the UI);
@@ -414,6 +415,7 @@ let
     in
     !(subscriptionKeys ? ${p}) && !(cfg.providers ? ${p})
   ) models;
+  talkOn = p: cfg.talk.enable && cfg.talk.provider == p;
 
   # OpenAI-compatible providers absent from OpenClaw.
   providersConfig = lib.mapAttrs (
@@ -921,22 +923,57 @@ in
       };
 
       talk = {
-        enable = lib.mkEnableOption "Talk: live voice conversation in the browser (OpenAI GPT-Live)";
+        enable = lib.mkEnableOption "Talk: live voice conversation (browser, Android app)";
+        provider = lib.mkOption {
+          type = lib.types.enum [
+            "openai"
+            "google"
+          ];
+          default = "openai";
+          example = "google";
+          description = ''
+            Realtime voice:
+            - `openai`: GPT-Live, browser WebRTC, SDP through the gateway;
+            - `google`: Gemini Live, audio relayed by the gateway, needs
+              `GEMINI_API_KEY` in `apiKeys` (Google AI Studio key).
+          '';
+        };
         model = lib.mkOption {
           type = lib.types.str;
-          default = "gpt-live-1-codex";
+          default =
+            {
+              openai = "gpt-live-1-codex";
+              google = "gemini-3.1-flash-live-preview";
+            }
+            .${cfg.talk.provider};
+          defaultText = lib.literalMD "`gpt-live-1-codex` (`openai`), `gemini-3.1-flash-live-preview` (`google`)";
           description = ''
-            Realtime model. `gpt-live-1-codex`: the owner's ChatGPT login
-            (`openclaw models auth login --provider openai`), else a Platform
-            key (`OPENAI_API_KEY`); `gpt-live-1`, `gpt-realtime-2.1` (camera):
-            Platform key only. Pinned: unset, a Platform key wins over ChatGPT.
+            Realtime model, by provider:
+            - `openai`: `gpt-live-1-codex` through the owner's ChatGPT login
+              (`openclaw models auth login --provider openai`), else a Platform
+              key (`OPENAI_API_KEY`); `gpt-live-1`, `gpt-realtime-2.1`
+              (camera): Platform key only. Pinned: unset, a Platform key wins
+              over ChatGPT;
+            - `google`: `gemini-3.1-flash-live-preview`, `gemini-3.8-live`.
           '';
         };
         voice = lib.mkOption {
           type = lib.types.str;
-          default = "cove";
+          default =
+            {
+              openai = "cove";
+              google = "Kore";
+            }
+            .${cfg.talk.provider};
+          defaultText = lib.literalMD "`cove` (`openai`), `Kore` (`google`)";
           example = "sol";
-          description = "Voice of the model's route (`gpt-live-1-codex`: `cove`, `arbor`, `breeze`, `ember`, `juniper`, `maple`, `sol`, `spruce`, `vale`).";
+          description = ''
+            Voice of the model's route:
+            - `gpt-live-1-codex`: `cove`, `arbor`, `breeze`, `ember`, `juniper`,
+              `maple`, `sol`, `spruce`, `vale`;
+            - Gemini Live: `Kore`, `Puck`, `Charon`, `Aoede`, `Zephyr`... (30
+              prebuilt voices, listed in Settings → Talk).
+          '';
         };
         instructions = lib.mkOption {
           type = lib.types.nullOr lib.types.lines;
@@ -1117,10 +1154,14 @@ in
         )
         ++
           lib.optional
-            (cfg.talk.enable && cfg.talk.model != "gpt-live-1-codex" && !lib.elem "OPENAI_API_KEY" keyVars)
+            (talkOn "openai" && cfg.talk.model != "gpt-live-1-codex" && !lib.elem "OPENAI_API_KEY" keyVars)
             (
               "${host.hostname}: openclaw Talk model `${cfg.talk.model}` needs a Platform key: add `OPENAI_API_KEY` to `apiKeys`."
             )
+        ++
+          lib.optional
+            (talkOn "google" && !lib.elem "GEMINI_API_KEY" keyVars && !lib.elem "GOOGLE_API_KEY" keyVars)
+            ("${host.hostname}: openclaw Talk `google` needs a Gemini key: add `GEMINI_API_KEY` to `apiKeys`.")
         ++ lib.optional (keylessModels != [ ] && cfg.apiKeys == [ ]) (
           "${host.hostname}: openclaw models through an API key, none in `apiKeys`: ${lib.concatStringsSep ", " keylessModels}."
         )
@@ -1291,14 +1332,15 @@ in
               };
             })
 
-            # WebRTC between browser and OpenAI, SDP through the gateway; the
-            # bundled `openai` plugin must load (never `plugins.allow`).
+            # `openai`: browser↔OpenAI WebRTC, SDP through the gateway. `google`:
+            # one relayed path, the only realtime one on Android. Bundled
+            # provider plugins must load: never `plugins.allow`.
             (lib.mkIf cfg.talk.enable {
               talk.realtime = {
-                provider = "openai";
-                transport = "webrtc";
+                inherit (cfg.talk) provider;
+                transport = if cfg.talk.provider == "openai" then "webrtc" else "gateway-relay";
                 brain = "agent-consult";
-                providers.openai = {
+                providers.${cfg.talk.provider} = {
                   inherit (cfg.talk) model;
                   speakerVoice = cfg.talk.voice;
                 };
