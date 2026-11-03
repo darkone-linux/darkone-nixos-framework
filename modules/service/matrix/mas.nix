@@ -299,6 +299,14 @@ in
     # through slow migrations after an upgrade.
     systemd.services.matrix-authentication-service.serviceConfig.Type = "notify";
 
+    # The DynamicUser name resolves through nscd only (nss-systemd); sqlx and
+    # peer auth both need it. Started beside a restarting nscd (switch), MAS
+    # connects as role `unknown` and fails.
+    systemd.services.matrix-authentication-service = {
+      after = [ "nscd.service" ];
+      wants = [ "nscd.service" ];
+    };
+
     # Delegated auth needs MAS up before synapse serves clients. `wants`, not
     # `requires`: a MAS restart must not take synapse down with it.
     systemd.services.matrix-synapse = {
