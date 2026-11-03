@@ -10,6 +10,78 @@ observable defaults, `lib.mkConfigurations`, public `just` recipes, the expected
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-03
+
+### Added
+
+- **openclaw**: Identity imposed, also as the Matrix bot's name and avatar
+- **gateway**: WanSsh opens public SSH until the tailnet takes over
+- **install**: Preflight checks and pending changes before formatting
+- **workarounds**: Registry of temporary upstream workarounds, unit-tested
+- **workarounds**: Just workarounds, upstream status and drop candidates
+- **gnome**: Passwordless login keyring on encrypted hosts
+- **headscale**: Open the zone gateway HTTPS to AI space members
+- **caddy**: Identify tailnet devices of space members before the SSO
+- **openclaw**: Let the Android app in through the tailnet identity
+- **secrets**: Warn about host users without a password hash on generate
+- **fleet-update**: V0.8.3
+
+### Fixed
+
+- **security**: Host exceptions no longer drop the SELinux ones (R46-R49)
+- **luks**: Record the gateway public address, not its box-side WAN IP
+- **install**: Skip the reservation check outside zone networks
+- **install**: No machine substituters for an installer outside every zone
+- **install**: No machine substituters for a zone gateway either
+- **install**: Keep hardware config on reinstall, messages fit full-install
+- **install**: Pin nixos-anywhere and disko to the framework lock
+- **install**: Normalize the probed hardware config once, no churn commits
+- **install**: No next-step hints inside full-install
+- **luks**: Keep full-install's hint muting across the sudo re-exec
+- **install**: Keep piped answers away from the preflight ssh to the HCS
+- **install**: Seal an isolated host's sops file before the build
+- **ai**: Unbreak posthog for aider-chat, marked broken since mcp 2
+- **ai**: Re-enable herdr, unstable links it again
+- **office**: Re-enable librewolf, no longer flagged insecure
+- **posthog**: Disable timing-dependent tests, flaky on loaded builders
+- **ai**: Skip flaky fpdf2 image hash test in stable open-webui
+- **sops**: Install secrets via systemd unit, restartUnits ready for 26.11
+- **release**: Restore the tree on a stopped bump, gate just release on audit
+- **gnome**: Keep sealed keyrings instead of deleting them
+- **openclaw**: Keep the automations sync out of the boot transaction
+- **digital**: Build with the full jdk, AWT tests fail headless
+- **matrix**: Start MAS after nscd, its DynamicUser name needs it
+
+### Security
+
+- **sops**: Never give the infra key to a host that does not read it
+- **sops**: Delete the infra key left on a host turned isolated
+- **luks**: Pin the initrd host key in just unlock
+- **luks**: No fleet LUKS secret on an encrypted isolated host
+- **sops**: Fail the eval on a fleet secret of an isolated host
+- **yubikey**: Per-host FIDO2 salts on encrypted isolated hosts
+
+### Removed
+
+- **luks**: Drop boot.initrd.systemd.enable, scripted initrd removed
+- **gimp**: Drop the __structuredAttrs overlay, unstable builds again
+- **audio**: Drop the audacity stable pin, unstable 4.0 builds again
+- **music**: Drop the musescore stable pin, unstable builds again
+- **matrix**: Drop the synapse stable pin, unstable builds 1.163.0
+- **ai**: Drop the ollama stable pin, unstable is newer again
+- **advanced**: Drop the d2 stable pin, unstable 0.9.0 renders the doc
+- **element**: Drop stale kanidm oidc metadata from the desktop client
+
+### Documentation
+
+- **workarounds**: Point overlays and backports to config/workarounds.nix
+- **headscale**: Mention the gateway access of AI space members
+
+### Dependencies
+
+- fleet-update v0.8.2
+- rename-simple v2.0.1
+
 ## [0.6.0] - 2026-10-24
 
 ### ⚠ Breaking
@@ -582,7 +654,8 @@ framework as it stands, not the commits that built it.
 | [dnf-boilerplate](https://github.com/darkone-linux/dnf-boilerplate) | `v0.1.0` |
 | [dnf-example](https://github.com/darkone-linux/dnf-example) | `v0.1.0` |
 
-[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.3.1...v0.4.0
