@@ -1369,7 +1369,11 @@ in
           after = [ "openclaw-gateway.service" ];
           partOf = [ "openclaw-gateway.service" ];
           serviceConfig = {
-            Type = "oneshot";
+
+            # `exec`, not `oneshot`: the wait for the gateway (~2 min) stays
+            # out of the boot transaction, else a microVM guest's READY misses
+            # the `microvm@` start timeout (150 s), killed and booted again.
+            Type = "exec";
             RemainAfterExit = true;
             User = "openclaw";
             Group = "openclaw";
