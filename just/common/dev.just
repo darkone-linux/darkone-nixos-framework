@@ -31,7 +31,8 @@ _statix:
 	statix fix .
 
 # Consumer project: framework and local `default.nix` import lists, then the
-# Rust-generated `var/generated/*.nix`. Framework alone: its own import lists.
+# Rust-generated `var/generated/*.nix`, then host users missing a password
+# hash (warning). Framework alone: its own import lists.
 #
 # Update the nix generated files.
 [group('dev')]
@@ -47,6 +48,11 @@ generate:
 		just _gen "hosts"
 		just _gen "network"
 		just _gen "machines"
+
+		# A missing hash fails its host late, at build, naming one login: list
+		# them all now. A warning: the other hosts still build.
+		WORKDIR="{{workDir}}" bash {{scriptsDir}}/check-password-hashes.sh \
+			| while read -r line; do just _warn "Password hash missing: $line"; done
 	else
 		just _gen-default "modules"
 		just _gen-default "home/modules"
