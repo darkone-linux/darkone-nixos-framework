@@ -11,11 +11,13 @@ let
   cfg = config.darkone.home.games;
   graphic = osConfig.darkone.graphic.gnome.enable;
 
-  # Conditions
+  # Home profile conditions
   isBabyOrChild = cfg.enableBaby || cfg.enableChild;
   isChildOrTeen = cfg.enableChild || cfg.enableTeenager;
   isNotBaby = !cfg.enableBaby;
-  gnomeGames = graphic && isNotBaby;
+
+  # Packages conditions
+  gnomeGames = graphic && isNotBaby && cfg.enableGnome;
   g3d = cfg.enable3D && isChildOrTeen;
   cli = isNotBaby && cfg.enableCli;
   moreCli = cfg.enableMore && cli;
@@ -48,6 +50,11 @@ in
       default = [ ];
       example = lib.literalExpression "[ pkgs.gnome-2048 ]";
       description = "Games of the enabled categories not to install, matched by name.";
+    };
+    darkone.home.games.enableGnome = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Enable popular gnome games";
     };
   };
 
