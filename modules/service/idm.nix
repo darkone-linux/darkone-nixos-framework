@@ -181,7 +181,7 @@ in
         # goes EOL 30 days after its successor ships, then nixpkgs marks it
         # insecure and evaluation fails. Bump one minor at a time, after
         # `kanidmd domain upgrade-check` passes on the running node.
-        package = pkgs.kanidm_1_11.withSecretProvisioning;
+        package = pkgs.kanidm_1_12.withSecretProvisioning;
 
         #----------------------------------------------------------------------
         # SERVER
