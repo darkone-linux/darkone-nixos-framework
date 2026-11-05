@@ -9,6 +9,10 @@
 # `just sops` on the rare occasions an admin needs one.
 # :::
 #
+# Online backup: one dump per night, 7 kept in `/var/lib/kanidm/backups`
+# (`services.kanidm.server.settings.online_backup`). Restorable only by the
+# same kanidm minor version: an upgrade still needs a cold copy.
+#
 # Sub-modules (`idm/`):
 # - `replication.nix`: multi-zone read-only replication, HCS to zone gateways;
 # - `provision.nix`: OAuth2 clients (template registry), groups and persons.
@@ -45,6 +49,7 @@
 let
   inherit (lib)
     listToAttrs
+    mkDefault
     mkEnableOption
     mkIf
     mkMerge
@@ -215,6 +220,11 @@ in
             # never has to chain to anything.
             tls_chain = secrets.kanidm-tls-chain.path;
             tls_key = secrets.kanidm-tls-key.path;
+
+            # Nightly gzip dump (read txn) at 22:00 UTC, ahead of the 01:00 restic
+            # system run. nixpkgs ships `versions = 0`: kanidm still writes the
+            # dump, then its rotation deletes it at once.
+            online_backup.versions = mkDefault 7;
           };
         };
 
