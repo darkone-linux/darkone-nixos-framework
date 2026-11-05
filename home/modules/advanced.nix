@@ -549,6 +549,8 @@ in
     xdg.dataFile = lib.mkIf hasGhostty {
       "nautilus/scripts/Open in Ghostty" = {
         executable = true;
+
+        # Configured package, not `pkgs.ghostty`: keeps a host's GL wrapper.
         text = ''
           #!/usr/bin/env bash
           dir="''${1:-}"
@@ -560,7 +562,7 @@ in
 
           [ -d "$dir" ] || dir="$(dirname "$dir")"
           [ -d "$dir" ] || dir="$HOME"
-          exec ${lib.getExe pkgs.ghostty} --working-directory="$dir"
+          exec ${lib.getExe config.programs.ghostty.package} --working-directory="$dir"
         '';
       };
     };
