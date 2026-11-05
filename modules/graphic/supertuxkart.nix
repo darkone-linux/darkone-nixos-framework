@@ -17,6 +17,12 @@
 # address" (server IP, port 2759).
 # :::
 #
+# :::tip[Direct cable, no network]
+# `enableDirectLink`: two hosts linked by a bare Ethernet cable (no DHCP, no
+# Internet). On both, pick the `STK direct cable` profile in the GNOME wired
+# menu (link-local addresses), then Online → Local Networking.
+# :::
+#
 # :::caution[Fleet-scoped firewall]
 # Sources are matched on fleet prefixes, never on an interface: a STK host that
 # also holds a WAN address does not publish the game there.
@@ -46,6 +52,9 @@ let
       lib.filterAttrs (_: dnfLib.inLocalZone) network.zones
     )
     ++ lib.optional network.coordination.enable dnfLib.constants.tailnetIpv4Cidr;
+
+  # Shown as is in the GNOME wired menu.
+  directLinkProfile = "STK direct cable";
 in
 {
   options = {
@@ -56,40 +65,72 @@ in
       default = null;
       description = "Hostname serving the tracks, default is the zone's `stk` service host";
     };
+    darkone.graphic.supertuxkart.enableDirectLink = lib.mkEnableOption "Play over a direct Ethernet cable, no DHCP (`${directLinkProfile}` NetworkManager profile)";
   };
 
-  config = lib.mkIf cfg.enable {
-
-    assertions = [
+  config = lib.mkIf cfg.enable (
+    lib.mkMerge [
       {
-        assertion = inLocalZone;
-        message = "darkone.graphic.supertuxkart on ${host.hostname}: LAN game, unusable in the global zone (no prefix to scope its firewall rules on).";
+
+        assertions = [
+          {
+            assertion = inLocalZone;
+            message = "darkone.graphic.supertuxkart on ${host.hostname}: LAN game, unusable in the global zone (no prefix to scope its firewall rules on).";
+          }
+        ];
+
+        # STK package
+        environment.systemPackages = with pkgs; [ supertuxkart ];
+
+        # Facade over the share. Only ever asserts the positive, so the service's
+        # own defaults — false, and the zone's `stk` host — still apply, and a
+        # direct `darkone.service.stk.*` definition does not collide with it.
+        darkone.service.stk = {
+          enableClient = lib.mkIf cfg.enableNfsClient true;
+          serverName = lib.mkIf (cfg.nfsServer != null) cfg.nfsServer;
+        };
+
+        # Open ports & accept broadcasts (local servers discovery)
+        networking.firewall = {
+          enable = true;
+
+          # No `allowedUDPPorts`: without `iifname` nor source match, every host leg
+          # would get the game. 2757 (discovery) and 2759 (game) from the fleet;
+          # the ephemeral range from the zone only: broadcast discovery answers,
+          # which conntrack cannot relate, never cross a gateway.
+          extraInputRules = lib.optionalString inLocalZone ''
+            ip saddr { ${lib.concatStringsSep ", " fleetCidrs} } udp dport { 2757, 2759 } accept
+            ip saddr ${zoneCidr} udp dport 32768-60999 accept
+          '';
+        };
       }
-    ];
 
-    # STK package
-    environment.systemPackages = with pkgs; [ supertuxkart ];
+      (lib.mkIf cfg.enableDirectLink {
+        assertions = [
+          {
+            assertion = config.networking.networkmanager.enable;
+            message = "darkone.graphic.supertuxkart.enableDirectLink on ${host.hostname}: requires networking.networkmanager.enable.";
+          }
+        ];
 
-    # Facade over the share. Only ever asserts the positive, so the service's
-    # own defaults — false, and the zone's `stk` host — still apply, and a
-    # direct `darkone.service.stk.*` definition does not collide with it.
-    darkone.service.stk = {
-      enableClient = lib.mkIf cfg.enableNfsClient true;
-      serverName = lib.mkIf (cfg.nfsServer != null) cfg.nfsServer;
-    };
+        # A bare cable has no DHCP: link-local addresses on both ends. Picked by
+        # hand (`autoconnect = false`): the zone LAN keeps the stock DHCP profile.
+        networking.networkmanager.ensureProfiles.profiles.stk-direct = {
+          connection = {
+            id = directLinkProfile;
+            type = "ethernet";
+            autoconnect = false;
+          };
+          ipv4.method = "link-local";
+          ipv6.method = "link-local";
+        };
 
-    # Open ports & accept broadcasts (local servers discovery)
-    networking.firewall = {
-      enable = true;
-
-      # No `allowedUDPPorts`: without `iifname` nor source match, every host leg
-      # would get the game. 2757 (discovery) and 2759 (game) from the fleet;
-      # the ephemeral range from the zone only: broadcast discovery answers,
-      # which conntrack cannot relate, never cross a gateway.
-      extraInputRules = lib.optionalString inLocalZone ''
-        ip saddr { ${lib.concatStringsSep ", " fleetCidrs} } udp dport { 2757, 2759 } accept
-        ip saddr ${zoneCidr} udp dport 32768-60999 accept
-      '';
-    };
-  };
+        # 169.254.0.0/16 never crosses a router: only the peer at the cable's end.
+        # Same ports as from the zone, ephemeral range for the discovery answers.
+        networking.firewall.extraInputRules = ''
+          ip saddr 169.254.0.0/16 udp dport { 2757, 2759, 32768-60999 } accept
+        '';
+      })
+    ]
+  );
 }
