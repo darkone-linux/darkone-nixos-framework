@@ -43,7 +43,11 @@ let
 
   # Terminal of every technical profile: first favorite of the dash
   # (modules/graphic/gnome.nix), Ctrl+Alt+T (home/profiles/minimal).
-  hasGhostty = graphic;
+  offerGhostty = graphic;
+
+  # Effective state: a host without OpenGL 4.3 opts out with
+  # `programs.ghostty.enable = false`, GNOME Console takes over.
+  hasGhostty = config.programs.ghostty.enable;
 
   # Ghostty, zellij, tmux
   termBgColor = "#0F0F0F";
@@ -511,7 +515,7 @@ in
     };
 
     # Ghostty terminal emulator
-    programs.ghostty = lib.mkIf hasGhostty {
+    programs.ghostty = lib.mkIf offerGhostty {
       enable = lib.mkDefault true;
       enableZshIntegration = true;
 
