@@ -7,7 +7,8 @@
 # - `pre`   offline half, run by `just install` BEFORE the build: sops secrets
 #           (shared `luks-passphrase`, per-host `luks/<host>/passphrase`, initrd
 #           SSH host key `luks/<host>/initrd-key`) and the public manifest entry
-#           in usr/secrets/luks.json. Never touches the target.
+#           in usr/secrets/luks.json, with the initrd public key the HCS
+#           authorizes the WAN report with. Never touches the target.
 # - ``      `pre`, then converge the target: put the initrd host key back if it
 #           is missing, record the gateway public address so `just unlock`
 #           still finds the initrd sshd when the VPN is down, and bootstrap the
@@ -140,6 +141,14 @@ luks host action='' ip='auto' wan='':
 		[ -f "$manifest" ] || echo '{}' > "$manifest"
 		yq -e '."{{host}}"' "$manifest" >/dev/null 2>&1 \
 			|| yq -i -p=json -o=json '."{{host}}" = {}' "$manifest"
+
+		# Public on purpose: the HCS authorizes the gateway WAN report with it
+		# (modules/system/luks/wan-report.nix). Refreshed, sops is the source.
+		pub=$(hsops -d --extract '["luks"]["{{host}}"]["initrd-key-pub"]' "$store" 2>/dev/null || true)
+		if [ -n "$pub" ] && [ "$(yq -r '."{{host}}"."initrd-key-pub" // ""' "$manifest")" != "$pub" ] ;then
+			PUB="$pub" yq -i -p=json -o=json '."{{host}}"."initrd-key-pub" = strenv(PUB)' "$manifest"
+			just _log "Initrd public key of {{host}} published in luks.json (WAN report)." "LUKS"
+		fi
 		just _fix_fs_permissions
 	fi
 	[ "{{action}}" != "pre" ] || exit 0
@@ -581,8 +590,22 @@ _luks-show host target store storekey:
 	gwhost=$({{nix}} eval --impure --raw \
 		--expr "(import {{workDir}}/var/generated/network.nix).zones.\"${zone%%:*}\".gateway.hostname or \"\"" 2>/dev/null || echo "")
 	if [ "$gwhost" = "{{host}}" ] ;then
+		rep=$(just _wan-reported "{{host}}")
+		if [ -n "$rep" ] ;then
+			read -r rip rts rphase <<<"$rep"
+			age=$(( ($(date +%s) - rts) / 60 ))
+			if [ "$age" -le 120 ] ;then
+				pass "WAN address reported to the HCS: $rip ($rphase, $age min ago)"
+			else
+				warn "last WAN report to the HCS is $age min old ($rip): see dnf-wan-report.service on {{host}}"
+			fi
+		else
+			warn "no WAN report on the HCS: 'just luks {{host}}', then apply the HCS, then {{host}}"
+		fi
 		wan=$(yq -r '."{{host}}".wan // ""' {{secretsDir}}/luks.json)
-		if [ -z "$wan" ] ;then
+		if [ -z "$wan" ] && [ -n "$rep" ] ;then
+			pass "no static WAN address recorded, the HCS report stands in"
+		elif [ -z "$wan" ] ;then
 			fail "no WAN address recorded: unreachable in initrd once the VPN is down"
 
 		# Recorded before public addresses were told apart: a box-side IP.
@@ -633,15 +656,25 @@ unlock host ip='' timeout='600':
 	pin=(-p 2222 -o HostKeyAlias="initrd-{{host}}" -o UserKnownHostsFile="$kh"
 		-o GlobalKnownHostsFile=/dev/null -o StrictHostKeyChecking=yes)
 
-	# The WAN address recorded for a gateway is the only way in when the VPN
-	# route to its zone died with it (same fallback as `_enter_initrd`).
-	wan=$(yq -r '."{{host}}".wan // ""' {{secretsDir}}/luks.json 2>/dev/null || true)
+	# The WAN address of a gateway is the only way in when the VPN route to
+	# its zone died with it (same fallback as `_enter_initrd`): the one it
+	# reported to the HCS first, the one recorded in luks.json second.
+	wan=$(just _wan-reported "{{host}}" | cut -d' ' -f1)
+	[ -n "$wan" ] || wan=$(yq -r '."{{host}}".wan // ""' {{secretsDir}}/luks.json 2>/dev/null || true)
 
-	# 2222 first: a host that answers on both is already booted.
-	answer=$(just _wait-any "{{host}}" "{{ip}}" "2222 22" "{{timeout}}")
-	read -r addr port <<<"$answer"
-	if [ "$port" != "2222" ] && [ -n "$wan" ] ;then
-		timeout 2 bash -c ": < /dev/tcp/$wan/2222" 2>/dev/null && { addr=$wan ; port=2222 ; } || true
+	# Probed before `_wait-any`: its zone addresses are dead with the gateway,
+	# it would only give up after the whole timeout.
+	if [ -z "{{ip}}" ] && [ -n "$wan" ] && timeout 2 bash -c ": < /dev/tcp/$wan/2222" 2>/dev/null ;then
+		addr=$wan ; port=2222
+		just _log "{{host}} waits in initrd on its WAN address $wan." "LUKS"
+	else
+
+		# 2222 first: a host that answers on both is already booted.
+		answer=$(just _wait-any "{{host}}" "{{ip}}" "2222 22" "{{timeout}}")
+		read -r addr port <<<"$answer"
+		if [ "$port" != "2222" ] && [ -n "$wan" ] ;then
+			timeout 2 bash -c ": < /dev/tcp/$wan/2222" 2>/dev/null && { addr=$wan ; port=2222 ; } || true
+		fi
 	fi
 	if [ "$port" != "2222" ] ;then
 		just _log "{{host}} already answers on 22: nothing to unlock." "LUKS"
@@ -709,16 +742,18 @@ unlock host ip='' timeout='600':
 	just _enter_initrd "{{host}}" "$addr" "$kh"
 
 # Interactive LUKS prompt of a host waiting in initrd (sshd on 2222): probe the
-# explicit ip, the hostname, then the WAN IP of usr/secrets/luks.json — the VPN
-# route to a zone dies with its gateway. root@, outside the `Match user nix`
+# explicit ip, the hostname, then the WAN IP reported to the HCS and the one of
+# usr/secrets/luks.json — the VPN route to a zone dies with its gateway. root@, outside the `Match user nix`
 # policy: the initrd host key is pinned by `known_hosts`, built by `unlock`.
 _enter_initrd host ip known_hosts:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	candidates="{{ip}}"
 	[ "{{ip}}" = "{{host}}" ] || candidates="$candidates {{host}}"
-	wan=$(yq -r '."{{host}}".wan // ""' {{secretsDir}}/luks.json 2>/dev/null || true)
-	{ [ -z "$wan" ] || [ "$wan" = "{{ip}}" ] ; } || candidates="$candidates $wan"
+	for wan in "$(just _wan-reported "{{host}}" | cut -d' ' -f1)" \
+		"$(yq -r '."{{host}}".wan // ""' {{secretsDir}}/luks.json 2>/dev/null || true)" ;do
+		[ -z "$wan" ] || [[ " $candidates " == *" $wan "* ]] || candidates="$candidates $wan"
+	done
 	for c in $candidates ;do
 		if timeout 2 bash -c "exec 3<>/dev/tcp/$c/2222" 2>/dev/null ;then
 			just _log "{{host}} ($c) is waiting in initrd: answering the LUKS prompt..." "LUKS"
@@ -733,6 +768,25 @@ _enter_initrd host ip known_hosts:
 		fi
 	done
 	just _fail "{{host}}: no initrd answering on port 2222 (tried:$candidates)."
+
+# Last WAN report of a zone gateway to the HCS (modules/system/luks/wan-report.nix):
+# `<ip> <epoch> <phase>`. Empty for any other host, or when the HCS does not
+# answer: callers fall back to the `wan` of luks.json, never fail on it.
+_wan-reported host:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	[ "${USER:-}" = "nix" ] || exec sudo -u nix just _wan-reported "{{host}}"
+	cfg={{workDir}}/etc/config.yaml
+	[ "$(yq -r '.network.coordination.enable // false' "$cfg")" = "true" ] || exit 0
+	hcs=$(yq -r '.network.coordination.hostname' "$cfg")
+	zone=$(just _host_conf "{{host}}" | yq -p=json -r '.zone // ""')
+	gwhost=$({{nix}} eval --impure --raw \
+		--expr "(import {{workDir}}/var/generated/network.nix).zones.\"${zone%%:*}\".gateway.hostname or \"\"" 2>/dev/null || echo "")
+	[ "$gwhost" = "{{host}}" ] && [ "$gwhost" != "$hcs" ] || exit 0
+	line=$(ssh -o BatchMode=yes -o ConnectTimeout=10 nix@"$hcs" cat /var/lib/dnf-wan-report/{{host}} 2>/dev/null || true)
+	read -r ip ts phase <<<"$line" || true
+	[[ "${ts:-}" =~ ^[0-9]+$ ]] && just _is-public-ipv4 "${ip:-}" 2>/dev/null || exit 0
+	echo "$ip $ts ${phase:-unknown}"
 
 # Succeeds when `addr` is a public IPv4 literal, the only kind a box port
 # forward answers on: private, CGNAT/tailnet (100.64/10), loopback and

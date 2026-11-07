@@ -101,6 +101,7 @@
     ./system/hardware.nix
     ./system/i18n.nix
     ./system/luks.nix
+    ./system/luks/wan-report.nix
     ./system/microvm.nix
     ./system/microvm/guest.nix
     ./system/microvm/host.nix

@@ -74,6 +74,27 @@
 # slot on every encrypted host (fleet-wide policy), plus the shared and per-host
 # passphrases: the module warns when the projected total nears the limit.
 # :::
+#
+# Sub-module (`luks/`): `wan-report.nix`, WAN address report to the HCS.
+#
+# #### WAN report (`wan-report.nix`)
+#
+# A zone gateway that reboots may come back on a new public address, waiting
+# in initrd with its VPN down. It reports that address to the HCS over SSH:
+#
+# - **initrd**: `dnf-wan-report` loops until the volume opens (every 15 min);
+# - **booted system**: `dnf-wan-report.timer`, at boot then hourly;
+# - **HCS**: account `dnf-wan-report`, one `restrict,command=` key per gateway
+#   (its initrd host key, published in `luks.json` by `just luks <host>`).
+#   The address sshd sees lands in `/var/lib/dnf-wan-report/<host>`.
+#
+# `just unlock` tries that address first, the `wan` of `luks.json` second.
+# Inert on both sides until `luks.json` carries the gateway's `initrd-key-pub`.
+#
+# :::caution[Deploy the HCS first]
+# A key the HCS does not know yet is refused, and fail2ban bans the zone
+# address after 3 refusals. The initrd retries a refused key every 15 min only.
+# :::
 
 {
   lib,
@@ -234,6 +255,23 @@ in
       readOnly = true;
       default = luksNames;
       description = "LUKS volumes declared by the host disko layout.";
+    };
+
+    # Values shared with the `luks/` sub-modules.
+    darkone.system.luks.shared = lib.mkOption {
+      type = lib.types.raw;
+      internal = true;
+      readOnly = true;
+      default = {
+        inherit
+          manifest
+          luksActive
+          hasNixPub
+          isGateway
+          ;
+      };
+      defaultText = "computed";
+      description = "LUKS values shared with the `luks/` sub-modules.";
     };
   };
 
