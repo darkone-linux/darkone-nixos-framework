@@ -97,6 +97,11 @@ let
   # with no AWS-LC to link. Drop once unstable `lk-jwt-service` builds.
   lkJwtServiceOverlay = import ./overlays/lk-jwt-service.nix;
 
+  # Temporary: `presenterm`, `aichat`, `codex` with the system libs (oniguruma,
+  # sqlite, zstd) and vendored AWS-LC their `*-sys` crates need. Drop each
+  # once it builds on unstable.
+  presentermOverlay = import ./overlays/presenterm.nix;
+
   # `pkgs.talon` from nix-community/talon-nix, x86_64 only (absent elsewhere),
   # for UMI (multimodal input) host profiles.
   talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
@@ -252,6 +257,7 @@ let
             posthogOverlay
             digitalOverlay
             lkJwtServiceOverlay
+            presentermOverlay
             (talonOverlay system)
             (opencodeOverlay system)
             (openclawOverlay system)

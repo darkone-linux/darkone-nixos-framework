@@ -59,6 +59,16 @@
     since = "2026-11-09";
   };
 
+  # Also covers `aichat` and `codex` (same `*-sys` panics).
+  rust-sys-libs = {
+    kind = "overlay";
+    files = [ "lib/overlays/presenterm.nix" ];
+    reason = "onig_sys/zstd-sys/aws-lc-sys/sqlite3 builds fail: system lib required, absent from the build";
+    package = "presenterm";
+    dropWhen = "Hydra builds unstable presenterm, aichat and codex";
+    since = "2026-11-09";
+  };
+
   logseq = {
     kind = "overlay";
     files = [
