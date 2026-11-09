@@ -71,6 +71,16 @@
     since = "2026-11-09";
   };
 
+  thonny = {
+    kind = "overlay";
+    files = [ "lib/overlays/thonny.nix" ];
+    reason = "thonny pins uv_build<0.13 (nixpkgs-widened), locked uv_build is 0.13.4: pypa dependency check fails";
+    upstream = "NixOS/nixpkgs#585369";
+    package = "thonny";
+    dropWhen = "nixpkgs#585369 in the locked nixpkgs";
+    since = "2026-11-09";
+  };
+
   logseq = {
     kind = "overlay";
     files = [

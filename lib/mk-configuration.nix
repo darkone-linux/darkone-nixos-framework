@@ -102,6 +102,10 @@ let
   # once it builds on unstable.
   presentermOverlay = import ./overlays/presenterm.nix;
 
+  # Temporary: `thonny` with its `uv_build` bound raised to the locked 0.13.
+  # Drop once nixpkgs#585369 reaches `nixos-unstable`.
+  thonnyOverlay = import ./overlays/thonny.nix;
+
   # `pkgs.talon` from nix-community/talon-nix, x86_64 only (absent elsewhere),
   # for UMI (multimodal input) host profiles.
   talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
@@ -258,6 +262,7 @@ let
             digitalOverlay
             lkJwtServiceOverlay
             presentermOverlay
+            thonnyOverlay
             (talonOverlay system)
             (opencodeOverlay system)
             (openclawOverlay system)
