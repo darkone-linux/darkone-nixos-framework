@@ -18,7 +18,6 @@ let
 
   # Packages conditions
   gnomeGames = graphic && isNotBaby && cfg.enableGnome;
-  g3d = cfg.enable3D && isChildOrTeen;
   cli = isNotBaby && cfg.enableCli;
   moreCli = cfg.enableMore && cli;
   stk = isChildOrTeen || cfg.enableStk;
@@ -70,7 +69,7 @@ in
       [
         (lib.mkIf cli sssnake)
         (lib.mkIf cli tetris)
-        (lib.mkIf g3d veloren) # Minecraft like
+        #(lib.mkIf (cfg.enable3D && isChildOrTeen) veloren) # Minecraft like -> TMP: cargo system libs, back with nixpkgs#585129
         #(lib.mkIf g3d warzone2100) # 3D RTS -> build broken against abseil 20260817 (C++20)
         #(lib.mkIf g3d zeroad) # Ancient civilizations RTS (~2 GB)
         (lib.mkIf isBabyOrChild kdePackages.ktuberling) # Constructor game

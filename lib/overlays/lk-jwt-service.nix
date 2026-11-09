@@ -1,8 +1,9 @@
 # Overlay: builds `lk-jwt-service` (MatrixRTC) with the vendored AWS-LC.
 #
 # :::caution[Why]
-# The locked nixpkgs exports `AWS_LC_SYS_USE_SYSTEM=1` without providing
-# AWS-LC: the `aws-lc-sys` build script panics, the package never builds.
+# `cargoUseSystemLibs` (`cargoSetupHook`, nixpkgs 26.11) exports
+# `AWS_LC_SYS_USE_SYSTEM=1` without providing AWS-LC: the `aws-lc-sys` build
+# script panics, the package never builds. Fixed upstream: nixpkgs#584539.
 # :::
 #
 # :::tip[Cleanup]

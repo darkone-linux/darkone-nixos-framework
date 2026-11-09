@@ -1,9 +1,9 @@
 # Overlay: gives Rust packages the system libs their `*-sys` crates require.
 #
 # :::caution[Why]
-# The locked nixpkgs makes `onig_sys` (`RUSTONIG_SYSTEM_LIBONIG`), `zstd-sys`,
-# `libsqlite3-sys` and `aws-lc-sys` (`AWS_LC_SYS_USE_SYSTEM`) use a system lib
-# absent from the build. Affected: `presenterm`, `aichat`, `codex`.
+# `cargoUseSystemLibs` (`cargoSetupHook`, nixpkgs 26.11) makes `onig_sys`,
+# `zstd-sys`, `libsqlite3-sys` and `aws-lc-sys` use a system lib absent from
+# the build. Fixed upstream: nixpkgs#584850, #584888, #584667.
 # :::
 #
 # :::tip[Cleanup]

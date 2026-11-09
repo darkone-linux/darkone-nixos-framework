@@ -53,17 +53,19 @@
   lk-jwt-service = {
     kind = "overlay";
     files = [ "lib/overlays/lk-jwt-service.nix" ];
-    reason = "aws-lc-sys build script panics: AWS_LC_SYS_USE_SYSTEM=1 set, no AWS-LC provided";
+    reason = "cargoUseSystemLibs (nixpkgs 26.11) sets AWS_LC_SYS_USE_SYSTEM=1, no AWS-LC provided: aws-lc-sys panics";
+    upstream = "NixOS/nixpkgs#584539";
     package = "lk-jwt-service";
     dropWhen = "Hydra builds unstable lk-jwt-service";
     since = "2026-11-09";
   };
 
-  # Also covers `aichat` and `codex` (same `*-sys` panics).
+  # Also covers `aichat` (nixpkgs#584888) and `codex` (nixpkgs#584667).
   rust-sys-libs = {
     kind = "overlay";
     files = [ "lib/overlays/presenterm.nix" ];
-    reason = "onig_sys/zstd-sys/aws-lc-sys/sqlite3 builds fail: system lib required, absent from the build";
+    reason = "cargoUseSystemLibs (nixpkgs 26.11) forces onig/zstd/sqlite system libs, absent from the build: *-sys panics";
+    upstream = "NixOS/nixpkgs#584850";
     package = "presenterm";
     dropWhen = "Hydra builds unstable presenterm, aichat and codex";
     since = "2026-11-09";
@@ -160,6 +162,39 @@
     upstream = "NixOS/nixpkgs#580486";
     dropWhen = "nixpkgs#580486 in the locked nixpkgs-stable, or open-webui leaves its stable pin";
     since = "2026-10-29";
+  };
+
+  # Leaf apps suspended (line commented out) rather than rebuilt locally:
+  # fixed on master, uncached until nixos-unstable advances. Same cause as
+  # `rust-sys-libs`: cargoUseSystemLibs (nixpkgs 26.11).
+  anki-suspended = {
+    kind = "inline";
+    files = [ "home/modules/education.nix" ];
+    reason = "cargoUseSystemLibs (nixpkgs 26.11): anki rslib *-sys crates miss their system libs";
+    upstream = "NixOS/nixpkgs#584713";
+    package = "anki";
+    dropWhen = "Hydra builds unstable anki: uncomment it in education.nix";
+    since = "2026-11-09";
+  };
+
+  veloren-suspended = {
+    kind = "inline";
+    files = [ "home/modules/games.nix" ];
+    reason = "cargoUseSystemLibs (nixpkgs 26.11): zstd-sys finds no libzstd, veloren build script panics";
+    upstream = "NixOS/nixpkgs#585129";
+    package = "veloren";
+    dropWhen = "Hydra builds unstable veloren: uncomment it in games.nix";
+    since = "2026-11-09";
+  };
+
+  aider-chat-suspended = {
+    kind = "inline";
+    files = [ "home/modules/ai.nix" ];
+    reason = "cargoUseSystemLibs (nixpkgs 26.11): tree-sitter-language-pack zstd-sys finds no libzstd";
+    upstream = "NixOS/nixpkgs#584300";
+    package = "aider-chat";
+    dropWhen = "Hydra builds unstable aider-chat: uncomment it in ai.nix";
+    since = "2026-11-09";
   };
 
   #----------------------------------------------------------------------------

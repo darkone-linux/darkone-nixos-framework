@@ -120,7 +120,7 @@ in
         (lib.mkIf (cfg.enableMisc && cfg.enableChild) kdePackages.kwordquiz) # flash cards, simpler than anki
         (lib.mkIf (cfg.enableMisc && childOrStudent) openboard) # interactive whiteboard, lessons
         (lib.mkIf (cfg.enableMisc && childOrStudent) kiwix) # offline Wikipedia / Vikidia, ZIM files apart
-        (lib.mkIf (cfg.enableMisc && cfg.enableStudent) anki) # training cards
+        #(lib.mkIf (cfg.enableMisc && cfg.enableStudent) anki) # training cards -> TMP: cargo system libs, back with nixpkgs#584713
         (lib.mkIf (cfg.enableDraw && babyOrChild) tuxpaint)
         (lib.mkIf (cfg.enableMusic && childOrStudent) solfege)
         (lib.mkIf (cfg.enableMusic && childOrStudent) kdePackages.minuet) # ear training

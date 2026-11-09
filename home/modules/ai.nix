@@ -333,7 +333,7 @@ in
       (lib.mkIf hasLocalAI ollama)
 
       # Per-agent packages.
-      (lib.mkIf cfg.enableAider aider-chat)
+      #(lib.mkIf cfg.enableAider aider-chat) # TMP: tree-sitter-language-pack, cargo system libs, back with nixpkgs#584300
       (lib.mkIf cfg.enableGoose goose-cli)
 
       # Claude Code — self-contained native binary (no runtime deps).
