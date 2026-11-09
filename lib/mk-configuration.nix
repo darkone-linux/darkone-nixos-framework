@@ -93,6 +93,10 @@ let
   # maven's `jdk_headless`. Drop once nixpkgs#581567 reaches `nixos-unstable`.
   digitalOverlay = import ./overlays/digital.nix;
 
+  # Temporary: `lk-jwt-service` without `AWS_LC_SYS_USE_SYSTEM`, set by nixpkgs
+  # with no AWS-LC to link. Drop once unstable `lk-jwt-service` builds.
+  lkJwtServiceOverlay = import ./overlays/lk-jwt-service.nix;
+
   # `pkgs.talon` from nix-community/talon-nix, x86_64 only (absent elsewhere),
   # for UMI (multimodal input) host profiles.
   talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
@@ -247,6 +251,7 @@ let
             kernelModulesSignOverlay
             posthogOverlay
             digitalOverlay
+            lkJwtServiceOverlay
             (talonOverlay system)
             (opencodeOverlay system)
             (openclawOverlay system)

@@ -50,6 +50,15 @@
     since = "2026-11-03";
   };
 
+  lk-jwt-service = {
+    kind = "overlay";
+    files = [ "lib/overlays/lk-jwt-service.nix" ];
+    reason = "aws-lc-sys build script panics: AWS_LC_SYS_USE_SYSTEM=1 set, no AWS-LC provided";
+    package = "lk-jwt-service";
+    dropWhen = "Hydra builds unstable lk-jwt-service";
+    since = "2026-11-09";
+  };
+
   logseq = {
     kind = "overlay";
     files = [
