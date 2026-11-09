@@ -60,14 +60,15 @@
     since = "2026-11-09";
   };
 
-  # Also covers `aichat` (nixpkgs#584888) and `codex` (nixpkgs#584667).
+  # Also covers `aichat` (nixpkgs#584888), `codex` (nixpkgs#584667) and
+  # `oxicloud` (no upstream fix tracked yet).
   rust-sys-libs = {
     kind = "overlay";
     files = [ "lib/overlays/presenterm.nix" ];
-    reason = "cargoUseSystemLibs (nixpkgs 26.11) forces onig/zstd/sqlite system libs, absent from the build: *-sys panics";
+    reason = "cargoUseSystemLibs (nixpkgs 26.11) forces onig/zstd/sqlite system libs, absent from the build: *-sys panics (presenterm, aichat, codex, oxicloud)";
     upstream = "NixOS/nixpkgs#584850";
     package = "presenterm";
-    dropWhen = "Hydra builds unstable presenterm, aichat and codex";
+    dropWhen = "Hydra builds unstable presenterm, aichat, codex and oxicloud";
     since = "2026-11-09";
   };
 

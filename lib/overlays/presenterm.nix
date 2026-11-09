@@ -33,4 +33,7 @@ in
   presenterm = withRustSysLibs prev.presenterm;
   aichat = withRustSysLibs prev.aichat;
   codex = withRustSysLibs prev.codex;
+
+  # zstd-sys: no upstream fix tracked yet.
+  oxicloud = withRustSysLibs prev.oxicloud;
 }
