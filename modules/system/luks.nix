@@ -41,7 +41,8 @@
 #   then interactively from a terminal when no stored passphrase works. It
 #   falls back to the WAN IP recorded in the manifest when the VPN route died. Regular
 #   hosts DHCP on wired interfaces (a laptop on Wi-Fi has no initrd network and
-#   falls back to console unlock); zone gateways replicate their production
+#   falls back to console unlock), the lease released at switch-root under
+#   NetworkManager, which leases again; zone gateways replicate their production
 #   layout instead — static LAN IP on the lan0 bridge, DHCP on the WAN side —
 #   since they are themselves the DHCP server their initrd would otherwise wait
 #   on.
@@ -321,6 +322,13 @@ in
             };
           })
         ];
+
+        # NetworkManager adopts an address the initrd kept (`dhcp-on-stop`) as
+        # "connected (externally)": no DHCP of its own, no DNS, empty
+        # resolv.conf. Released at switch-root, the interface is NM's to lease.
+        boot.initrd.network.flushBeforeStage2 = lib.mkIf (
+          !isGateway && config.networking.networkmanager.enable
+        ) true;
 
         # Fallback only: the host's own NIC drivers come from `just detect-hw`
         # (`usr/machines/<host>/hardware/detected-hardware.nix`). This list
