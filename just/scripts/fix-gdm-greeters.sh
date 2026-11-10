@@ -60,6 +60,7 @@ SPEC=$(grep -oE '/nix/store/[^ ]+-users-groups\.json' <<< "$USERS_CMD")
 	|| die "commande update-users-groups introuvable dans $ACTIVATE."
 
 # name<TAB>uid of every declared gdm-greeter* (JSON::PP ships with perl).
+# shellcheck disable=SC2016 # Perl source: `$` is Perl's, not the shell's
 DECLARED=$("$PERL" -MJSON::PP -e '
 	local $/; my $s = decode_json(<>);
 	for my $u (@{ $s->{users} }) {
@@ -214,8 +215,9 @@ restore() {
 # Write through a temp file + `cat >` to keep the inode, mode and owner.
 NAMES_RE="^($(printf '%s\n' "${!OLD[@]}" | paste -sd'|')):"
 for F in /etc/passwd /etc/shadow; do
-	grep -vE "$NAMES_RE" "$F" > "$INVENTORY/$(basename "$F")" || restore "filtrage de $F"
-	cat "$INVENTORY/$(basename "$F")" > "$F"
+	FILTERED="$INVENTORY/$(basename "$F")"
+	grep -vE "$NAMES_RE" "$F" > "$FILTERED" || restore "filtrage de $F"
+	cat "$FILTERED" > "$F"
 done
 act "comptes retirés : ${!OLD[*]}"
 

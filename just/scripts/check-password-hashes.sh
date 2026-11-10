@@ -41,8 +41,8 @@ present="$(yq -r '(.user // {}) | to_entries | .[] | select(.value["password-has
 
 # `has` lines first: awk knows every hash before it meets the first host user.
 {
-  sed 's/^/has /' <<< "$present"
-  sed 's/^/need /' <<< "$expected"
+  awk '{ print "has", $0 }' <<< "$present"
+  awk '{ print "need", $0 }' <<< "$expected"
 } | awk '
   $1 == "has" { has[$2] = 1; next }
   $1 == "need" && $2 != "" && !($2 in has) {

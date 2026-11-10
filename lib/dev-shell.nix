@@ -38,6 +38,9 @@ pkgs.mkShell {
     # registration shared secret out of argv).
     python3
     rustc
+
+    # `just check-code`: lints the tracked shell scripts.
+    shellcheck
     sops
     ssh-to-age
     statix

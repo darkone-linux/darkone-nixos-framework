@@ -14,7 +14,7 @@ check:
 	fi
 	cd {{workDir}} && just check-flake
 
-# Statix check + recursive deadnix on full nix files
+# Statix check + recursive deadnix on full nix files + shellcheck
 [group('check')]
 check-code:
 	#!/usr/bin/env bash
@@ -23,6 +23,19 @@ check-code:
 	find . -name "*.nix" -exec deadnix -eq {} \;
 	just _log "Checking nix configuration (statix)..." "CHECK"
 	statix check .
+
+	# Tracked scripts only: the `dnf/` store symlink, `node_modules/` or a
+	# stray download are not ours to lint. A `dnf/` checkout is a repo apart.
+	just _log "Checking shell scripts (shellcheck)..." "CHECK"
+	repos=(.)
+	if [ "{{isCodev}}" = "true" ]; then
+		repos+=(dnf)
+	fi
+	for repo in "${repos[@]}"; do
+		if git -C "$repo" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+			(cd "$repo" && git ls-files -z '*.sh' | xargs -0 -r shellcheck)
+		fi
+	done
 
 # Check the main flake. Filter benign "unknown flake output" warnings for the
 # DNF non-standard outputs (colmena, colmenaHive, homeManagerModules,

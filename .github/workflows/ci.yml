@@ -124,6 +124,10 @@ jobs:
       - name: deadnix
         run: nix run nixpkgs#deadnix -- --fail .
 
+      # Tracked scripts, as `just check-code` lints them.
+      - name: shellcheck
+        run: git ls-files -z '*.sh' | xargs -0 -r nix run nixpkgs#shellcheck --
+
       - name: treefmt (no diff expected)
         run: |
           nix shell nixpkgs#treefmt nixpkgs#nixfmt --command \

@@ -15,12 +15,12 @@ delete_vm() {
     fi
     if [ -d "${VM_PATH}/$VM" ]; then
         echo "→ Delete files: ${VM_PATH}/$VM"
-        rm -rf "${VM_PATH}/$VM"
+        rm -rf "${VM_PATH:?}/$VM"
     else
         echo "→ VM '$VM' directory already deleted."
     fi
 }
 
 for i in $(seq 1 "$VM_COUNT"); do
-    delete_vm $(printf "$VM_PREFIX%'02d" "$i")
+    delete_vm "$(printf "%s%02d" "$VM_PREFIX" "$i")"
 done

@@ -16,6 +16,8 @@
 # - network backend `net0`: QMP `set_link` unplugs the cable, and back.
 #
 # OVMF_FV, the OVMF firmware directory, is set by the Nix wrapper.
+#
+# shellcheck shell=bash # body of a `writeShellApplication`: no shebang
 
 set -euo pipefail
 

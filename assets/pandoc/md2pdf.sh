@@ -3,6 +3,8 @@
 # Settings come from the Nix wrapper (`runtimeEnv`): MD2PDF_ENGINE,
 # MD2PDF_AUTHOR, MD2PDF_METADATA, MD2PDF_LINKS_FILTER, MD2PDF_RAWTEX_FILTER,
 # MD2PDF_TABLES_FILTER, MD2PDF_TYPST_TEMPLATE, MD2PDF_CONTEXT_HEADER.
+#
+# shellcheck shell=bash # body of a `writeShellApplication`: no shebang
 
 usage() {
   cat <<EOF

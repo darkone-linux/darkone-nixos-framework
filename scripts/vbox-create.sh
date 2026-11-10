@@ -102,5 +102,5 @@ create_vm() {
 #------------------------------------------------------------------------------
 
 for i in $(seq 1 "$VM_COUNT"); do
-    create_vm $(printf "$VM_PREFIX%'02d" "$i")
+    create_vm "$(printf "%s%02d" "$VM_PREFIX" "$i")"
 done
