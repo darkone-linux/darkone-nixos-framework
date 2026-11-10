@@ -1,34 +1,37 @@
-# Aggregator for DNF unit test suites (dnf/lib/)
+# DNF unit test suites, auto-discovered: `<dir>/<name>_test.nix` is the suite
+# `<dir>_<name>` (`-` → `_`), e.g. `lib/date-time_test.nix` → `lib_date_time`.
 # Exposed in flake.nix as .#libTests
 # Run with: nix-unit --flake .#libTests
+#
+# :::note[Suite arguments]
+# A suite is a function of what it names among `dnfLib` and `lib`.
+# :::
 { lib }:
 let
   dnfLib = import ../../lib { inherit lib; };
+  args = { inherit dnfLib lib; };
+  suffix = "_test.nix";
+
+  entriesOf = type: dir: lib.attrNames (lib.filterAttrs (_: t: t == type) (builtins.readDir dir));
+
+  # nix-unit reads `.` and `-` in an attribute name as a path: `_` only.
+  suiteName =
+    dir: file: "${dir}_${lib.replaceStrings [ "-" ] [ "_" ] (lib.removeSuffix suffix file)}";
+
+  # Another file name would be silently left out of the run: refused.
+  suiteOf =
+    dir: file:
+    let
+      suite = import (./. + "/${dir}/${file}");
+    in
+    lib.throwIfNot (lib.hasSuffix suffix file)
+      "tests/unit/${dir}/${file}: a suite file is named `<name>${suffix}`."
+      (
+        lib.nameValuePair (suiteName dir file) (
+          suite (builtins.intersectAttrs (builtins.functionArgs suite) args)
+        )
+      );
+
+  suitesOf = dir: map (suiteOf dir) (entriesOf "regular" (./. + "/${dir}"));
 in
-{
-  lib_constants = import ./lib/constants_test.nix { inherit dnfLib; };
-  lib_strings = import ./lib/strings_test.nix { inherit dnfLib; };
-  lib_i18n = import ./lib/i18n_test.nix { inherit dnfLib; };
-  lib_date_time = import ./lib/date-time_test.nix { inherit dnfLib; };
-  lib_networking = import ./lib/networking_test.nix { inherit dnfLib; };
-  lib_topology = import ./lib/topology_test.nix { inherit dnfLib; };
-  lib_alerts = import ./lib/alerts_test.nix { inherit dnfLib; };
-  lib_service_params = import ./lib/service-params_test.nix { inherit dnfLib; };
-  lib_firewall = import ./lib/firewall_test.nix { inherit dnfLib; };
-  lib_headscale_policy = import ./lib/headscale-policy_test.nix { inherit dnfLib; };
-  lib_oidc = import ./lib/oidc_test.nix { inherit dnfLib; };
-  lib_homepage = import ./lib/homepage_test.nix { inherit dnfLib; };
-  lib_security = import ./lib/security_test.nix { inherit dnfLib; };
-  lib_hive = import ./lib/hive_test.nix { inherit dnfLib; };
-  lib_paths = import ./lib/paths_test.nix { inherit dnfLib; };
-  lib_nix_tools = import ./lib/nix-tools_test.nix { inherit dnfLib; };
-  lib_service_activation = import ./lib/service-activation_test.nix { inherit dnfLib; };
-  lib_config_schema = import ./lib/config-schema_test.nix { inherit dnfLib; };
-  lib_matrix = import ./lib/matrix_test.nix { inherit dnfLib lib; };
-  lib_secrets = import ./lib/secrets_test.nix { inherit dnfLib lib; };
-  lib_uplinks = import ./lib/uplinks_test.nix { inherit dnfLib lib; };
-  config_alerts = import ./config/alerts_test.nix { inherit dnfLib lib; };
-  config_network = import ./config/network_test.nix { inherit dnfLib lib; };
-  config_modules = import ./config/modules_test.nix { inherit dnfLib lib; };
-  config_workarounds = import ./config/workarounds_test.nix { inherit dnfLib lib; };
-}
+lib.listToAttrs (lib.concatMap suitesOf (entriesOf "directory" ./.))

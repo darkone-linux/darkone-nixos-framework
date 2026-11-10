@@ -7,7 +7,7 @@ Telegraph style.
 ```
 tests/
 ├── unit/                              # L1 unit — nix-unit on lib/ + config/
-│   ├── default.nix                    #   aggregator (feeds dnfLib, sometimes lib)
+│   ├── default.nix                    #   auto-discovers `<dir>/<name>_test.nix` → suite `<dir>_<name>`
 │   ├── lib/*_test.nix                 #   lib/ helpers + checkSchema engine
 │   └── config/*_test.nix              #   config/ registries via dnfLib.checkSchema
 ├── fixtures/                          # pre-generated, committed, shared
@@ -110,11 +110,11 @@ Dispatch per key: `fields.<k>` wins; otherwise `value`. `min`/`max`, `regex`, `o
 
 `checkSchema` is **node-local** — it cannot express rules that aggregate across the
 whole tree (e.g. "a value at a wildcard path is unique across distinct owners"). For
-those, write a **dedicated test case** in the `*_test.nix` using `lib` directly, and
-pass `lib` alongside `dnfLib` in `tests/unit/default.nix`:
+those, write a **dedicated test case** in the `*_test.nix` using `lib` directly: a
+suite receives what it names among `dnfLib` and `lib`.
 
 ```nix
-config_modules = import ./config/modules_test.nix { inherit dnfLib lib; };
+{ dnfLib, lib }:
 ```
 
 Reference: `modules_test.nix` `testUniqueTriggerKeys` — collects every
@@ -126,7 +126,7 @@ claimed by two distinct modules.
 1. **New key in a config file** → extend its schema (`key.oneOf` / `fields` / `value`). No engine change.
 2. **New value type or constraint** (e.g. `ipv4`, a new leaf predicate) → add it to `lib/config-schema.nix` **and** cover it in `tests/unit/lib/config-schema_test.nix` (CLAUDE.md: every helper change is unit-tested).
 3. **New cross-cutting rule** → dedicated test case (pass `lib`), per above.
-4. New `config/<file>_test.nix` → add a `config_<file>` entry to `tests/unit/default.nix`.
+4. New `config/<file>_test.nix` → suite `config_<file>`, discovered by its name: no registration. A file of `tests/unit/<dir>/` not named `*_test.nix` is refused.
 5. `git add -N` new test files (pure eval sees only git-tracked files), `just unit-tests`, then `just clean`.
 
 ## Adding a scenario
