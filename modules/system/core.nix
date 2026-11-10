@@ -10,7 +10,7 @@
 # - JetBrains Mono Nerd Font, with `kmscon` for the TTY;
 # - nightly store optimisation, weekly GC with 30 d retention (keep-last-N via
 #   `gcKeepGenerations` on disk-constrained hosts);
-# - the firewall and key-only SSH;
+# - key-only SSH (hostname, firewall and SSH exposure: `network.nix`);
 # - Ghostty's `xterm-ghostty` terminfo, so every host accepts the terminal;
 # - the suspend policy (`disableSuspend` for servers);
 # - polkit rules letting `wheel` halt/reboot;
@@ -19,12 +19,6 @@
 # :::note[Mixin entry point]
 # Activates the host's profile mixin (`darkone.host.${host.profile}.enable`)
 # and propagates `enableSops` to the sops module.
-# :::
-#
-# :::caution[SSH is opened per interface]
-# Port 22 is global only on hosts with no WAN leg. A gateway gets it on the LAN
-# bridge and the tailnet; a global-zone host on the tailnet only — a public SSH
-# there is decided in the host profile.
 # :::
 #
 # :::danger[SSH is key-only]
@@ -36,25 +30,13 @@
 {
   lib,
   config,
-  dnfLib,
   host,
   pkgs,
   workDir,
-  zone,
   ...
 }:
 let
   cfg = config.darkone.system.core;
-  inherit (dnfLib.constants) lanInterface vpnInterface;
-
-  # SSH exposure, per role. `allowedTCPPorts` carries no `iifname`: on a host
-  # that also holds a WAN address it publishes sshd on the Internet. Two such
-  # roles — the gateway of a local zone, any host of the global zone.
-  isZoneGateway = dnfLib.isGateway host zone;
-  hasWanInterface = isZoneGateway || !(dnfLib.inLocalZone zone);
-
-  # From the sshd module, so a moved SSH port keeps a matching firewall.
-  sshPorts = config.services.openssh.ports;
 in
 {
   options = {
@@ -141,29 +123,6 @@ in
         zfs.forceImportRoot = false;
       }
     ];
-
-    # Global networking
-    networking = {
-      hostName = host.hostname;
-      nftables.enable = true;
-      firewall = {
-        enable = cfg.enableFirewall;
-        allowPing = lib.mkDefault true;
-
-        # Single-legged host: global and per-interface emit the same rule.
-        allowedTCPPorts = lib.optionals (!hasWanInterface) sshPorts;
-
-        # WAN leg: name the interface, and only that one. A gateway gets its
-        # zone and the tailnet; a global-zone host has only the tailnet, and
-        # declares any public SSH in its own profile.
-        interfaces = lib.mkIf hasWanInterface (
-          lib.optionalAttrs isZoneGateway { ${lanInterface}.allowedTCPPorts = sshPorts; }
-          // lib.optionalAttrs config.services.tailscale.enable {
-            ${vpnInterface}.allowedTCPPorts = sshPorts;
-          }
-        );
-      };
-    };
 
     # Enable the host profile
     darkone.host.${host.profile}.enable = true;
@@ -261,7 +220,8 @@ in
 
       # `openFirewall` (true upstream) emits a global `allowedTCPPorts` — no
       # `iifname`, so on the WAN too. It was the real source of the
-      # fleet-wide public port 22. SSH exposure is decided above, per role.
+      # fleet-wide public port 22. SSH exposure is decided per role in
+      # `network.nix`.
       openFirewall = false;
 
       # Public keys only: a password on sshd is the first step of the

@@ -18,4 +18,17 @@
       second = builtins.elemAt parts 1;
     in
     "${second}.${first}";
+
+  # MAC addresses the zone DHCP reserves for `ip`, read from the generated
+  # `dhcp-host` entries (`mac,…,mac,ip`). `[ ]` when the address has no
+  # reservation or the zone no DHCP (global zone).
+  #
+  # Usage:
+  #   getReservedMacs zone "10.0.1.2" => [ "02:00:00:00:00:01" ]
+  getReservedMacs =
+    zone: ip:
+    let
+      entries = map (lib.splitString ",") (zone.extraDnsmasqSettings.dhcp-host or [ ]);
+    in
+    lib.concatMap lib.init (lib.filter (fields: lib.last fields == ip) entries);
 }

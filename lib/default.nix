@@ -46,7 +46,7 @@ in
     ;
   inherit (i18n) keyboardFromLocale supportedLocales;
   inherit (dateTime) shiftHour;
-  inherit (networking) extractReversePrefix;
+  inherit (networking) extractReversePrefix getReservedMacs;
   inherit (security) mkIsActive levelMapping mkHardenedServiceConfig;
   inherit (hive)
     parseArch
