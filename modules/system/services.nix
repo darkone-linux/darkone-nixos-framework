@@ -123,7 +123,7 @@ in
             enable = mkEnableOption "Enable service proxy";
             defaultParams = mkOption {
               default = { };
-              description = "Theses options are calculated by dnfLib.srv.extractServiceParams";
+              description = "These options are computed by `dnfLib.extractServiceParams`";
               type = types.submodule {
                 options = {
                   domain = mkOption {
@@ -182,26 +182,9 @@ in
               description = "Display a link on homepage";
             };
 
-            # Network/DNS topology hints consumed by the generator (nix eval ->
-            # var/generated/service-registry.json). Kept here so a service is
-            # fully described in its own module: the generator no longer hard-codes
-            # any service name. These describe the DNS view, distinct from the
-            # `proxy.*` options below which describe the Caddy view.
-            reverseProxy = mkOption {
-              type = types.bool;
-              default = true;
-              description = "Reached through the zone gateway reverse proxy (DNS points to the gateway LAN IP)";
-            };
-            uniquePerZone = mkOption {
-              type = types.bool;
-              default = false;
-              description = "At most one instance allowed per zone (generator validation)";
-            };
-            externalAccess = mkOption {
-              type = types.bool;
-              default = false;
-              description = "www-zone service reachable from the LAN via a fixed host IP (e.g. headscale, turn)";
-            };
+            # DNS topology flags (`reverseProxy`, `uniquePerZone`,
+            # `externalAccess`) are not options: the generator reads them from
+            # `config/modules.nix`, before any module is evaluated.
 
             # Folders and files to persist
             persist.dirs = mkOption {
