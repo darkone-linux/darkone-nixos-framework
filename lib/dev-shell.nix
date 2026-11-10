@@ -22,8 +22,14 @@ pkgs.mkShell {
 
     # Changelog generation behind `just bump` / `just release`.
     git-cliff
+
+    # JSON plumbing of the recipes (secrets, identities, install, release).
+    jq
     just
     mkpasswd
+
+    # `just drv-diff`: host derivations before and after a refactor.
+    nix-eval-jobs
     nix-unit
     nixfmt
     openssl
