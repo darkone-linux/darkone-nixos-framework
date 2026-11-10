@@ -1,8 +1,7 @@
 # L2 — the `intermediary` ANSSI tier, booted. Guards the blockers of the
-# 2026-09-08 audit (see .specs/security/05-palier-anssi.md): every one of them
-# was invisible to evaluation, and B11 only surfaced here — a booted VM is the
-# cheapest place that runs activation. Category `server` so the server-only
-# subset (R62, R79) is covered too.
+# 2026-09-08 audit: every one of them was invisible to evaluation, and B11
+# only surfaced here — a booted VM is the cheapest place that runs activation.
+# Category `server` so the server-only subset (R62, R79) is covered too.
 
 { pkgs, inputs }:
 (import ../../lib/mkNodeTest.nix { inherit pkgs inputs; }) {

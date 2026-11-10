@@ -257,9 +257,3 @@ Append workspace path to `scenarios/eval-all.nix` for L1 eval coverage on all ho
 
 - `var/generated/{hosts,users,network,config}.nix` is **committed** — `just fixtures check` enforces it matches what `dnf-generator` produces from `etc/config.yaml`. Drift fails CI.
 - New variant → `just fixtures generate` once, commit the output.
-
-## See also
-
-Only if there are doubts about the organisation of the tests!
-
-- Spec: `.specs/2026-05-25-tests-simulation-design.md`

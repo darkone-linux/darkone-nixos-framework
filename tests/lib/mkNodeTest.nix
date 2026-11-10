@@ -1,5 +1,5 @@
 # L2 — single-node simulation. Replugs one workspace host into the NixOS
-# Test Driver (see spec §8/§9.2).
+# Test Driver (`mkNodes` invariant: `tests/README.md`).
 #
 # :::tip[Opt-in LAN]
 # Set `lan = true;` when the module under test binds to `host.ip` (e.g.

@@ -1,6 +1,6 @@
 # vpn workspace: two zones with coordination enabled — boots a single
 # headscale-coordination host (`hcs`) and asserts the test seam keeps the
-# headscale service inactive in the VM (spec §7).
+# headscale service inactive in the VM (`darkone.test.standalone`).
 #
 # :::note[Why only hcs is booted]
 # Multi-zone is declared so the generator emits both zones and threads

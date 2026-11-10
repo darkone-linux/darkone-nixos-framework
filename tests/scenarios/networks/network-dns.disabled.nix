@@ -12,7 +12,7 @@
 # every host of `workspaces/network/configs/dns` at the L1 tier. Only the L3
 # boot-and-assert tier is missing.
 #
-# TODO: fix multi-nodes tests, cf. .specs/dnf/docs/todo-fix-tests-multi-noeuds.md
+# TODO: fix multi-nodes tests (L3 tier, `tests/README.md`).
 # Restore by dropping the `.disabled` infix and uncommenting the body below.
 
 # { pkgs, inputs }:

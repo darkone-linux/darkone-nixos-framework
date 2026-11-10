@@ -1,6 +1,6 @@
 # L3+ — multi-zone workspace with `coordination.enable = true`, exercising
 # `mkVpnTest` on the `hcs` profile. The headscale service is declared by
-# the `hcs` mixin but force-disabled by the test seam (spec §7); asserting
+# the `hcs` mixin but force-disabled by the test seam (`darkone.test.standalone`); asserting
 # it is inactive is the empirical seam check for the VPN tier.
 #
 # DISABLED (`.disabled.nix` suffix → no check is produced, cf. ../default.nix).
@@ -11,7 +11,7 @@
 # every host of `workspaces/vpn/configs/multizone` at the L1 tier. Only the L3
 # boot-and-assert tier is missing.
 #
-# TODO: fix multi-nodes tests, cf. .specs/dnf/docs/todo-fix-tests-multi-noeuds.md
+# TODO: fix multi-nodes tests (L3 tier, `tests/README.md`).
 # Restore by dropping the `.disabled` infix and uncommenting the body below.
 
 # { pkgs, inputs }:

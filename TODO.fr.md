@@ -100,7 +100,7 @@
   - [x] Généralisation -> implémentation paramétrable pour chaque user.
   - [x] Stabilisation et simplification -> certains ponts (whatsapp, discord) sont compliqués et instables.
 - [x] Stratégie de test globale en 3 niveaux : tests unitaires, tests simulés (VMs légères), lab de staging complet (tests + introspection manuelle).
-  - [x] [Cahier des charges](.specs/FULL-TEST-STRATEGY.fr.md).
+  - [x] Cahier des charges.
   - [x] Tests unitaires (lib).
   - [x] Migration vers [nix-unit](https://nix-community.github.io/nix-unit/).
   - [x] Déplacement dans lib/ de tout algorithme un peu complexe ou comportant de possibles effets de bords, sous forme de fonctions durcies et testées, simplifiant le code utile des modules.
@@ -118,7 +118,7 @@
 - [x] Module LaSuite Docs
   - [x] Implémentation de base.
   - [x] Tests et stabilisation.
-- [x] Séparer en plusieurs projets ([specs](.specs/SPLIT-PROJECT.fr.md))
+- [x] Séparer en plusieurs projets.
   - [x] Projet 1 : framework (code commun à toutes les instances, `dnf/`)
   - [x] Projet 2 : boilerplate pour implémentation locale qui étend le framework (input flake + override-input en dev, `usr/`)
   - [x] Projet 3 : Générateur Rust séparé (`src/generator`).

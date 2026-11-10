@@ -20,8 +20,7 @@ with its date.
     dnf-installer-test --iso ISO [--scenario scripted|interactive|all]
                        [--workdir DIR] [--keep]
 
-Logs: `<workdir>/<scenario>/serial.log`. Spec: .specs/dnf/
-projet-procedure-demarrage-dnf.md, § Assistant : lot 4.
+Logs: `<workdir>/<scenario>/serial.log`.
 """
 
 import argparse

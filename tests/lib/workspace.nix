@@ -1,6 +1,6 @@
 # Loads a DNF workspace (a real workDir) and exposes its hosts as
 # test-driver nodes, WITHOUT modifying mkConfigurations — it consumes the
-# public `mkNodes` API (see spec §8/§9).
+# public `mkNodes` API (`mkNodes` invariant: `tests/README.md`).
 #
 # :::tip
 # `nodeOf <host>` returns `{ modules; specialArgs; system; }`, ready to

@@ -1,7 +1,7 @@
 # L3 — multi-host network simulation. Replugs a subset of a workspace's hosts
 # into the NixOS Test Driver, each on its zone VLAN (see `vlans.nix`).
 #
-# :::caution[Risk 5 — specialArgs recursion (spec §9.3)]
+# :::caution[specialArgs recursion]
 # Setting `_module.args = nodeDef.specialArgs` per-node recurses: the driver
 # force-evaluates `node.virtualisation.vlans`, which merges every node module
 # (`modules/service/nfs.nix` takes `network` via its function head); resolving

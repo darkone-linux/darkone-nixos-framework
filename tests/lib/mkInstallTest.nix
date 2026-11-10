@@ -1,5 +1,5 @@
 # L4 — install tier. Drives `nixos-anywhere --vm-test` against a workspace
-# host whose `etc/config.yaml` carries a disko profile (spec §11).
+# host whose `etc/config.yaml` carries a disko profile (L4 tier, `tests/README.md`).
 #
 # :::caution[Best-effort wrapper]
 # `nixos-anywhere`'s `--vm-test` mode is a CLI flow; wrapping it as a

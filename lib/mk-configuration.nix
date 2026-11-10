@@ -369,7 +369,7 @@ let
       ];
     };
 
-  # Public API returned by mkConfigurations (see spec §9.1).
+  # Public API returned by mkConfigurations (`mkNodes` invariant: `tests/README.md`).
   mkNodes =
     {
       forTest ? false,
@@ -546,7 +546,7 @@ in
 {
 
   # Public node API — single source of truth for nixosConfigurations,
-  # colmena, tests and install (see spec §9).
+  # colmena, tests and install.
   inherit mkNodes;
 
   colmena = colmenaSet;

@@ -85,8 +85,8 @@
 # A homeserver that predates MAS needs the `syn2mas` migration (accounts,
 # passwords, sessions, external ids) or nobody logs in again. Deploy first,
 # then, with both services stopped: `sudo dnf-mas syn2mas check`,
-# `... migrate --dry-run`, `... migrate`. Procedure in
-# `.specs/matrix-authentication-service.md`.
+# `... migrate --dry-run`, `... migrate`. Procedure: admin guide, *Matrix →
+# Migrer un serveur déjà en production*.
 # :::
 #
 # #### Bridges (`bridges.nix`)

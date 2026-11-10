@@ -1,8 +1,7 @@
 # fleet-update — updates and deploys a DNF fleet in waves (Bun, OpenTUI).
 #
 # Installed on deployment hosts by `darkone.admin.fleet-update`, launched by
-# `just fleet-update`. Behaviour is specified in the consumer workspace
-# (`.specs/dnf/outils-de-deploiement-du-parc.md`).
+# `just fleet-update`. Behaviour: its own repository, `dnf-fleet-update`.
 #
 # :::note[Sources run by `bun run`]
 # No `bun build --compile`: the bundle breaks files read through
