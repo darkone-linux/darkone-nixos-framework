@@ -15,21 +15,9 @@
 # not require the tailnet.
 # :::
 
-{
-  lib,
-  config,
-  dnfConfig,
-  dnfLib,
-  host,
-  ...
-}:
+{ lib, config, ... }:
 let
   cfg = config.darkone.host.hcs;
-  profileServicesArgs = {
-    profileName = "hcs";
-    inherit host;
-    inherit (dnfConfig) modules;
-  };
 in
 {
   options = {
@@ -41,31 +29,23 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable (
-    lib.mkMerge [
-      {
+  config = lib.mkIf cfg.enable {
 
-        # Is a server
-        darkone.host.server.enable = true;
+    # Is a server
+    darkone.host.server.enable = true;
 
-        darkone.service.tailscale = lib.mkIf cfg.enableClient {
-          enable = true;
-          isExitNode = true;
-        };
+    darkone.service.tailscale = lib.mkIf cfg.enableClient {
+      enable = true;
+      isExitNode = true;
+    };
 
-        # Public SSH, on purpose. `core.nix` gives a global-zone host SSH on
-        # the tailnet only; but headscale runs here, so a tailnet-only SSH
-        # locks the admin out of the very incident to repair. Compensations
-        # must hold: key-only auth, fail2ban, hardening level.
-        networking.firewall.allowedTCPPorts = [ 22 ];
+    # Public SSH, on purpose. `core.nix` gives a global-zone host SSH on
+    # the tailnet only; but headscale runs here, so a tailnet-only SSH
+    # locks the admin out of the very incident to repair. Compensations
+    # must hold: key-only auth, fail2ban, hardening level.
+    networking.firewall.allowedTCPPorts = [ 22 ];
 
-        # Zsh aliases
-        programs.zsh.shellAliases.h = "sudo headscale";
-      }
-
-      # Activate services declared in host.services via modules.nix triggers.
-      (dnfLib.triggerProfileServices profileServicesArgs)
-      { assertions = dnfLib.mkHostProfileServicesAssertions profileServicesArgs; }
-    ]
-  );
+    # Zsh aliases
+    programs.zsh.shellAliases.h = "sudo headscale";
+  };
 }

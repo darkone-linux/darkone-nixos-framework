@@ -47,7 +47,6 @@
 {
   lib,
   config,
-  dnfConfig,
   dnfLib,
   network,
   host,
@@ -70,11 +69,6 @@ let
     ++ map (r: "tcp/${toString r.from}-${toString r.to}") fw.allowedTCPPortRanges
     ++ map (p: "udp/${toString p}") fw.allowedUDPPorts
     ++ map (r: "udp/${toString r.from}-${toString r.to}") fw.allowedUDPPortRanges;
-  profileServicesArgs = {
-    profileName = "gateway";
-    inherit host;
-    inherit (dnfConfig) modules;
-  };
 in
 {
   options = {
@@ -191,10 +185,6 @@ in
           ''
         ];
       })
-
-      # Activate services declared in host.services via modules.nix triggers.
-      (dnfLib.triggerProfileServices profileServicesArgs)
-      { assertions = dnfLib.mkHostProfileServicesAssertions profileServicesArgs; }
     ]
   );
 }

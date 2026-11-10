@@ -1,20 +1,8 @@
 # Virtual machines guest tools.
 
-{
-  lib,
-  config,
-  dnfConfig,
-  dnfLib,
-  host,
-  ...
-}:
+{ lib, config, ... }:
 let
   cfg = config.darkone.host.vm;
-  profileServicesArgs = {
-    profileName = "vm";
-    inherit host;
-    inherit (dnfConfig) modules;
-  };
 in
 {
   options = {
@@ -53,10 +41,6 @@ in
         systemd.user.services.virtualboxClientDragAndDrop.unitConfig.ConditionEnvironment =
           "XDG_SESSION_TYPE=x11";
       })
-
-      # Activate services declared in host.services via modules.nix triggers.
-      (dnfLib.triggerProfileServices profileServicesArgs)
-      { assertions = dnfLib.mkHostProfileServicesAssertions profileServicesArgs; }
     ]
   );
 }

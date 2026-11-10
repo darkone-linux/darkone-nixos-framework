@@ -4,51 +4,36 @@
   lib,
   pkgs,
   config,
-  dnfConfig,
-  dnfLib,
   host,
   ...
 }:
 let
   cfg = config.darkone.host.laptop;
-  profileServicesArgs = {
-    profileName = "laptop";
-    inherit host;
-    inherit (dnfConfig) modules;
-  };
 in
 {
   options = {
     darkone.host.laptop.enable = lib.mkEnableOption "Laptop optimized host configuration";
   };
 
-  config = lib.mkIf cfg.enable (
-    lib.mkMerge [
-      {
+  config = lib.mkIf cfg.enable {
 
-        # Based on desktop configuration
-        darkone.host.desktop.enable = lib.mkDefault true;
+    # Based on desktop configuration
+    darkone.host.desktop.enable = lib.mkDefault true;
 
-        # Sensors management (WIP)
-        boot.kernelModules = [ "coretemp" ];
-        environment.systemPackages = with pkgs; [ lm_sensors ];
+    # Sensors management (WIP)
+    boot.kernelModules = [ "coretemp" ];
+    environment.systemPackages = with pkgs; [ lm_sensors ];
 
-        # A fleet host must stay reachable: a machine that suspends on its own
-        # is unreachable until someone touches it, which cost a remote install
-        # once already. Suspend is therefore opt-in, never a profile default —
-        # `features: ["auto-suspend"]` in etc/config.yaml brings it back.
-        darkone.system.core.enableAutoSuspend = lib.mkDefault (host.features ? "auto-suspend");
+    # A fleet host must stay reachable: a machine that suspends on its own
+    # is unreachable until someone touches it, which cost a remote install
+    # once already. Suspend is therefore opt-in, never a profile default —
+    # `features: ["auto-suspend"]` in etc/config.yaml brings it back.
+    darkone.system.core.enableAutoSuspend = lib.mkDefault (host.features ? "auto-suspend");
 
-        # Blank the screen earlier on laptops (battery saving): 15 min
-        darkone.graphic.gnome.screenBlankDelay = lib.mkDefault 900;
+    # Blank the screen earlier on laptops (battery saving): 15 min
+    darkone.graphic.gnome.screenBlankDelay = lib.mkDefault 900;
 
-        # Temperature management daemon
-        services.thermald.enable = lib.mkDefault true;
-      }
-
-      # Activate services declared in host.services via modules.nix triggers.
-      (dnfLib.triggerProfileServices profileServicesArgs)
-      { assertions = dnfLib.mkHostProfileServicesAssertions profileServicesArgs; }
-    ]
-  );
+    # Temperature management daemon
+    services.thermald.enable = lib.mkDefault true;
+  };
 }

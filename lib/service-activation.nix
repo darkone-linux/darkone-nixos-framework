@@ -1,8 +1,8 @@
 # Service activation helpers for DNF host-profile mixins.
 #
 # Reads `activation.profiles.<profile>.triggers` from `dnfConfig.modules`
-# and emits NixOS config fragments, decoupling activation logic from
-# individual mixin modules.
+# and emits NixOS config fragments, applied for every enabled host profile by
+# `modules/system/services/activation.nix`.
 #
 # :::tip[Adding a new service]
 # Add an `activation` entry in `config/modules.nix`; no mixin edit needed.

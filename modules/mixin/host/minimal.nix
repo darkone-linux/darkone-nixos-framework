@@ -7,21 +7,9 @@
 # the service is visible across the entire network!**
 # :::
 
-{
-  lib,
-  config,
-  dnfConfig,
-  dnfLib,
-  host,
-  ...
-}:
+{ lib, config, ... }:
 let
   cfg = config.darkone.host.minimal;
-  profileServicesArgs = {
-    profileName = "minimal";
-    inherit host;
-    inherit (dnfConfig) modules;
-  };
 in
 {
   options = {
@@ -29,39 +17,31 @@ in
     darkone.host.minimal.secure = lib.mkEnableOption "Prefer more secure options (disable mutable users...)";
   };
 
-  config = lib.mkIf cfg.enable (
-    lib.mkMerge [
-      {
+  config = lib.mkIf cfg.enable {
 
-        # Darkone main modules
-        darkone.system = {
-          hardware.enable = true;
-          core.enableFirewall = lib.mkDefault true;
-          i18n.enable = lib.mkDefault true;
+    # Darkone main modules
+    darkone.system = {
+      hardware.enable = true;
+      core.enableFirewall = lib.mkDefault true;
+      i18n.enable = lib.mkDefault true;
 
-          # ANSSI hardening: minimal/base tier on every host. level and category
-          # come from darkone.system.security defaults; higher levels and the
-          # per-profile category will be set later (cf. mixin/profile/).
-          security.enable = lib.mkDefault true;
-        };
+      # ANSSI hardening: minimal/base tier on every host. level and category
+      # come from darkone.system.security defaults; higher levels and the
+      # per-profile category will be set later (cf. mixin/profile/).
+      security.enable = lib.mkDefault true;
+    };
 
-        # Minimum console features
-        darkone.console = {
-          zsh.enable = lib.mkDefault true;
-          zsh.enableForRoot = lib.mkDefault true;
-        };
+    # Minimum console features
+    darkone.console = {
+      zsh.enable = lib.mkDefault true;
+      zsh.enableForRoot = lib.mkDefault true;
+    };
 
-        # No password for sudoers
-        security.sudo.wheelNeedsPassword = lib.mkDefault false;
+    # No password for sudoers
+    security.sudo.wheelNeedsPassword = lib.mkDefault false;
 
-        # Can manage users with useradd, usermod...
-        # Note: sops module forces mutable users.
-        users.mutableUsers = lib.mkDefault (!cfg.secure);
-      }
-
-      # Activate services declared in host.services via modules.nix triggers.
-      (dnfLib.triggerProfileServices profileServicesArgs)
-      { assertions = dnfLib.mkHostProfileServicesAssertions profileServicesArgs; }
-    ]
-  );
+    # Can manage users with useradd, usermod...
+    # Note: sops module forces mutable users.
+    users.mutableUsers = lib.mkDefault (!cfg.secure);
+  };
 }

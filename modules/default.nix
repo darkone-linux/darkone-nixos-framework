@@ -109,6 +109,7 @@
     ./system/network.nix
     ./system/security.nix
     ./system/services.nix
+    ./system/services/activation.nix
     ./system/services/caddy.nix
     ./system/services/oauth2-proxy.nix
     ./system/sops.nix

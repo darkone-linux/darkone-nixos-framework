@@ -8,8 +8,16 @@
 # :::
 #
 # Sub-modules (`services/`):
+# - `activation.nix`: services enabled per host profile (`config/modules.nix`);
 # - `caddy.nix`: reverse proxy vhosts, TLS, HTTP(S) firewall;
 # - `oauth2-proxy.nix`: Kanidm SSO of the protected services.
+#
+# #### Activation (`activation.nix`)
+#
+# Each host profile enabled on a host, directly or through another one
+# (`laptop` → `desktop` → `minimal`), turns on the services its triggers name:
+# `triggers.always`, or `triggers.keys.<key>` when `<key>` is under the host's
+# `services:` in `etc/config.yaml`.
 #
 # #### Reverse proxy (`caddy.nix`)
 #

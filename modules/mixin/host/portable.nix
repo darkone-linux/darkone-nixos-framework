@@ -1,20 +1,8 @@
 # Portable configuration for a bootable USB drive containing a NixOS machine from the local network.
 
-{
-  lib,
-  config,
-  dnfConfig,
-  dnfLib,
-  host,
-  ...
-}:
+{ lib, config, ... }:
 let
   cfg = config.darkone.host.portable;
-  profileServicesArgs = {
-    profileName = "portable";
-    inherit host;
-    inherit (dnfConfig) modules;
-  };
 in
 {
   options = {
@@ -22,29 +10,21 @@ in
   };
 
   # TODO: specific boot options for usb keys
-  config = lib.mkIf cfg.enable (
-    lib.mkMerge [
-      {
+  config = lib.mkIf cfg.enable {
 
-        # Based on the minimal configuration, not on the laptop one
-        darkone.host.minimal.enable = true;
+    # Based on the minimal configuration, not on the laptop one
+    darkone.host.minimal.enable = true;
 
-        # ANSSI machine category: a USB key is used as a workstation, and it
-        # inherits `minimal`, which stays `base`.
-        darkone.system.security.category = "client";
+    # ANSSI machine category: a USB key is used as a workstation, and it
+    # inherits `minimal`, which stays `base`.
+    darkone.system.security.category = "client";
 
-        # More hardware drivers
-        darkone.system.hardware = {
-          enable = true;
-          enableIntel = true;
-          enableAmd = true;
-        };
-        hardware.enableAllHardware = true;
-      }
-
-      # Activate services declared in host.services via modules.nix triggers.
-      (dnfLib.triggerProfileServices profileServicesArgs)
-      { assertions = dnfLib.mkHostProfileServicesAssertions profileServicesArgs; }
-    ]
-  );
+    # More hardware drivers
+    darkone.system.hardware = {
+      enable = true;
+      enableIntel = true;
+      enableAmd = true;
+    };
+    hardware.enableAllHardware = true;
+  };
 }

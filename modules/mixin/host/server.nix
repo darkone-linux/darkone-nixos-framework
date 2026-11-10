@@ -5,22 +5,10 @@
 # that we can hopefully still access it remotely. (cf. srvos)
 # :::
 
-{
-  lib,
-  config,
-  dnfConfig,
-  dnfLib,
-  host,
-  ...
-}:
+{ lib, config, ... }:
 let
   cfg = config.darkone.host.server;
   bootGenerationsLimit = 10;
-  profileServicesArgs = {
-    profileName = "server";
-    inherit host;
-    inherit (dnfConfig) modules;
-  };
 in
 {
   options = {
@@ -32,74 +20,66 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable (
-    lib.mkMerge [
-      {
+  config = lib.mkIf cfg.enable {
 
-        # Load minimal configuration
-        darkone.host.minimal.enable = true;
+    # Load minimal configuration
+    darkone.host.minimal.enable = true;
 
-        # ANSSI machine category. Written here and not in `gateway`, `hcs` or
-        # `vm`, which all enable this profile: two definitions of different
-        # values on the same option conflict. `mkDefault` because `vm` also
-        # enables this profile, and a hypervisor guest that runs a desktop
-        # (`vbox-umi`) is a client — `desktop` states its own category plainly
-        # and wins. A server that must state it anyway uses `mkForce`.
-        darkone.system.security.category = lib.mkDefault "server";
+    # ANSSI machine category. Written here and not in `gateway`, `hcs` or
+    # `vm`, which all enable this profile: two definitions of different
+    # values on the same option conflict. `mkDefault` because `vm` also
+    # enables this profile, and a hypervisor guest that runs a desktop
+    # (`vbox-umi`) is a client — `desktop` states its own category plainly
+    # and wins. A server that must state it anyway uses `mkForce`.
+    darkone.system.security.category = lib.mkDefault "server";
 
-        # Do not suspend!
-        darkone.system.core.disableSuspend = lib.mkForce true;
+    # Do not suspend!
+    darkone.system.core.disableSuspend = lib.mkForce true;
 
-        # Darkone modules (very low priority)
-        darkone.system.documentation.enable = lib.mkOverride 2000 false;
+    # Darkone modules (very low priority)
+    darkone.system.documentation.enable = lib.mkOverride 2000 false;
 
-        # Restrict the number of boot entries to prevent full /boot partition.
-        # Servers don't need too many generations.
-        boot.loader.grub.configurationLimit = lib.mkDefault bootGenerationsLimit;
-        boot.loader.systemd-boot.configurationLimit = lib.mkDefault bootGenerationsLimit;
+    # Restrict the number of boot entries to prevent full /boot partition.
+    # Servers don't need too many generations.
+    boot.loader.grub.configurationLimit = lib.mkDefault bootGenerationsLimit;
+    boot.loader.systemd-boot.configurationLimit = lib.mkDefault bootGenerationsLimit;
 
-        # Firewall is enabled
-        darkone.system.core.enableFirewall = lib.mkDefault true;
+    # Firewall is enabled
+    darkone.system.core.enableFirewall = lib.mkDefault true;
 
-        # Given that our systems are headless, emergency mode is useless.
-        # We prefer the system to attempt to continue booting so
-        # that we can hopefully still access it remotely.
-        boot.initrd.systemd.suppressedUnits = lib.mkIf config.systemd.enableEmergencyMode [
-          "emergency.service"
-          "emergency.target"
-        ];
+    # Given that our systems are headless, emergency mode is useless.
+    # We prefer the system to attempt to continue booting so
+    # that we can hopefully still access it remotely.
+    boot.initrd.systemd.suppressedUnits = lib.mkIf config.systemd.enableEmergencyMode [
+      "emergency.service"
+      "emergency.target"
+    ];
 
-        systemd = {
+    systemd = {
 
-          # Headless: keep booting instead of dropping to emergency (cf. above).
-          enableEmergencyMode = false;
+      # Headless: keep booting instead of dropping to emergency (cf. above).
+      enableEmergencyMode = false;
 
-          # https://0pointer.de/blog/projects/watchdog.html
-          settings.Manager = lib.mkIf cfg.enableWatchdog {
+      # https://0pointer.de/blog/projects/watchdog.html
+      settings.Manager = lib.mkIf cfg.enableWatchdog {
 
-            # systemd will send a signal to the hardware watchdog at half
-            # the interval defined here, so every 15s.
-            # If the hardware watchdog does not get a signal for 30s,
-            # it will forcefully reboot the system.
-            RuntimeWatchdogSec = "30s";
+        # systemd will send a signal to the hardware watchdog at half
+        # the interval defined here, so every 15s.
+        # If the hardware watchdog does not get a signal for 30s,
+        # it will forcefully reboot the system.
+        RuntimeWatchdogSec = "30s";
 
-            # Forcefully reboot if the final stage of the reboot
-            # hangs without progress for more than 60s.
-            # https://utcc.utoronto.ca/~cks/space/blog/linux/SystemdShutdownWatchdog
-            RebootWatchdogSec = "60s";
+        # Forcefully reboot if the final stage of the reboot
+        # hangs without progress for more than 60s.
+        # https://utcc.utoronto.ca/~cks/space/blog/linux/SystemdShutdownWatchdog
+        RebootWatchdogSec = "60s";
 
-            # Forcefully reboot when a host hangs after kexec.
-            # This may be the case when the firmware does not support kexec.
-            KExecWatchdogSec = "1m";
-          };
-        };
-      }
-
-      # Activate services declared in host.services via modules.nix triggers.
-      (dnfLib.triggerProfileServices profileServicesArgs)
-      { assertions = dnfLib.mkHostProfileServicesAssertions profileServicesArgs; }
-    ]
-  );
+        # Forcefully reboot when a host hangs after kexec.
+        # This may be the case when the firmware does not support kexec.
+        KExecWatchdogSec = "1m";
+      };
+    };
+  };
 }
 
 # src: https://github.com/nix-community/srvos/blob/main/nixos/server/default.nix
