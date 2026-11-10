@@ -6,7 +6,7 @@
 #
 # :::note[Unconditional]
 # No `enable` option: pure metadata, no service, no cost. `dnfVersion` comes
-# from `lib/mk-configuration.nix`, which reads `dnf/VERSION` and the flake
+# from `lib/flake/mk-configuration.nix`, which reads `dnf/VERSION` and the flake
 # revision.
 # :::
 #

@@ -1,6 +1,6 @@
 # DNF — host/node wiring helpers (arch parsing, RPi boards, node args).
 #
-# Imported directly by `lib/mk-configuration.nix`, which needs them before the
+# Imported directly by `lib/flake/mk-configuration.nix`, which needs them before the
 # per-system `dnfLib` exists; also exposed through `dnfLib` for unit tests.
 
 { lib }:
@@ -16,11 +16,8 @@ let
     rpi5 = "raspberry-pi-5";
   };
 
-  # CPU half of `arch`, mirroring `supportedSystems` in mk-configuration.nix.
-  supportedCpus = [
-    "x86_64"
-    "aarch64"
-  ];
+  # CPU half of `arch`.
+  supportedCpus = map (lib.removeSuffix "-linux") (import ./constants.nix).supportedSystems;
 
   known = names: lib.concatStringsSep ", " (lib.sort (a: b: a < b) names);
 
@@ -35,7 +32,7 @@ let
   isSpaceHost = host: (host.profile or null) == "ai-space";
 
   # A member's account on its space is light: no sudo, `space-member` home
-  # instead of its own profile (`lib/mk-configuration.nix`).
+  # instead of its own profile (`lib/flake/mk-configuration.nix`).
   isSpaceMember = host: login: isSpaceHost host && lib.elem login (spaceMembers host);
 
   # Hypervisor of a microVM guest (`features: ["microvm-guest:<host>"]`), or

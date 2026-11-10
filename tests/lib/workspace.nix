@@ -9,7 +9,7 @@
 
 { inputs }:
 let
-  mkConfigurations = import ../../lib/mk-configuration.nix { inherit inputs; };
+  mkConfigurations = import ../../lib/flake/mk-configuration.nix { inherit inputs; };
 in
 workDir:
 let

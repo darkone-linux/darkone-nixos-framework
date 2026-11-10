@@ -7,7 +7,7 @@ evaluation, on every host.
 
 ```
 backports/
-└── nixos/<name>.nix   <-- imported by `lib/mk-configuration.nix`, every host
+└── nixos/<name>.nix   <-- imported by `lib/flake/mk-configuration.nix`, every host
 ```
 
 | Module | nixpkgs PR | Package |
@@ -24,7 +24,7 @@ directories).
 Once the PR lands in `nixos-unstable` and the lock follows:
 
 1. delete `backports/nixos/<name>.nix` and its line in
-   `lib/mk-configuration.nix`;
+   `lib/flake/mk-configuration.nix`;
 2. GeneWeb only: drop `lib/overlays/geneweb.nix` and the `nixpkgs-geneweb`
    input;
 3. remove its entry in `config/workarounds.nix` (`just workarounds` flags it

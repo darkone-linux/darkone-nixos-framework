@@ -15,7 +15,7 @@
 #   `pin` (package from another nixpkgs), `inline` (in-module bypass),
 #   `insecure` (`permittedInsecurePackages`)
 # - `files`: framework files carrying it, from the dnf root (overlays and
-#   backports are also wired: `lib/overlays/default.nix`, `lib/mk-configuration.nix`)
+#   backports are also wired: `lib/overlays/default.nix`, `lib/flake/mk-configuration.nix`)
 # - `reason`: the upstream defect; `dropWhen`: the cleanup condition
 # - `since`: date added, `YYYY-MM-DD`
 # - `upstream` (opt.): `owner/repo#N`, the fix awaited (PR or issue)

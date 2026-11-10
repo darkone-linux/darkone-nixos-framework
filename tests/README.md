@@ -245,7 +245,7 @@ Append workspace path to `scenarios/eval-all.nix` for L1 eval coverage on all ho
 
 ### `mkNodes` invariant (framework ↔ test seam)
 
-- `lib/mk-configuration.nix` exposes `mkNodes { forTest ? false }` — single source of truth. Each host = `{ modules; specialArgs; system; }`.
+- `lib/flake/mk-configuration.nix` exposes `mkNodes { forTest ? false }` — single source of truth. Each host = `{ modules; specialArgs; system; }`.
 - All downstreams derive from it:
   - `nixosConfigurations.<h>` ← `mkNodes {}`
   - `colmena.<h>` ← `mkNodes {}`

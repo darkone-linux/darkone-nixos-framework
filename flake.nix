@@ -114,7 +114,7 @@
 
     # MicroVM guests (cloud-hypervisor): one per AI space, on the hypervisor
     # named by the guest's `microvm-guest:<host>` feature. Modules imported
-    # per host by `lib/mk-configuration.nix`, like the RPi board modules.
+    # per host by `lib/flake/mk-configuration.nix`, like the RPi board modules.
     microvm.url = "github:microvm-nix/microvm.nix";
     microvm.inputs.nixpkgs.follows = "nixpkgs";
 
@@ -135,19 +135,20 @@
       # `mkConfigurations` is the public entry point consumed by consumer
       # flakes (arthur-network, dnf-boilerplate). It closes over the framework
       # `inputs` declared above and only requires the consumer's `workDir`.
-      mkConfigurations = import ./lib/mk-configuration.nix { inherit inputs; };
+      mkConfigurations = import ./lib/flake/mk-configuration.nix { inherit inputs; };
 
-      # Build the framework's own "self" configuration (used by the framework's
-      # standalone outputs: ISO images, libTests, devShell). It points at the
-      # framework dir itself; consumer-side paths (`workDir/usr`,
-      # `workDir/var/generated`) are NOT touched here — the standalone flake
-      # only exposes framework-owned outputs.
-      supportedSystems = [
-        "x86_64-linux"
-        "aarch64-linux"
-      ];
-
+      # Framework-owned outputs below never read a consumer workspace: no
+      # `workDir`, no `var/generated/`.
+      images = import ./lib/flake/images.nix { inherit inputs; };
+      inherit (import ./lib/constants.nix) supportedSystems;
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+      pkgsFor = forAllSystems (
+        system:
+        import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+        }
+      );
 
       # `darkone new` and the project template, where the generator builds
       # (x86_64 only).
@@ -216,34 +217,11 @@
       nixosConfigurations = builtins.listToAttrs (
         map (system: {
           name = "iso-${system}";
-          value = nixpkgs.lib.nixosSystem {
-            specialArgs = {
-              imgFormat = nixpkgs.lib.mkDefault "iso";
-
-              # Standalone framework ISO: no consumer workspace. `hosts/iso.nix`
-              # declares `workDir ? null` but the module system bypasses that
-              # default and queries `_module.args.workDir`; inject it explicitly.
-              workDir = null;
-
-              installer = isoInstaller system;
-              host = {
-                hostname = "new-dnf-host";
-                name = "New Darkone NixOS Framework";
-                profile = "minimal";
-                users = [ ];
-                groups = [ ];
-                arch = system;
-              };
-            };
-            modules = [
-              {
-                nixpkgs.pkgs = import nixpkgs {
-                  inherit system;
-                  config.allowUnfree = true;
-                };
-              }
-              ./hosts/iso.nix
-            ];
+          value = images.mkIso {
+            inherit system;
+            pkgs = pkgsFor.${system};
+            workDir = null;
+            installer = isoInstaller system;
           };
         }) supportedSystems
       );
@@ -261,16 +239,10 @@
 
       packages = forAllSystems (
         system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-            config.allowUnfree = true;
-          };
-        in
 
         # DNF-only packages, auto-discovered from `pkgs/` (same set the
         # `pkgs/overlay.nix` applied in `mk-configuration.nix` exposes).
-        import ./pkgs { inherit pkgs; }
+        import ./pkgs { pkgs = pkgsFor.${system}; }
 
         # The Rust generator only builds for x86_64-linux. Declaring it for
         # every supported system made `.#packages.aarch64-linux` — and the
@@ -288,7 +260,7 @@
       #------------------------------------------------------------------------
       #
       # `init` materialises the framework tree as a `dnf/` symlink in the
-      # consumer's workspace (see `lib/init-app.nix`). Bootstrap form, used
+      # consumer's workspace (see `lib/flake/init-app.nix`). Bootstrap form, used
       # once, before the consumer has a lock to pin:
       #
       #   nix run github:darkone-linux/darkone-nixos-framework#init
@@ -299,7 +271,7 @@
       apps = forAllSystems (
         system:
         {
-          init = import ./lib/init-app.nix {
+          init = import ./lib/flake/init-app.nix {
             pkgs = nixpkgs.legacyPackages.${system};
             frameworkRoot = self;
           };
@@ -361,28 +333,22 @@
       # tests/scenarios/. Run a single one: just simulate <name>.
       checks = forAllSystems (
         system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-            config.allowUnfree = true;
-          };
-        in
-        import ./tests/scenarios { inherit pkgs inputs; }
+        import ./tests/scenarios {
+          pkgs = pkgsFor.${system};
+          inherit inputs;
+        }
       );
 
       # Dev shell for framework hacking. Shares its base toolchain with the one
-      # consumers get via mkConfigurations (lib/dev-shell.nix); `extraPackages`
+      # consumers get via mkConfigurations (`lib/flake/dev-shell.nix`); `extraPackages`
       # below is what is genuinely framework-only.
       devShells = forAllSystems (
         system:
         let
-          pkgs = import nixpkgs {
-            inherit system;
-            config.allowUnfree = true;
-          };
+          pkgs = pkgsFor.${system};
         in
         {
-          default = import ./lib/dev-shell.nix {
+          default = import ./lib/flake/dev-shell.nix {
             inherit pkgs;
             inherit (inputs.colmena.packages.${system}) colmena;
 

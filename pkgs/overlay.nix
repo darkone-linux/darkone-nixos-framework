@@ -1,6 +1,6 @@
 # Overlay form of `./default.nix`: every DNF-only package as `pkgs.<name>`.
 #
-# Applied through `nixpkgs.overlays` in `lib/mk-configuration.nix` (`mkNode`),
+# Applied through `nixpkgs.overlays` in `lib/flake/mk-configuration.nix` (`mkNode`),
 # so NixOS modules, home-manager modules (`useGlobalPkgs`) and scenario tests
 # all see the same attributes.
 #

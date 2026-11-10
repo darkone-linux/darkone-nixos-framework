@@ -1,7 +1,7 @@
 # DNF — internal Nix library (`dnfLib`)
 #
 # Public entry point of the helpers shared by DNF NixOS and home-manager
-# modules. Instantiated once per system by `lib/mk-configuration.nix`
+# modules. Instantiated once per system by `lib/flake/mk-configuration.nix`
 # (`dnfLibFor`), injected as `specialArgs.dnfLib` / `extraSpecialArgs.dnfLib`.
 
 { lib }:

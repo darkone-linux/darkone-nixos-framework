@@ -1,7 +1,7 @@
 # DNF — shared development shell.
 #
 # Single package list behind the framework shell (`flake.nix`) and the one
-# `lib/mk-configuration.nix` hands to consumers. `extraPackages`: what only one
+# `lib/flake/mk-configuration.nix` hands to consumers. `extraPackages`: what only one
 # side needs (framework: doc toolchain, `dnf-generator` binary).
 
 {

@@ -1098,7 +1098,7 @@ in
       darkone.system.services = dnfLib.enableBlock "openclaw";
 
       # `services.openclaw-gateway` exists on `ai-space` hosts only
-      # (`lib/mk-configuration.nix`).
+      # (`lib/flake/mk-configuration.nix`).
       assertions = [
         {
           assertion = options ? services.openclaw-gateway;

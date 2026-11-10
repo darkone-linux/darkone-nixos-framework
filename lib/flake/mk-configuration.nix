@@ -32,19 +32,16 @@ let
   # What `modules/system/dnf-release.nix` stamps on every host. `rev` is absent
   # on a dirty co-dev tree, where `dirtyShortRev` carries the `-dirty` suffix.
   dnfVersion = {
-    release = nixpkgs.lib.fileContents ../VERSION;
+    release = nixpkgs.lib.fileContents ../../VERSION;
     rev = inputs.self.shortRev or inputs.self.dirtyShortRev or "unknown";
   };
 
-  supportedSystems = [
-    "x86_64-linux"
-    "aarch64-linux"
-  ];
+  inherit (import ../constants.nix) supportedSystems;
 
   forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
   # Pure helpers; needed before dnfLibFor (arch-independent)
-  hiveLib = import ./hive.nix { inherit (nixpkgs) lib; };
+  hiveLib = import ../hive.nix { inherit (nixpkgs) lib; };
   inherit (hiveLib)
     getHostArch
     getHostBoard
@@ -58,18 +55,21 @@ let
     ;
 
   # Path-resolution helpers (unit-tested in `tests/unit/lib/paths_test.nix`)
-  pathsLib = import ./paths.nix { inherit (nixpkgs) lib; };
+  pathsLib = import ../paths.nix { inherit (nixpkgs) lib; };
   resolveProfile = pathsLib.resolveProfile {
-    frameworkRoot = ./..;
+    frameworkRoot = ../..;
     inherit workDir;
   };
   resolveNixosProfile = pathsLib.resolveNixosProfile {
-    frameworkRoot = ./..;
+    frameworkRoot = ../..;
     inherit workDir;
   };
 
   # Overlays of every host, in application order (`lib/overlays/`).
-  overlaysFor = import ./overlays { inherit inputs; };
+  overlaysFor = import ../overlays { inherit inputs; };
+
+  # Installer ISO and SD images (`images.nix`).
+  images = import ./images.nix { inherit inputs; };
 
   # Per-system nixpkgs instances
   nixpkgsFor = forAllSystems (
@@ -94,7 +94,7 @@ let
   # DNF runtime lib (per-system, injected into modules via specialArgs.dnfLib).
   # Memoised like its `nixpkgsFor` neighbours: it is looked up once per host,
   # and re-importing `lib/` for each of them is pure waste.
-  dnfLibFor = forAllSystems (system: import ./. { inherit (nixpkgsFor.${system}) lib; });
+  dnfLibFor = forAllSystems (system: import ../. { inherit (nixpkgsFor.${system}) lib; });
 
   # Consumer-side generated inventory
   hosts = import (workDir + "/var/generated/hosts.nix");
@@ -111,7 +111,7 @@ let
       nixpkgs.lib.recursiveUpdate networkBase (import matrixFile)
     else
       networkBase;
-  dnfConfig = import ./../config;
+  dnfConfig = import ../../config;
 
   # Pre-resolve NixOS-side profile module paths so `modules/user/build.nix`
   # stays agnostic to the framework/consumer layout.
@@ -179,12 +179,12 @@ let
       modules = [
 
         # Framework-side NixOS modules
-        ../modules
+        ../../modules
 
         # GeneWeb: module of nixpkgs PR #522751, copied (cf.
         # `backports/README.md`). Every host: the wrapper reads its options
         # everywhere; inert while `services.geneweb.enable = false`.
-        ../backports/nixos/geneweb.nix
+        ../../backports/nixos/geneweb.nix
 
         # Overlays go through a module: `nixosSystem` rebuilds its own `pkgs`,
         # which `nixpkgsFor` never reaches.
@@ -193,7 +193,7 @@ let
         # OxiCloud: module of nixpkgs PR #516113, copied (cf.
         # `backports/README.md`). No overlay: `pkgs.oxicloud` already comes
         # from the main `nixpkgs` tree.
-        ../backports/nixos/oxicloud.nix
+        ../../backports/nixos/oxicloud.nix
 
         # Consumer-side NixOS modules overlay
         (workDir + "/usr/modules")
@@ -313,7 +313,7 @@ let
       # On an AI space, a member's workstation setup stays out: light profile,
       # then the user's optional overrides, every space then this one.
       spaceImports = [
-        ../home/profiles/space-member
+        ../../home/profiles/space-member
       ]
       ++ builtins.filter builtins.pathExists [
         (userDir + "/space.nix")
@@ -326,7 +326,7 @@ let
         imports = [
 
           # Framework-side home-manager modules
-          ../home
+          ../../home
 
           # Consumer-side home overlay
           (workDir + "/usr/home")
@@ -405,56 +405,30 @@ let
     }
   ) prodNodes;
 
-  # ISO images. `workDir` is forwarded so iso.nix injects the consumer's
-  # `usr/secrets/nix.pub` for nixos-anywhere.
+  # Install images. `workDir` forwards the consumer's deploy key
+  # (`usr/secrets/nix.pub`). The assistant installs the first host of a new
+  # network: generic image only, a consumer one installs remotely.
   isoNixosConfigurations = builtins.listToAttrs (
     map (system: {
       name = "iso-${system}";
-      value = nixpkgs.lib.nixosSystem {
-        specialArgs = {
-          inherit workDir;
-          imgFormat = nixpkgs.lib.mkDefault "iso";
-
-          # The assistant installs the first host of a new network: generic
-          # image only, a consumer one installs remotely.
-          installer = null;
-          host = {
-            hostname = "new-dnf-host";
-            name = "New Darkone NixOS Framework";
-            profile = "minimal";
-            users = [ ];
-            groups = [ ];
-            arch = system;
-          };
-        };
-        modules = [
-          { nixpkgs.pkgs = nixpkgsFor.${system}; }
-          ../hosts/iso.nix
-        ];
+      value = images.mkIso {
+        inherit system workDir;
+        pkgs = nixpkgsFor.${system};
+        installer = null;
       };
     }) supportedSystems
   );
 
-  # Bootable Raspberry Pi SD images (first-install media, aarch64). Built via the
-  # nixos-raspberrypi wrapper (no colmena here), which applies the RPi overlays
-  # and injects the `nixos-raspberrypi` specialArg. The `sd-image` module yields
-  # `config.system.build.sdImage`; `workDir` forwards the consumer admin pubkey.
+  # Bootable Raspberry Pi SD images (first-install media, aarch64).
   sdImageNixosConfigurations = builtins.listToAttrs (
     map (board: {
       name = "sd-image-${board}";
-      value = nixos-raspberrypi.lib.nixosSystem {
-        specialArgs = { inherit workDir nixos-raspberrypi; };
-        modules = [
-          nixos-raspberrypi.nixosModules.${board}.base
-          nixos-raspberrypi.nixosModules.sd-image
-          ../hosts/sd-image.nix
-        ];
-      };
+      value = images.mkSdImage { inherit board workDir; };
     }) rpiBoards
   );
 
   # Multi-arch devshell (cargo / nix-unit / sops / colmena / ...).
-  # Shared with the framework's own shell — see lib/dev-shell.nix.
+  # Shared with the framework's own shell — see `dev-shell.nix`.
   mkDevShell =
     system:
     import ./dev-shell.nix {
@@ -499,7 +473,7 @@ in
   # install tools too, at the revisions the framework locks and tests.
   packages = forAllSystems (
     system:
-    import ../pkgs { pkgs = nixpkgsFor.${system}; }
+    import ../../pkgs { pkgs = nixpkgsFor.${system}; }
     // {
       inherit (disko.packages.${system}) disko;
       inherit (nixos-anywhere.packages.${system}) nixos-anywhere;

@@ -6,7 +6,7 @@
 # and SOPS_AGE_KEY_FILE and fixes the filesystem permissions afterwards.
 #
 # Nothing is hard-coded here: `<workDir>#secretsPlan` (flake output, see
-# dnf/lib/mk-configuration.nix) collects every `sops.secrets` entry declared by
+# dnf/lib/flake/mk-configuration.nix) collects every `sops.secrets` entry declared by
 # every host and classifies it through `dnfLib.mkSecretPlan`. This script only
 # knows how to *produce* a value for a generator id, and never overwrites an
 # existing entry — rotating a secret stays a deliberate, manual act.

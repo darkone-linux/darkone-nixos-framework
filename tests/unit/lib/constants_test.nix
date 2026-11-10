@@ -2,6 +2,14 @@
 # Run with: nix-unit --flake .#libTests
 { dnfLib }: {
 
+  testSupportedSystems = {
+    expr = dnfLib.constants.supportedSystems;
+    expected = [
+      "x86_64-linux"
+      "aarch64-linux"
+    ];
+  };
+
   testCaddyStoragePath = {
     expr = dnfLib.constants.caddyStorage;
     expected = "/var/lib/caddy/storage";

@@ -10,7 +10,7 @@
 #
 # The registry holds *how to produce* a secret, never *which* secrets exist:
 # the authority for that is each host's `sops.secrets`, collected by the
-# `secretsPlan` flake output (cf. `lib/mk-configuration.nix`) and fed to
+# `secretsPlan` flake output (cf. `lib/flake/mk-configuration.nix`) and fed to
 # `mkSecretPlan`. Generator ids are implemented by
 # `just/scripts/generate-secrets.sh`, run by `just configure-admin-host`.
 #

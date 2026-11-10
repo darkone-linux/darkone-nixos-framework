@@ -37,7 +37,7 @@ let
   # An isolated host gets no hash at all: its accounts are SSH-key only.
   hasPasswordHash = hasSops && !config.darkone.system.sops.isolated;
 
-  # `userNixosProfiles.<login>` is pre-resolved by `dnf/lib/mkConfigurations.nix`
+  # `userNixosProfiles.<login>` is pre-resolved by `dnf/lib/flake/mk-configuration.nix`
   # (framework-side or workDir-side NixOS profile path). This module stays
   # agnostic to the framework/consumer layout.
   mkUser =

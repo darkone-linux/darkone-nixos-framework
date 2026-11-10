@@ -11,6 +11,12 @@ let
 in
 {
 
+  # Systems the framework builds for: flake outputs, `arch` of a host.
+  supportedSystems = [
+    "x86_64-linux"
+    "aarch64-linux"
+  ];
+
   # Caddy storage (TLS certificates, ACME state), synced from the HCS to the
   # zone gateways (cf. `service/tailscale/cert-sync.nix`).
   caddyStorage = "/var/lib/caddy/storage";

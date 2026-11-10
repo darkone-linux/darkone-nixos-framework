@@ -6,7 +6,7 @@
 #
 # Two consumers:
 #
-# - `./overlay.nix`, applied by `lib/mk-configuration.nix`, exposes every
+# - `./overlay.nix`, applied by `lib/flake/mk-configuration.nix`, exposes every
 #   entry as `pkgs.<name>` on all hosts;
 # - `flake.nix` re-exports them, so `nix build .#<name>` and CI cover them.
 #

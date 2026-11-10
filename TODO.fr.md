@@ -232,7 +232,7 @@ Maintenabilité :
       diffèrent. Extraire un `mkDevShell` partagé.
 - [x] Conventions AGENTS.md non respectées : `with lib;` dans 5 modules
       (`office.nix`, `gnome.nix`, `idm.nix`, `services.nix`, `srv-dirs.nix`) ;
-      commentaires français dans `flake.nix` et `lib/mk-configuration.nix` ;
+      commentaires français dans `flake.nix` et `lib/flake/mk-configuration.nix` ;
       `matrix.nix` utilise `pkgs.writeScript` + `#!/bin/sh` avec un
       `set -o pipefail` bash-only et des `grep` nus.
 - [x] Gains rapides : mémoïser `mkDnfLib` / `mkCommonNodeArgs` comme leurs

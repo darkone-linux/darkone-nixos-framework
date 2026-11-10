@@ -104,7 +104,7 @@ _virt target user='nix':
 
 # `user`: `nixos` on the installer image, `nix` on an installed host.
 # `target` = `local`: the machine running just (`install-here`).
-# Imported by `lib/mk-configuration.nix`; modules shipped only when stage 1
+# Imported by `lib/flake/mk-configuration.nix`; modules shipped only when stage 1
 # has a network (remote LUKS unlock), so a clear host keeps its initrd as is.
 # A virtual machine loads no firmware (`darkone.system.hardware.virtual`).
 #

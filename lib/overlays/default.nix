@@ -1,6 +1,6 @@
 # DNF — nixpkgs overlays of every host, in application order.
 #
-# Applied through a module by `lib/mk-configuration.nix`: `nixosSystem`
+# Applied through a module by `lib/flake/mk-configuration.nix`: `nixosSystem`
 # builds its own `pkgs`, which a flake-level overlay never reaches. Why each
 # one exists: its own header; a temporary one also has its entry in
 # `config/workarounds.nix`.
