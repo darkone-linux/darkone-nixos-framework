@@ -80,11 +80,15 @@ let
       lib.filter (lib.hasSuffix ".nix") (lib.attrNames (builtins.readDir (dnfRoot + "/${dir}")))
     );
 
-  # Overlays that are no workaround: packages from a third-party flake.
+  # No workaround: the ordered list itself, packages from a third-party flake.
   permanentOverlays = [
+    "lib/overlays/default.nix"
     "lib/overlays/claude-code.nix"
     "lib/overlays/talon.nix"
   ];
+
+  # Every overlay file reaches the hosts only through this list.
+  overlayList = builtins.readFile (dnfRoot + "/lib/overlays/default.nix");
 
   # `nixpkgs-*` inputs besides the release channel exist for a workaround.
   workaroundInputs = lib.filter (i: lib.hasPrefix "nixpkgs-" i && i != "nixpkgs-stable") flakeInputs;
@@ -117,6 +121,14 @@ in
   testOverlaysRegistered = {
     expr = lib.filter (f: !(lib.elem f (registeredFiles ++ permanentOverlays))) (
       nixFilesOf "lib/overlays"
+    );
+    expected = [ ];
+  };
+
+  # An overlay file missing from the list would be registered, yet inert.
+  testOverlaysWired = {
+    expr = lib.filter (f: !(lib.hasInfix "./${baseNameOf f}" overlayList)) (
+      lib.remove "lib/overlays/default.nix" (nixFilesOf "lib/overlays")
     );
     expected = [ ];
   };

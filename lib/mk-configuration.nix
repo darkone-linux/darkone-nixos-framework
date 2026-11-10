@@ -16,17 +16,13 @@ let
   inherit (inputs)
     nixpkgs
     nixpkgs-stable
-    nixpkgs-geneweb
-    nixpkgs-opencode
     home-manager
     colmena
     sops-nix
     disko
     nixos-anywhere
     nixos-raspberrypi
-    talon-nix
     nix-openclaw
-    claude-code
     ;
 
   # home-manager state version of every home. Hosts freeze theirs in
@@ -72,67 +68,8 @@ let
     inherit workDir;
   };
 
-  # Temporary: `pkgs.geneweb` from nixpkgs PR #522751. Drop it together with
-  # the `nixpkgs-geneweb` input (cf. flake.nix).
-  genewebOverlay = import ./overlays/geneweb.nix { inherit nixpkgs-geneweb; };
-
-  # Temporary: logseq official AppImage, the electron-forge build is broken
-  # (nixpkgs#535206). Drop once upstream fixes the source build.
-  logseqOverlay = import ./overlays/logseq.nix;
-
-  # Temporary: `kmodigest` signing flags for `virtualbox` kernel modules,
-  # whose missing `.ko.cer` breaks the modules aggregator. Drop once upstream
-  # passes `kernel.commonMakeFlags`.
-  kernelModulesSignOverlay = import ./overlays/kernel-modules-sign.nix;
-
-  # Temporary: unbroken `posthog` (dependency of `aider-chat`), marked broken
-  # since `mcp` 2. Drop once nixpkgs#578265 reaches `nixos-unstable`.
-  posthogOverlay = import ./overlays/posthog.nix;
-
-  # Temporary: `digital` built with the full JDK, its AWT tests fail under
-  # maven's `jdk_headless`. Drop once nixpkgs#581567 reaches `nixos-unstable`.
-  digitalOverlay = import ./overlays/digital.nix;
-
-  # Temporary: `lk-jwt-service` without `AWS_LC_SYS_USE_SYSTEM`, set by nixpkgs
-  # with no AWS-LC to link. Drop once unstable `lk-jwt-service` builds.
-  lkJwtServiceOverlay = import ./overlays/lk-jwt-service.nix;
-
-  # Temporary: `presenterm`, `aichat`, `codex` with the system libs (oniguruma,
-  # sqlite, zstd) and vendored AWS-LC their `*-sys` crates need. Drop each
-  # once it builds on unstable.
-  presentermOverlay = import ./overlays/presenterm.nix;
-
-  # Temporary: `thonny` with its `uv_build` bound raised to the locked 0.13.
-  # Drop once nixpkgs#585369 reaches `nixos-unstable`.
-  thonnyOverlay = import ./overlays/thonny.nix;
-
-  # `pkgs.talon` from nix-community/talon-nix, x86_64 only (absent elsewhere),
-  # for UMI (multimodal input) host profiles.
-  talonOverlay = import ./overlays/talon.nix { inherit talon-nix; };
-
-  # `pkgs.openclaw-gateway` from openclaw/nix-openclaw, for AI spaces. Lazy:
-  # fetched only by a host running the service.
-  openclawOverlay = import ./overlays/openclaw.nix { inherit nix-openclaw; };
-
-  # `pkgs.claude-code-nix`: the Claude Code of `darkone.home.ai`, for modules.
-  claudeCodeOverlay = import ./overlays/claude-code.nix { inherit claude-code; };
-
-  # Temporary: `pkgs.opencode`/`pkgs.opencode-desktop` pinned to 1.18.29, as
-  # 1.18.30 crashes on every prompt. Drop once a fix lands in `nixos-unstable`.
-  opencodeOverlay = import ./overlays/opencode.nix { inherit nixpkgs-opencode; };
-
-  # DNF-only packages (`pkgs/`), absent from nixpkgs: permanent until each one
-  # is upstreamed.
-  dnfPackagesOverlay = import ../pkgs/overlay.nix;
-
-  # `pkgs.dnf-generator` for `admin/fleet-update.nix`, x86_64 only: absent
-  # elsewhere, hence `pkgs.dnf-generator or null` on the consumer side. Curried
-  # on `system`: reading `final.stdenv` recurses on test-driver nodes.
-  dnfGeneratorOverlay =
-    system: _final: _prev:
-    nixpkgs.lib.optionalAttrs (inputs.dnf-generator.packages ? ${system}) {
-      dnf-generator = inputs.dnf-generator.packages.${system}.default;
-    };
+  # Overlays of every host, in application order (`lib/overlays/`).
+  overlaysFor = import ./overlays { inherit inputs; };
 
   # Per-system nixpkgs instances
   nixpkgsFor = forAllSystems (
@@ -250,25 +187,8 @@ let
         ../backports/nixos/geneweb.nix
 
         # Overlays go through a module: `nixosSystem` rebuilds its own `pkgs`,
-        # which `nixpkgsFor` never reaches. Each one is documented above.
-        {
-          nixpkgs.overlays = [
-            dnfPackagesOverlay
-            (dnfGeneratorOverlay system)
-            (genewebOverlay system)
-            logseqOverlay
-            kernelModulesSignOverlay
-            posthogOverlay
-            digitalOverlay
-            lkJwtServiceOverlay
-            presentermOverlay
-            thonnyOverlay
-            (talonOverlay system)
-            (opencodeOverlay system)
-            (openclawOverlay system)
-            (claudeCodeOverlay system)
-          ];
-        }
+        # which `nixpkgsFor` never reaches.
+        { nixpkgs.overlays = overlaysFor system; }
 
         # OxiCloud: module of nixpkgs PR #516113, copied (cf.
         # `backports/README.md`). No overlay: `pkgs.oxicloud` already comes
