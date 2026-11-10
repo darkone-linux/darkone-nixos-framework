@@ -169,16 +169,13 @@ Look up upstream (nixpkgs / PR) :
 Then :
 
 - `modules/service/<X>.nix` modelled on `forgejo.nix`. Declare `darkone.service.<X>.enable`, register `darkone.system.services.service.<X>` (persist + `proxy.servicePort`), wire `services.<X>.*` inside `lib.mkIf cfg.enable`.
-- `modules/mixin/host/minimal.nix` — auto-bridge entry, once per service :
+- `config/modules.nix` — registry entry, once per service: topology flags plus the trigger that enables it from `hosts[].services.<x>`:
   ```nix
-  darkone.host.minimal.enable<X> = mkOption {
-    type = types.bool;
-    default = attrsets.hasAttrByPath [ "services" "<x>" ] host;
+  <x> = {
+    activation.profiles.minimal.triggers.keys.<x> = [ "enable" ];
   };
-  # in `config.darkone.service`:
-  <x>.enable = cfg.enable<X>;
   ```
-- `modules/default.nix` is generated (`# DO NOT EDIT` header) — let `dnf-generator` register the new path. Hand-insertion is fine during iteration : the next regen produces the same alphabetical line, no drift.
+- `modules/default.nix` is generated (`# DO NOT EDIT` header) — `just generate` registers the new path.
 
 ### 2. Workspace
 
@@ -188,9 +185,9 @@ Then :
   ```sh
   cd tests/workspaces/node/configs/server-<X>
   mkdir -p var/generated
-  for w in hosts users network disko; do dnf-generator "$w"; done
+  for w in hosts users network machines; do dnf-generator "$w"; done
   ```
-- Never hand-enable `darkone.service.<x>` in a workspace — the minimal-mixin bridge derives it from `hosts[].services.<X>`.
+- Never hand-enable `darkone.service.<x>` in a workspace — the registry trigger derives it from `hosts[].services.<X>`.
 
 ### 3. Scenario
 
@@ -235,7 +232,7 @@ Append workspace path to `scenarios/eval-all.nix` for L1 eval coverage on all ho
 
 - **Untracked files invisible to pure eval.** New files must be `git add`ed (or committed) before `nix build` / `just simulate` sees them. Staging is enough — no commit needed. The "dirty tree" warning is harmless; missing untracked files cause "attribute missing" errors.
 - **`dnf-generator` writes into existing `var/generated/`.** `just fixtures generate` handles this. If running the generator by hand, `mkdir -p var/generated` first.
-- **Wrapper module reachable only via `modules/default.nix`.** A new `modules/service/<X>.nix` alone is invisible until its path appears in `modules/default.nix` (generated, or hand-inserted during iteration).
+- **Wrapper module reachable only via `modules/default.nix`.** A new `modules/service/<X>.nix` alone is invisible until `just generate` lists it there.
 - **`services.<X>.interface = null`** is *not* a guarantee the binary listens on `0.0.0.0`. Verify with `ss -tlnp` inside `simulate-debug` before relying on `localhost` ; if bound to `host.ip`, switch to `lan = true`.
 
 ## Invariants

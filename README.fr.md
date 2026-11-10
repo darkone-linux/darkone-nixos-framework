@@ -196,7 +196,7 @@ hosts:
  groups: [ "admin" ] # Groupes d'utilisateurs à installer
 ```
 
-- Il existe des profils de hosts pré-configurés dans `dnf/modules/nix/host`.
+- Il existe des profils de hosts pré-configurés dans `dnf/modules/mixin/host`.
 - Les utilisateurs liés au host sont déclarés via `users` et/ou `groups`.
 - Utilisateurs et groupes peuvent être déclarés dans la configuration ou dans LDAP.
 
