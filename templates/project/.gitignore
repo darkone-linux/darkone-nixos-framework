@@ -18,11 +18,6 @@
 tmp/
 
 # Runtime state (`var/deployments/` of fleet-update, test VM disks, logs): only
-# the generated inventory and the public keys are versioned.
+# the generated inventory is versioned.
 /var/*
 !/var/generated/
-!/var/security/
-/var/security/**
-!/var/security/**/
-!/var/security/**/*.pub
-!/var/security/**/.gitignore
