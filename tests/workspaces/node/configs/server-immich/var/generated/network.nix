@@ -39,8 +39,13 @@
       locale = "en_US.UTF-8";
       timezone = "Etc/UTC";
       name = "www";
-      tls-builder-hosts = [ "photos.z1.test.local" ];
-      external-hosts = [ ];
+      tls-builder-hosts = [ ];
+      external-hosts = [
+        {
+          fqdn = "photos.z1.test.local";
+          target = "100.64.0.1";
+        }
+      ];
     };
     z1 = {
       description = "Test zone 1";

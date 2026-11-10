@@ -69,7 +69,7 @@
         host-record = [
           "gw1.z1.test.local,gw1,10.10.1.1"
           "server1.z1.test.local,server1,10.10.1.2"
-          "nix-cache,nix-cache.z1.test.local,10.10.1.1"
+          "nix-cache,nix-cache.z1.test.local,10.10.1.2"
         ];
       };
       roaming = { };

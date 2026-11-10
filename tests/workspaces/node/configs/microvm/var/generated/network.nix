@@ -42,11 +42,13 @@
       locale = "en_US.UTF-8";
       timezone = "Etc/UTC";
       name = "www";
-      tls-builder-hosts = [
-        "homepage.z1.test.local"
-        "openclaw.z1.test.local"
+      tls-builder-hosts = [ "openclaw.z1.test.local" ];
+      external-hosts = [
+        {
+          fqdn = "homepage.z1.test.local";
+          target = "100.64.0.1";
+        }
       ];
-      external-hosts = [ ];
     };
     z1 = {
       description = "Test zone 1";
