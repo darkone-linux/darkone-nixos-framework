@@ -6,6 +6,11 @@
 #   uniquePerZone = false;
 #   externalAccess = false;
 # };
+#
+# :::caution[Literal values only]
+# `dnf-generator` reads this file as source text, never evaluated: no `let`,
+# function, `//`, `inherit` or interpolation. It refuses what it cannot read.
+# :::
 
 {
   nix-cache = {
