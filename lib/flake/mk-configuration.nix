@@ -181,14 +181,14 @@ let
         # Framework-side NixOS modules
         ../../modules
 
+        # Overlays go through a module: `nixosSystem` rebuilds its own `pkgs`,
+        # which `nixpkgsFor` never reaches.
+        { nixpkgs.overlays = overlaysFor system; }
+
         # GeneWeb: module of nixpkgs PR #522751, copied (cf.
         # `backports/README.md`). Every host: the wrapper reads its options
         # everywhere; inert while `services.geneweb.enable = false`.
         ../../backports/nixos/geneweb.nix
-
-        # Overlays go through a module: `nixosSystem` rebuilds its own `pkgs`,
-        # which `nixpkgsFor` never reaches.
-        { nixpkgs.overlays = overlaysFor system; }
 
         # OxiCloud: module of nixpkgs PR #516113, copied (cf.
         # `backports/README.md`). No overlay: `pkgs.oxicloud` already comes

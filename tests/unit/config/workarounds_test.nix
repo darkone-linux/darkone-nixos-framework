@@ -90,6 +90,9 @@ let
   # Every overlay file reaches the hosts only through this list.
   overlayList = builtins.readFile (dnfRoot + "/lib/overlays/default.nix");
 
+  # Backported modules reach the hosts only through the assembler imports.
+  assembler = builtins.readFile (dnfRoot + "/lib/flake/mk-configuration.nix");
+
   # `nixpkgs-*` inputs besides the release channel exist for a workaround.
   workaroundInputs = lib.filter (i: lib.hasPrefix "nixpkgs-" i && i != "nixpkgs-stable") flakeInputs;
 in
@@ -130,6 +133,12 @@ in
     expr = lib.filter (f: !(lib.hasInfix "./${baseNameOf f}" overlayList)) (
       lib.remove "lib/overlays/default.nix" (nixFilesOf "lib/overlays")
     );
+    expected = [ ];
+  };
+
+  # Same for a backported module the assembler does not import.
+  testBackportsWired = {
+    expr = lib.filter (f: !(lib.hasInfix "/${f}" assembler)) (nixFilesOf "backports/nixos");
     expected = [ ];
   };
 
