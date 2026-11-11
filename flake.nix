@@ -142,7 +142,7 @@
       images = import ./lib/flake/images.nix { inherit inputs; };
       inherit (import ./lib/constants.nix) supportedSystems;
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      pkgsFor = forAllSystems (
+      nixpkgsFor = forAllSystems (
         system:
         import nixpkgs {
           inherit system;
@@ -178,7 +178,7 @@
           };
         in
         import ./tests/installer {
-          pkgs = nixpkgs.legacyPackages.${system};
+          pkgs = nixpkgsFor.${system};
           iso = iso.config.system.build.isoImage;
           localIso = localIso.config.system.build.isoImage;
         };
@@ -219,7 +219,7 @@
           name = "iso-${system}";
           value = images.mkIso {
             inherit system;
-            pkgs = pkgsFor.${system};
+            pkgs = nixpkgsFor.${system};
             workDir = null;
             installer = isoInstaller system;
           };
@@ -242,7 +242,7 @@
 
         # DNF-only packages, auto-discovered from `pkgs/` (same set the
         # `pkgs/overlay.nix` applied in `mk-configuration.nix` exposes).
-        import ./pkgs { pkgs = pkgsFor.${system}; }
+        import ./pkgs { pkgs = nixpkgsFor.${system}; }
 
         # The Rust generator only builds for x86_64-linux. Declaring it for
         # every supported system made `.#packages.aarch64-linux` — and the
@@ -272,7 +272,7 @@
         system:
         {
           init = import ./lib/flake/init-app.nix {
-            pkgs = nixpkgs.legacyPackages.${system};
+            pkgs = nixpkgsFor.${system};
             frameworkRoot = self;
           };
         }
@@ -334,7 +334,7 @@
       checks = forAllSystems (
         system:
         import ./tests/scenarios {
-          pkgs = pkgsFor.${system};
+          pkgs = nixpkgsFor.${system};
           inherit inputs;
         }
       );
@@ -345,7 +345,7 @@
       devShells = forAllSystems (
         system:
         let
-          pkgs = pkgsFor.${system};
+          pkgs = nixpkgsFor.${system};
         in
         {
           default = import ./lib/flake/dev-shell.nix {
