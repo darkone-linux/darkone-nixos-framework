@@ -2,7 +2,7 @@
 #
 # :::note
 # This configuration reads the `network` conf in `config.yaml` file.
-# It uses the [DNF dnsmasq module](/ref/modules/#-darkoneservicednsmasq) as upstream DNS and DHCP.
+# It uses the [DNF dnsmasq module](/ref/modules/service/dnsmasq/) as upstream DNS and DHCP.
 # :::
 
 {

@@ -5,7 +5,7 @@
 - [x] Correction des déclarations de partitions disko (swap trop petit + améliorations). (en test)
 - [ ] Lab de staging (microvm.nix ou nixos.vm)
 - [ ] Linux durci selon les [recommandations ANSSI](https://messervices.cyber.gouv.fr/guides/recommandations-de-securite-relatives-un-systeme-gnulinux).
-  - [x] [Architecture modulaire](https://darkone-linux.github.io/en/ref/modules/#security-modules) pour l'activation et le paramétrage des règles.
+  - [x] [Architecture modulaire](https://darkone-linux.github.io/fr/ref/modules/security/) pour l'activation et le paramétrage des règles.
   - [ ] Gestion de noyaux durcis avec paramètres statiques durcis (profils, mise en cache)
   - [x] Documentation.
   - [x] Règles pour niveau minimal + déploiement.
