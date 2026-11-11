@@ -10,8 +10,9 @@ gen-build:
 gen-test:
 	just --justfile src/generator/Justfile test
 
-# Regenerate dnf/config/config.schema.json from the local generator; the
-# release train rewrites it from the pinned one
+# The release train rewrites it from the pinned generator.
+#
+# Regenerate dnf/config/config.schema.json from the local generator
 [group('src')]
 gen-schema:
 	cargo run -q --manifest-path src/generator/Cargo.toml -- schema > dnf/config/config.schema.json
