@@ -17,6 +17,9 @@
 # The working tree is exported as a commit would take it: tracked files, new
 # files not ignored. The consumer tree is the same on both sides.
 #
+# An input bump is no refactor: when `flake.lock` differs, the working tree is
+# read with the lock of `base`. `LOCK=tree` keeps its own (the bump counts).
+#
 # Resources: one evaluation at a time, `WORKERS` nix-eval-jobs workers
 # (default 2), each recycled past `WORKER_MEM` MiB (default 2048).
 #
@@ -34,6 +37,7 @@ hosts=${1:-}
 base=${2:-HEAD}
 workers=${WORKERS:-2}
 worker_mem=${WORKER_MEM:-2048}
+lock=${LOCK:-base}
 
 [ -f flake.nix ] && [ -d dnf/.git ] ||
   fail "run from the root of a co-development workspace (dnf/ checkout)."
@@ -42,6 +46,7 @@ for bin in nix-eval-jobs jq; do
 done
 [[ $workers =~ ^[1-9][0-9]*$ ]] || fail "WORKERS: positive integer."
 [[ $worker_mem =~ ^[1-9][0-9]*$ ]] || fail "WORKER_MEM: positive integer (MiB)."
+[ "$lock" = base ] || [ "$lock" = tree ] || fail "LOCK: base or tree."
 rev=$(git -C dnf rev-parse --verify --quiet "$base^{commit}") ||
   fail "unknown framework revision: $base."
 short=${rev:0:7}
@@ -86,6 +91,19 @@ git -C dnf ls-files -z --cached --others --exclude-standard |
     done | tar -c --null --no-recursion --files-from=-
   ) | tar -x -C "$tmp/tree"
 
+# Pending input bump (`nix flake update` not committed yet): every host would
+# differ, hiding what the code changes.
+tree_label="the working tree"
+if ! cmp -s "$tmp/base/flake.lock" "$tmp/tree/flake.lock"; then
+  if [ "$lock" = base ]; then
+    cp "$tmp/base/flake.lock" "$tmp/tree/flake.lock"
+    tree_label="the working tree (lock of dnf $short)"
+    echo "drv-diff: flake.lock differs, lock of dnf $short on both sides (LOCK=tree: its own)." >&2
+  else
+    echo "drv-diff: flake.lock differs, the input bump counts (LOCK=tree)." >&2
+  fi
+fi
+
 # evaluate <label> <side>: `<host> <drvPath>` lines in `<side>.drv`,
 # `<host> ERROR <message>` for a host that does not evaluate.
 evaluate() {
@@ -111,7 +129,7 @@ evaluate() {
 }
 
 evaluate "dnf $short" base
-evaluate "the working tree" tree
+evaluate "$tree_label" tree
 
 errors=$(
   for side in base tree; do
@@ -128,13 +146,13 @@ changed=$(
 )
 
 if [ -n "$errors" ]; then
-  echo "drv-diff: hosts failing to evaluate (base: dnf $short, tree: working tree):"
+  echo "drv-diff: hosts failing to evaluate (base: dnf $short, tree: $tree_label):"
   echo "$errors"
 fi
 if [ -n "$changed" ]; then
-  echo "drv-diff: derivations differ (-: dnf $short, +: working tree):"
+  echo "drv-diff: derivations differ (-: dnf $short, +: $tree_label):"
   echo "$changed"
   echo "drv-diff: compare a pair with: nix run nixpkgs#nix-diff -- <-> <+>"
 fi
 [ -z "$errors" ] && [ -z "$changed" ] || exit 1
-echo "drv-diff: $(wc -l < "$tmp/tree.drv") host(s) identical, dnf $short → working tree."
+echo "drv-diff: $(wc -l < "$tmp/tree.drv") host(s) identical, dnf $short → $tree_label."
