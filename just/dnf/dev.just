@@ -31,4 +31,19 @@ pkg-update name version="":
 	# Explicit version (release train): a tag pushed seconds ago may not be
 	# listed upstream yet.
 	[ -z "{{version}}" ] || extra+=("--version={{version}}")
-	nix-update --flake "{{name}}" "${extra[@]}"
+
+	# Nix 2.35: `nix flake metadata` no longer realises its `.path`, which
+	# nix-update imports after each rewrite (Mic92/nix-update#687). Shim:
+	# `nix flake prefetch` (same store path) realises it first.
+	shim=$(mktemp -d)
+	trap 'rm -rf "$shim"' EXIT
+	realNix=$(command -v nix)
+	cat >"$shim/nix" <<-EOF
+	#!/usr/bin/env bash
+	if [ "\${1-} \${2-}" = "flake metadata" ]; then
+		"$realNix" --extra-experimental-features "nix-command flakes" flake prefetch --json . >/dev/null
+	fi
+	exec "$realNix" "\$@"
+	EOF
+	chmod +x "$shim/nix"
+	PATH="$shim:$PATH" nix-update --flake "{{name}}" "${extra[@]}"

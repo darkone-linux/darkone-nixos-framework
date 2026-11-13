@@ -198,6 +198,15 @@
     since = "2026-11-09";
   };
 
+  nix-update-flake-path = {
+    kind = "inline";
+    files = [ "just/dnf/dev.just" ];
+    reason = "Nix 2.35 `nix flake metadata` reports an unrealised `.path`: nix-update imports it, `No such file or directory`";
+    upstream = "Mic92/nix-update#687";
+    dropWhen = "nix-update realises the flake source itself (#687 closed): drop the `nix` shim of `pkg-update`";
+    since = "2026-11-13";
+  };
+
   aider-chat-suspended = {
     kind = "inline";
     files = [ "home/modules/ai.nix" ];
