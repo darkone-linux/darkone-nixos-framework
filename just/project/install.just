@@ -680,8 +680,13 @@ install-here host login hash='' yes='' luks='' cache='' cacheKey='':
 	while true ;do
 		attempt=$((attempt + 1))
 		rc=0
-		sudo nixos-install --flake "{{workDir}}#{{host}}" --root "$root" --no-root-password --no-channel-copy "${nixOpts[@]}" || rc=$?
+
+		# Ctrl-C makes nix exit 1, like a dropped link, and sudo's `use_pty` keeps
+		# the signal from this shell: the inner bash turns it into 130.
+		sudo bash -c 'trap "exit 130" INT; "$@"' nixos-install \
+			nixos-install --flake "{{workDir}}#{{host}}" --root "$root" --no-root-password --no-channel-copy "${nixOpts[@]}" || rc=$?
 		[ "$rc" -eq 0 ] && break
+		[ "$rc" -ne 130 ] || { just _err "nixos-install interrupted."; exit 130; }
 		if [ "$attempt" -lt 3 ] ;then
 			just _warn "nixos-install failed (attempt $attempt/3), retrying..."
 			continue
