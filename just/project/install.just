@@ -640,7 +640,28 @@ install-here host login hash='' yes='' luks='' cache='' cacheKey='':
 		[ -z '{{cacheKey}}' ] || nixOpts+=(--option extra-trusted-public-keys '{{cacheKey}}')
 	fi
 	just _log "Installing {{host}}..." "INSTALL"
-	sudo nixos-install --flake "{{workDir}}#{{host}}" --root "$root" --no-root-password --no-channel-copy "${nixOpts[@]}"
+
+	# nixos-install downloads over the network: a dropped link stops it half-way.
+	# The store under /mnt keeps what was copied, so a retry resumes.
+	attempt=0
+	while true ;do
+		attempt=$((attempt + 1))
+		rc=0
+		sudo nixos-install --flake "{{workDir}}#{{host}}" --root "$root" --no-root-password --no-channel-copy "${nixOpts[@]}" || rc=$?
+		[ "$rc" -eq 0 ] && break
+		if [ "$attempt" -lt 3 ] ;then
+			just _warn "nixos-install failed (attempt $attempt/3), retrying..."
+			continue
+		fi
+
+		# Beyond 3 failures, only an operator at a terminal may go on.
+		if [ ! -t 0 ] ;then
+			just _err "nixos-install failed after $attempt attempts (exit $rc)."
+			exit "$rc"
+		fi
+		read -r -p "Retry? [y/N] " ans
+		[[ "$ans" =~ ^[yY]$ ]] || { just _err "nixos-install failed (exit $rc)."; exit "$rc"; }
+	done
 
 	# `dnf/` links a framework tree of this live system's store: copied too, or
 	# every recipe of the new system would point at nothing.
