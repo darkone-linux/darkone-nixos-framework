@@ -88,5 +88,5 @@ nix run .#init                # pose le lien dnf/ vers le framework
 ```
 
 Décrivez ensuite votre réseau dans `etc/config.yaml` et installez le premier
-hôte : voir [Créer le projet](https://darkone-linux.github.io/fr/doc/admin-guide/install/first-network-installation/#créer-le-projet)
-dans le guide d'installation.
+hôte : voir [Créer un projet à la main](https://darkone-linux.github.io/fr/doc/how-to/admin/manual-project/#créer-le-projet)
+et [Ajouter une machine](https://darkone-linux.github.io/fr/doc/admin-guide/install/add-host/).
