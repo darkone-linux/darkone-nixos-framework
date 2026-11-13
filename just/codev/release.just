@@ -198,7 +198,13 @@ release level="auto":
 	$dnfDue && preview dnf "$dnfTarget"
 	$docDue && preview doc "$docNext"
 	echo
-	read -r -p "Run the release train? [y/N] " answer
+
+	# `YES=1`: unattended run (no TTY), the preview above stays in the log.
+	if [ "${YES:-}" = 1 ]; then
+		answer=y
+	else
+		read -r -p "Run the release train? [y/N] " answer
+	fi
 	[ "${answer,,}" = y ] || just _fail "Aborted — nothing written."
 
 	#---------------------------------------------------------------------------
