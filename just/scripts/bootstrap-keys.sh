@@ -267,7 +267,7 @@ if [ -n "$luksHost" ]; then
     putSecret luks-passphrase "$passphrase"
     changed=1
   elif [ "$(yq -r '."luks-passphrase"' "$plain")" != "$passphrase" ]; then
-    die "luks-passphrase in sops is not the passphrase of $luksFile: the disk would not open with it."
+    die "this is not the disk passphrase of the first attempt, kept as luks-passphrase in sops: the disk would not open with it. Type that one again, or start from scratch."
   fi
 
   # Random, as `just luks` makes it: `just luks $luksHost passwd` sets one.

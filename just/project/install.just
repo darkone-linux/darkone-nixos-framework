@@ -565,6 +565,8 @@ install-key host:
 # boot; it becomes the shared `luks-passphrase` of the fleet.
 # `cache`, `cacheKey`: an extra binary cache and its public key, for this
 # install only (the new system does not keep it).
+# `DNF_RESUME=1` (environment): resume an interrupted attempt of this session,
+# its disk kept as it is, only if it still holds this project's deploy key.
 #
 # Install this very machine as the admin host (from the DNF installer)
 [group('install')]
@@ -585,27 +587,58 @@ install-here host login hash='' yes='' luks='' cache='' cacheKey='':
 	fi
 	uid=$({{nix}} eval --impure --raw --expr 'toString ((import {{workDir}}/var/generated/users.nix)."{{login}}".uid or "")' 2>/dev/null || true)
 	[ -n "$uid" ] || just _fail "Unknown user '{{login}}' (see etc/config.yaml, then 'just generate')."
-	if [ "{{yes}}" != yes ] ;then
+
+	# Anything but unset or 1 is a doubt: refused, never read as "erase".
+	case "${DNF_RESUME:-}" in
+		'') resume=false ;;
+		1) resume=true ;;
+		*) just _fail "DNF_RESUME must be 1 (resume) or unset (erase the disks)." ;;
+	esac
+	if [ "{{yes}}" != yes ] && ! $resume ;then
 		read -p "Erase the disks of THIS machine and install {{host}}? (y/N) " ans
 		[ "$ans" = "y" ] || { just _log "Aborted." "INSTALL"; exit 1; }
 	fi
 
-	# A previous run that failed half-way left the target mounted.
-	if mountpoint -q "$root" ;then
+	# Keeping the disk unerased rests on this check alone: the target is still
+	# mounted and holds the deploy key whose public half the project already
+	# has. Every missing or unreadable piece refuses.
+	refuseResume() {
+		just _err "Cannot resume: $1. Relaunch darkone new and choose 'Start from scratch'."
+		exit 1
+	}
+	checkResume() {
+		local key="$root/home/nix/.ssh/id_ed25519" pub="{{secretsDir}}/nix.pub" have want
+		mountpoint -q "$root" || refuseResume "$root is not mounted"
+		sudo test -f "$key" || refuseResume "no deploy key under $root"
+		[ -s "$pub" ] || refuseResume "no usr/secrets/nix.pub in the project"
+		have=$(sudo env "PATH=$PATH" ssh-keygen -y -f "$key" | cut -d' ' -f1,2) || refuseResume "unreadable deploy key under $root"
+		want=$(cut -d' ' -f1,2 "$pub")
+		[ -n "$have" ] && [ "$have" = "$want" ] || refuseResume "the deploy key under $root is not the one of usr/secrets/nix.pub"
+	}
+
+	# A previous run that failed half-way left the target mounted: kept for a
+	# resume, unmounted before the erase otherwise.
+	if $resume ;then
+		checkResume
+		just _log "Resuming on the disk of the previous attempt, not erased..." "INSTALL"
+	elif mountpoint -q "$root" ;then
 		just _log "Unmounting the previous attempt..." "INSTALL"
 		sudo umount -R "$root"
 	fi
 
 	# The `passwordFile` of dnf/hosts/disko/luks-*.nix, read by disko to format
-	# and open the volume. In RAM, like everything on the installer.
+	# and open the volume. In RAM, like everything on the installer. A resume
+	# skips disko: `bootstrap-keys.sh --luks` still checks the passphrase.
 	keys=(--root "$root")
 	if $encrypted ;then
 		trap 'sudo rm -f /tmp/dnf-luks.key' EXIT
 		sudo install -m 600 "{{luks}}" /tmp/dnf-luks.key
 		keys+=(--luks "{{host}}" /tmp/dnf-luks.key)
 	fi
-	just _log "Erasing and mounting the disks..." "INSTALL"
-	sudo disko --mode destroy,format,mount --yes-wipe-all-disks --root-mountpoint "$root" "$disko"
+	if ! $resume ;then
+		just _log "Erasing and mounting the disks..." "INSTALL"
+		sudo disko --mode destroy,format,mount --yes-wipe-all-disks --root-mountpoint "$root" "$disko"
+	fi
 	[ -z '{{hash}}' ] || keys+=(--password-hash "{{login}}" '{{hash}}')
 	sudo env "PATH=$PATH" WORKDIR="{{workDir}}" bash {{scriptsDir}}/bootstrap-keys.sh "${keys[@]}"
 
