@@ -10,6 +10,65 @@ observable defaults, `lib.mkConfigurations`, public `just` recipes, the expected
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-13
+
+### ⚠ Breaking
+
+- **services**: Drop unread topology options of services.service.<name>
+
+### Added
+
+- **home-games**: EnableGnome & conditions cleans
+- **idm**: Move kanidm to 1.12, 1.11 reaches EOL on 2026-12-01
+- **idm**: Enable kanidm online backup, 7 nightly dumps kept
+- **supertuxkart**: EnableDirectLink, play over a direct Ethernet cable
+- **luks**: Gateways report their WAN address to the HCS
+- **network**: Software switch option, fleet networking moved to network.nix
+- **just**: Drv-diff proves a framework refactor leaves hosts unchanged
+- **install**: Retry nixos-install on failed download
+- **install**: Install-here resumes on the kept disk with DNF_RESUME=1
+- **iso**: Tty1 menu, new network or join an existing one
+- **install**: Backup witness, welcome page warns when keys are not saved
+- **just**: Release runs unattended with YES=1
+
+### Fixed
+
+- **ghostty**: TERMINAL and Nautilus script follow programs.ghostty.enable
+- **ghostty**: Nautilus script launches the configured package
+- **lk-jwt-service**: Build aws-lc-sys from source, unset AWS_LC_SYS_USE_SYSTEM
+- **overlays**: Provide system libs to presenterm, aichat and codex sys crates
+- **workarounds**: Suspend anki, veloren and aider-chat (cargo system libs)
+- **thonny**: Raise uv_build bound to the locked 0.13 (nixpkgs#585369)
+- **luks**: Release the initrd DHCP lease under NetworkManager (no DNS)
+- **overlays**: Give oxicloud the rust sys libs under cargoUseSystemLibs
+- **drv-diff**: Compare on the base lock while an input bump is pending
+- **just**: Gen-schema is described by its own line in just --list
+- **install**: Ctrl-C stops the nixos-install retry loop
+- **just**: Realise flake source for nix-update on Nix 2.35
+- **just**: Put the nix shim ahead of nix-update's wrapped nix
+
+### Changed
+
+- **overlays**: One ordered list in lib/overlays/default.nix
+- **activation**: One module applies registry triggers for every profile
+- **lib**: Flake plumbing to lib/flake/, images and system list shared
+- **flake**: One nixpkgsFor for every framework output
+
+### Documentation
+
+- **registry**: Config/modules.nix holds literal values only
+- **dev**: Drop pointers to unpublished agent files and stale paths
+- **comments**: Drop pointers to private specs from published code
+- **activation**: Helper header no longer tied to the host mixins
+- **backports**: Dropping the geneweb overlay also drops its list entry
+- **links**: Module reference links target the module pages
+- **install**: Template READMEs point to the new doc sheets
+
+### Dependencies
+
+- dnf-generator v0.4.0
+- fleet-update v0.8.4
+
 ## [0.6.1] - 2026-11-03
 
 ### Added
@@ -654,7 +713,8 @@ framework as it stands, not the commits that built it.
 | [dnf-boilerplate](https://github.com/darkone-linux/dnf-boilerplate) | `v0.1.0` |
 | [dnf-example](https://github.com/darkone-linux/dnf-example) | `v0.1.0` |
 
-[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.4.0...v0.5.0
