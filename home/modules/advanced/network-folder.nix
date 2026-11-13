@@ -63,7 +63,7 @@ in
       dnf-onboarding = {
         name = "Onboarding";
         settings."Name[fr]" = "Premiers pas";
-        exec = "${xdgOpen} ${osConfig.darkone.admin.welcome.page}";
+        exec = "${osConfig.darkone.admin.welcome.command} --again";
         icon = "user-home";
         categories = [ category ];
       };

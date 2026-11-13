@@ -19,6 +19,10 @@
 # system holding the keys (`/`, or `/mnt` from the installer). Without
 # PASSPHRASE_FILE, age asks for one. `check` reads the file back and compares
 # it with the keys and the project.
+#
+# A finished `write` leaves the witness ROOT/var/lib/dnf/backup-admin (date and
+# commit, world-readable, no secret): without it the welcome page of the admin
+# host (modules/admin/welcome.nix) warns that the keys are not backed up.
 
 set -euo pipefail
 
@@ -139,6 +143,13 @@ EOF
   sync
   umount "$mnt"
   log BACKUP "$name.tar.age written on $device."
+
+  # Last, once the stick is complete: a failed write leaves no witness.
+  witness="$root/var/lib/dnf/backup-admin"
+  install -d -m 755 "${witness%/*}"
+  printf 'date=%s\ncommit=%s\n' "$(date -Is)" "$("${git[@]}" rev-parse HEAD 2>/dev/null || echo unknown)" >"$witness.part"
+  chmod 644 "$witness.part"
+  mv "$witness.part" "$witness"
   exit 0
 fi
 

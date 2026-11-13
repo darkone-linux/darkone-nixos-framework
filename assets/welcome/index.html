@@ -12,6 +12,7 @@
     --muted: #5b6474;
     --accent: #2a6fdb;
     --done: #1f8a4c;
+    --warn: #c25e00;
     --line: #dde1e8;
   }
   @media (prefers-color-scheme: dark) {
@@ -22,6 +23,7 @@
       --muted: #9aa3b2;
       --accent: #6aa1ff;
       --done: #4cc38a;
+      --warn: #f0a050;
       --line: #2e3542;
     }
   }
@@ -51,12 +53,22 @@
   a { color: var(--accent); }
   code { font-size: .92em; background: var(--line); padding: .05rem .3rem; border-radius: 4px; }
   .note { margin-top: 2rem; padding: 1rem 1.2rem; border-left: 4px solid var(--accent); background: var(--card); border-radius: 0 10px 10px 0; }
+  .alert { margin: 0 0 1.5rem; padding: 1rem 1.2rem; border-left: 4px solid var(--warn); background: var(--card); border-radius: 0 10px 10px 0; }
+  .alert[hidden] { display: none; }
 </style>
 </head>
 <body>
 <main>
   <h1>Welcome to your DNF network</h1>
   <p class="lead">Step 1 of 4 done: <strong>@hostname@</strong> is the admin host of <strong>@domain@</strong>.</p>
+
+  <!-- Shown when the URL ends with #backup=missing (no backup witness) -->
+  <div class="alert" id="backup-alert" hidden>
+    <strong>The admin keys are not backed up.</strong>
+    <p>Plug in a USB stick, then run in a terminal:</p>
+    <p><code>cd /etc/nixos &amp;&amp; just backup-admin /dev/disk/by-label/&lt;label of the stick&gt;</code></p>
+    <p>Without it, a lost disk loses every secret of the network.</p>
+  </div>
 
   <ol>
     <li class="done">
@@ -86,5 +98,8 @@
 
   <p class="note">Keep the USB stick of the backup away from this machine. With the passphrase, it restores every key of the network: without it, a lost disk loses them all.</p>
 </main>
+<script>
+  if (location.hash === "#backup=missing") document.getElementById("backup-alert").hidden = false;
+</script>
 </body>
 </html>

@@ -4,7 +4,10 @@
 # page: step 1 of 4 done (the admin host), the gateway next, then services and
 # the coordination server, with links to the documentation. Shown once per
 # user (`~/.local/state/dnf/welcome-shown`). The "Onboarding" launcher of the
-# nix-admin reopens it (`darkone.admin.welcome.page`).
+# nix-admin reopens it (`darkone.admin.welcome.command`).
+#
+# While the witness `/var/lib/dnf/backup-admin` of `just backup-admin` is
+# missing, the page opens with a banner: the admin keys are not backed up.
 #
 # :::note[Set by the installer]
 # `darkone new` writes `darkone.admin.welcome.enable = true;` in the
@@ -28,12 +31,26 @@ let
     inherit (network) domain;
   };
 
+  # Written by `just backup-admin` (just/scripts/backup-admin.sh), world-readable.
+  witness = "/var/lib/dnf/backup-admin";
+
   # Marked once the browser got the page: a failed open shows it next time.
+  # `--again` (launcher): neither marker nor wheel check, always opens.
   open = pkgs.writeShellScript "dnf-welcome" ''
     marker="''${XDG_STATE_HOME:-$HOME/.local/state}/dnf/welcome-shown"
-    [ ! -e "$marker" ] || exit 0
-    ${pkgs.coreutils}/bin/id -nG | ${pkgs.gnugrep}/bin/grep -qw wheel || exit 0
-    ${pkgs.xdg-utils}/bin/xdg-open ${page} || exit 0
+    again=false
+    [ "''${1:-}" != --again ] || again=true
+    if ! $again; then
+      [ ! -e "$marker" ] || exit 0
+      ${pkgs.coreutils}/bin/id -nG | ${pkgs.gnugrep}/bin/grep -qw wheel || exit 0
+    fi
+
+    # Fragment, not `?query`: gio behind xdg-open drops the query of a
+    # file:// URL and keeps the fragment, which the page reads.
+    url=file://${page}
+    [ -e ${witness} ] || url="$url#backup=missing"
+    ${pkgs.xdg-utils}/bin/xdg-open "$url" || exit 0
+    ! $again || exit 0
     ${pkgs.coreutils}/bin/mkdir -p "''${marker%/*}"
     ${pkgs.coreutils}/bin/touch "$marker"
   '';
@@ -42,13 +59,13 @@ in
   options.darkone.admin.welcome.enable =
     lib.mkEnableOption "the first-boot welcome page of the admin host";
 
-  # Also behind the "Onboarding" launcher (home/modules/advanced/network-folder.nix)
-  options.darkone.admin.welcome.page = lib.mkOption {
+  # Behind the "Onboarding" launcher too (home/modules/advanced/network-folder.nix)
+  options.darkone.admin.welcome.command = lib.mkOption {
     type = lib.types.path;
-    default = page;
+    default = open;
     readOnly = true;
     internal = true;
-    description = "The welcome page, an HTML file of the store";
+    description = "The script opening the welcome page, `--again` to reopen it";
   };
 
   config = lib.mkIf cfg.enable {
