@@ -243,7 +243,7 @@ _fixtures_gen_secrets:
 # 30 min and 25 GB of disk a scenario, under ~/.cache/dnf-installer-test.
 # `iso`: an ISO file instead of this tree's, one built on a local generator.
 #
-# Test the installer ISO in a VM: scripted, interactive or all
+# Test the installer ISO in a VM: scripted, interactive, resume or all
 [group('test')]
 test-installer scenario='all' iso='':
 	#!/usr/bin/env bash

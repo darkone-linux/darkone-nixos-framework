@@ -27,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: [scripted, interactive]
+        scenario: [scripted, interactive, resume]
     steps:
       - uses: actions/checkout@v7
 

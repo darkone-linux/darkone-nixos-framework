@@ -1,9 +1,9 @@
 """DNF installer test: `darkone new` end to end, in a QEMU VM.
 
-Boots the generic installer ISO (`dnf-vm`), drives `darkone new` on its serial
-console with pexpect, reboots on the installed disk and checks the system and
-the key backup. The real network is used: what a newcomer downloads, the test
-downloads.
+Boots the generic installer ISO (`dnf-vm`), picks "New network" in the tty1
+menu over QMP, drives `darkone new` on its serial console with pexpect, reboots
+on the installed disk and checks the system and the key backup. The real
+network is used: what a newcomer downloads, the test downloads.
 
 - `scripted`: booted without network, plugged in once tty1 waits for it;
   answers file, `--non-interactive`, clear disk, backup passphrase from a
@@ -11,13 +11,16 @@ downloads.
   (the option reaches `nixos-install`, nothing else changes);
 - `interactive`: every question answered on the console, encrypted disk, stick
   chosen, then unplugged and plugged back in over QMP; the first boot is
-  unlocked through the initrd sshd (`dnf-unlock`).
+  unlocked through the initrd sshd (`dnf-unlock`);
+- `resume`: as `interactive`, the link cut during `nixos-install` (its retry
+  loop takes over), then Ctrl-C and `darkone new` again: "Resume" asks only
+  the disk passphrase, the disk is not erased.
 
-On the installed system, both collect the garbage (`dnf/` stays, a GC root),
+On the installed system, all collect the garbage (`dnf/` stays, a GC root),
 then back up again (`just backup-admin`): the first backup is kept, renamed
-with its date.
+with its date. QEMU's user network is 10.0.2.0/24: the zone gets `10.1`.
 
-    dnf-installer-test --iso ISO [--scenario scripted|interactive|all]
+    dnf-installer-test --iso ISO [--scenario scripted|interactive|resume|all]
                        [--workdir DIR] [--keep]
 
 Logs: `<workdir>/<scenario>/serial.log`.
@@ -42,6 +45,11 @@ PASSPHRASE = "dnf-test-pass"
 DOMAIN = "example.org"
 STICK_LABEL = "SECOURS"
 SHELL_PROMPT = r"nixos@dnf-install:~\]\$"
+SCENARIOS = ["scripted", "interactive", "resume"]
+
+# 10.0 overlaps QEMU's user network (10.0.2.0/24): the next free /16.
+ZONE_ROW = r"Zone +main, 10\.1\.0\.0/16, definitive"
+IP_PREFIX = "10.1"
 
 # Serial input has a 16-byte FIFO: faster typing drops characters.
 TYPE_CHUNK = 8
@@ -49,6 +57,40 @@ TYPE_PAUSE = 0.02
 
 UP, DOWN, RIGHT, LEFT = "\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D"
 ENTER = "\r"
+CTRL_C = "\x03"
+
+# QMP `send-key` names (qcodes) of what is typed on tty1; a digit or a
+# lowercase letter is its own name.
+QCODES = {"\r": "ret", " ": "spc"}
+
+# `resume`: link cut CUT_AFTER s into the downloads, down CUT_MAX s at most.
+# A transfer in flight stalls; Nix drops it after `stalled-download-timeout`
+# (300 s), then its 5 `download-attempts` (~4 s of backoff) fail link down.
+CUT_AFTER = 20
+CUT_MAX = 600
+INTERRUPT_AFTER = 30
+
+# Logged by install-here once `nixos-install` succeeded.
+INSTALLED = "Copying the project to /etc/nixos"
+
+# Every question of `darkone new`, in order, and its answer; a resume asks
+# none of them.
+QUESTIONS = [
+    ("Language and keyboard", ENTER),
+    ("Timezone", ENTER),
+    ("Your full name", "Alice Martin" + ENTER),
+    ("Your login", ENTER),
+    ("Your email", ENTER),
+    ("Your password", PASSWORD + ENTER),
+    ("Your password, again", PASSWORD + ENTER),
+    ("Network domain \\(definitive\\)", DOMAIN + ENTER),
+    ("Name of this machine", ENTER),
+    ("Encrypt the disk\\?", ENTER),
+]
+LUKS_PASSPHRASE = [
+    ("Disk passphrase", PASSPHRASE + ENTER),
+    ("Disk passphrase, again", PASSPHRASE + ENTER),
+]
 
 ANSWERS_SCRIPTED = f"""version: 1
 admin:
@@ -79,8 +121,17 @@ class Failure(Exception):
     pass
 
 
+def qcode(char):
+    """QMP key name of a character typed on tty1."""
+    if char in QCODES:
+        return QCODES[char]
+    if re.fullmatch(r"[0-9a-z]", char):
+        return char
+    raise Failure(f"QMP send-key: no key name for {char!r}")
+
+
 class Qmp:
-    """QEMU machine protocol: plugs the USB stick out and back in."""
+    """QEMU machine protocol: the cable, the USB stick, the tty1 keyboard."""
 
     def __init__(self, path):
         self.sock = socket.socket(socket.AF_UNIX)
@@ -108,6 +159,12 @@ class Qmp:
 
     def cable(self, up):
         self.execute("set_link", name="net0", up=up)
+
+    def send_keys(self, text):
+        """The emulated keyboard, read by tty1: the serial console is another tty."""
+        for char in text:
+            self.execute("send-key", keys=[{"type": "qcode", "data": qcode(char)}])
+            time.sleep(0.1)
 
     def unplug_stick(self):
         self.execute("device_del", id="stick")
@@ -149,7 +206,18 @@ class Vm:
         self.console = pexpect.fdpexpect.fdspawn(
             self.sock.fileno(), timeout=120, encoding="utf-8", codec_errors="replace"
         )
-        self.console.logfile_read = open(os.path.join(dir, "serial.log"), "a")
+        self.log = os.path.join(dir, "serial.log")
+        self.console.logfile_read = open(self.log, "a")
+
+    def mark(self):
+        """Where the serial log ends now: `since` reads what came after."""
+        self.console.logfile_read.flush()
+        return os.path.getsize(self.log)
+
+    def since(self, mark):
+        with open(self.log, "rb") as f:
+            f.seek(mark)
+            return f.read().decode("utf-8", "replace")
 
     def type(self, text):
         for i in range(0, len(text), TYPE_CHUNK):
@@ -233,27 +301,35 @@ def boot_installer(dir, iso, usb, ports, offline):
         vm.type("stty rows 50 cols 160\r")
         vm.expect(SHELL_PROMPT)
 
-        # Offline, tty1 waits for a cable or a Wi-Fi, then goes on by itself.
+        # Offline, tty1 waits for a cable or a Wi-Fi, then shows its menu.
         if offline:
             wait_for("tty1 waiting for the network", lambda: _on_tty1(vm, "-f bin/dnf-assistant"), 240)
             vm.qmp.cable(True)
             log("tty1 waits for the network: cable plugged in.")
 
-        # tty1 launches the assistant by itself: the newcomer's path.
-        wait_for("darkone on tty1", lambda: _on_tty1(vm, "-x darkone"), 180)
-        log("tty1 runs darkone new by itself.")
+        # The newcomer's path: the tty1 menu, once online, "1" for a new
+        # network. Read off the screen (`/dev/vcs1`): a key sent earlier would
+        # land in the Wi-Fi prompt of the wait.
+        wait_for("the menu on tty1", lambda: _succeeds(vm, "sudo grep -qF 'Choice [1-3]:' /dev/vcs1"), 180)
+        vm.qmp.send_keys("1\r")
+        wait_for("darkone on tty1", lambda: _on_tty1(vm, "-x darkone"), 60)
+        log("tty1 menu: 1 runs darkone new.")
     except BaseException:
         vm.stop(timeout=0)
         raise
     return vm
 
 
-def _on_tty1(vm, match):
+def _succeeds(vm, command):
     try:
-        vm.shell(f"pgrep -t tty1 {match}")
+        vm.shell(command)
         return True
     except Failure:
         return False
+
+
+def _on_tty1(vm, match):
+    return _succeeds(vm, f"pgrep -t tty1 {match}")
 
 
 def install_scripted(vm):
@@ -272,32 +348,30 @@ def install_scripted(vm):
         raise Failure("darkone new returned without its final message")
     if not re.search(r"Cache +https://cache\.nixos\.org, for the install only", out):
         raise Failure("the plan does not show the extra cache of the answers")
+    if not re.search(ZONE_ROW, out):
+        raise Failure(f"the plan does not show the zone prefix {IP_PREFIX}")
+
+
+def answer(vm, steps):
+    """Waits for each prompt, then types its answer; `None` only waits."""
+    for prompt, keys in steps:
+        vm.expect(prompt)
+        if keys is not None:
+            time.sleep(0.5)
+            vm.type(keys)
+
+
+def ask_everything(vm):
+    """`darkone new` from its first question to the start of the install."""
+    log("darkone new, every question on the console (encrypted disk)...")
+    vm.type("darkone new --dnf-url path:$DNF_SOURCE\r")
+    answer(vm, [("Pre-flight checks done", None)] + QUESTIONS + LUKS_PASSPHRASE)
+    answer(vm, [(ZONE_ROW, None), ("and install\\?", LEFT + ENTER)])
+    log("Installing...")
 
 
 def install_interactive(vm):
-    log("darkone new, every question on the console (encrypted disk)...")
-    vm.type("darkone new --dnf-url path:$DNF_SOURCE\r")
-    steps = [
-        ("Language and keyboard", ENTER),
-        ("Timezone", ENTER),
-        ("Your full name", "Alice Martin" + ENTER),
-        ("Your login", ENTER),
-        ("Your email", ENTER),
-        ("Your password", PASSWORD + ENTER),
-        ("Your password, again", PASSWORD + ENTER),
-        ("Network domain \\(definitive\\)", DOMAIN + ENTER),
-        ("Name of this machine", ENTER),
-        ("Encrypt the disk\\?", ENTER),
-        ("Package cache on your network", ENTER),
-        ("Disk passphrase", PASSPHRASE + ENTER),
-        ("Disk passphrase, again", PASSPHRASE + ENTER),
-        ("and install\\?", LEFT + ENTER),
-    ]
-    for prompt, keys in steps:
-        vm.expect(prompt)
-        time.sleep(0.5)
-        vm.type(keys)
-    log("Installing...")
+    ask_everything(vm)
     vm.expect("USB stick for the backup", timeout=5400)
 
     # "Skip for now", declined: back to the choice, then the stick.
@@ -307,6 +381,12 @@ def install_interactive(vm):
     time.sleep(0.5)
     vm.type(ENTER)
     vm.expect("USB stick for the backup")
+    backup_and_finish(vm)
+
+
+def backup_and_finish(vm):
+    """At the choice of the stick: the first one, unplugged and plugged back in
+    over QMP, read back. No reboot: the test reads the new disk first."""
     time.sleep(0.5)
     vm.type(ENTER)
     vm.expect("Unplug the USB stick", timeout=300)
@@ -316,8 +396,113 @@ def install_interactive(vm):
     vm.qmp.plug_stick()
     vm.expect("Backup written and read back", timeout=300)
     vm.expect("Done:", timeout=60)
+    vm.expect("Reboot now\\?")
+    time.sleep(0.5)
+    vm.type(ENTER)
     vm.expect(SHELL_PROMPT)
-    log("Backup written, stick unplugged, plugged back in, read back.")
+    log("Backup written, stick unplugged, plugged back in, read back; reboot declined.")
+
+
+def install_resumed(vm):
+    """Link cut, then Ctrl-C, during `nixos-install`; `darkone new` resumes."""
+    if not _succeeds(vm, 'test -d "$XDG_RUNTIME_DIR"'):
+        raise Failure("no XDG_RUNTIME_DIR on the serial console: no answers kept, no resume")
+    ask_everything(vm)
+    cut_link(vm)
+    interrupt(vm)
+    resume(vm)
+
+
+def cut_link(vm):
+    """Cut while downloads run, back once `nixos-install` fails or CUT_MAX."""
+    vm.expect(r"Installing [\w-]+\.\.\.", timeout=1800)
+
+    # Nix's progress bar counts the downloads; none shown, cut all the same.
+    # Waits read the console: unread output would stall the guest's serial port.
+    i = vm.expect([r"MiB DL", INSTALLED, pexpect.TIMEOUT], timeout=600)
+    if i == 2:
+        log("No download progress on the console: the link is cut all the same.")
+    if i == 1 or vm.expect([INSTALLED, pexpect.TIMEOUT], timeout=CUT_AFTER) == 0:
+        raise Failure("nixos-install ended before the link was cut")
+    vm.qmp.cable(False)
+    log(f"Link cut during nixos-install, {CUT_MAX} s at most...")
+    i = vm.expect([r"nixos-install failed \(attempt 1/3\)", INSTALLED, pexpect.TIMEOUT], timeout=CUT_MAX)
+
+    # Back at once: attempt 2 needs it, Nix's backoff covers the DHCP lease.
+    vm.qmp.cable(True)
+    if i == 1:
+        raise Failure("nixos-install ended with the link cut")
+    if i == 0:
+        log("nixos-install failed with the link cut, link back: the retry loop takes over.")
+    else:
+        log(f"Link back after {CUT_MAX} s, nixos-install still running: Nix's own retries held.")
+
+
+def interrupt(vm):
+    """Ctrl-C once downloads run again: the project and /mnt stay for a resume."""
+    retried = False
+    while True:
+        i = vm.expect([r"MiB DL", r"Retry\? \[y/N\]", INSTALLED], timeout=900)
+        if i == 0:
+            break
+        if i == 2:
+            raise Failure("nixos-install ended before Ctrl-C: nothing left to resume")
+
+        # Attempts 2 and 3 ran before the lease came back: the operator's retry.
+        if retried:
+            raise Failure("nixos-install failed again after a retry, link back")
+        log("Three attempts failed, the link came back late: retry answered.")
+        retried = True
+        time.sleep(0.5)
+        vm.type("y" + ENTER)
+    if vm.expect([INSTALLED, pexpect.TIMEOUT], timeout=INTERRUPT_AFTER) == 0:
+        raise Failure("nixos-install ended before Ctrl-C: nothing left to resume")
+    vm.console.send(CTRL_C)
+    again = [r"nixos-install failed \(attempt \d/3\)", r"Retry\? \[y/N\]"]
+    if vm.expect([SHELL_PROMPT] + again) != 0:
+        raise Failure("Ctrl-C did not stop install-here: its retry loop ran nixos-install again")
+    log("Ctrl-C during nixos-install.")
+
+    # The retry loop must stop too: a background attempt would race the resume.
+    wait_for(
+        "install-here stopped by Ctrl-C (its retry loop goes on?)",
+        lambda: _succeeds(vm, "! pgrep -f 'install-here|nixos-install|--store /mnt'"),
+        120,
+    )
+    if not _succeeds(vm, "mountpoint -q /mnt"):
+        raise Failure("/mnt is no longer mounted after Ctrl-C: nothing to resume")
+
+    # Same networks as the first run, or the plan differs and the resume is refused.
+    wait_for("a route, the link back", lambda: _succeeds(vm, "ip -4 route get 1.1.1.1 >/dev/null"), 120)
+
+
+def resume(vm):
+    """The Resume choice: the disk passphrase only, the plan of the first run,
+    the disk not erased."""
+    mark = vm.mark()
+    log("darkone new again, Resume...")
+    vm.type("darkone new --dnf-url path:$DNF_SOURCE\r")
+    if vm.expect([r"It cannot be resumed: ([^\r\n]*)", "Previous install"]) == 0:
+        raise Failure(f"no Resume offered: {vm.console.match.group(1)}")
+    time.sleep(0.5)
+    vm.type(ENTER)
+    answer(vm, [("Type the disk passphrase of the first attempt again", None)] + LUKS_PASSPHRASE)
+    vm.expect("Resuming the install\\.\\.\\.")
+    asked = vm.since(mark)
+    once = [prompt for prompt, _ in QUESTIONS] + ["and install\\?", "Resume the answers"]
+    again = [prompt for prompt in once if re.search(prompt, asked)]
+    if again:
+        raise Failure(f"the resume asked again: {again}")
+    if "kept from the previous attempt" not in asked:
+        raise Failure("the plan of the resume does not keep the disk")
+    vm.expect("Resuming on the disk of the previous attempt, not erased", timeout=300)
+    log("Resumed: only the disk passphrase asked, the disk kept.")
+    vm.expect("USB stick for the backup", timeout=5400)
+    backup_and_finish(vm)
+    after = vm.since(mark)
+    for erased in ("Erasing and mounting the disks", "Unmounting the previous attempt", "Removing the project"):
+        if erased in after:
+            raise Failure(f"the resume did not keep the first attempt: {erased!r}")
 
 
 def fetch_deploy_key(vm, path):
@@ -350,7 +535,14 @@ def check_installed(dir, usb, ports, key, encrypted):
         crypt = ssh(ports[0], key, "nix", "lsblk -nro TYPE").stdout.split()
         if ("crypt" in crypt) != encrypted:
             raise Failure(f"disk encryption: expected {encrypted}, lsblk says {crypt}")
-        log(f"Installed system: running, no failed unit, /etc/nixos clean, encrypted={encrypted}.")
+        prefix = f'grep -Eq \'^ +ipPrefix: "{re.escape(IP_PREFIX)}"$\' /etc/nixos/etc/config.yaml'
+        if ssh(ports[0], key, "nix", prefix, check=False).returncode != 0:
+            raise Failure(f"etc/config.yaml: the zone prefix is not {IP_PREFIX}")
+
+        # Written by the backup of the install: the welcome page shows no warning.
+        ssh(ports[0], key, "nix", "test -s /var/lib/dnf/backup-admin")
+        log(f"Installed system: running, no failed unit, /etc/nixos clean, encrypted={encrypted}, "
+            f"zone {IP_PREFIX}, backup witness.")
         check_admin_desktop(ports[0], key)
         collect_garbage(ports[0], key)
         backup_again(ports[0], key)
@@ -449,12 +641,13 @@ def scenario(name, iso, workdir):
     make_stick(usb)
     ports = (free_port(), free_port())
     key = os.path.join(dir, "nix-key")
-    encrypted = name == "interactive"
+    encrypted = name != "scripted"
+    install = {"scripted": install_scripted, "interactive": install_interactive, "resume": install_resumed}[name]
     log(f"Scenario {name} in {dir}")
 
     vm = boot_installer(dir, iso, usb, ports, offline=name == "scripted")
     try:
-        install_scripted(vm) if name == "scripted" else install_interactive(vm)
+        install(vm)
         fetch_deploy_key(vm, key)
         vm.type("sudo umount -R /mnt; sudo poweroff\r")
     except BaseException:
@@ -469,7 +662,7 @@ def scenario(name, iso, workdir):
 def main():
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--iso", required=True, help="generic installer ISO file")
-    p.add_argument("--scenario", choices=["scripted", "interactive", "all"], default="all")
+    p.add_argument("--scenario", choices=SCENARIOS + ["all"], default="all")
     p.add_argument(
         "--workdir",
         default=os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")), "dnf-installer-test"),
@@ -479,7 +672,7 @@ def main():
     args = p.parse_args()
 
     workdir = os.path.abspath(args.workdir)
-    names = ["scripted", "interactive"] if args.scenario == "all" else [args.scenario]
+    names = SCENARIOS if args.scenario == "all" else [args.scenario]
     failed = []
     for name in names:
         try:
