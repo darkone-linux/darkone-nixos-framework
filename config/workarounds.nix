@@ -209,11 +209,14 @@
 
   aider-chat-suspended = {
     kind = "inline";
-    files = [ "home/modules/ai.nix" ];
+    files = [
+      "home/modules/ai.nix"
+      "tests/scenarios/modules/node-ai.nix"
+    ];
     reason = "cargoUseSystemLibs (nixpkgs 26.11): tree-sitter-language-pack zstd-sys finds no libzstd";
     upstream = "NixOS/nixpkgs#584300";
     package = "aider-chat";
-    dropWhen = "Hydra builds unstable aider-chat: uncomment it in ai.nix";
+    dropWhen = "Hydra builds unstable aider-chat: uncomment it in ai.nix and the node-ai `aider --version` check";
     since = "2026-11-09";
   };
 

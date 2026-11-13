@@ -42,8 +42,9 @@
     # RTK — PreToolUse hook bridge
     node1.succeed("su - nix -c 'rtk --version'")
 
-    # Aider — optional agent
-    node1.succeed("su - nix -c 'aider --version'")
+    # Aider — optional agent. TMP: package suspended in ai.nix
+    # (`aider-chat-suspended` workaround), back with nixpkgs#584300.
+    #node1.succeed("su - nix -c 'aider --version'")
 
     # Aider config file
     node1.succeed("su - nix -c 'test -f ~/.aider.conf.yml'")
