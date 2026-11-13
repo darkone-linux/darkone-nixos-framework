@@ -46,4 +46,14 @@ pkg-update name version="":
 	exec "$realNix" "\$@"
 	EOF
 	chmod +x "$shim/nix"
-	PATH="$shim:$PATH" nix-update --flake "{{name}}" "${extra[@]}"
+
+	# nix-update's `wrapProgram` prepends its own `nix`: a copy of the wrapper
+	# re-puts the shim first, just before its final `exec`.
+	updater=nix-update
+	wrapper=$(readlink -f "$(command -v nix-update)")
+	if grep -q '^exec ' "$wrapper"; then
+		sed '/^exec /i PATH="'"$shim"':$PATH"; export PATH' "$wrapper" > "$shim/nix-update"
+		chmod +x "$shim/nix-update"
+		updater="$shim/nix-update"
+	fi
+	PATH="$shim:$PATH" "$updater" --flake "{{name}}" "${extra[@]}"
