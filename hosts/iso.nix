@@ -7,8 +7,10 @@
 # dnf-netinfo # IP + MAC to use, also printed on the console at boot
 # just full-install my-host nixos 10.1.3.211 # Install "my-host"
 #
-# -> First host of a new network (generic image only, launched on tty1):
-# darkone new # this machine becomes the admin host (--answers: scripted)
+# -> Generic image only, menu on tty1:
+# 1) darkone new # this machine becomes the admin host (--answers: scripted)
+# 2) add this machine to an existing network (passwd, ssh-copy-id)
+# 3) shell
 
 {
   config,
@@ -104,14 +106,15 @@ let
     "\n" + "printf '\\nFirst host of a new network: darkone new\\n'"
   );
 
-  # tty1 of the generic image: `darkone new` once a route exists, the binary
-  # cache needs it. Until then a cable is picked up by itself, Enter opens
-  # nmtui for Wi-Fi. Ctrl-C, or any other console, gives a shell.
+  # tty1 of the generic image: a menu once a route exists, the binary cache
+  # needs it. Until then a cable is picked up by itself, Enter opens nmtui
+  # for Wi-Fi. Ctrl-C, or any other console, gives a shell.
   assistant = pkgs.writeShellApplication {
     name = "dnf-assistant";
     runtimeInputs = [
       installer.darkone
       pkgs.iproute2
+      pkgs.util-linux
       config.networking.networkmanager.package
     ];
     text = ''
@@ -124,7 +127,51 @@ let
           fi
         done
       fi
-      darkone new
+
+      # Every path ends in the login shell: tty1 is never left dead.
+      while true; do
+        printf '\nWhat do you want to do?\n'
+        printf '  1) New network: this machine becomes its admin host\n'
+        printf '  2) Add this machine to an existing network\n'
+        printf '  3) Shell\n'
+        printf 'Choice [1-3]: '
+
+        # No default, no timeout: an invalid answer asks again. EOF: shell.
+        read -r choice || exit 0
+        case "$choice" in
+          1)
+            darkone new || printf '\ndarkone new stopped. To try again: darkone new\n'
+            exit 0
+            ;;
+          2)
+
+            # The route may be gone since the wait: a placeholder, not an exit.
+            route="$(ip -4 -o route get 1.1.1.1 2>/dev/null || true)"
+            addr='<this-ip>'
+            if [[ "$route" == *" src "* ]]; then
+              addr="''${route#* src }"
+              addr="''${addr%% *}"
+            fi
+
+            printf '\nNetwork cards:\n'
+            ip -br link
+            ip -br addr
+            printf '\nDisks:\n'
+            lsblk -d -o NAME,SIZE,TYPE,MODEL
+
+            printf '\nTo add this machine to your network:\n'
+            printf '  1. Set a password here: passwd\n'
+            printf '  2. From the admin host: sudo -i -u nix ssh-copy-id nixos@%s\n' "$addr"
+            exit 0
+            ;;
+          3)
+            exit 0
+            ;;
+          *)
+            printf 'Unknown choice: %s\n' "$choice"
+            ;;
+        esac
+      done
     '';
   };
 
