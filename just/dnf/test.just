@@ -240,10 +240,11 @@ _fixtures_gen_secrets:
 
 # `darkone new` end to end in QEMU, on the real network: the generic ISO boots,
 # the assistant is driven over its serial console (`tests/installer`). About
-# 30 min and 25 GB of disk a scenario, under ~/.cache/dnf-installer-test.
-# `iso`: an ISO file instead of this tree's, one built on a local generator.
+# 30 min and 25 GB of disk a scenario, under ~/.cache/dnf-installer-test;
+# `preflight` installs nothing, a minute. `iso`: an ISO file instead of
+# this tree's, one built on a local generator.
 #
-# Test the installer ISO in a VM: scripted, interactive, resume or all
+# Test the installer ISO in a VM: preflight, scripted, interactive, resume or all
 [group('test')]
 test-installer scenario='all' iso='':
 	#!/usr/bin/env bash

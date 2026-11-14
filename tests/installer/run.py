@@ -14,14 +14,19 @@ network is used: what a newcomer downloads, the test downloads.
   unlocked through the initrd sshd (`dnf-unlock`);
 - `resume`: as `interactive`, the link cut during `nixos-install` (its retry
   loop takes over), then Ctrl-C and `darkone new` again: "Resume" asks only
-  the disk passphrase, the disk is not erased.
+  the disk passphrase, the disk is not erased;
+- `preflight`: no install. Cable cut, `darkone new` stops on its pre-flight
+  error before any question; cable back, "Check again" reaches the first one.
 
-On the installed system, all collect the garbage (`dnf/` stays, a GC root),
-then back up again (`just backup-admin`): the first backup is kept, renamed
-with its date. QEMU's user network is 10.0.2.0/24: the zone gets `10.1`.
+On the installed system, the installs collect the garbage (`dnf/` stays, a GC
+root), then back up again (`just backup-admin`): the first backup is kept,
+renamed with its date. QEMU's user network is 10.0.2.0/24: the zone gets `10.1`.
 
-    dnf-installer-test --iso ISO [--scenario scripted|interactive|resume|all]
-                       [--workdir DIR] [--keep]
+    dnf-installer-test --iso ISO [--scenario NAME|all] [--workdir DIR]
+                       [--memory MiB] [--keep]
+
+`--memory`: RAM of every VM of the run, to measure the threshold of the
+pre-flight checks (`MIN_RAM_MIB` of the generator).
 
 Logs: `<workdir>/<scenario>/serial.log`.
 """
@@ -45,7 +50,7 @@ PASSPHRASE = "dnf-test-pass"
 DOMAIN = "example.org"
 STICK_LABEL = "SECOURS"
 SHELL_PROMPT = r"nixos@dnf-install:~\]\$"
-SCENARIOS = ["scripted", "interactive", "resume"]
+SCENARIOS = ["preflight", "scripted", "interactive", "resume"]
 
 # 10.0 overlaps QEMU's user network (10.0.2.0/24): the next free /16.
 ZONE_ROW = r"Zone +main, 10\.1\.0\.0/16, definitive"
@@ -183,11 +188,15 @@ class Qmp:
 class Vm:
     """One run of `dnf-vm`, its serial console wrapped in pexpect."""
 
-    def __init__(self, dir, iso, usb, ports):
+    def __init__(self, dir, iso, usb, ports, memory=None):
         self.dir = dir
         self.ssh_port, self.unlock_port = ports
         serial = os.path.join(dir, "serial.sock")
         qmp = os.path.join(dir, "qmp.sock")
+
+        # `sun_path` holds 108 bytes: past that QEMU cannot listen on its sockets.
+        if len(os.fsencode(serial)) > 107:
+            raise Failure(f"workdir too deep: {serial} is over 107 bytes, a Unix socket's limit")
         for path in (serial, qmp):
             if os.path.exists(path):
                 os.unlink(path)
@@ -195,6 +204,8 @@ class Vm:
         cmd += ["--ssh-port", str(self.ssh_port), "--unlock-port", str(self.unlock_port)]
         if iso:
             cmd += ["--iso", iso]
+        if memory:
+            cmd += ["--memory", str(memory)]
         self.proc = subprocess.Popen(cmd)
         try:
             self.qmp = Qmp(qmp)
@@ -291,8 +302,8 @@ def free_port():
         return s.getsockname()[1]
 
 
-def boot_installer(dir, iso, usb, ports, offline):
-    vm = Vm(dir, iso, usb, ports)
+def boot_installer(dir, iso, usb, ports, offline, memory):
+    vm = Vm(dir, iso, usb, ports, memory)
     try:
         if offline:
             vm.qmp.cable(False)
@@ -505,6 +516,37 @@ def resume(vm):
             raise Failure(f"the resume did not keep the first attempt: {erased!r}")
 
 
+def preflight(vm):
+    """Cable cut: `darkone new` stops before its first question. Cable back:
+    "Check again", the first item, passes and the questions start."""
+    vm.qmp.cable(False)
+    wait_for("the default route gone, cable cut", lambda: _succeeds(vm, "! ip -4 route get 1.1.1.1"), 60)
+    log("Cable cut, darkone new...")
+    vm.type("darkone new --dnf-url path:$DNF_SOURCE\r")
+    if vm.expect(["Pre-flight checks failed", "Language and keyboard"], timeout=240) == 1:
+        raise Failure("a question came before the pre-flight error, cable cut")
+    vm.expect(r"unreachable|name not resolved")
+    error = vm.console.match.group(0)
+    vm.expect("The install cannot start")
+    log(f"Pre-flight error before the first question: {error}.")
+
+    # The DHCP lease takes a few seconds: each failed check brings the choice back.
+    vm.qmp.cable(True)
+    for _ in range(6):
+        time.sleep(10)
+        vm.type(ENTER)
+        vm.expect("Checking memory, network and clock")
+        if vm.expect(["Pre-flight checks done", "Pre-flight checks failed"]) == 0:
+            break
+        vm.expect("The install cannot start")
+    else:
+        raise Failure("the pre-flight checks still fail a minute after the cable came back")
+    vm.expect("Language and keyboard")
+    log("Cable back, Check again: checks passed, first question shown.")
+    vm.console.send(CTRL_C)
+    vm.expect(SHELL_PROMPT)
+
+
 def fetch_deploy_key(vm, path):
     """The `nix` key of the new system: the way in after the reboot."""
     out = vm.shell("sudo base64 -w0 /mnt/home/nix/.ssh/id_ed25519")
@@ -513,8 +555,8 @@ def fetch_deploy_key(vm, path):
     os.chmod(path, 0o600)
 
 
-def check_installed(dir, usb, ports, key, encrypted):
-    vm = Vm(dir, None, usb, ports)
+def check_installed(dir, usb, ports, key, encrypted, memory):
+    vm = Vm(dir, None, usb, ports, memory)
     try:
         if encrypted:
             log("First boot: unlocking through the initrd sshd...")
@@ -633,7 +675,7 @@ def check_backup(dir, usb):
     log("Backup opened from the host: keys and project inside, the first one kept.")
 
 
-def scenario(name, iso, workdir):
+def scenario(name, iso, workdir, memory):
     dir = os.path.join(workdir, name)
     shutil.rmtree(dir, ignore_errors=True)
     os.makedirs(dir)
@@ -642,10 +684,18 @@ def scenario(name, iso, workdir):
     ports = (free_port(), free_port())
     key = os.path.join(dir, "nix-key")
     encrypted = name != "scripted"
-    install = {"scripted": install_scripted, "interactive": install_interactive, "resume": install_resumed}[name]
-    log(f"Scenario {name} in {dir}")
+    log(f"Scenario {name} in {dir}" + (f", {memory} MiB of RAM" if memory else ""))
 
-    vm = boot_installer(dir, iso, usb, ports, offline=name == "scripted")
+    vm = boot_installer(dir, iso, usb, ports, offline=name == "scripted", memory=memory)
+    if name == "preflight":
+        try:
+            preflight(vm)
+        finally:
+            vm.stop(timeout=0)
+        log(f"Scenario {name}: OK")
+        return
+
+    install = {"scripted": install_scripted, "interactive": install_interactive, "resume": install_resumed}[name]
     try:
         install(vm)
         fetch_deploy_key(vm, key)
@@ -654,7 +704,7 @@ def scenario(name, iso, workdir):
         vm.stop(timeout=0)
         raise
     vm.stop(timeout=180)
-    check_installed(dir, usb, ports, key, encrypted)
+    check_installed(dir, usb, ports, key, encrypted, memory)
     check_backup(dir, usb)
     log(f"Scenario {name}: OK")
 
@@ -668,6 +718,7 @@ def main():
         default=os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")), "dnf-installer-test"),
         help="disks and logs, about 25 GB a scenario (default: %(default)s)",
     )
+    p.add_argument("--memory", type=int, metavar="MiB", help="RAM of the VMs (default: dnf-vm's, 8192)")
     p.add_argument("--keep", action="store_true", help="keep the disks after a success")
     args = p.parse_args()
 
@@ -676,7 +727,7 @@ def main():
     failed = []
     for name in names:
         try:
-            scenario(name, os.path.abspath(args.iso), workdir)
+            scenario(name, os.path.abspath(args.iso), workdir, args.memory)
             if not args.keep:
                 os.unlink(os.path.join(workdir, name, "disk.qcow2"))
 

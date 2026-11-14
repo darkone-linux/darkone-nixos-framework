@@ -1,8 +1,8 @@
 # Installer VM tools: `dnf-vm`, the installer test, and `#try`.
 #
 # - `vm`: QEMU machine booted on the generic ISO (`dnf-vm.sh`);
-# - `test`: `darkone new` end to end, scripted, interactive and resumed
-#   (`run.py`), `just test-installer` and the release CI;
+# - `test`: `darkone new` end to end, scripted, interactive and resumed, and
+#   its pre-flight checks (`run.py`), `just test-installer` and the release CI;
 # - `try`: the ISO of this flake in a window, a persistent disk under
 #   `~/.local/share/dnf-try` (`nix run .#try`, `--reset` starts over);
 # - `tryLocal`: same, project pinned on this tree, disk `dnf-try-local`
