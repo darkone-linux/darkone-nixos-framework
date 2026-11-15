@@ -11,8 +11,17 @@
 #
 # -> Generic image only, menu on tty1:
 # 1) darkone new # this machine becomes the admin host (--answers: scripted)
-# 2) add this machine to an existing network (cards, disks, passwd...)
+# 2) add this machine to an existing network: dnf-pair, any console too
+#    (pairing code, address, cards, disks)
 # 3) shell
+#
+# -> Pairing (generic image, no admin key baked in):
+# - `dnf-pair.service` owns the code `PPPPPP-FFFF`: `PPPPPP` is the `nixos`
+#   password, 10 min, a new one after (6 at most); `FFFF` comes from the
+#   ed25519 host key (`just/scripts/pair-fingerprint.sh`);
+# - paired once `~nixos/.ssh/authorized_keys` holds a key: the password goes
+#   back to empty, which sshd refuses. State: `/run/dnf-pair/state`;
+# - `systemctl stop dnf-pair` locks too; a password set by hand is left alone.
 
 {
   config,
@@ -27,12 +36,217 @@
 let
 
   # Standalone image (release download): no admin key baked in. The installer's
-  # `nixos` account has an empty password, which sshd refuses: one `passwd`
-  # lets `ssh-copy-id` in. Empty for a consumer ISO, whose drvPath stays put.
+  # `nixos` account has an empty password, which sshd refuses: the pairing
+  # code, or one `passwd`, lets the key in. Empty for a consumer ISO, whose
+  # drvPath stays put.
   keylessHint = lib.optionalString (workDir == null) (
     "\n"
-    + ''printf '\nNo admin key in this image. Set a password with passwd, then from\nthe admin host: sudo -i -u nix ssh-copy-id nixos@%s\n' "$addr"''
+    + (
+      if installer != null then
+        "printf '\\nNo admin key in this image. To add this machine to a network: dnf-pair\\n'"
+      else
+        ''printf '\nNo admin key in this image. Set a password with passwd, then from\nthe admin host: sudo -i -u nix ssh-copy-id nixos@%s\n' "$addr"''
+    )
   );
+
+  # `~nixos/.ssh/authorized_keys`: where the admin host pushes its key, what
+  # pairing waits for. sshd reads it (`AuthorizedKeysFile %h/.ssh/…`).
+  pairKeys = "/home/nixos/.ssh/authorized_keys";
+  pairState = "/run/dnf-pair/state";
+
+  # FFFF of the pairing code; the admin host runs the same file.
+  pairFingerprint = pkgs.writeShellApplication {
+    name = "dnf-pair-fingerprint";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = builtins.readFile ../just/scripts/pair-fingerprint.sh;
+  };
+
+  # Owner of the pairing code: one per machine, whichever console shows it.
+  # Root, started on demand by `dnf-pair`. Expiry on `/proc/uptime`: NTP
+  # moves the wall clock right after the first lease.
+  pairService = ''
+    sshKeygen=${config.services.openssh.package}/bin/ssh-keygen
+    state=${pairState}
+    keys=${pairKeys}
+    fingerprint="$(${lib.getExe pairFingerprint} /etc/ssh/ssh_host_ed25519_key.pub)"
+    ours=""
+
+    # Atomic: a console may read it at any time.
+    publish() {
+      printf 'status=%s\ncode=%s\nexpires=%s\n' "$1" "''${2:-}" "''${3:-}" > "$state.tmp"
+      ${pkgs.coreutils}/bin/mv -f "$state.tmp" "$state"
+    }
+    now() {
+      local up _
+      read -r up _ < /proc/uptime
+      echo "''${up%.*}"
+    }
+
+    # A complete key, not an append in progress.
+    paired() { [ -s "$keys" ] && "$sshKeygen" -l -f "$keys" > /dev/null 2>&1; }
+    hash() {
+      local user h _
+      while IFS=: read -r user h _; do
+        if [ "$user" = nixos ]; then
+          echo "$h"
+        fi
+      done < /etc/shadow
+    }
+
+    # Back to the empty password of the boot, refused by sshd. A password the
+    # operator set meanwhile (`passwd`) is left alone.
+    lock() {
+      if [ -n "$ours" ] && [ "$(hash)" = "$ours" ]; then
+        ${pkgs.shadow}/bin/passwd -d nixos > /dev/null
+      fi
+      ours=""
+    }
+    finish() {
+      lock
+      if paired; then
+        publish paired
+      else
+        publish "$1"
+      fi
+      exit 0
+    }
+    trap 'finish stopped' TERM INT
+
+    if paired; then
+      finish paired
+    fi
+    for round in 1 2 3 4 5 6; do
+
+      # Uniform over 6 digits: `SRANDOM` (getrandom), rejection above the
+      # largest multiple of 10^6 under 2^32.
+      while n=$SRANDOM; [ "$n" -ge 4294000000 ]; do :; done
+      pin="$(printf '%06d' "$((n % 1000000))")"
+      printf 'nixos:%s\n' "$pin" | ${pkgs.shadow}/bin/chpasswd
+      ours="$(hash)"
+      expires=$(($(now) + 600))
+      publish active "$pin-$fingerprint" "$expires"
+      echo "Pairing code $round of 6 drawn, valid 10 min."
+
+      while [ "$(now)" -lt "$expires" ]; do
+        if paired; then
+          echo "Admin key in place: paired, password locked."
+          finish paired
+        fi
+        if [ "$(hash)" != "$ours" ]; then
+          echo "Password changed by hand: pairing stopped, password left alone."
+          ours=""
+          finish manual
+        fi
+        ${pkgs.coreutils}/bin/sleep 1
+      done
+    done
+    echo "Six codes expired: pairing closed, password locked."
+    finish closed
+  '';
+
+  # `dnf-pair`: starts the code's owner, prints the code with the address,
+  # cards and disks, waits for the admin host. As root: the state holds the
+  # password. Ctrl-C leaves the code valid.
+  pair = pkgs.writeShellApplication {
+    name = "dnf-pair";
+    runtimeInputs = [
+      netinfo
+      pkgs.coreutils
+      pkgs.iproute2
+      config.systemd.package
+    ];
+    text = ''
+      if [ "$(id -u)" -ne 0 ]; then
+        exec ${config.security.wrapperDir}/sudo "$0" "$@"
+      fi
+      state=${pairState}
+      magenta=$'\e[1;35m'
+      reset=$'\e[0m'
+
+      load() {
+        local k v
+        status=""
+        code=""
+        expires=0
+        if [ -f "$state" ]; then
+          while IFS='=' read -r k v; do
+            case "$k" in
+              status) status="$v" ;;
+              code) code="$v" ;;
+              expires) expires="$v" ;;
+            esac
+          done < "$state"
+        fi
+      }
+      minutes() {
+        local up _
+        read -r up _ < /proc/uptime
+        echo $(((expires - ''${up%.*} + 59) / 60))
+      }
+
+      # Already running (another console): the same code. Stopped: a new one.
+      systemctl start dnf-pair.service
+
+      # The route may be gone since boot: a placeholder, not an exit.
+      route="$(ip -4 -o route get 1.1.1.1 2>/dev/null || true)"
+      addr='<this-ip>'
+      if [[ "$route" == *" src "* ]]; then
+        addr="''${route#* src }"
+        addr="''${addr%% *}"
+      fi
+
+      trap 'printf "\nBack to the shell. Code still valid, shown again by: dnf-pair\n"; exit 0' INT
+      shown=""
+      for _ in $(seq 10); do
+        load
+        if [ -n "$status" ]; then
+          break
+        fi
+        sleep 1
+      done
+      if [ -z "$status" ]; then
+        echo "dnf-pair.service wrote no code: journalctl -u dnf-pair" >&2
+        exit 1
+      fi
+      if [ "$status" = active ]; then
+        printf '\n- IP: %s%s%s\n' "$magenta" "$addr" "$reset"
+        dnf-netinfo --list
+        printf '\nOn the admin host: just full-install <host> nixos %s\n' "$addr"
+        printf 'and type this code when it asks (Ctrl-C: shell, the code stays valid).\n'
+      fi
+
+      # `Pairing code:` stays as is: the installer test reads it on ttyS0.
+      while true; do
+        case "$status" in
+          active)
+            if [ "$code" != "$shown" ]; then
+              printf '\nPairing code: %s%s%s  (%s min, a new one after)\n' \
+                "$magenta" "$code" "$reset" "$(minutes)"
+              shown="$code"
+            fi
+            ;;
+          paired)
+            printf '\nPaired: the admin host key is in place, password locked.\n'
+            exit 0
+            ;;
+          closed)
+            printf '\nPairing closed: no admin host came. A new code: dnf-pair\n'
+            exit 0
+            ;;
+          manual)
+            printf '\nPassword set by hand: pairing stopped, the password stays.\n'
+            exit 0
+            ;;
+          *)
+            printf '\nPairing stopped. A new code: dnf-pair\n'
+            exit 0
+            ;;
+        esac
+        sleep 1
+        load
+      done
+    '';
+  };
 
   # What the operator copies into etc/config.yaml: IP + MAC of the interface
   # holding the route (what `just full-install` reaches), then the network
@@ -230,6 +444,7 @@ let
     pkgs.sops
     pkgs.ssh-to-age
     pkgs.yq-go
+    pair
   ];
   assistantHint = lib.optionalString (installer != null) (
     "\n" + "printf '\\nFirst host of a new network: darkone new\\n'"
@@ -242,7 +457,7 @@ let
     name = "dnf-assistant";
     runtimeInputs = [
       installer.darkone
-      netinfo
+      pair
       pkgs.iproute2
       pkgs.util-linux
       config.networking.networkmanager.package
@@ -274,20 +489,7 @@ let
             exit 0
             ;;
           2)
-
-            # The route may be gone since the wait: a placeholder, not an exit.
-            route="$(ip -4 -o route get 1.1.1.1 2>/dev/null || true)"
-            addr='<this-ip>'
-            if [[ "$route" == *" src "* ]]; then
-              addr="''${route#* src }"
-              addr="''${addr%% *}"
-            fi
-
-            dnf-netinfo --list
-
-            printf '\nTo add this machine to your network:\n'
-            printf '  1. Set a password here: passwd\n'
-            printf '  2. From the admin host: sudo -i -u nix ssh-copy-id nixos@%s\n' "$addr"
+            dnf-pair || printf '\nPairing stopped. To try again: dnf-pair\n'
             exit 0
             ;;
           3)
@@ -395,6 +597,31 @@ in
     # `useDHCP = false`): a dhcpcd beside it would hold the same NIC.
     networking.hostName = "dnf-install";
     services.openssh.enable = true;
+
+    # Pairing code, generic image: no `wantedBy`, `dnf-pair` starts it. The
+    # state outlives the run: `Paired` stays on screen. `preStart` drops the
+    # last run's, which `dnf-pair` would read before the new code.
+    systemd.services.dnf-pair = lib.mkIf (installer != null) {
+      description = "DNF pairing code: one-time nixos password for the admin host";
+      after = [ "sshd-keygen.service" ];
+      wants = [ "sshd-keygen.service" ];
+      preStart = "${pkgs.coreutils}/bin/rm -f ${pairState}";
+      script = pairService;
+      serviceConfig = {
+        RuntimeDirectory = "dnf-pair";
+        RuntimeDirectoryMode = "0700";
+        RuntimeDirectoryPreserve = true;
+      };
+    };
+
+    # 10^6 codes against a 10 min window: 10 pre-auth slots, 10 s per wrong
+    # password (stock: up to 100, 2 s), so ~1 try/s, ~600 per code. Generic
+    # image only: a consumer image has no password to guess.
+    services.openssh.settings.MaxStartups = lib.mkIf (installer != null) "10";
+    security.pam.services.sshd.failDelay = lib.mkIf (installer != null) {
+      enable = true;
+      delay = 10000000;
+    };
 
     # Stock NixOS greeting + installer help, a getty `mkDefault`: superseded by
     # the DNF welcome below.
