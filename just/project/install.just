@@ -246,6 +246,34 @@ install host user='nix' ip='auto' do='install':
 
 	TARGET_HOST=$(just _resolve "{{host}}" "{{ip}}")
 
+	# The gateway of a zone cannot sit on a box that overlaps that zone: its WAN
+	# and LAN would share one network, and the zone prefix is final. Only the
+	# addresses it keeps (`10.x.1.1`, reinstall from the LAN) may fall inside.
+	if [ "$zonegw" = "{{host}}" ] && ! just _outside-zones "$TARGET_HOST" "${zonespec%%:*}" 2>/dev/null \
+		&& ! grep -qx -- "$TARGET_HOST" <<<"$(just _candidates "{{host}}")" ;then
+
+		# Box network as seen from here: the connected route to the target, as
+		# `a.b.c.d/len`. Left empty when the target is routed (`via`) or unknown.
+		boxnet=""
+		route=$(ip -4 -o route get "$TARGET_HOST" 2>/dev/null | head -n 1 || true)
+		dev=$(sed -n 's/.* dev \([^ ]*\).*/\1/p' <<<"$route")
+		if [ -n "$dev" ] && [[ "$route" != *" via "* ]] ;then
+			cidr=$(ip -4 -o addr show dev "$dev" | awk '{ print $4; exit }')
+			IFS=./ read -r o1 o2 o3 o4 len <<<"$cidr"
+			if [ -n "${len:-}" ] ;then
+				mask=$(( (0xFFFFFFFF << (32 - len)) & 0xFFFFFFFF ))
+				net=$(( ((o1 << 24) + (o2 << 16) + (o3 << 8) + o4) & mask ))
+				boxnet="$(( net >> 24 )).$(( (net >> 16) & 255 )).$(( (net >> 8) & 255 )).$(( net & 255 ))/$len on $dev"
+			fi
+		fi
+		znet=$({{nix}} eval --raw --impure --expr \
+			"let z = (import {{workDir}}/var/generated/network.nix).zones.\"${zonespec%%:*}\"; in z.networkIp + \"/\" + toString z.prefixLength")
+		just _err "Cannot install {{host}} on $TARGET_HOST: the box network (${boxnet:-address $TARGET_HOST}) overlaps"
+		just _err "zone '${zonespec%%:*}' ($znet), so its WAN and LAN would share one network."
+		just _err "The zone prefix is final: move the box to another network (its LAN subnet or DHCP range)."
+		just _fail "Then boot the installer again and retry."
+	fi
+
 	# Where the installer sits drives the reservation check and its caches
 	# below. Outside every zone network (public IP, box LAN) neither a DNF
 	# reservation nor a zone cache can reach it.

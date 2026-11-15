@@ -244,20 +244,30 @@ _candidates host ip='':
 # forward, box LAN, tailnet): no DNF dnsmasq renumbers a machine there, no zone
 # cache answers it. A name is judged on the IPv4 it resolves to, the one ssh
 # reaches; an unresolvable name or an unreadable network.nix fails (in a zone).
-_outside-zones addr:
+#
+# With `zone`, only that zone's network counts (e.g. a box overlapping the zone
+# of its own gateway). A name that does not resolve then succeeds: it is not
+# shown to be inside that zone.
+_outside-zones addr zone='':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	addr="{{addr}}"
 	if ! [[ "$addr" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] ;then
 		addr=$(getent ahostsv4 "$addr" | awk 'NR == 1 { print $1 }' || true)
-		[ -n "$addr" ] || exit 1
+		if [ -z "$addr" ] ;then
+			[ -z "{{zone}}" ] || exit 0
+			exit 1
+		fi
 	fi
 	toint() { local IFS=. ; set -- $1 ; echo $(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 )) ; }
 	ip=$(toint "$addr")
 	nets=$({{nix}} eval --raw --impure --expr '
-	  let network = import {{workDir}}/var/generated/network.nix;
+	  let
+	    network = import {{workDir}}/var/generated/network.nix;
+	    zone = "{{zone}}";
+	    zones = if zone == "" then builtins.attrValues network.zones else [ (network.zones.${zone} or { }) ];
 	  in builtins.concatStringsSep "" (map (z: z.networkIp + " " + toString z.prefixLength + "\n")
-	    (builtins.filter (z: z ? networkIp && z ? prefixLength) (builtins.attrValues network.zones)))
+	    (builtins.filter (z: z ? networkIp && z ? prefixLength) zones))
 	')
 	while read -r net len ;do
 		[ -n "$net" ] || continue
