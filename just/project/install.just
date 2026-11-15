@@ -224,16 +224,22 @@ install host user='nix' ip='auto' do='install':
 	zonegw=$({{nix}} eval --impure --raw \
 		--expr "(import {{workDir}}/var/generated/network.nix).zones.\"${zonespec%%:*}\".gateway.hostname or \"\"" 2>/dev/null || echo "")
 	if [ -z "$extip" ] && [ -n "$zonegw" ] ;then
-		if [ -z "$mac" ] ;then
-			just _err "{{host}} has no 'mac:' in etc/config.yaml: no DHCP reservation, so it will"
-			just _err "come back on a random address after the reboot that ends the install."
-			just _err "Boot the installer, then: just host-info {{host}} <its-current-ip>"
-			just _fail "Declare mac + a fixed 'zone: <zone>:<x.y>', then 'just apply $zonegw'."
+
+		# The gateway of its own zone needs no reservation: its LAN address is
+		# static (`<zone>:1.1`, what makes it the gateway) and its WAN one comes
+		# from the box. `mac:` stays optional, e.g. to install from another zone.
+		if [ "$zonegw" != "{{host}}" ] ;then
+			if [ -z "$mac" ] ;then
+				just _err "{{host}} has no 'mac:' in etc/config.yaml: no DHCP reservation, so it will"
+				just _err "come back on a random address after the reboot that ends the install."
+				just _err "Boot the installer, then: just host-info {{host}} <its-current-ip>"
+				just _fail "Declare mac + a fixed 'zone: <zone>:<x.y>', then 'just apply $zonegw'."
+			fi
+			case "$zonespec" in
+				*:*) ;;
+				*) just _fail "{{host}} has no fixed address: use 'zone: <zone>:<x.y>' in etc/config.yaml, then 'just apply $zonegw'." ;;
+			esac
 		fi
-		case "$zonespec" in
-			*:*) ;;
-			*) just _fail "{{host}} has no fixed address: use 'zone: <zone>:<x.y>' in etc/config.yaml, then 'just apply $zonegw'." ;;
-		esac
 	elif [ -z "$extip" ] && [ -z "$mac" ] ;then
 		just _warn "No gateway in zone '${zonespec%%:*}': {{host}} keeps whatever address it was given."
 	fi
@@ -458,7 +464,14 @@ _install-preflight host target outside:
 	# drops any other route at the end.
 	if ! getent hosts "{{host}}" >/dev/null ;then
 		gw=$(just _here-gateway)
-		warn "{{host}} does not resolve here, every step by name would fail after the install: 'just apply ${gw:-<local gateway>}' first."
+
+		# The gateway is the resolver of the zone: its name resolves only once
+		# this machine sits behind it, so there is nothing to apply first.
+		if [ "$gw" = "{{host}}" ] ;then
+			just _info "{{host}} does not resolve yet: it will once this machine sits behind it."
+		else
+			warn "{{host}} does not resolve here, every step by name would fail after the install: 'just apply ${gw:-<local gateway>}' first."
+		fi
 	fi
 
 	# `tailnet-enroll` mints the key the HCS declares, so an HCS deployed
