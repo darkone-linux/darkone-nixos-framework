@@ -23,6 +23,13 @@
 # enables this module without the key logs SSH failures on every delegated build.
 # :::
 #
+# :::tip[`darkone` and `dnf-generator` commands]
+# The generator package (`pkgs.dnf-generator`, flake input `dnf-generator`) is
+# installed with the admin tooling: `darkone add ...` drives the project from
+# the admin host. x86_64 only: on another architecture the package is absent
+# and the host evaluates without it.
+# :::
+#
 # :::note[Why not a binary cache]
 # A `harmonia` on the farm would share its build results, but harmonia serves the
 # *whole* `/nix/store` and cannot express "only what I compiled": it captures
@@ -34,6 +41,7 @@
 {
   lib,
   config,
+  pkgs,
   dnfLib,
   host,
   hosts,
@@ -119,6 +127,10 @@ in
     # Large updates / downloads
     # https://nix.dev/manual/nix/2.22/command-ref/conf-file.html?highlight=substit#conf-download-buffer-size
     nix.settings.download-buffer-size = 524288000; # 500 MiB
+
+    # `darkone` and `dnf-generator` binaries; `pkgs.dnf-generator` comes from
+    # the overlay and is absent off x86_64, hence the guard.
+    environment.systemPackages = lib.optional (pkgs ? dnf-generator) pkgs.dnf-generator;
 
     # Nix package indexer for the "nix-locate" command
     programs.nix-index = {
