@@ -824,6 +824,14 @@ full-install host user='nixos' ip='auto':
 	if [ "$target" != "{{host}}" ] ;then
 		just _log "{{host}} sits outside its own zone, reachable at $target." "INSTALL"
 	fi
+
+	# A fresh gateway with no SSH on its WAN answers only on its LAN (D8): said
+	# before the format prompt, so the cable is at hand. Empty: the usual path.
+	rewire=$(just _rewire-lan "{{host}}" "$target")
+	if [ -n "$rewire" ] ;then
+		just _warn "{{host}} will answer SSH only on its LAN ($rewire) once installed, not on this network."
+		just _warn "After its reboot, plug THIS machine into a LAN port of {{host}}: get the cable ready now."
+	fi
 	just install {{host}} {{user}} "$target"
 	just _log "Waiting for reboot..."
 
@@ -841,7 +849,17 @@ full-install host user='nixos' ip='auto':
 	# NOT "$target": the installer and the installed system do not always land
 	# on the same address. Take whichever one actually answers and carry it
 	# through the rest of the chain.
-	answer=$(just _wait-any "{{host}}" "$target" 22)
+	if [ -z "$rewire" ] ;then
+		answer=$(just _wait-any "{{host}}" "$target" 22)
+	else
+
+		# Unlocked from the box side above: an initrd has no firewall. Port 22
+		# only: closed on the WAN, so the box address cannot win.
+		just _warn "Now unplug this machine from the box and plug it into a LAN port of {{host}}."
+		just _info "Nothing to press: the install goes on once $rewire answers (30 min max)." "INSTALL"
+		answer=$(just _wait-any "{{host}}" "$rewire" 22 1800) \
+			|| just _fail "Once this machine sits behind {{host}}: 'just configure {{host}} $rewire', then 'just apply {{host}}'."
+	fi
 	read -r target port <<<"$answer"
 	just _log "{{host}} is back at $target." "INSTALL"
 	just configure {{host}} "$target"

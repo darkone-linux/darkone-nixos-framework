@@ -275,6 +275,52 @@ _outside-zones addr zone='':
 		[ $(( ip & mask )) -ne $(( $(toint "$net") & mask )) ] || exit 1
 	done <<<"$nets"
 
+# LAN address of {{host}} when `full-install` must pause for a recabling, empty
+# otherwise: gateway of its own zone, no SSH on its WAN once installed, `target`
+# on a network of this machine, this machine not behind it yet. Fails only when
+# that last check cannot evaluate the host: nothing is formatted yet.
+_rewire-lan host target:
+	#!/usr/bin/env bash
+	set -euo pipefail
+
+	# Same lookup as `install`: the zone of the host, then its gateway.
+	zonespec=$(just _host_conf "{{host}}" | yq -p=json -r '.zone // ""')
+	gw=$({{nix}} eval --impure --raw --expr "let g = (import {{workDir}}/var/generated/network.nix).zones.\"${zonespec%%:*}\".gateway or { }; in (g.hostname or \"\") + \" \" + (g.lan.ip or \"\")" 2>/dev/null || echo "")
+	read -r zonegw lan <<<"$gw"
+	[ "${zonegw:-}" = "{{host}}" ] && [ -n "${lan:-}" ] || exit 0
+
+	# Box side, not routed: no `via`, and inside a prefix of the outgoing
+	# interface (a tailnet /32 has no `via` either).
+	addr="{{target}}"
+	if ! [[ "$addr" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] ;then
+		addr=$(getent ahostsv4 "$addr" | awk 'NR == 1 { print $1 }' || true)
+		[ -n "$addr" ] || exit 0
+	fi
+	route=$(ip -4 -o route get "$addr" 2>/dev/null | head -n 1 || true)
+	dev=$(sed -n 's/.* dev \([^ ]*\).*/\1/p' <<<"$route")
+	[ -n "$dev" ] && [[ "$route" != *" via "* ]] || exit 0
+	toint() { local IFS=. ; set -- $1 ; echo $(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 )) ; }
+	onlink=false
+	while IFS=/ read -r net len ;do
+		[ -n "${len:-}" ] || continue
+		mask=$(( (0xFFFFFFFF << (32 - len)) & 0xFFFFFFFF ))
+		[ $(( $(toint "$addr") & mask )) -ne $(( $(toint "$net") & mask )) ] || onlink=true
+	done < <(ip -4 -o addr show dev "$dev" 2>/dev/null | awk '{ print $4 }')
+	$onlink || exit 0
+
+	# Already behind it (reinstall from the LAN): its LAN address as the target
+	# or as any default route, the box Wi-Fi possibly ranking first.
+	[ "$addr" != "$lan" ] || exit 0
+	defaults=$(ip -4 route show default 2>/dev/null | awk '{ print $3 }' || true)
+	! grep -qxF -- "$lan" <<<"$defaults" || exit 0
+
+	# Last, the costly one: the option is set per host, `network.nix` is not
+	# enough. The flake sees only tracked files: an uncommitted override is missed.
+	wanssh=$({{nix}} eval --json "{{workDir}}#nixosConfigurations.{{host}}.config.darkone.host.gateway.wanSsh.enable" 2>/dev/null) \
+		|| just _fail "Cannot evaluate {{host}}: unknown whether its WAN will answer SSH. Run 'just clean', commit, retry."
+	[ "$wanssh" = false ] || exit 0
+	echo "$lan"
+
 # Wait until one of `_candidates` answers, then print "<address> <port>".
 #
 # Deliberately not `ping`: a gateway drops ICMP everywhere but on its LAN
