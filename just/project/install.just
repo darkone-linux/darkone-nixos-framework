@@ -102,6 +102,157 @@ _virt target user='nix':
 	[ "${USER:-}" = "nix" ] || ssh=(sudo -i -u nix "${ssh[@]}")
 	"${ssh[@]}" "{{user}}@{{target}}" 'systemd-detect-virt --vm || true'
 
+# Machine inventory of `target` as ONE JSON object on stdout, validated by jq
+# here. One ssh, same shape as `_nic-drivers`; `local` = this machine. Consumer:
+# `host-info`, then `darkone add gateway`. Runs on the generic ISO, a project ISO
+# (no jq there) and an installed host: the JSON is built with plain bash.
+#
+# Schema 1, keys stable, new keys only added:
+#   schema     int    always 1
+#   virt       string systemd-detect-virt --vm: "none" or kvm, oracle, ...
+#   uefi       bool   booted in UEFI mode
+#   ram_bytes  int    MemTotal
+#   nics[]     physical cards only (virtual ones have no `device`)
+#     name, mac            string
+#     link       bool      carrier up
+#     ipv4       [string]  global addresses, "10.0.2.15/24"
+#     wifi       bool
+#     route      bool      carries `ip route get 1.1.1.1`, or is a port of the
+#                          bridge that does: the WAN candidate. False on every
+#                          card without route, or behind a bond, VLAN or tunnel
+#   disks[]    real disks, installation medium (/iso) and empty ones left out
+#     name       string    kernel name, "sda"
+#     dev        string    "/dev/sda"
+#     by_id      string|null  most readable /dev/disk/by-id link
+#     path       string    by_id, else dev: what disko.devices takes
+#     size_bytes int
+#     model      string    "" when the kernel gives none (virtio-blk)
+_probe target user='nix':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	probe=$(cat <<-'EOF'
+		set -u
+
+		# JSON string: printable ASCII only, `\` and `"` escaped. No jq required.
+		js() {
+			local s
+			s=$(printf '%s' "$1" | tr -cd '\040-\176' | sed 's/\\/\\\\/g; s/"/\\"/g')
+			printf '"%s"' "$s"
+		}
+
+		# Interface of the default route: `ip route get` resolves, sends nothing.
+		rdev=""
+		read -ra w <<<"$(ip -4 -o route get 1.1.1.1 2>/dev/null || true)"
+		for ((i = 0; i < ${#w[@]} - 1; i++)); do
+			if [ "${w[i]}" = dev ]; then
+				rdev=${w[i + 1]}
+			fi
+		done
+
+		# Physical cards only: lo, bridge, veth, tun have no `device`.
+		nics=""
+		for n in /sys/class/net/*; do
+			[ -e "$n/device" ] || continue
+			name=${n##*/}
+			link=false
+			wifi=false
+			route=false
+			[ "$(cat "$n/carrier" 2>/dev/null || true)" = 1 ] && link=true
+			[ -e "$n/wireless" ] && wifi=true
+			[ "$name" = "$rdev" ] && route=true
+
+			# Route through a bridge: the card enslaved to it carries the route.
+			[ -n "$rdev" ] && [ -e "/sys/class/net/$rdev/brif/$name" ] && route=true
+			addrs=""
+			while read -r -a f; do
+				for ((i = 0; i < ${#f[@]} - 1; i++)); do
+					[ "${f[i]}" = inet ] && addrs="$addrs${addrs:+,}$(js "${f[i + 1]}")"
+				done
+			done < <(ip -4 -o addr show dev "$name" scope global 2>/dev/null || true)
+			mac=$(cat "$n/address" 2>/dev/null || true)
+			nics="$nics${nics:+,}{\"name\":$(js "$name"),\"mac\":$(js "$mac"),\"link\":$link,\"ipv4\":[$addrs],\"wifi\":$wifi,\"route\":$route}"
+		done
+
+		# Disk holding the booted medium (/iso): never a target. Empty with
+		# `copytoram` or an optical drive.
+		media=""
+		src=$(findmnt -n -o SOURCE /iso 2>/dev/null || true)
+		if [ -b "$src" ]; then
+			src=$(readlink -f "$src")
+			parent=$(lsblk -no PKNAME "$src" 2>/dev/null | head -n 1 || true)
+			media=$(basename "${parent:-$src}")
+		fi
+
+		# Readable by-id link first: ata-/nvme-/usb- (model + serial), then scsi-,
+		# then wwn-/eui. (unique, unreadable). Whole disks, names disko accepts.
+		disk_link() {
+			local l base rank best="" best_rank=9
+			for l in /dev/disk/by-id/*; do
+				base=${l##*/}
+				case "$base" in *-part*) continue ;; esac
+				[ "$(readlink -f "$l")" = "/dev/$1" ] || continue
+				[[ "$base" =~ ^[A-Za-z0-9._:+-]+$ ]] || continue
+				case "$base" in
+					wwn-* | *eui.*) rank=3 ;;
+					scsi-*) rank=2 ;;
+					*) rank=1 ;;
+				esac
+				if [ "$rank" -lt "$best_rank" ]; then
+					best=$l
+					best_rank=$rank
+				fi
+			done
+			printf '%s' "$best"
+		}
+
+		# Disks with hardware behind them: loop, zram, md, dm have no `device`.
+		disks=""
+		for n in /sys/block/*; do
+			name=${n##*/}
+			sectors=$(cat "$n/size" 2>/dev/null || echo 0)
+
+			# Optical drives, eMMC boot/RPMB areas and empty card readers.
+			case "$name" in sr* | mmcblk*boot* | mmcblk*rpmb) continue ;; esac
+			[ -e "$n/device" ] && [ "$sectors" -gt 0 ] && [ "$name" != "$media" ] || continue
+			by_id=$(disk_link "$name")
+			model=$(tr -s ' ' 2>/dev/null <"$n/device/model" | sed 's/^ //; s/ $//' || true)
+			byj=null
+			path=/dev/$name
+			if [ -n "$by_id" ]; then
+				byj=$(js "$by_id")
+				path=$by_id
+			fi
+			disks="$disks${disks:+,}{\"name\":$(js "$name"),\"dev\":$(js "/dev/$name"),\"by_id\":$byj,\"path\":$(js "$path"),\"size_bytes\":$((sectors * 512)),\"model\":$(js "$model")}"
+		done
+
+		# `--vm`: a container shares its host's kernel, it is no guest here.
+		virt=$(systemd-detect-virt --vm 2>/dev/null || true)
+		uefi=false
+		[ -d /sys/firmware/efi ] && uefi=true
+		ram=0
+		while read -r k v _; do
+			[ "$k" = MemTotal: ] && ram=$((v * 1024))
+		done </proc/meminfo
+
+		printf '{"schema":1,"virt":%s,"uefi":%s,"ram_bytes":%s,"nics":[%s],"disks":[%s]}\n' \
+			"$(js "${virt:-none}")" "$uefi" "$ram" "$nics" "$disks"
+	EOF
+	)
+
+	if [ "{{target}}" = local ] ;then
+		out=$(printf '%s\n' "$probe" | bash -s)
+	else
+
+		# Read-only probe, no secret sent: host key not checked, since the installer
+		# image and the installed system answer with different keys.
+		ssh=(ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
+		[ "${USER:-}" = "nix" ] || ssh=(sudo -i -u nix "${ssh[@]}")
+		out=$(printf '%s\n' "$probe" | "${ssh[@]}" "{{user}}@{{target}}" bash -s)
+	fi
+
+	# A truncated or garbled answer must fail here, not in the consumer.
+	jq . <<<"$out" || just _fail "Probe of {{user}}@{{target}} did not return valid JSON."
+
 # Admin half of the pairing (`dnf-pair`, generic installer): gets the deploy
 # key into `user@target`, prints the ed25519 host key it went through for the
 # caller to pin. No question when the key already gets in (project image,
@@ -891,7 +1042,8 @@ backup-admin device passphrase='' root='/':
 backup-check device passphrase='' root='/':
 	@sudo env "PATH=$PATH" WORKDIR="{{workDir}}" bash {{scriptsDir}}/backup-admin.sh check "{{device}}" "{{passphrase}}" "{{root}}"
 
-# Read the MAC of a machine so it can be declared before being installed.
+# Read the cards, disks and MAC of a machine so it can be declared before being
+# installed.
 #
 # `target` is usually the dynamic lease the installer picked up: a host with no
 # `mac:` yet has no reservation, so it cannot be reached by name. Declare the
@@ -899,30 +1051,60 @@ backup-check device passphrase='' root='/':
 # DHCP pool, then `just apply <gateway>` — from there the installer and the
 # installed system land on the very same address.
 #
-# Show the mac address of a host (to declare it in etc/config.yaml)
+# Show cards, disks and the mac address of a host (to declare it in etc/config.yaml)
 [group('install')]
 host-info host target='auto':
 	#!/usr/bin/env bash
 	set -euo pipefail
 	t=$(just _resolve "{{host}}" "{{target}}")
-	probe="ip -o link show up | grep -v 'lo:' | head -n 1 | sed 's/^.* \([0-9a-f:]*\) brd .*$/\1/'"
 
 	# `nixos` on purpose: the very machine whose MAC is still unknown is the one
 	# running the DNF installer image, where the account is `nixos`, not `nix`.
-	MAC_ADDR=""
+	info=""
 	for u in nix nixos ;do
 
 		# Generic installer: nothing gets in before the pairing code.
 		[ "$u" != "nixos" ] || just _pair "$t" nixos >/dev/null
 
-		# `BatchMode`: that installer also offers keyboard-interactive, and
-		# would ask for the password of `nix@`.
-		MAC_ADDR=$(sudo -i -u nix ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-			-o BatchMode=yes -o ConnectTimeout=5 \
-			"$u"@"$t" "$probe" 2>/dev/null || true)
-		[ -z "$MAC_ADDR" ] || break
+		# `BatchMode` (in `_probe`): that installer also offers
+		# keyboard-interactive, and would ask for the password of `nix@`.
+		info=$(just _probe "$t" "$u" 2>/dev/null || true)
+		[ -z "$info" ] || break
 	done
-	[ -n "$MAC_ADDR" ] || just _fail "Could not read a MAC from $t (tried nix@ and nixos@)."
+	[ -n "$info" ] || just _fail "Could not probe $t (tried nix@ and nixos@)."
+
+	# `_log` pastes its message into shell source: a remote string reaches it
+	# only once checked (`virt` a plain word, MAC below).
+	just _log "System: $(jq -r '"\(if .uefi then "UEFI" else "BIOS" end), virt \(.virt | if test("^[A-Za-z0-9_-]+$") then . else "?" end), \(.ram_bytes / 1073741824 * 10 | round / 10) GiB RAM"' <<<"$info")"
+	echo
+	echo "Network cards (wan.interface, lan.interfaces):"
+	jq -r '["NAME","MAC","LINK","IPV4","NOTE"],
+		(.nics[] | [.name, .mac, (if .link then "up" else "down" end),
+			(.ipv4 | if length > 0 then join(",") else "-" end),
+			([(if .wifi then "wifi" else empty end), (if .route then "default route (WAN)" else empty end)]
+				| if length > 0 then join(", ") else "-" end)]) | @tsv' <<<"$info" \
+		| column -t -s $'\t' | sed 's/^/  /'
+	echo
+	echo "Disks (disko.devices):"
+	jq -r '.disks[] | [.path, .size_bytes, (if .model == "" then "-" else .model end), (if .by_id == null then "no by-id link" else .name end)] | @tsv' <<<"$info" \
+		| while IFS=$'\t' read -r path size model note ;do
+			printf '  %s\n      %s  %s  [%s]\n' "$path" "$(numfmt --to=iec "$size")" "$model" "$note"
+		done
+	[ "$(jq '.disks | length' <<<"$info")" -gt 0 ] || echo "  none found"
+	echo
+
+	MAC_ADDR=$(jq -r '[.nics[] | select(.route)][0].mac // empty' <<<"$info")
+	if [ -z "$MAC_ADDR" ] ;then
+
+		# No default route (or behind a bond, VLAN, tunnel): best guess.
+		MAC_ADDR=$(jq -r '[.nics[] | select(.link and (.wifi | not))][0].mac // empty' <<<"$info")
+		[ -n "$MAC_ADDR" ] || just _fail "No network card with a link on $t."
+		just _warn "No card holds the default route: first wired card with a link taken, check it."
+	fi
+
+	# The card holding the default route is the one the machine is reached by,
+	# and the future WAN of a gateway: its MAC is the one to declare.
+	[[ "$MAC_ADDR" =~ ^[0-9a-f]{2}(:[0-9a-f]{2}){5}$ ]] || just _fail "Malformed MAC address read from $t."
 	just _log "Mac address (to register in etc/config.yaml): {{GREEN}}$MAC_ADDR{{NORMAL}}"
 
 # One address for the whole run: `_target` gives the host name when it is
