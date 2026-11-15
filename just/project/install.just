@@ -102,6 +102,96 @@ _virt target user='nix':
 	[ "${USER:-}" = "nix" ] || ssh=(sudo -i -u nix "${ssh[@]}")
 	"${ssh[@]}" "{{user}}@{{target}}" 'systemd-detect-virt --vm || true'
 
+# Admin half of the pairing (`dnf-pair`, generic installer): gets the deploy
+# key into `user@target`, prints the ed25519 host key it went through for the
+# caller to pin. No question when the key already gets in (project image,
+# paired machine, `ssh-copy-id`); else the code `PPPPPP-FFFF` of the machine's
+# screen, on /dev/tty. `FFFF` must match the scanned key before `PPPPPP` goes,
+# to that key only.
+_pair target user='nixos':
+	#!/usr/bin/env bash
+	set -euo pipefail
+	dest="{{user}}@{{target}}"
+	pub="{{secretsDir}}/nix.pub"
+	asnix=()
+	[ "${USER:-}" = "nix" ] || asnix=(sudo -i -u nix)
+
+	# No secret sent: the scan only names the key every ssh below is held to.
+	# sshd drops a source after a few refused logins (`PerSourcePenalties`).
+	scan=$(ssh-keyscan -T 10 -t ed25519 "{{target}}" 2>/dev/null || true)
+	key=$(awk '/^[^#]/ { print $2, $3; exit }' <<<"$scan")
+	[ -n "$key" ] || just _fail "No ed25519 host key read from {{target}}: machine down, wrong address, or its sshd shutting this host out after refused logins (wait a minute)."
+
+	# In RAM, for `nix` alone. /run, not /tmp: askpass is executed, and /tmp
+	# may be `noexec` (R28). `*`: one key in the file, whatever the address form.
+	tmp=$(sudo mktemp -d -p /run dnf-pair-XXXXXX)
+	trap 'sudo rm -rf "$tmp"' EXIT
+	printf '* %s\n' "$key" | sudo tee "$tmp/known_hosts" >/dev/null
+	sudo install -m 700 /dev/null "$tmp/askpass"
+	sudo chown -R nix "$tmp"
+	pinned=(-o ConnectTimeout=10 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$tmp/known_hosts" -o GlobalKnownHostsFile=/dev/null)
+	bykey=("${asnix[@]}" ssh "${pinned[@]}" -o BatchMode=yes "$dest")
+
+	# 255 is ssh's own failure; `Permission denied` then tells a refused login
+	# from an unreachable machine. stdin holds the answers to `install`'s prompts.
+	rc=0
+	err=$("${bykey[@]}" true 2>&1 </dev/null) || rc=$?
+	if [ "$rc" -eq 0 ] ;then
+		echo "$key"
+		exit 0
+	fi
+	if [ "$rc" -ne 255 ] || [[ "$err" != *"Permission denied"* ]] ;then
+		printf '%s\n' "$err" >&2
+		just _fail "Cannot reach $dest."
+	fi
+	[ -s "$pub" ] || just _fail "$dest refuses the deploy key, and the project has no usr/secrets/nix.pub to push."
+	{ : < /dev/tty ; } 2>/dev/null || just _fail "$dest refuses the deploy key, and there is no terminal to ask its pairing code."
+	ffff=$(bash {{scriptsDir}}/pair-fingerprint.sh <<<"$scan")
+	just _info "$dest refuses the deploy key: pairing code needed." "PAIR"
+	just _info "On the machine: entry 2 of the installer menu, or 'dnf-pair'. Type the code its screen shows." "PAIR"
+	paired=false
+	for _ in 1 2 3 ;do
+		printf 'Pairing code (PPPPPP-FFFF): ' > /dev/tty
+		read -r code < /dev/tty || code=""
+		code=${code//[^0-9]/}
+		if ! [[ "$code" =~ ^[0-9]{10}$ ]] ;then
+			just _warn "A pairing code is 6 digits, a dash, 4 digits."
+			continue
+		fi
+
+		# Another FFFF than this host key gives: wrong machine, PPPPPP stays here.
+		if [ "${code:6}" != "$ffff" ] ;then
+			just _fail "Refused: {{target}} is not the machine whose screen shows this code. Nothing was sent: check the address."
+		fi
+
+		# Through stdin into a file of `nix`: never in argv, which `ps` shows.
+		printf '#!/bin/sh\necho %s\n' "${code:0:6}" | "${asnix[@]}" tee "$tmp/askpass" >/dev/null
+
+		# One method, one prompt: a wrong code costs one PAM delay (10 s), not
+		# two. The session that used the password also kills it (`stop`).
+		rc=0
+		err=$("${asnix[@]}" env SSH_ASKPASS="$tmp/askpass" SSH_ASKPASS_REQUIRE=force ssh "${pinned[@]}" \
+			-o PubkeyAuthentication=no -o PreferredAuthentications=password -o NumberOfPasswordPrompts=1 \
+			"$dest" 'umask 077; mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && sudo systemctl stop dnf-pair' \
+			2>&1 >/dev/null < "$pub") || rc=$?
+		if [ "$rc" -eq 0 ] ;then
+			paired=true
+			break
+		fi
+		if [ "$rc" -ne 255 ] || [[ "$err" != *"Permission denied"* ]] ;then
+			printf '%s\n' "$err" >&2
+			just _fail "Cannot push the deploy key to $dest."
+		fi
+
+		# sshd refuses a wrong and an expired code alike.
+		just _warn "Code refused: wrong or expired (a new one every 10 min). Read the screen of the machine again."
+	done
+	$paired || just _fail "No valid pairing code. If the machine shows none any more, run 'dnf-pair' on it, then retry."
+	"${bykey[@]}" true </dev/null 2>/dev/null \
+		|| just _fail "Key pushed, yet $dest refuses it: usr/secrets/nix.pub is not the key of the nix account here."
+	just _info "{{target}} paired: deploy key in, code dead." "PAIR"
+	echo "$key"
+
 # `user`: `nixos` on the installer image, `nix` on an installed host.
 # `target` = `local`: the machine running just (`install-here`).
 # Imported by `lib/flake/mk-configuration.nix`; modules shipped only when stage 1
@@ -246,6 +336,13 @@ install host user='nix' ip='auto' do='install':
 
 	TARGET_HOST=$(just _resolve "{{host}}" "{{ip}}")
 
+	# Installer image: first ssh of the run, the pairing code if the deploy key
+	# is not in yet. Its host key is pinned below for whatever carries a secret.
+	hostkey=""
+	if [ "{{user}}" = "nixos" ] ;then
+		hostkey=$(just _pair "$TARGET_HOST" "{{user}}")
+	fi
+
 	# The gateway of a zone cannot sit on a box that overlaps that zone: its WAN
 	# and LAN would share one network, and the zone prefix is final. Only the
 	# addresses it keeps (`10.x.1.1`, reinstall from the LAN) may fall inside.
@@ -342,7 +439,10 @@ install host user='nix' ip='auto' do='install':
 		isolated=$({{nix}} eval --json "{{workDir}}#nixosConfigurations.{{host}}.config.darkone.system.sops.isolated") \
 			|| just _fail "Cannot evaluate {{host}}: unknown whether it is isolated."
 		if [ "$isolated" = true ] ;then
-			pub=$( { ssh-keyscan -T 10 -t ed25519 "$TARGET_HOST" 2>/dev/null || true ; } | awk '/^[^#]/ {print $2, $3; exit}')
+
+			# The key `_pair` held the installer to, never a second, blind scan.
+			pub=$hostkey
+			[ -n "$pub" ] || pub=$( { ssh-keyscan -T 10 -t ed25519 "$TARGET_HOST" 2>/dev/null || true ; } | awk '/^[^#]/ {print $2, $3; exit}')
 			[ -n "$pub" ] || just _fail "Cannot read the host key of the installer ($TARGET_HOST)."
 			just _space-seal "{{host}}" "$pub"
 		fi
@@ -389,11 +489,12 @@ install host user='nix' ip='auto' do='install':
 		# are what matters here, not ownership. Lives in /run: never on disk.
 		stage=$(sudo mktemp -d -p /run dnf-extra-XXXXXX)
 		pwfile=$(sudo mktemp -p /run dnf-luks-XXXXXX)
+		pin=$(sudo mktemp -d -p /run dnf-pin-XXXXXX)
 
 		# Ownership handed back on failure too: a host dir left to nix makes the
 		# next `just generate` die on a permission error.
-		trap 'sudo rm -rf "$stage" "$pwfile"; just _fix_fs_permissions' EXIT
-		sudo chown nix "$stage" "$pwfile"
+		trap 'sudo rm -rf "$stage" "$pwfile" "$pin"; just _fix_fs_permissions' EXIT
+		sudo chown nix "$stage" "$pwfile" "$pin"
 		sudo chmod 700 "$stage" ; sudo chmod 600 "$pwfile"
 
 		# sops age key: without it the first activation decrypts nothing —
@@ -454,6 +555,19 @@ install host user='nix' ip='auto' do='install':
 				| sudo -u nix tee "$pwfile" >/dev/null
 			[ -s "$pwfile" ] || just _fail "Empty LUKS format passphrase in sops ($fmtkey)."
 			naflags+=(--disk-encryption-keys /tmp/dnf-luks.key "$pwfile")
+		fi
+
+		# nixos-anywhere checks no host key: its leading `StrictHostKeyChecking=no`
+		# outranks any `--ssh-option`. It sets no ProxyCommand, so each of its
+		# connections rides a tunnel held to the pinned key, ending on the sshd
+		# of that machine. A file: `NIX_SSHOPTS` splits on spaces.
+		if [ -n "$hostkey" ] ;then
+			printf '* %s\n' "$hostkey" | sudo -u nix tee "$pin/known_hosts" >/dev/null
+			printf '%s\n' '#!/bin/sh' \
+				"exec ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$pin/known_hosts -o GlobalKnownHostsFile=/dev/null -W 127.0.0.1:22 {{user}}@$TARGET_HOST" \
+				| sudo -u nix tee "$pin/proxy" >/dev/null
+			sudo chmod 700 "$pin/proxy"
+			naflags+=(--ssh-option "ProxyCommand=$pin/proxy")
 		fi
 
 		# Revision locked by the framework, the one its install tests run.
@@ -797,8 +911,14 @@ host-info host target='auto':
 	# running the DNF installer image, where the account is `nixos`, not `nix`.
 	MAC_ADDR=""
 	for u in nix nixos ;do
+
+		# Generic installer: nothing gets in before the pairing code.
+		[ "$u" != "nixos" ] || just _pair "$t" nixos >/dev/null
+
+		# `BatchMode`: that installer also offers keyboard-interactive, and
+		# would ask for the password of `nix@`.
 		MAC_ADDR=$(sudo -i -u nix ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-			-o PasswordAuthentication=no -o PubkeyAuthentication=yes -o ConnectTimeout=5 \
+			-o BatchMode=yes -o ConnectTimeout=5 \
 			"$u"@"$t" "$probe" 2>/dev/null || true)
 		[ -z "$MAC_ADDR" ] || break
 	done
