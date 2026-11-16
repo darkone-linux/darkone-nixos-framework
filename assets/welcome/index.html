@@ -60,7 +60,10 @@
 <body>
 <main>
   <h1>Welcome to your DNF network</h1>
-  <p class="lead">Step 1 of 4 done: <strong>@hostname@</strong> is the admin host of <strong>@domain@</strong>.</p>
+  <p class="lead">
+    <span @gwTodo@>Step 1 of 4 done: <strong>@hostname@</strong> is the admin host of <strong>@domain@</strong>.</span>
+    <span @gwDone@>Step 2 of 4 done: <strong>@gateway@</strong> is the gateway of <strong>@domain@</strong>, <strong>@hostname@</strong> the admin host behind it.</span>
+  </p>
 
   <!-- Shown when the URL ends with #backup=missing (no backup witness) -->
   <div class="alert" id="backup-alert" hidden>
@@ -76,14 +79,21 @@
       <h2>The admin host</h2>
       <p>This machine. It holds the project of the network, <code>/etc/nixos</code>, and installs and updates every other host. In a terminal, <code>cd /etc/nixos &amp;&amp; just</code> lists its commands.</p>
     </li>
-    <li class="next">
-      <div class="step">Step 2 &middot; next</div>
+    <li class="@gwClass@">
+      <div class="step">Step 2 &middot; @gwLabel@</div>
       <h2>The gateway</h2>
-      <p>A small always-on machine between the Internet box and the network: fixed addresses, local names, shared services.</p>
-      <p><a href="https://darkone-linux.github.io/en/doc/admin-guide/install/gateway/">Install the gateway</a></p>
+      <div @gwTodo@>
+        <p>A small always-on machine between the Internet box and the network: fixed addresses, local names, shared services.</p>
+        <p>Boot it on the DNF installer, then in a terminal: <code>cd /etc/nixos &amp;&amp; darkone add gateway</code></p>
+        <p><a href="https://darkone-linux.github.io/en/doc/admin-guide/install/gateway/">Install the gateway</a></p>
+      </div>
+      <div @gwDone@>
+        <p><strong>@gateway@</strong> is installed. It gives the network its fixed addresses and local names, and the way out to the Internet.</p>
+        <p><a href="https://darkone-linux.github.io/en/doc/admin-guide/install/gateway/">About the gateway</a></p>
+      </div>
     </li>
-    <li>
-      <div class="step">Step 3</div>
+    <li class="@svcClass@">
+      <div class="step">Step 3@svcLabel@</div>
       <h2>Servers and services</h2>
       <p>Files, photos, chat, passwords&hellip; each service runs on a host of the zone, declared in <code>etc/config.yaml</code>.</p>
       <p><a href="https://darkone-linux.github.io/en/doc/admin-guide/operate/services/">The service catalog</a></p>

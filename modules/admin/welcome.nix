@@ -6,6 +6,9 @@
 # user (`~/.local/state/dnf/welcome-shown`). The "Onboarding" launcher of the
 # nix-admin reopens it (`darkone.admin.welcome.command`).
 #
+# Step 2 is marked done once the zone of this host has a gateway (`network`,
+# read at build time: `darkone add gateway` ends with `just apply-local`).
+#
 # While the witness `/var/lib/dnf/backup-admin` of `just backup-admin` is
 # missing, the page opens with a banner: the admin keys are not backed up.
 #
@@ -26,9 +29,23 @@
 let
   cfg = config.darkone.admin.welcome;
 
+  # Gateway of the zone of this host: set by the generator once a host holds
+  # `<zone>:1.1`. Null before.
+  gateway = lib.attrByPath [ "zones" host.zone "gateway" "hostname" ] null network;
+  hasGateway = gateway != null;
+
+  # Page template: `hidden` switches the variants of step 2, the rest are the
+  # classes and labels that move the "next" mark from step 2 to step 3.
   page = pkgs.replaceVars ./../../assets/welcome/index.html {
     inherit (host) hostname;
     inherit (network) domain;
+    gateway = if hasGateway then gateway else "";
+    gwTodo = lib.optionalString hasGateway "hidden";
+    gwDone = lib.optionalString (!hasGateway) "hidden";
+    gwClass = if hasGateway then "done" else "next";
+    gwLabel = if hasGateway then "done" else "next";
+    svcClass = lib.optionalString hasGateway "next";
+    svcLabel = lib.optionalString hasGateway " &middot; next";
   };
 
   # Written by `just backup-admin` (just/scripts/backup-admin.sh), world-readable.
