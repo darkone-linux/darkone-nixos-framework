@@ -93,11 +93,14 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
 
-  # A failure keeps the ISO off the release.
+  # A failure keeps the ISO off the release. `gateway`: the locked generator
+  # must have `darkone add gateway`, or the tag is ahead of its release.
   installer-test:
     name: Installer test
     needs: [guard, verify]
     uses: ./.github/workflows/installer-test.yml
+    with:
+      gateway: true
 
   # Generic installer, no consumer key: a newcomer downloads it instead of
   # building one first. Built on every tag, so a broken ISO stops showing up

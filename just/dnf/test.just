@@ -241,19 +241,28 @@ _fixtures_gen_secrets:
 # `darkone new` end to end in QEMU, on the real network: the generic ISO boots,
 # the assistant is driven over its serial console (`tests/installer`). About
 # 30 min and 25 GB of disk a scenario, under ~/.cache/dnf-installer-test;
-# `preflight` installs nothing, a minute. `iso`: an ISO file instead of
-# this tree's, one built on a local generator.
+# `preflight` installs nothing, a minute. `gateway`, not part of `all`: a
+# second machine and `darkone add gateway`, two installs.
 #
-# Test the installer ISO in a VM: preflight, scripted, interactive, resume or all
+# `iso`: an ISO file instead of this tree's. `generator`: a local dnf-generator
+# checkout the ISO is built on, as `just try`; `gateway` needs one that has
+# `darkone add gateway`.
+#
+# Test the installer ISO in a VM: preflight, scripted, interactive, resume, gateway or all
 [group('test')]
-test-installer scenario='all' iso='':
+test-installer scenario='all' iso='' generator='':
 	#!/usr/bin/env bash
 	set -euo pipefail
+	cd "{{invocation_directory()}}"
+	flags=()
+	if [ -n "{{generator}}" ]; then
+		flags=(--override-input dnf-generator "git+file://$(realpath "{{generator}}")" --no-write-lock-file)
+	fi
 	cd {{dnfDir}}
 	iso="{{iso}}"
 	if [ -z "$iso" ] ;then
 		just _log "Building the installer ISO..." "TESTS"
-		out=$({{nix}} build --no-link --print-out-paths .#nixosConfigurations.iso-x86_64-linux.config.system.build.isoImage)
+		out=$({{nix}} build "${flags[@]}" --no-link --print-out-paths .#nixosConfigurations.iso-x86_64-linux.config.system.build.isoImage)
 		iso=$(ls "$out"/iso/*.iso)
 	fi
 	{{nix}} run .#installer-test -- --iso "$iso" --scenario "{{scenario}}"

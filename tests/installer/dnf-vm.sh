@@ -2,7 +2,7 @@
 #
 #   dnf-vm --state DIR [--iso ISO] [--gui] [--memory MiB] [--disk-size SIZE]
 #          [--serial SOCK] [--qmp SOCK] [--usb IMG] [--ssh-port N]
-#          [--unlock-port N]
+#          [--unlock-port N] [--link MAC,LOCAL,PEER]...
 #
 # Shared by `nix run .#try` (a window, a persistent DIR) and the installer test
 # (`run.py`: serial console and QMP sockets, a USB stick). DIR holds the disk
@@ -13,7 +13,10 @@
 #   `stick-raw`: QMP `device_del` unplugs it, `device_add` plugs it back;
 # - `--ssh-port`, `--unlock-port`: 127.0.0.1 forwards to 22 and to 2222, the
 #   initrd sshd of an encrypted host (dnf/modules/system/luks.nix);
-# - network backend `net0`: QMP `set_link` unplugs the cable, and back.
+# - network backend `net0`: QMP `set_link` unplugs the cable, and back;
+# - `--link`: a card on a point-to-point link instead of the user network,
+#   `net0`, `net1`... in order. UDP on 127.0.0.1, ports LOCAL and PEER; the
+#   other end is a card of another `dnf-vm`, or a port of a switch.
 #
 # OVMF_FV, the OVMF firmware directory, is set by the Nix wrapper.
 #
@@ -31,6 +34,7 @@ qmp=""
 usb=""
 sshPort=""
 unlockPort=""
+links=()
 while [ $# -gt 0 ]; do
   case "$1" in
   --state) state="$2" && shift 2 ;;
@@ -43,6 +47,7 @@ while [ $# -gt 0 ]; do
   --usb) usb="$2" && shift 2 ;;
   --ssh-port) sshPort="$2" && shift 2 ;;
   --unlock-port) unlockPort="$2" && shift 2 ;;
+  --link) links+=("$2") && shift 2 ;;
   *)
     echo "dnf-vm: unknown argument '$1'" >&2
     exit 2
@@ -76,10 +81,28 @@ if [ -n "$iso" ]; then
   )
 fi
 
-fwd=""
-[ -z "$sshPort" ] || fwd+=",hostfwd=tcp:127.0.0.1:$sshPort-:22"
-[ -z "$unlockPort" ] || fwd+=",hostfwd=tcp:127.0.0.1:$unlockPort-:2222"
-args+=(-nic "user,model=virtio-net-pci,id=net0$fwd")
+if [ ${#links[@]} -eq 0 ]; then
+  fwd=""
+  [ -z "$sshPort" ] || fwd+=",hostfwd=tcp:127.0.0.1:$sshPort-:22"
+  [ -z "$unlockPort" ] || fwd+=",hostfwd=tcp:127.0.0.1:$unlockPort-:2222"
+  args+=(-nic "user,model=virtio-net-pci,id=net0$fwd")
+else
+
+  # No user network to forward from: the box does (`dnf-box --forward`).
+  if [ -n "$sshPort$unlockPort" ]; then
+    echo "dnf-vm: --ssh-port and --unlock-port need the user network, not --link" >&2
+    exit 2
+  fi
+
+  # Explicit MACs: QEMU gives the cards of every machine the same ones.
+  for i in "${!links[@]}"; do
+    IFS=, read -r mac localPort peerPort <<<"${links[i]}"
+    args+=(
+      -netdev "socket,id=net$i,udp=127.0.0.1:$peerPort,localaddr=127.0.0.1:$localPort"
+      -device "virtio-net-pci,netdev=net$i,mac=$mac"
+    )
+  done
+fi
 
 if [ -n "$usb" ]; then
   args+=(

@@ -3,9 +3,22 @@ name: Installer test
 # `darkone new` end to end in a VM, real network (tests/installer), about
 # 25 min a scenario. Gates the ISO of a release (release.yml); a weekly run on
 # `main` catches a nixpkgs unstable breakage before the next tag.
+#
+# `gateway`: a second machine and `darkone add gateway`, two installs. On a
+# release tag (release.yml asks for it) or by hand, never on the weekly run.
 on:
   workflow_call:
+    inputs:
+      gateway:
+        description: Also run the gateway scenario (two machines, two installs)
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      gateway:
+        description: Also run the gateway scenario (two machines, two installs)
+        type: boolean
+        default: false
   schedule:
     - cron: '23 3 * * 1'
 
@@ -23,11 +36,11 @@ jobs:
   scenario:
     name: Installer test (${{ matrix.scenario }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: ${{ matrix.scenario == 'gateway' && 300 || 180 }}
     strategy:
       fail-fast: false
       matrix:
-        scenario: [scripted, interactive, resume]
+        scenario: ${{ fromJSON(inputs.gateway && '["scripted", "interactive", "resume", "gateway"]' || '["scripted", "interactive", "resume"]') }}
     steps:
       - uses: actions/checkout@v7
 
@@ -55,10 +68,13 @@ jobs:
           nix run .#installer-test -- --iso "$(ls "$out"/iso/*.iso)" \
             --scenario ${{ matrix.scenario }} --workdir /mnt/dnf-test
 
+      # `gateway`: one log a machine, and the box.
       - name: Serial log
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: installer-test-${{ matrix.scenario }}
-          path: /mnt/dnf-test/*/serial.log
+          path: |
+            /mnt/dnf-test/**/serial.log
+            /mnt/dnf-test/**/box.log
           if-no-files-found: ignore

@@ -1,8 +1,10 @@
 # Installer VM tools: `dnf-vm`, the installer test, and `#try`.
 #
 # - `vm`: QEMU machine booted on the generic ISO (`dnf-vm.sh`);
-# - `test`: `darkone new` end to end, scripted, interactive and resumed, and
-#   its pre-flight checks (`run.py`), `just test-installer` and the release CI;
+# - `box`: QEMU's user network shared by several of them (`dnf-box.sh`);
+# - `test`: `darkone new` end to end, scripted, interactive and resumed, its
+#   pre-flight checks, and `darkone add gateway` on a second machine
+#   (`run.py`), `just test-installer` and the release CI;
 # - `try`: the ISO of this flake in a window, a persistent disk under
 #   `~/.local/share/dnf-try` (`nix run .#try`, `--reset` starts over);
 # - `tryLocal`: same, project pinned on this tree, disk `dnf-try-local`
@@ -22,6 +24,12 @@ let
     ];
     runtimeEnv.OVMF_FV = "${pkgs.OVMF.fd}/FV";
     text = builtins.readFile ./dnf-vm.sh;
+  };
+
+  box = pkgs.writeShellApplication {
+    name = "dnf-box";
+    runtimeInputs = [ pkgs.qemu ];
+    text = builtins.readFile ./dnf-box.sh;
   };
 
   python = pkgs.python3.withPackages (p: [ p.pexpect ]);
@@ -51,12 +59,14 @@ in
     name = "dnf-installer-test";
     runtimeInputs = [
       vm
+      box
       pkgs.age
       pkgs.coreutils
       pkgs.dosfstools
       pkgs.gnutar
       pkgs.mtools
       pkgs.openssh
+      pkgs.qemu
       pkgs.util-linux
     ];
     text = ''exec ${python}/bin/python3 ${./run.py} "$@"'';
