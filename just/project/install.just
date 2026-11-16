@@ -1204,6 +1204,10 @@ full-install host user='nixos' ip='auto':
 	just _wait-ssh "$target" down 180 || true
 	just unlock "{{host}}" "$target"
 
+	# A clear host is still booting here: a gateway gives the DNS of what runs
+	# next (`apply-local` of `darkone add gateway`) only once it is back.
+	just _wait-ssh "$target" up 600
+
 	# The redirection was only meant to survive the install: from here the host
 	# answers under its own name, at home or wherever it is next plugged in.
 	just roaming-clear "{{host}}"
