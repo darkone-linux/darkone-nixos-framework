@@ -412,7 +412,9 @@ push-key host target='auto':
 	ssh nix@"$t" 'sudo chmod 600 {{sopsInfraKeyFile}}'
 
 # Confirmation prompt is inlined (instead of using the `[confirm]` attribute)
-# so it fires only once, after the sudo re-exec.
+# so it fires only once, after the sudo re-exec. Environment, from `darkone
+# add gateway`: `DNF_INSTALL_CONFIRMED=1` skips it (asked on its recap),
+# `DNF_PAIR_HOSTKEY` is the host key the machine was paired and probed with.
 #
 # New host: format with nixos-everywhere + disko
 [group('install')]
@@ -428,8 +430,12 @@ install host user='nix' ip='auto' do='install':
 		just _warn "Uncommitted changes outside {{host}}, committed with its install:"
 		printf '%s\n' "$others" >&2
 	fi
-	read -p "Are you sure to format disks and install a new system? (y/N) " ans
-	[ "$ans" = "y" ] || { just _log "Aborted." "INSTALL"; exit 1; }
+
+	# Asked once: `darkone add gateway` got this answer on its recap.
+	if [ "${DNF_INSTALL_CONFIRMED:-}" != 1 ] ;then
+		read -p "Are you sure to format disks and install a new system? (y/N) " ans
+		[ "$ans" = "y" ] || { just _log "Aborted." "INSTALL"; exit 1; }
+	fi
 	just _fix_fs_permissions
 	just _check_infra_admin
 
@@ -492,6 +498,12 @@ install host user='nix' ip='auto' do='install':
 	hostkey=""
 	if [ "{{user}}" = "nixos" ] ;then
 		hostkey=$(just _pair "$TARGET_HOST" "{{user}}")
+	fi
+
+	# Another key than the one the caller paired and probed: another machine
+	# holds the address now. Before any secret goes, before the format.
+	if [ -n "${DNF_PAIR_HOSTKEY:-}" ] && [ "$hostkey" != "$DNF_PAIR_HOSTKEY" ] ;then
+		just _fail "$TARGET_HOST does not show the host key it was paired with: another machine, or it rebooted. No secret sent, nothing formatted."
 	fi
 
 	# The gateway of a zone cannot sit on a box that overlaps that zone: its WAN
