@@ -44,6 +44,16 @@ votre rythme :
 
 1. **La passerelle** : une petite machine allumée en permanence, entre la box
    Internet et le réseau : adresses fixes, noms locaux, services partagés.
+   Brancher sa carte WAN sur la box, la démarrer sur l'installeur DNF (entrée 2
+   du menu), puis :
+
+   ```sh
+   cd /etc/nixos && darkone add gateway   # --dry-run : plan et diff, projet inchangé
+   ```
+
+   L'assistant demande l'adresse et le code d'appairage affichés sur l'écran de
+   la machine, propose les cartes et le disque, puis installe et contrôle le
+   réseau.
    [Installer la passerelle](https://darkone-linux.github.io/fr/doc/admin-guide/install/gateway/)
 2. **Serveurs et services** : fichiers, photos, messagerie, mots de passe…
    chacun déclaré dans `etc/config.yaml`.

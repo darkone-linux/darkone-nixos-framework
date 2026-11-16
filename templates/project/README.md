@@ -42,7 +42,15 @@ git add -A && git commit -m "…"
 Your admin host is ready, step 1 of 4. Then, at your own pace:
 
 1. **The gateway**: a small always-on machine between the Internet box and the
-   network: fixed addresses, local names, shared services.
+   network: fixed addresses, local names, shared services. Plug its WAN card
+   into the box, boot it on the DNF installer (entry 2 of the menu), then:
+
+   ```sh
+   cd /etc/nixos && darkone add gateway   # --dry-run: plan and diff, project untouched
+   ```
+
+   It asks for the address and the pairing code shown on the machine's screen,
+   proposes the cards and the disk, then installs and checks the network.
    [Install the gateway](https://darkone-linux.github.io/en/doc/admin-guide/install/gateway/)
 2. **Servers and services**: files, photos, chat, passwords… each one declared
    in `etc/config.yaml`.
