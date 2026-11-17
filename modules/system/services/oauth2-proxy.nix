@@ -23,6 +23,9 @@ let
   # Kanidm OIDC issuer backing oauth2-proxy. Single source: both the service
   # config and the start-up readiness gate (below) derive from it.
   oidcIssuerUrl = "https://idm.${network.domain}/oauth2/openid/internal-service";
+
+  # Server-side session store, reached over its unix socket only (no TCP port).
+  redis = config.services.redis.servers.oauth2-proxy;
 in
 {
   config = mkIf cfg.enable (mkMerge [
@@ -51,7 +54,7 @@ in
         key = "oidc-secret-internal";
       };
 
-      # Session cookie encryption key (32 URL-safe base64 bytes, generated).
+      # Session ticket cookie signing key (32 URL-safe base64 bytes, generated).
       sops.secrets.oauth2-proxy-cookie-internal-service = {
         mode = "0400";
         owner = "oauth2-proxy";
@@ -74,7 +77,7 @@ in
 
           # Claims re-read through the Kanidm refresh token: without it, a
           # group change waits for the 7-day cookie, whatever the Kanidm session.
-          # 15m: lifetime of the Kanidm access token.
+          # 15m: lifetime of the Kanidm access token. Needs the Redis store below.
           refresh = "15m";
         };
 
@@ -105,14 +108,29 @@ in
           # zone (the anchor hosts /oauth2 on homepage.<zone>, other protected
           # services live on their own <svc>.<zone>).
           whitelist-domain = ".${authDomain}";
+
+          # Sessions kept server-side, the cookie only holds a ticket. Caddy
+          # `forward_auth` drops the `Set-Cookie` of `/oauth2/auth`: a cookie
+          # session would lose every refresh, then replay a spent refresh token.
+          session-store-type = "redis";
+          redis-connection-url = "unix://${redis.unixSocket}";
         };
       };
+
+      # Unix socket only (named instance: port 0). The default RDB snapshots
+      # keep the sessions across a gateway reboot.
+      services.redis.servers.oauth2-proxy.enable = true;
+      users.users.oauth2-proxy.extraGroups = [ redis.group ];
 
       # Harden the proxy against a momentarily unreachable OIDC issuer (kanidm on
       # hcs), typical right after an hcs rebuild: gate the start until kanidm is
       # reachable, and never latch failed, so the proxy self-heals without a manual
       # redeploy.
       systemd.services.oauth2-proxy = {
+
+        # The start-up config check writes a test key to Redis.
+        requires = [ "redis-oauth2-proxy.service" ];
+        after = [ "redis-oauth2-proxy.service" ];
 
         # Disable the start-rate limiter and pace retries: with the default 100ms
         # RestartSec the proxy burns its 5-restart budget in under a second and

@@ -42,6 +42,12 @@
 # session across its services.
 # :::
 #
+# :::note[Sessions]
+# Stored in a local Redis (`redis-oauth2-proxy`, unix socket): the cookie only
+# holds a ticket. Refreshed every 15 min against Kanidm, so a group change
+# applies without a new login.
+# :::
+#
 # :::note[Tailnet identity]
 # `proxy.tailnetIdentity`, for clients unable to follow the login flow (native
 # apps): a personal tailnet device is identified by tailscaled
