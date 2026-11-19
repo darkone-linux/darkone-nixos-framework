@@ -69,7 +69,7 @@ in
       [
         (lib.mkIf cli sssnake)
         (lib.mkIf cli tetris)
-        (lib.mkIf (cfg.enable3D && isChildOrTeen) veloren) # Minecraft like -> TMP: cargo system libs, back with nixpkgs#585129
+        (lib.mkIf (cfg.enable3D && isChildOrTeen) veloren) # Minecraft like
         #(lib.mkIf g3d warzone2100) # 3D RTS -> build broken against abseil 20260817 (C++20)
         #(lib.mkIf g3d zeroad) # Ancient civilizations RTS (~2 GB)
         (lib.mkIf isBabyOrChild kdePackages.ktuberling) # Constructor game

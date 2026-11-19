@@ -30,58 +30,6 @@
   # Overlays (`lib/overlays/`)
   #----------------------------------------------------------------------------
 
-  posthog = {
-    kind = "overlay";
-    files = [ "lib/overlays/posthog.nix" ];
-    reason = "posthog marked broken since mcp 2: aider-chat refuses to evaluate; uncached, timing tests flake";
-    upstream = "NixOS/nixpkgs#578265";
-    package = "python3Packages.posthog";
-    dropWhen = "nixpkgs#578265 in the locked nixpkgs";
-    since = "2026-10-27";
-  };
-
-  digital = {
-    kind = "overlay";
-    files = [ "lib/overlays/digital.nix" ];
-    reason = "buildMavenPackage defaults to jdk_headless (nixpkgs#578013): no libfontmanager, 11 AWT tests fail";
-    upstream = "NixOS/nixpkgs#581567";
-    package = "digital";
-    dropWhen = "nixpkgs#581567 in the locked nixpkgs";
-    since = "2026-11-03";
-  };
-
-  lk-jwt-service = {
-    kind = "overlay";
-    files = [ "lib/overlays/lk-jwt-service.nix" ];
-    reason = "cargoUseSystemLibs (nixpkgs 26.11) sets AWS_LC_SYS_USE_SYSTEM=1, no AWS-LC provided: aws-lc-sys panics";
-    upstream = "NixOS/nixpkgs#584539";
-    package = "lk-jwt-service";
-    dropWhen = "Hydra builds unstable lk-jwt-service";
-    since = "2026-11-09";
-  };
-
-  # Also covers `aichat` (nixpkgs#584888), `codex` (nixpkgs#584667) and
-  # `oxicloud` (no upstream fix tracked yet).
-  rust-sys-libs = {
-    kind = "overlay";
-    files = [ "lib/overlays/presenterm.nix" ];
-    reason = "cargoUseSystemLibs (nixpkgs 26.11) forces onig/zstd/sqlite system libs, absent from the build: *-sys panics (presenterm, aichat, codex, oxicloud)";
-    upstream = "NixOS/nixpkgs#584850";
-    package = "presenterm";
-    dropWhen = "Hydra builds unstable presenterm, aichat, codex and oxicloud";
-    since = "2026-11-09";
-  };
-
-  thonny = {
-    kind = "overlay";
-    files = [ "lib/overlays/thonny.nix" ];
-    reason = "thonny pins uv_build<0.13 (nixpkgs-widened), locked uv_build is 0.13.4: pypa dependency check fails";
-    upstream = "NixOS/nixpkgs#585369";
-    package = "thonny";
-    dropWhen = "nixpkgs#585369 in the locked nixpkgs";
-    since = "2026-11-09";
-  };
-
   logseq = {
     kind = "overlay";
     files = [
@@ -141,18 +89,6 @@
   # Pins: a package from another nixpkgs
   #----------------------------------------------------------------------------
 
-  opencode = {
-    kind = "pin";
-    files = [
-      "lib/overlays/opencode.nix"
-      "flake.nix"
-    ];
-    reason = "opencode 1.18.30 (nixpkgs#561612) crashes on every prompt";
-    inputs = [ "nixpkgs-opencode" ];
-    dropWhen = "a release fixing the `SystemPrompt.environment` TypeError in nixos-unstable";
-    since = "2026-09-18";
-  };
-
   open-webui = {
     kind = "pin";
     files = [ "modules/service/ai.nix" ];
@@ -175,29 +111,6 @@
     since = "2026-10-29";
   };
 
-  # Leaf apps suspended (line commented out) rather than rebuilt locally:
-  # fixed on master, uncached until nixos-unstable advances. Same cause as
-  # `rust-sys-libs`: cargoUseSystemLibs (nixpkgs 26.11).
-  anki-suspended = {
-    kind = "inline";
-    files = [ "home/modules/education.nix" ];
-    reason = "cargoUseSystemLibs (nixpkgs 26.11): anki rslib *-sys crates miss their system libs";
-    upstream = "NixOS/nixpkgs#584713";
-    package = "anki";
-    dropWhen = "Hydra builds unstable anki: uncomment it in education.nix";
-    since = "2026-11-09";
-  };
-
-  veloren-suspended = {
-    kind = "inline";
-    files = [ "home/modules/games.nix" ];
-    reason = "cargoUseSystemLibs (nixpkgs 26.11): zstd-sys finds no libzstd, veloren build script panics";
-    upstream = "NixOS/nixpkgs#585129";
-    package = "veloren";
-    dropWhen = "Hydra builds unstable veloren: uncomment it in games.nix";
-    since = "2026-11-09";
-  };
-
   nix-update-flake-path = {
     kind = "inline";
     files = [ "just/dnf/dev.just" ];
@@ -205,19 +118,6 @@
     upstream = "Mic92/nix-update#687";
     dropWhen = "nix-update realises the flake source itself (#687 closed): drop the `nix` shim of `pkg-update`";
     since = "2026-11-13";
-  };
-
-  aider-chat-suspended = {
-    kind = "inline";
-    files = [
-      "home/modules/ai.nix"
-      "tests/scenarios/modules/node-ai.nix"
-    ];
-    reason = "cargoUseSystemLibs (nixpkgs 26.11): tree-sitter-language-pack zstd-sys finds no libzstd";
-    upstream = "NixOS/nixpkgs#584300";
-    package = "aider-chat";
-    dropWhen = "Hydra builds unstable aider-chat: uncomment it in ai.nix and the node-ai `aider --version` check";
-    since = "2026-11-09";
   };
 
   #----------------------------------------------------------------------------

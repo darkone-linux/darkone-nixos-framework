@@ -29,17 +29,9 @@
   (import ./geneweb.nix { inherit (inputs) nixpkgs-geneweb; } system)
   (import ./logseq.nix)
   (import ./kernel-modules-sign.nix)
-  (import ./posthog.nix)
-  (import ./digital.nix)
-  (import ./lk-jwt-service.nix)
-  (import ./presenterm.nix)
-  (import ./thonny.nix)
 
   # `pkgs.talon` (UMI host profiles), x86_64 only.
   (import ./talon.nix { inherit (inputs) talon-nix; } system)
-
-  # Temporary: pin of `pkgs.opencode` (`config/workarounds.nix`).
-  (import ./opencode.nix { inherit (inputs) nixpkgs-opencode; } system)
 
   # `pkgs.openclaw-gateway` for AI spaces, fetched only by a host running it.
   (import ./openclaw.nix { inherit (inputs) nix-openclaw; } system)
