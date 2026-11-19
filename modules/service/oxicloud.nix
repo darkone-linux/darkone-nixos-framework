@@ -29,8 +29,10 @@
 #
 # :::tip[Mail]
 # When `network.smtp` is set, OxiCloud sends share notifications and email
-# invitations (magic links) through that relay. Without it, email features are
-# disabled.
+# invitations (magic links) through that relay, and mails scheduled-job
+# findings (data loss) to `darkone.system.security.adminMailbox`. Without it,
+# email features are disabled and the admin UI warns that no notification
+# destination is configured.
 # :::
 
 {
@@ -258,6 +260,10 @@ in
               OXICLOUD_SMTP_PORT = smtp.port;
               OXICLOUD_SMTP_USER = smtp.username;
               OXICLOUD_SMTP_FROM = "OxiCloud ${network.domain} <noreply@${network.domain}>";
+
+              # Scheduled-job findings (data loss by default) mailed to the
+              # admin; SMTP-only: a recipient without `SMTP_HOST` aborts boot.
+              OXICLOUD_JOBS_NOTIFY_EMAIL_TO = config.darkone.system.security.adminMailbox;
 
               # `submissions` (465) is implicit TLS; `submission` (587)
               # upgrades in-band.
