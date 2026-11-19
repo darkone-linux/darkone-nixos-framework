@@ -515,22 +515,6 @@
         "type": "github"
       }
     },
-    "nixpkgs-opencode": {
-      "locked": {
-        "lastModified": 1789019473,
-        "narHash": "sha256-oDJg4FdHB23JUNXq7cKGplgKZ6esdp5iH4obSxtqFj8=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "b1822af09f8d709b9259f63d420d184037ce1d3a",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "b1822af09f8d709b9259f63d420d184037ce1d3a",
-        "type": "github"
-      }
-    },
     "nixpkgs-stable": {
       "locked": {
         "lastModified": 1794872590,
@@ -621,7 +605,6 @@
         "nixos-raspberrypi": "nixos-raspberrypi",
         "nixpkgs": "nixpkgs_3",
         "nixpkgs-geneweb": "nixpkgs-geneweb",
-        "nixpkgs-opencode": "nixpkgs-opencode",
         "nixpkgs-stable": "nixpkgs-stable",
         "sops-nix": "sops-nix",
         "talon-nix": "talon-nix"

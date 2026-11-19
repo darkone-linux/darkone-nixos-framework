@@ -6,7 +6,6 @@
   dnfConfig,
   config,
   pkgs,
-  pkgs-stable,
   host,
   hosts,
   zone,
@@ -33,18 +32,6 @@ let
     idmUrl
     ;
   oidc = dnfLib.mkKanidmEndpoints idmUrl clientId;
-
-  # Temporary (`config/workarounds.nix`, `fpdf2-image-test`): fpdf2 2.8.5
-  # `test_image_with_explicit_dimensions` reference predates Pillow 13.
-  python3Stable = pkgs-stable.python3.override {
-    self = python3Stable;
-    packageOverrides = _pyfinal: pyprev: {
-      fpdf2 = pyprev.fpdf2.overridePythonAttrs (old: {
-        disabledTests = (old.disabledTests or [ ]) ++ [ "test_image_with_explicit_dimensions" ];
-      });
-    };
-  };
-  openWebuiStable = pkgs-stable.open-webui.override { python3Packages = python3Stable.pkgs; };
 in
 {
   options = {
@@ -147,10 +134,6 @@ in
       # Main Open WebUI service configuration
       services.open-webui = {
         enable = true;
-
-        # Stable: unstable 0.12.3 fails, its `makeWrapperArgs` is one string that
-        # structuredAttrs (now on by default in `buildPythonPackage`) no longer splits.
-        package = lib.mkDefault openWebuiStable;
         port = internalPort;
         host = params.ip;
 

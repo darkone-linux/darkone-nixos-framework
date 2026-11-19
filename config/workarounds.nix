@@ -86,30 +86,8 @@
   };
 
   #----------------------------------------------------------------------------
-  # Pins: a package from another nixpkgs
-  #----------------------------------------------------------------------------
-
-  open-webui = {
-    kind = "pin";
-    files = [ "modules/service/ai.nix" ];
-    reason = "unstable 0.12.3 `makeWrapperArgs` is one string, unsplit under `__structuredAttrs`";
-    package = "open-webui";
-    dropWhen = "unstable open-webui builds (unfree: never on Hydra, `nix build` it)";
-    since = "2026-10-20";
-  };
-
-  #----------------------------------------------------------------------------
   # Inline bypasses
   #----------------------------------------------------------------------------
-
-  fpdf2-image-test = {
-    kind = "inline";
-    files = [ "modules/service/ai.nix" ];
-    reason = "stable fpdf2 2.8.5 `test_image_with_explicit_dimensions`: reference PDF predates the Pillow 13 backport, systematic hash mismatch, open-webui does not build";
-    upstream = "NixOS/nixpkgs#580486";
-    dropWhen = "nixpkgs#580486 in the locked nixpkgs-stable, or open-webui leaves its stable pin";
-    since = "2026-10-29";
-  };
 
   nix-update-flake-path = {
     kind = "inline";
