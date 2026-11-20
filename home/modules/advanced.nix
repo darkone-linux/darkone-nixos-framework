@@ -11,6 +11,12 @@
 # (`advanced/network-folder.nix`): DNF Doc, Onboarding (the welcome page) and
 # Network Sources (a terminal in `/etc/nixos`). Added once per user, at login.
 # :::
+#
+# :::note[One clipboard in the terminal]
+# Ghostty, tmux, zellij and vim share CLIPBOARD (GNOME's Ctrl+C / Ctrl+V):
+# selecting copies; middle-click, right-click and Ctrl+V paste. PRIMARY is
+# never pasted. Shift + mouse bypasses an app that grabs the mouse.
+# :::
 
 {
   lib,
@@ -478,8 +484,12 @@ in
         bind -T copy-mode-vi DoubleClick1Pane send -X select-word \; send -X copy-pipe-and-cancel
         bind -T copy-mode-vi TripleClick1Pane send -X select-line \; send -X copy-pipe-and-cancel
 
-        # Middle-click pastes the outer selection into the pane.
-        bind -n MouseDown2Pane paste-buffer -p
+        # Middle-click pastes the system clipboard, not tmux's own buffer (graphic
+        # host; headless: tmux default). An app that grabs the mouse keeps the
+        # click. `; true`: a failed paste (image, empty) would open view-mode.
+        ${lib.optionalString graphic ''
+          bind -n MouseDown2Pane select-pane -t = \; if -F "#{||:#{pane_in_mode},#{mouse_any_flag}}" { send -M } { run -b "${pkgs.wl-clipboard}/bin/wl-paste -n -t text 2>/dev/null | tmux load-buffer -b clipboard - 2>/dev/null && tmux paste-buffer -p -d -b clipboard -t '#{pane_id}'; true" }
+        ''}
 
         # Splits and new windows inherit the current directory.
         bind '"' split-window -c "#{pane_current_path}"
@@ -502,7 +512,9 @@ in
       settings = {
         copy_on_select = true;
         selection_style = "invert";
-        copy_clipboard = "primary";
+
+        # CLIPBOARD, the one ghostty pastes: `primary` is never pasted.
+        copy_clipboard = "system";
         show_release_notes = false;
         ui = {
           pane_frames = {
@@ -528,7 +540,29 @@ in
         font-size = 14;
         window-padding-x = 6;
         window-padding-y = 6;
-        copy-on-select = "clipboard";
+
+        # One clipboard: CLIPBOARD, pasted by middle-click, right-click and
+        # Ctrl+V. `both` also feeds PRIMARY, for a middle-click in a browser.
+        copy-on-select = "both";
+        middle-click-action = "clipboard-paste";
+
+        # Not the context menu: opening it copies the word under the pointer,
+        # so its "Paste" pastes that word.
+        right-click-action = "paste";
+
+        # Shift + mouse always reaches ghostty, even in an app that grabs the
+        # mouse (tmux, vim, htop): `never` ignores their XTSHIFTESCAPE.
+        mouse-shift-capture = "never";
+
+        keybind = [
+
+          # `performable:` passes Ctrl+V to the app when the clipboard holds
+          # no text: an image reaches it (claude code reads it itself).
+          "performable:ctrl+v=paste_from_clipboard"
+
+          # Default pastes PRIMARY.
+          "shift+insert=paste_from_clipboard"
+        ];
 
         # No urgency hint: GNOME keeps it as a dock badge that only accumulates.
         # Bells are silenced in modules/graphic/gnome.nix too.
@@ -794,6 +828,11 @@ in
         " under `mouse=a` a drag starts Visual mode, and vim then owns the
         " CLIPBOARD selection. Needs a vim built with +clipboard and +X11.
         set clipboard=unnamedplus,autoselectplus
+
+        " Middle-click pastes "+ (CLIPBOARD) like ghostty, not vim's default "*
+        " (PRIMARY, the last selection of any app).
+        nnoremap <MiddleMouse> "+<MiddleMouse>
+        inoremap <MiddleMouse> <C-r><C-o>+
 
         " Start NERDTree when Vim is started without file arguments.
         autocmd StdinReadPre * let s:std_in=1
