@@ -125,6 +125,10 @@ let
     export OPENCLAW_CONFIG_PATH=${configPath}
     export OPENCLAW_STATE_DIR=${stateDir}
     ${lib.optionalString cfg.mutableConfig "export OPENCLAW_NIX_MODE=0"}
+
+    # sudo keeps the caller's cwd, unreadable to `openclaw` (`/home/nix`):
+    # spawns and doctor's Git backup fail with EACCES.
+    cd "$PWD" 2>/dev/null || cd ${stateDir}
     exec ${pkgs.openclaw-gateway}/bin/openclaw "$@"
   '';
 
@@ -1227,6 +1231,21 @@ in
           CapabilityBoundingSet = "";
           SystemCallArchitectures = "native";
           UMask = "0077";
+
+          # EX_CONFIG: OpenClaw's own "do not restart" status (state to migrate,
+          # invalid config). Unit left failed, `ServiceDown` fires, no loop.
+          RestartPreventExitStatus = [ 78 ];
+
+          # Upstream `append:` file: root-owned, never rotated, unseen by
+          # `journalctl -u`. Journald rotates it, Alloy ships it to Loki.
+          StandardOutput = lib.mkForce "journal";
+          StandardError = lib.mkForce "journal";
+        };
+
+        # Any other crash loop ends failed too: `Restart=always` never gives up.
+        systemd.services.openclaw-gateway.unitConfig = {
+          StartLimitIntervalSec = 600;
+          StartLimitBurst = 10;
         };
         services.openclaw-gateway = {
           enable = true;
