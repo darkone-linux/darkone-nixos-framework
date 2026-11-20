@@ -59,10 +59,11 @@ let
     nix = config.nix.package;
   };
 
-  # `PATH` of `just clean` (statix, deadnix, generate, treefmt) and of the
-  # tool, explicit: a system unit sees neither the dev shell nor the user's
-  # profile. `cargo`, `rustc`, `gcc`: `just generate` from `src/generator`
-  # (codev). `curl`, `jq`: `just send-msg` of `--send-report`.
+  # `PATH` of `just clean` (statix, deadnix, shellcheck, generate, treefmt)
+  # and of the tool, explicit: a system unit sees neither the dev shell nor
+  # the user's profile. `cargo`, `rustc`, `gcc`: `just generate` from
+  # `src/generator` (codev). `curl`, `jq`: `just send-msg` of `--send-report`.
+  # `yq-go`, `gawk`: password hash check of `just generate`, else skipped.
   runner = pkgs.writeShellApplication {
     name = "fleet-update-unattended";
     runtimeInputs = [
@@ -78,6 +79,7 @@ let
     ++ cfg.aiPackages
     ++ [
       pkgs.findutils
+      pkgs.gawk
       pkgs.gcc
       pkgs.git
       pkgs.gnugrep
@@ -86,8 +88,10 @@ let
       pkgs.just
       pkgs.nixfmt
       pkgs.rustc
+      pkgs.shellcheck
       pkgs.statix
       pkgs.treefmt
+      pkgs.yq-go
     ];
 
     # `sudo` is a setuid wrapper, never a store path.
