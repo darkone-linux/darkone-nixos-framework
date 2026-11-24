@@ -77,20 +77,10 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    darkone.home.gnome.hiddenEntries = cfg.hiddenApps;
 
-    # Hide xterm app
-    home.file.".local/share/applications/xterm.desktop".text = ''
-      [Desktop Entry]
-      Name=XTerm
-      Comment=Terminal emulator
-      Exec=xterm
-      Icon=utilities-terminal
-      Terminal=true
-      Type=Application
-      NoDisplay=true
-      Categories=System;TerminalEmulator;
-    '';
+    # xterm (default X packages) hidden by `hidden-apps.nix` too: a `home.file`
+    # of its own would collide with that recursive directory (UMI hides it as well).
+    darkone.home.gnome.hiddenEntries = cfg.hiddenApps ++ [ "xterm.desktop" ];
 
     # scrcpy is a CLI tool: its launchers are noise in the app grid
     home.file.".local/share/applications/scrcpy.desktop" =
