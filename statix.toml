@@ -1,0 +1,8 @@
+# statix configuration, framework-wide (CI clones `dnf/` alone).
+
+# `repeated_keys`: modules group settings by topic, each with its own comment;
+# merging `boot.a` and `boot.b` under one `boot = { }` would split that layout.
+disabled = ["repeated_keys"]
+
+# `backports/`: nixpkgs PR modules, copied unchanged but for `nixfmt -s`.
+ignore = [".direnv", "backports"]
