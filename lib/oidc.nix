@@ -2,8 +2,8 @@
 #
 # Derives the values needed to connect a DNF service to Kanidm as an OAuth2
 # client: stable client identifier, SOPS secret name, Kanidm public URL and
-# protocol endpoints, plus the provisioning entries fed to Kanidm. Pure and
-# side-effect free.
+# protocol endpoints, the provisioning entries fed to Kanidm, plus a start-up
+# gate on its discovery document. Pure and side-effect free.
 
 { lib, serviceParams }:
 let
@@ -97,4 +97,26 @@ rec {
     openidConfigUrl = "${idmUrl}/oauth2/openid/${clientId}/.well-known/openid-configuration";
     issuerUrl = "${idmUrl}/oauth2/openid/${clientId}";
   };
+
+  # `ExecStartPre` of a service reading the discovery document once, at start:
+  # polls ~100s for a real 200 (Caddy: 502 while Kanidm is down, 403 on a
+  # `curl` User-Agent), then exits 0 anyway. Caller: `Restart=`, and
+  # `TimeoutStartSec` above the poll. `timeoutMessage`: plain text, no quotes.
+  mkOidcIssuerGate =
+    {
+      pkgs,
+      name,
+      issuerUrl,
+      timeoutMessage,
+    }:
+    pkgs.writeShellScript name ''
+      url="${issuerUrl}/.well-known/openid-configuration"
+      for _ in $(${pkgs.coreutils}/bin/seq 1 15); do
+        code=$(${pkgs.curl}/bin/curl -sS -A dnf-wait-oidc -o /dev/null -w '%{http_code}' --max-time 4 "$url" || true)
+        [ "$code" = "200" ] && exit 0
+        ${pkgs.coreutils}/bin/sleep 3
+      done
+      echo "${timeoutMessage}" >&2
+      exit 0
+    '';
 }

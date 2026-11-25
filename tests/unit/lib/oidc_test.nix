@@ -280,4 +280,33 @@ in
       issuerUrl = "https://idm.example.com/oauth2/openid/outline";
     };
   };
+
+  # ----- mkOidcIssuerGate -----
+
+  # Stub pkgs: store paths as plain strings, the script as `{ name; text; }`.
+  testMkOidcIssuerGate = {
+    expr = dnfLib.mkOidcIssuerGate {
+      pkgs = {
+        coreutils = "/coreutils";
+        curl = "/curl";
+        writeShellScript = name: text: { inherit name text; };
+      };
+      name = "svc-wait-oidc";
+      issuerUrl = "https://idm.example.com/oauth2/openid/svc";
+      timeoutMessage = "svc: issuer unreachable, starting anyway";
+    };
+    expected = {
+      name = "svc-wait-oidc";
+      text = ''
+        url="https://idm.example.com/oauth2/openid/svc/.well-known/openid-configuration"
+        for _ in $(/coreutils/bin/seq 1 15); do
+          code=$(/curl/bin/curl -sS -A dnf-wait-oidc -o /dev/null -w '%{http_code}' --max-time 4 "$url" || true)
+          [ "$code" = "200" ] && exit 0
+          /coreutils/bin/sleep 3
+        done
+        echo "svc: issuer unreachable, starting anyway" >&2
+        exit 0
+      '';
+    };
+  };
 }

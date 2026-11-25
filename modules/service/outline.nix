@@ -134,20 +134,14 @@ in
           # Covers the wait loop below (default 90s would race it).
           TimeoutStartSec = "150s";
 
-          # Readiness gate: a real 200 on the discovery document. Caddy answers
-          # 502 while Kanidm is down, and its bot filter 403s a `curl` User-Agent.
-          # Best-effort: on timeout, start anyway and rely on Restart.
+          # Readiness gate, best-effort: on timeout, rely on Restart.
           ExecStartPre = lib.mkBefore [
-            (pkgs.writeShellScript "outline-wait-oidc" ''
-              url="${oidc.openidConfigUrl}"
-              for _ in $(${pkgs.coreutils}/bin/seq 1 15); do
-                code=$(${pkgs.curl}/bin/curl -sS -A dnf-wait-oidc -o /dev/null -w '%{http_code}' --max-time 4 "$url" || true)
-                [ "$code" = "200" ] && exit 0
-                ${pkgs.coreutils}/bin/sleep 3
-              done
-              echo "outline: OIDC issuer unreachable after ~100s, starting anyway" >&2
-              exit 0
-            '')
+            (dnfLib.mkOidcIssuerGate {
+              inherit pkgs;
+              inherit (oidc) issuerUrl;
+              name = "outline-wait-oidc";
+              timeoutMessage = "outline: OIDC issuer unreachable after ~100s, starting anyway";
+            })
           ];
         };
       };

@@ -145,19 +145,13 @@ in
           # so systemd does not SIGTERM it as a start-pre timeout.
           TimeoutStartSec = "150s";
 
-          # Readiness gate: a real 200 on the discovery document. Caddy answers
-          # 502 while kanidm is down, and its bot filter 403s a `curl` User-Agent.
-          # Best-effort: on timeout, start anyway and rely on Restart above.
-          ExecStartPre = pkgs.writeShellScript "oauth2-proxy-wait-issuer" ''
-            url="${oidcIssuerUrl}/.well-known/openid-configuration"
-            for _ in $(${pkgs.coreutils}/bin/seq 1 15); do
-              code=$(${pkgs.curl}/bin/curl -sS -A dnf-wait-oidc -o /dev/null -w '%{http_code}' --max-time 4 "$url" || true)
-              [ "$code" = "200" ] && exit 0
-              ${pkgs.coreutils}/bin/sleep 3
-            done
-            echo "oauth2-proxy: issuer unreachable after ~100s, starting anyway" >&2
-            exit 0
-          '';
+          # Readiness gate, best-effort: on timeout, rely on Restart above.
+          ExecStartPre = dnfLib.mkOidcIssuerGate {
+            inherit pkgs;
+            name = "oauth2-proxy-wait-issuer";
+            issuerUrl = oidcIssuerUrl;
+            timeoutMessage = "oauth2-proxy: issuer unreachable after ~100s, starting anyway";
+          };
         };
       };
     })

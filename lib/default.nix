@@ -114,6 +114,7 @@ in
     mkOidcContext
     mkOauth2Clients
     mkKanidmEndpoints
+    mkOidcIssuerGate
     ;
   inherit (homepage) mkHomepageSection;
   inherit (matrix) mkMatrixWellKnown;
