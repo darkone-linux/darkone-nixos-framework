@@ -144,6 +144,11 @@ in
       allowedUDPPorts = [ 53 ];
     };
 
+    # Created at boot, before unbound: a glob `include` over a missing directory
+    # is fatal (GLOB_ERR), an empty one matches nothing. Without it unbound
+    # crash-loops until the first view run, the HCS and tailnet DNS down.
+    systemd.tmpfiles.rules = [ "d ${machinesViewDir} 0755 root root -" ];
+
     # Root: the gRPC socket is `headscale`-group only, and unbound reloads.
     # The list outlives each run (and unbound restarts), not a reboot.
     systemd.services.unbound-tailnet-view = {
@@ -155,8 +160,7 @@ in
       serviceConfig = {
         Type = "oneshot";
         ExecStart = viewScript;
-        RuntimeDirectory = baseNameOf machinesViewDir;
-        RuntimeDirectoryPreserve = true;
+        ReadWritePaths = [ machinesViewDir ];
         ProtectSystem = "strict";
         ProtectHome = true;
         PrivateTmp = true;
