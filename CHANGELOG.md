@@ -10,6 +10,55 @@ observable defaults, `lib.mkConfigurations`, public `just` recipes, the expected
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-11-25
+
+### Added
+
+- **install**: Refuse a gateway whose box network overlaps its zone
+- **iso**: List network cards and installable disks on the installer screen
+- **install**: Full-install pauses for recabling behind a fresh gateway
+- **iso**: Pairing code on the generic installer lets the admin key in
+- **install**: Pair the generic installer by its code, pin its host key
+- **install**: Host-info probes cards, disks and the MAC of the routed card
+- **admin**: Darkone and dnf-generator commands on admin hosts
+- **install**: Install takes its confirmation and host key from darkone
+- **admin**: Welcome page marks step 2 done once the zone has a gateway
+- **veloren**: Activation
+- **oxicloud**: Mail job findings to the admin mailbox
+- **template**: Ship statix.toml with repeated_keys disabled
+- **outline**: Enforce PKCE through OIDC discovery
+
+### Fixed
+
+- **install**: Gateway of its zone needs no mac, skips resolution warning
+- **install**: Full-install waits for the host back after its last reboot
+- **sso**: Oauth2-proxy keeps sessions in a local Redis, ends login loop
+- **imagery**: Use renamed sweethome3d package
+- **ai**: Open-webui back on unstable, drop stable pin and fpdf2 bypass
+- **fleet-update**: Add shellcheck, yq-go, gawk to the unattended PATH
+- **terminal**: One clipboard, middle-click, right-click and Ctrl+V paste it
+- **openclaw**: Stop the gateway restart loop on a config error
+- **gnome**: Hide xterm through hidden-apps, no duplicate desktop entry
+- **release**: Train gates dnf-generator on its own ci and audit recipes
+
+### Removed
+
+- **workarounds**: Drop overlays and pins fixed upstream, restore anki, aider
+
+### Changed
+
+- **lint**: Fix statix 0.6.0 warnings (inherit, parens, empty patterns)
+- **oidc**: Share the OIDC issuer start-up gate as mkOidcIssuerGate
+
+### Documentation
+
+- **gateway**: Project README, step 2 with darkone add gateway
+- **readme**: Services, SSO, getting started, fleet-update
+
+### Dependencies
+
+- dnf-generator v0.4.1
+
 ## [0.6.2] - 2026-11-13
 
 ### ⚠ Breaking
@@ -713,7 +762,8 @@ framework as it stands, not the commits that built it.
 | [dnf-boilerplate](https://github.com/darkone-linux/dnf-boilerplate) | `v0.1.0` |
 | [dnf-example](https://github.com/darkone-linux/dnf-example) | `v0.1.0` |
 
-[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/darkone-linux/darkone-nixos-framework/compare/v0.5.0...v0.6.0
