@@ -125,7 +125,7 @@ Full catalogue: [service modules](https://darkone-linux.github.io/en/ref/modules
 | [Immich] | ✅ | ✅ | ✅ | ✅ | ✅ | settings + secretSettings |
 | [OxiCloud] | ✅ | ✅ | ✅ | ✅ | ✅ | Account created at 1st login |
 | [Headscale] | ✅ | ✅ | ✅ | ✅ | ✅ | Personal devices login |
-| [Outline] | ✅ | ✅ | ❌ | ✅ | ✅ | Works, without PKCE |
+| [Outline] | ✅ | ✅ | ✅ | ✅ | ✅ | Works fine |
 | [Forgejo] | ✅ | ✅ | ✅ | ☑️ | ✅ | add-oauth oneshot |
 | [Nextcloud] | ✅ | ✅ | ✅ | ☑️ | ✅ | user_oidc, occ-provisioned |
 | [OAuth2 Proxy] | ✅ | ✅ | ✅ | ✅ | ✅ | Linked to Caddy & Kanidm |

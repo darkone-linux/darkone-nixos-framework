@@ -98,6 +98,14 @@
     since = "2026-11-13";
   };
 
+  outline-oidc-issuer = {
+    kind = "inline";
+    files = [ "modules/service/outline.nix" ];
+    reason = "nixos/outline always sets `OIDC_AUTH_URI`/`TOKEN_URI`/`USERINFO_URI`, no issuer option: manual endpoints skip discovery, hence PKCE";
+    dropWhen = "nixos/outline exposes an `oidcAuthentication` issuer option with optional endpoints: drop the `environment` override";
+    since = "2026-11-25";
+  };
+
   #----------------------------------------------------------------------------
   # Insecure packages allowed (`permittedInsecurePackages`)
   #----------------------------------------------------------------------------

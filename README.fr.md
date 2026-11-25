@@ -182,7 +182,7 @@ et, pour les contributeurs, la [procédure de release](https://darkone-linux.git
 | [Immich] | ✅ | ✅ | ✅ | ✅ | ✅ | settings + secretSettings |
 | [OxiCloud] | ✅ | ✅ | ✅ | ✅ | ✅ | Compte créé au 1er login |
 | [Headscale][headscale] | ✅ | ✅ | ✅ | ✅ | ✅ | Login des appareils perso |
-| [Outline] | ✅ | ✅ | ❌ | ✅ | ✅ | Marche bien, sans PKCE |
+| [Outline] | ✅ | ✅ | ✅ | ✅ | ✅ | Fonctionne parfaitement |
 | [Forgejo] | ✅ | ✅ | ✅ | ☑️ | ✅ | Oneshot add-oauth |
 | [Nextcloud] | ✅ | ✅ | ✅ | ☑️ | ✅ | user_oidc, provisionné via occ |
 | [OAuth2 Proxy] | ✅ | ✅ | ✅ | ✅ | ✅ | Lié à Caddy et Kanidm |
