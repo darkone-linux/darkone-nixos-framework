@@ -97,6 +97,7 @@
     ./service/vaultwarden.nix
     ./system/core.nix
     ./system/dnf-release.nix
+    ./system/dns.nix
     ./system/documentation.nix
     ./system/hardware.nix
     ./system/i18n.nix

@@ -37,8 +37,8 @@
 # #### Pivot DNS (`dns.nix`)
 #
 # unbound on the HCS. Internal names reach it through headscale split DNS; it
-# forwards each zone domain to the zone gateway, the rest over TLS to Cloudflare
-# and unfiltered AdGuard DNS (two operators: one refusing must not cut the HCS off).
+# forwards each zone domain to the zone gateway, the rest over TLS to the public
+# resolvers of the fleet ([`darkone.system.dns`](/ref/modules/system/dns/)).
 #
 # View `tailnet-machines`: tagged nodes (HCS aside) get the zone LAN address
 # of the global services a zone serves (`git.<domain>` on a gateway),

@@ -25,6 +25,7 @@ let
 
   # ADH and DNSMASQ are on the same host.
   dnsmasqAddr = "127.0.0.1:" + (toString config.services.dnsmasq.settings.port);
+  dnsResolvers = config.darkone.system.dns.publicResolvers;
 
   # Local PTR domain prefix derived from the LAN network address.
   inherit (dnfLib) extractReversePrefix;
@@ -206,20 +207,12 @@ in
             ];
 
             # Clear, but only to resolve the encrypted upstreams' own names.
-            # Not Quad9: it refuses every French query since 2026-11.
-            bootstrap_dns = [
-              "1.1.1.1"
-              "1.0.0.1"
-              "2606:4700:4700::1111"
-              "2606:4700:4700::1001"
-            ];
+            # Fleet selection (`system/dns.nix`): a dead bootstrap stalls every
+            # uncached query on its timeout.
+            bootstrap_dns = dnfLib.mkResolverAddrs dnsResolvers;
 
             # By IP, certificates included: no bootstrap when upstreams fail.
-            fallback_dns = [
-              "tls://8.8.8.8"
-              "tls://8.8.4.4"
-              "tls://1.1.1.1"
-            ];
+            fallback_dns = dnfLib.mkResolverTlsUrls dnsResolvers;
 
             # Do not append a suffix to local names
             local_domain_name = "";

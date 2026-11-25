@@ -244,10 +244,7 @@ in
             "94.140.14.14"
             "94.140.15.15"
           ]
-          ++ [
-            "1.1.1.1"
-            "94.140.14.140" # Unfiltered AdGuard DNS; Quad9 refuses French queries
-          ];
+          ++ dnfLib.mkResolverPrimaryIpv4s config.darkone.system.dns.publicResolvers;
 
           # Queries for these domains are only answered from /etc/hosts, DHCP
           # or local `address` records. They are not forwarded to upstream

@@ -25,6 +25,7 @@ let
   serviceActivation = import ./service-activation.nix { inherit lib; };
   configSchema = import ./config-schema.nix { inherit lib; };
   matrix = import ./matrix.nix { inherit lib; };
+  dns = import ./dns.nix { inherit lib; };
   secrets = import ./secrets.nix { inherit lib; };
   headscalePolicy = import ./headscale-policy.nix { inherit lib topology hive; };
   uplinks = import ./uplinks.nix { inherit lib; };
@@ -118,6 +119,14 @@ in
     ;
   inherit (homepage) mkHomepageSection;
   inherit (matrix) mkMatrixWellKnown;
+  inherit (dns)
+    publicResolvers
+    resolversOf
+    mkUnboundForwardAddrs
+    mkResolverAddrs
+    mkResolverTlsUrls
+    mkResolverPrimaryIpv4s
+    ;
   inherit (secrets)
     secretGenerators
     secretBundles

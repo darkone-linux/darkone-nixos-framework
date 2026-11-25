@@ -112,15 +112,9 @@ in
             {
               name = ".";
 
-              # Two operators: a lone one refusing a country (Quad9, France,
-              # 2026-11) leaves the HCS without DNS (lk-jwt-service, federation,
-              # ACME). Unfiltered AdGuard: a server resolves, it does not filter.
-              forward-addr = [
-                "1.1.1.1#cloudflare-dns.com"
-                "1.0.0.1#cloudflare-dns.com"
-                "94.140.14.140#unfiltered.adguard-dns.com"
-                "94.140.14.141#unfiltered.adguard-dns.com"
-              ];
+              # Fleet selection (`system/dns.nix`): without DNS the HCS loses
+              # lk-jwt-service, federation and ACME.
+              forward-addr = dnfLib.mkUnboundForwardAddrs config.darkone.system.dns.publicResolvers;
               forward-tls-upstream = true; # Protected DNS
             }
           ];
