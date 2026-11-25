@@ -61,6 +61,13 @@ release level="auto":
 	next() { bash {{bumpScript}} --repo "$1" --config {{cliffConfig}} --next "${@:2}"; }
 	bump() { bash {{bumpScript}} --repo "$1" --config {{cliffConfig}} --yes "${@:2}"; }
 
+	# A repo's CI recipe in its own dev shell: its `release.yml` replays the same
+	# on the tag, and a red one after the push means a tag without a release.
+	gate() {
+		{{nix}} develop "./$1" --command \
+			just --justfile "$1/Justfile" --working-directory "$1" "$2"
+	}
+
 	# The branch and this release's tag only: `--tags` would publish every
 	# local tag (backups, experiments) too.
 	publish() { git -C "$1" push --atomic origin main "refs/tags/$2"; }
@@ -220,7 +227,8 @@ release level="auto":
 
 	if $genDue; then
 		just _log "Releasing dnf-generator v$genNext..." "REL"
-		just gen-test
+		gate "$gen" ci
+		gate "$gen" audit
 		bump "$gen" --level "$genNext"
 		publish "$gen" "v$genNext"
 	fi
@@ -252,15 +260,8 @@ release level="auto":
 
 	if $fuDue; then
 		just _log "Releasing dnf-fleet-update v$fuNext..." "REL"
-
-		# Its CI gates with its own toolchain, audit included: a red
-		# `release.yml` after the tag push means a tag without a release.
-		fuGate() {
-			nix develop "./$fu" --command \
-				just --justfile "$fu/Justfile" --working-directory "$fu" "$1"
-		}
-		fuGate ci
-		fuGate audit
+		gate "$fu" ci
+		gate "$fu" audit
 		bump "$fu" --level "$fuNext"
 		publish "$fu" "v$fuNext"
 	fi
