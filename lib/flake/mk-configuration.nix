@@ -401,7 +401,7 @@ let
     _name: node:
     nixpkgs.lib.nixosSystem {
       inherit (node) system specialArgs;
-      modules = node.modules;
+      inherit (node) modules;
     }
   ) prodNodes;
 

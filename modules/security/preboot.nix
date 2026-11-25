@@ -113,7 +113,7 @@ in
           # boot.loader.grub.users.<admin>.hashedPasswordFile instead.
           warnings = lib.optional (
             config.boot.loader.systemd-boot.enable && !(config.boot.lanzaboote.enable or false)
-          ) ("R5: bootloader entries are not password/Secure-Boot protected (editable boot menu).");
+          ) "R5: bootloader entries are not password/Secure-Boot protected (editable boot menu).";
         })
 
         # R6 — Protect kernel cmdline and initramfs (high, base)

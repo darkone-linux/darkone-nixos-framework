@@ -207,7 +207,7 @@ in
             # asserts `domain == null -> role is a Write replica`, i.e. a
             # ReadOnlyReplica MUST keep a non-null domain (it simply matches the
             # supplier's, which is identical here since the whole net shares one).
-            domain = network.domain;
+            inherit (network) domain;
 
             # The origin of the Kanidm instance.
             origin = params.href;

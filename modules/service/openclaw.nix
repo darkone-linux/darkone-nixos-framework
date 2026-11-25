@@ -1150,28 +1150,25 @@ in
         }
       ];
       warnings =
-        lib.optional (memberEmails == [ ]) (
-          "${host.hostname}: openclaw without members (`users` of the host): nobody passes the SSO."
-        )
-        ++ lib.optional (lib.elem "ANTHROPIC_API_KEY" cfg.apiKeys && droppedKeys != [ ]) (
-          "${host.hostname}: openclaw `ANTHROPIC_API_KEY` not exported: the `claude` CLI would prefer it to the `anthropic` subscription."
-        )
+        lib.optional (
+          memberEmails == [ ]
+        ) "${host.hostname}: openclaw without members (`users` of the host): nobody passes the SSO."
+        ++
+          lib.optional (lib.elem "ANTHROPIC_API_KEY" cfg.apiKeys && droppedKeys != [ ])
+            "${host.hostname}: openclaw `ANTHROPIC_API_KEY` not exported: the `claude` CLI would prefer it to the `anthropic` subscription."
         ++
           lib.optional
             (talkOn "openai" && cfg.talk.model != "gpt-live-1-codex" && !lib.elem "OPENAI_API_KEY" keyVars)
-            (
-              "${host.hostname}: openclaw Talk model `${cfg.talk.model}` needs a Platform key: add `OPENAI_API_KEY` to `apiKeys`."
-            )
+            "${host.hostname}: openclaw Talk model `${cfg.talk.model}` needs a Platform key: add `OPENAI_API_KEY` to `apiKeys`."
+        ++ lib.optional (
+          talkOn "google" && !lib.elem "GEMINI_API_KEY" keyVars && !lib.elem "GOOGLE_API_KEY" keyVars
+        ) "${host.hostname}: openclaw Talk `google` needs a Gemini key: add `GEMINI_API_KEY` to `apiKeys`."
         ++
-          lib.optional
-            (talkOn "google" && !lib.elem "GEMINI_API_KEY" keyVars && !lib.elem "GOOGLE_API_KEY" keyVars)
-            ("${host.hostname}: openclaw Talk `google` needs a Gemini key: add `GEMINI_API_KEY` to `apiKeys`.")
-        ++ lib.optional (keylessModels != [ ] && cfg.apiKeys == [ ]) (
-          "${host.hostname}: openclaw models through an API key, none in `apiKeys`: ${lib.concatStringsSep ", " keylessModels}."
-        )
-        ++ lib.optional (hasMatrix && (marker.matrixAvatar.source or null) != matrixProfile.avatarSource) (
-          "${host.hostname}: openclaw Matrix avatar out of date: run `just space-init ${host.hostname}`, commit `var/generated/spaces/`."
-        );
+          lib.optional (keylessModels != [ ] && cfg.apiKeys == [ ])
+            "${host.hostname}: openclaw models through an API key, none in `apiKeys`: ${lib.concatStringsSep ", " keylessModels}."
+        ++
+          lib.optional (hasMatrix && (marker.matrixAvatar.source or null) != matrixProfile.avatarSource)
+            "${host.hostname}: openclaw Matrix avatar out of date: run `just space-init ${host.hostname}`, commit `var/generated/spaces/`.";
 
       darkone.system.microvm.guest.whisper = hypervisorTranscription;
 

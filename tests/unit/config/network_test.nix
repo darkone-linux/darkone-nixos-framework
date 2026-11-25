@@ -4,11 +4,11 @@
 let
   inherit (dnfLib) checkSchema;
 
-  ports = (import ../../../config/network.nix).ports;
+  inherit (import ../../../config/network.nix) ports;
 
   # Named DNF ports (everything but the `reserved` denylist).
   named = builtins.removeAttrs ports [ "reserved" ];
-  reserved = ports.reserved;
+  inherit (ports) reserved;
 
   # Kernel ephemeral range (`net.ipv4.ip_local_port_range` default): a fixed
   # port picked in there can be stolen by any outgoing connection of a

@@ -196,7 +196,7 @@ in
 
             # Both must match the values used by pamu2fcfg at enrollment;
             # defaults derive from the local hostname and would break roaming.
-            origin = cfg.origin;
+            inherit (cfg) origin;
             appid = cfg.origin;
             cue = true;
             nouserok = true;

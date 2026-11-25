@@ -35,9 +35,9 @@ let
   # equivalent file so `mas-cli` keeps working while MAS is stopped (which
   # syn2mas requires). Built from the evaluated option, module defaults
   # (database uri, trusted proxies...) included.
-  masCliConfig = (pkgs.formats.yaml { }).generate "mas-cli-config.yaml" (
-    config.services.matrix-authentication-service.settings
-  );
+  masCliConfig =
+    (pkgs.formats.yaml { }).generate "mas-cli-config.yaml"
+      config.services.matrix-authentication-service.settings;
 
   # syn2mas refuses to map the `oidc-kanidm` external ids unless synapse still
   # declares that provider, which delegated mode precisely removes. Hand the

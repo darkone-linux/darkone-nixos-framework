@@ -170,8 +170,8 @@ in
         # it never lands in the Nix store.
         settings.oauth = lib.mkIf hasIdm {
           enabled = true;
-          issuerUrl = oidc.issuerUrl;
-          clientId = clientId;
+          inherit (oidc) issuerUrl;
+          inherit clientId;
           scope = "openid email profile";
 
           # Kanidm signs with ES256 by default (enableLegacyCrypto = false).

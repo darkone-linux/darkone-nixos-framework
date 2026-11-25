@@ -4,4 +4,4 @@
 # install/ (disk layout, stateVersion: frozen at install), hardware/ (probed
 # on the machine), var/generated/hosts/<host>.nix. Never edit those.
 
-{ ... }: { }
+_: { }

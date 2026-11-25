@@ -350,7 +350,7 @@ in
             enable = true;
             environmentFile = config.sops.templates.mautrix-discord-env.path;
             settings = {
-              homeserver = mautrixCommonSettings.homeserver;
+              inherit (mautrixCommonSettings) homeserver;
 
               # Deterministic registration tokens (cf. file header). The module's
               # appservice option is a non-merging attrs: setting the tokens

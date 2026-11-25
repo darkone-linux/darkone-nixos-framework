@@ -294,9 +294,9 @@ in
               "C6: no LUKS device declared (boot.initrd.luks.devices is empty). "
               + "ANSSI recommends full-disk encryption of / or /home."
             )
-            ++ lib.optional (lib.any (s: !(s.randomEncryption.enable or false)) config.swapDevices) (
-              "C6: a swap device has no randomEncryption; enable it in the swap declaration."
-            );
+            ++ lib.optional (lib.any (s: !(s.randomEncryption.enable or false))
+              config.swapDevices
+            ) "C6: a swap device has no randomEncryption; enable it in the swap declaration.";
         })
 
         # C7 — NTS time synchronization (intermediary, base)

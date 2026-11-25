@@ -221,7 +221,7 @@ in
 
           oidc = lib.mkIf hasIdm {
             enable = true;
-            issuerUrl = oidc.issuerUrl;
+            inherit (oidc) issuerUrl;
             inherit clientId;
             redirectUri = "${params.href}${oidcCallbackPath}";
             frontendUrl = params.href;

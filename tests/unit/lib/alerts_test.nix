@@ -228,14 +228,14 @@ in
     expected = 2;
   };
   testNodeDownExpr = {
-    expr = (ruleAt 0 (zoneDoc [ critServer ])).expr;
+    inherit (ruleAt 0 (zoneDoc [ critServer ])) expr;
     expected = ''up{job="node",instance="10.0.0.1:9100"} == 0'';
   };
 
   # ----- mkNetworkRuleGroups -----
-  testNetworkProbeExpr = {
-    expr =
-      (ruleAt 0 (
+  testNetworkProbeExpr =
+    let
+      rule = ruleAt 0 (
         dnfLib.mkNetworkRuleGroups {
           zoneName = "ag";
           probes = [
@@ -247,9 +247,12 @@ in
             }
           ];
         }
-      )).expr;
-    expected = ''probe_success{job="blackbox-icmp",instance="100.64.0.1"} == 0'';
-  };
+      );
+    in
+    {
+      inherit (rule) expr;
+      expected = ''probe_success{job="blackbox-icmp",instance="100.64.0.1"} == 0'';
+    };
   testNetworkEmptyProbes = {
     expr =
       (dnfLib.mkNetworkRuleGroups {
@@ -261,7 +264,7 @@ in
 
   # ----- mkMaintenanceRuleGroups -----
   testMaintenanceExpr = {
-    expr = (ruleAt 0 (dnfLib.mkMaintenanceRuleGroups { zoneName = "ag"; })).expr;
+    inherit (ruleAt 0 (dnfLib.mkMaintenanceRuleGroups { zoneName = "ag"; })) expr;
     expected = "dnf_maintenance == 1";
   };
 
@@ -414,26 +417,29 @@ in
   # Empty denylist (the default): the selector is left untouched, so every failed
   # unit still alerts.
   testSystemdFailedNoDenylist = {
-    expr = (builtins.elemAt (nodeRules [ ]) 1).expr;
+    inherit (builtins.elemAt (nodeRules [ ]) 1) expr;
     expected = ''node_systemd_unit_state{instance="10.0.0.9:9100",state="failed"} == 1'';
   };
 
   # A denylisted unit is excluded by an anchored, regex-escaped `name!~` matcher:
   # `mautrix-telegram.service` is muted, `mautrix-telegramXservice` is not.
   testSystemdFailedDenylistEscaped = {
-    expr = (builtins.elemAt (nodeRules [ "mautrix-telegram.service" ]) 1).expr;
+    inherit (builtins.elemAt (nodeRules [ "mautrix-telegram.service" ]) 1) expr;
     expected = ''node_systemd_unit_state{instance="10.0.0.9:9100",state="failed",name!~"mautrix-telegram\\.service"} == 1'';
   };
 
   # Several units share one alternation matcher.
-  testSystemdFailedDenylistMultiple = {
-    expr =
-      (builtins.elemAt (nodeRules [
+  testSystemdFailedDenylistMultiple =
+    let
+      rule = builtins.elemAt (nodeRules [
         "a.service"
         "b.timer"
-      ]) 1).expr;
-    expected = ''node_systemd_unit_state{instance="10.0.0.9:9100",state="failed",name!~"a\\.service|b\\.timer"} == 1'';
-  };
+      ]) 1;
+    in
+    {
+      inherit (rule) expr;
+      expected = ''node_systemd_unit_state{instance="10.0.0.9:9100",state="failed",name!~"a\\.service|b\\.timer"} == 1'';
+    };
 
   # A failing timer oneshot flaps failed/activating on each run: the alert
   # must outlive a retry instead of resolving and refiring every run.
@@ -444,7 +450,7 @@ in
 
   # The denylist must not leak into the other node rules (NodeDown here).
   testSystemdDenylistDoesNotTouchNodeDown = {
-    expr = (builtins.head (nodeRules [ "mautrix-telegram.service" ])).expr;
+    inherit (builtins.head (nodeRules [ "mautrix-telegram.service" ])) expr;
     expected = ''up{job="node",instance="10.0.0.9:9100"} == 0'';
   };
 
@@ -487,9 +493,9 @@ in
       )).labels.zone;
     expected = "ag";
   };
-  testNetworkInternetExpr = {
-    expr =
-      (ruleAt 0 (
+  testNetworkInternetExpr =
+    let
+      rule = ruleAt 0 (
         dnfLib.mkNetworkRuleGroups {
           zoneName = "ag";
           probes = [
@@ -502,9 +508,12 @@ in
             }
           ];
         }
-      )).expr;
-    expected = ''min by (job) (probe_success{job="blackbox-internet"}) == 0'';
-  };
+      );
+    in
+    {
+      inherit (rule) expr;
+      expected = ''min by (job) (probe_success{job="blackbox-internet"}) == 0'';
+    };
 
   # ----- mkHttpRuleGroups -----
   # Three rules per endpoint: liveness + two cert-expiry thresholds.
@@ -513,7 +522,7 @@ in
     expected = 3;
   };
   testHttpEndpointExpr = {
-    expr = (ruleAt 0 httpDoc).expr;
+    inherit (ruleAt 0 httpDoc) expr;
     expected = ''probe_success{job="blackbox-http",instance="https://git.ag"} == 0'';
   };
 
@@ -522,35 +531,35 @@ in
   # masked by a sibling. `host` too: an aggregation drops every ungrouped label.
   # `or` the declared stamp: a job that never succeeds still ages.
   testResticStaleExpr = {
-    expr = (ruleAt 0 (dnfLib.mkResticRuleGroups { zoneName = "ag"; })).expr;
+    inherit (ruleAt 0 (dnfLib.mkResticRuleGroups { zoneName = "ag"; })) expr;
     expected = "time() - (max by (instance, backup, host) (dnf_restic_last_success_timestamp) or max by (instance, backup, host) (dnf_restic_declared_timestamp)) > 129600";
   };
   testResticCriticalExpr = {
-    expr = (ruleAt 1 (dnfLib.mkResticRuleGroups { zoneName = "ag"; })).expr;
+    inherit (ruleAt 1 (dnfLib.mkResticRuleGroups { zoneName = "ag"; })) expr;
     expected = "time() - (max by (instance, backup, host) (dnf_restic_last_success_timestamp) or max by (instance, backup, host) (dnf_restic_declared_timestamp)) > 604800";
   };
 
   # ----- mkSmartctlRuleGroups -----
   testSmartctlFailingExpr = {
-    expr = (ruleAt 0 (dnfLib.mkSmartctlRuleGroups { zoneName = "ag"; })).expr;
+    inherit (ruleAt 0 (dnfLib.mkSmartctlRuleGroups { zoneName = "ag"; })) expr;
     expected = "smartctl_device_smart_status == 0";
   };
 
   # ----- mkPostfixRuleGroups -----
   testPostfixUpExpr = {
-    expr = (ruleAt 0 (dnfLib.mkPostfixRuleGroups { zoneName = "ag"; })).expr;
+    inherit (ruleAt 0 (dnfLib.mkPostfixRuleGroups { zoneName = "ag"; })) expr;
     expected = "postfix_up == 0";
   };
 
   # ----- mkSynapseRuleGroups -----
   testSynapseRestartExpr = {
-    expr = (ruleAt 0 (dnfLib.mkSynapseRuleGroups { zoneName = "ag"; })).expr;
+    inherit (ruleAt 0 (dnfLib.mkSynapseRuleGroups { zoneName = "ag"; })) expr;
     expected = ''changes(process_start_time_seconds{job="synapse"}[30m]) > 2'';
   };
 
   # ----- mkTailscaleRuleGroups -----
   testTailscaleFlappingExpr = {
-    expr = (ruleAt 0 (dnfLib.mkTailscaleRuleGroups { zoneName = "ag"; })).expr;
+    inherit (ruleAt 0 (dnfLib.mkTailscaleRuleGroups { zoneName = "ag"; })) expr;
     expected = "increase(dnf_tailscale_selfheal_restarts_total[1h]) > 3";
   };
   testTailscaleGroupName = {
@@ -598,11 +607,11 @@ in
 
   # One alert covers the three per-node checks: the regex must name them all.
   testHeadscaleDriftExpr = {
-    expr = (ruleAt 0 (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; })).expr;
+    inherit (ruleAt 0 (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; })) expr;
     expected = ''max by (instance, host, node) ({__name__=~"dnf_headscale_node_(missing|tag_mismatch|ip_drift)"}) == 1'';
   };
   testHeadscaleExpiringExpr = {
-    expr = (ruleAt 4 (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; })).expr;
+    inherit (ruleAt 4 (dnfLib.mkHeadscaleRuleGroups { zoneName = "ag"; })) expr;
     expected = "dnf_headscale_node_expiry_timestamp_seconds - time() < 604800";
   };
 
@@ -629,7 +638,7 @@ in
   };
 
   testSynapseErrorRateGroupsHost = {
-    expr = (ruleAt 1 (dnfLib.mkSynapseRuleGroups { zoneName = "ag"; })).expr;
+    inherit (ruleAt 1 (dnfLib.mkSynapseRuleGroups { zoneName = "ag"; })) expr;
     expected = ''sum by (instance, host) (rate(synapse_http_server_responses_total{job="synapse",code=~"5.."}[15m])) / sum by (instance, host) (rate(synapse_http_server_responses_total{job="synapse"}[15m])) > 0.05'';
   };
 
@@ -638,7 +647,7 @@ in
   # A mount that is read-only by design (optical media) would alert forever:
   # `FilesystemReadOnly` excludes those fstypes on top of the shared selector.
   testFilesystemReadOnlyExcludesByDesignFstypes = {
-    expr = (resourceRule { } "FilesystemReadOnly").expr;
+    inherit (resourceRule { } "FilesystemReadOnly") expr;
     expected = perDev "max" ''${forcedRo}{${fsSel},fstype!~"iso9660|udf|erofs"}'' + " == 1";
   };
 
@@ -652,7 +661,7 @@ in
   # Remote mounts leave every filesystem rule, not just the read-only one: their
   # space is the exporting server's, and it is scraped there.
   testDiskSpaceLowExcludesRemoteMounts = {
-    expr = (resourceRule { } "DiskSpaceLow").expr;
+    inherit (resourceRule { } "DiskSpaceLow") expr;
     expected =
       perDev "min" "100 * node_filesystem_avail_bytes{${fsSel}} / node_filesystem_size_bytes{${fsSel}}"
       + " < 15";
@@ -661,7 +670,7 @@ in
   # Emptying the list puts network shares back under watch, for a NAS that runs
   # no node-exporter of its own.
   testRemoteFstypesOverride = {
-    expr = (resourceRule { remoteFstypes = [ ]; } "InodesLow").expr;
+    inherit (resourceRule { remoteFstypes = [ ]; } "InodesLow") expr;
     expected =
       let
         sel = ''fstype!~"tmpfs|ramfs|overlay|squashfs|fuse.*",mountpoint!~"/(boot|nix/store).*"'';
@@ -672,13 +681,13 @@ in
   # An empty override disarms the exclusion without leaving a dangling, empty
   # fstype matcher behind.
   testFilesystemReadOnlyEmptyExclusion = {
-    expr = (resourceRule { readOnlyByDesignFstypes = [ ]; } "FilesystemReadOnly").expr;
+    inherit (resourceRule { readOnlyByDesignFstypes = [ ]; } "FilesystemReadOnly") expr;
     expected = perDev "max" "${forcedRo}{${fsSel}}" + " == 1";
   };
 
   # Overrides replace the default list (attrset merge), they do not append to it.
   testFilesystemReadOnlyCustomExclusion = {
-    expr = (resourceRule { readOnlyByDesignFstypes = [ "vfat" ]; } "FilesystemReadOnly").expr;
+    inherit (resourceRule { readOnlyByDesignFstypes = [ "vfat" ]; } "FilesystemReadOnly") expr;
     expected = perDev "max" ''${forcedRo}{${fsSel},fstype!~"vfat"}'' + " == 1";
   };
 
@@ -687,7 +696,7 @@ in
   # A btrfs holding `/`, `/nix`, `/home` and `/.swapfile` exports four
   # identical series: unaggregated, one full disk pages four times.
   testDiskSpaceCriticalAggregatesPerDevice = {
-    expr = (resourceRule { } "DiskSpaceCritical").expr;
+    inherit (resourceRule { } "DiskSpaceCritical") expr;
     expected =
       perDev "min" "100 * node_filesystem_avail_bytes{${fsSel}} / node_filesystem_size_bytes{${fsSel}}"
       + " < 5";
@@ -696,7 +705,7 @@ in
   # Both sides of the `and` are aggregated: an unaggregated side still carries
   # `mountpoint` and matches nothing against the aggregated one.
   testDiskWillFillSoonAggregatesBothSides = {
-    expr = (resourceRule { } "DiskWillFillSoon").expr;
+    inherit (resourceRule { } "DiskWillFillSoon") expr;
     expected =
       perDev "min" "predict_linear(node_filesystem_avail_bytes{${fsSel}}[6h], 24*3600)"
       + " < 0 and "

@@ -32,7 +32,7 @@
 }:
 let
   cfg = config.darkone.service.prometheus;
-  alerting = cfg.alerting;
+  inherit (cfg) alerting;
 
   # Matrix alerting config: `admin` stays manual in config.yaml, while `bot`
   # and the room IDs are provisioned by `just configure-alert-bot` into
@@ -638,7 +638,7 @@ in
             [
               (dnfLib.mkAlertRuleGroups {
                 inherit nodes;
-                services = network.services;
+                inherit (network) services;
                 nodeExporterPort = port.nodeExporter;
                 zoneName = zone.name;
                 inherit (alerting) thresholds;
