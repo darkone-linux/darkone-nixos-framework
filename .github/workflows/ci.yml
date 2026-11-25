@@ -73,7 +73,7 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Run unit tests
-        run: nix run nixpkgs#nix-unit -- --flake .#libTests
+        run: nix run --inputs-from . nixpkgs#nix-unit -- --flake .#libTests
 
   # One runner per system, one nix process per output: `nix flake check` keeps
   # every output live, its peak grows with each scenario (11.2 GB per system,
@@ -118,22 +118,25 @@ jobs:
       # Same three tools `just clean` runs locally, so CI and the developer
       # workflow cannot drift. Not `nix develop`: the devShell ends on
       # `exec zsh`, which would swallow the command.
+      #
+      # `--inputs-from .`: tool versions from `flake.lock`. A bare `nixpkgs#`
+      # resolves to the registry's live unstable: new lints land unannounced.
       - name: statix
-        run: nix run nixpkgs#statix -- check .
+        run: nix run --inputs-from . nixpkgs#statix -- check .
 
       - name: deadnix
-        run: nix run nixpkgs#deadnix -- --fail .
+        run: nix run --inputs-from . nixpkgs#deadnix -- --fail .
 
       # Tracked scripts, as `just check-code` lints them.
       - name: shellcheck
-        run: git ls-files -z '*.sh' | xargs -0 -r nix run nixpkgs#shellcheck --
+        run: git ls-files -z '*.sh' | xargs -0 -r nix run --inputs-from . nixpkgs#shellcheck --
 
       - name: treefmt (no diff expected)
         run: |
-          nix shell nixpkgs#treefmt nixpkgs#nixfmt --command \
+          nix shell --inputs-from . nixpkgs#treefmt nixpkgs#nixfmt --command \
             treefmt --config-file assets/treefmt.toml --no-cache --fail-on-change
 
       # Nested `just` calls resolve at runtime only: parse every bootstrap and
       # check each call names a recipe of its own context.
       - name: just recipes
-        run: nix shell nixpkgs#just nixpkgs#jq --command bash just/scripts/check-recipes.sh
+        run: nix shell --inputs-from . nixpkgs#just nixpkgs#jq --command bash just/scripts/check-recipes.sh
