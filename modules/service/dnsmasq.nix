@@ -246,7 +246,7 @@ in
           ]
           ++ [
             "1.1.1.1"
-            "9.9.9.9"
+            "94.140.14.140" # Unfiltered AdGuard DNS; Quad9 refuses French queries
           ];
 
           # Queries for these domains are only answered from /etc/hosts, DHCP
