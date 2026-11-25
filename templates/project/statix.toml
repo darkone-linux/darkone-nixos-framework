@@ -1,0 +1,5 @@
+# statix configuration of the project (`just clean`, `just check-code`).
+
+# `repeated_keys`: `usr/` files group settings by topic, each with its own
+# comment; merging `home.a` and `home.b` under one `home = { }` would split it.
+disabled = ["repeated_keys"]
